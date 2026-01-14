@@ -7,6 +7,7 @@ import (
 
 	"github.com/biwakonbu/zeus/internal/generator"
 	"github.com/biwakonbu/zeus/internal/yaml"
+	"github.com/google/uuid"
 )
 
 // Zeus はメインアプリケーション構造体
@@ -103,6 +104,12 @@ func (z *Zeus) Status() (*StatusResult, error) {
 	}, nil
 }
 
+// generateTaskID はユニークなタスク ID を生成
+// UUID v4 を使用して衝突を防止
+func (z *Zeus) generateTaskID() string {
+	return fmt.Sprintf("task-%s", uuid.New().String()[:8])
+}
+
 // Add はエンティティを追加
 func (z *Zeus) Add(entity, name string) (*AddResult, error) {
 	if entity != "task" {
@@ -114,7 +121,8 @@ func (z *Zeus) Add(entity, name string) (*AddResult, error) {
 		return nil, err
 	}
 
-	id := fmt.Sprintf("task-%d", len(taskStore.Tasks)+1)
+	// UUID ベースの ID 生成（衝突防止）
+	id := z.generateTaskID()
 	now := Now()
 
 	task := Task{

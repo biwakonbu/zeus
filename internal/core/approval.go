@@ -1,10 +1,11 @@
 package core
 
 import (
-	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/biwakonbu/zeus/internal/yaml"
+	"github.com/google/uuid"
 )
 
 // ApprovalStatus は承認ステータス
@@ -24,7 +25,7 @@ type PendingApproval struct {
 	Level       ApprovalLevel  `yaml:"level"`
 	Status      ApprovalStatus `yaml:"status"`
 	EntityID    string         `yaml:"entity_id,omitempty"`
-	Payload     interface{}    `yaml:"payload,omitempty"`
+	Payload     any            `yaml:"payload,omitempty"`
 	CreatedAt   string         `yaml:"created_at"`
 	UpdatedAt   string         `yaml:"updated_at"`
 	ApprovedBy  string         `yaml:"approved_by,omitempty"`
@@ -48,14 +49,23 @@ type ApprovalResult struct {
 type ApprovalManager struct {
 	zeusPath    string
 	fileManager *yaml.FileManager
+	lock        *yaml.FileLock
 }
 
 // NewApprovalManager は新しい ApprovalManager を作成
 func NewApprovalManager(zeusPath string) *ApprovalManager {
+	queuePath := filepath.Join(zeusPath, "approvals", "pending", "queue.yaml")
 	return &ApprovalManager{
 		zeusPath:    zeusPath,
 		fileManager: yaml.NewFileManager(zeusPath),
+		lock:        yaml.NewFileLock(queuePath),
 	}
+}
+
+// generateApprovalID はユニークな承認 ID を生成
+// UUID v4 を使用して衝突を防止
+func (am *ApprovalManager) generateApprovalID() string {
+	return "approval-" + uuid.New().String()[:8]
 }
 
 // GetPending は承認待ちアイテムを取得
@@ -102,14 +112,21 @@ func (am *ApprovalManager) Get(id string) (*PendingApproval, error) {
 	return nil, ErrEntityNotFound
 }
 
-// Create は新しい承認アイテムを作成
-func (am *ApprovalManager) Create(approvalType, description string, level ApprovalLevel, entityID string, payload interface{}) (*PendingApproval, error) {
+// Create は新しい承認アイテムを作成（原子的操作）
+func (am *ApprovalManager) Create(approvalType, description string, level ApprovalLevel, entityID string, payload any) (*PendingApproval, error) {
+	// ロックを取得（タイムアウト: 5秒）
+	if err := am.lock.LockWithTimeout(5 * time.Second); err != nil {
+		return nil, ErrLockAcquireFailed
+	}
+	defer am.lock.Unlock()
+
 	all, err := am.GetAll()
 	if err != nil {
 		return nil, err
 	}
 
-	id := fmt.Sprintf("approval-%d", len(all)+1)
+	// UUID ベースの ID 生成（衝突防止）
+	id := am.generateApprovalID()
 	now := Now()
 
 	approval := PendingApproval{
@@ -137,34 +154,45 @@ func (am *ApprovalManager) Create(approvalType, description string, level Approv
 	return &approval, nil
 }
 
-// Approve は承認アイテムを承認
+// Approve は承認アイテムを承認（原子的操作）
 func (am *ApprovalManager) Approve(id string) (*ApprovalResult, error) {
+	// ロックを取得（タイムアウト: 5秒）
+	if err := am.lock.LockWithTimeout(5 * time.Second); err != nil {
+		return nil, ErrLockAcquireFailed
+	}
+	defer am.lock.Unlock()
+
 	all, err := am.GetAll()
 	if err != nil {
 		return nil, err
 	}
 
 	found := false
+	var approvedItem PendingApproval
 	for i, a := range all {
 		if a.ID == id {
 			if a.Status != ApprovalStatusPending {
-				return nil, fmt.Errorf("approval %s is not pending", id)
+				return nil, &ApprovalNotPendingError{
+					ID:            id,
+					CurrentStatus: a.Status,
+				}
 			}
 			all[i].Status = ApprovalStatusApproved
 			all[i].UpdatedAt = Now()
 			all[i].ApprovedBy = "user"
+			approvedItem = all[i]
 			found = true
-
-			// 承認済みファイルに移動
-			if err := am.moveToApproved(all[i]); err != nil {
-				return nil, err
-			}
 			break
 		}
 	}
 
 	if !found {
 		return nil, ErrEntityNotFound
+	}
+
+	// 承認済みファイルに移動
+	if err := am.moveToApproved(approvedItem); err != nil {
+		return nil, err
 	}
 
 	// 元のキューから削除
@@ -186,35 +214,46 @@ func (am *ApprovalManager) Approve(id string) (*ApprovalResult, error) {
 	}, nil
 }
 
-// Reject は承認アイテムを却下
+// Reject は承認アイテムを却下（原子的操作）
 func (am *ApprovalManager) Reject(id, reason string) (*ApprovalResult, error) {
+	// ロックを取得（タイムアウト: 5秒）
+	if err := am.lock.LockWithTimeout(5 * time.Second); err != nil {
+		return nil, ErrLockAcquireFailed
+	}
+	defer am.lock.Unlock()
+
 	all, err := am.GetAll()
 	if err != nil {
 		return nil, err
 	}
 
 	found := false
+	var rejectedItem PendingApproval
 	for i, a := range all {
 		if a.ID == id {
 			if a.Status != ApprovalStatusPending {
-				return nil, fmt.Errorf("approval %s is not pending", id)
+				return nil, &ApprovalNotPendingError{
+					ID:            id,
+					CurrentStatus: a.Status,
+				}
 			}
 			all[i].Status = ApprovalStatusRejected
 			all[i].UpdatedAt = Now()
 			all[i].RejectedBy = "user"
 			all[i].Reason = reason
+			rejectedItem = all[i]
 			found = true
-
-			// 却下済みファイルに移動
-			if err := am.moveToRejected(all[i]); err != nil {
-				return nil, err
-			}
 			break
 		}
 	}
 
 	if !found {
 		return nil, ErrEntityNotFound
+	}
+
+	// 却下済みファイルに移動
+	if err := am.moveToRejected(rejectedItem); err != nil {
+		return nil, err
 	}
 
 	// 元のキューから削除
@@ -275,7 +314,7 @@ func (am *ApprovalManager) moveToApproved(approval PendingApproval) error {
 		return err
 	}
 
-	filename := fmt.Sprintf("%s.yaml", approval.ID)
+	filename := approval.ID + ".yaml"
 	return am.fileManager.WriteYaml(filepath.Join("approvals/approved", filename), &approval)
 }
 
@@ -285,6 +324,6 @@ func (am *ApprovalManager) moveToRejected(approval PendingApproval) error {
 		return err
 	}
 
-	filename := fmt.Sprintf("%s.yaml", approval.ID)
+	filename := approval.ID + ".yaml"
 	return am.fileManager.WriteYaml(filepath.Join("approvals/rejected", filename), &approval)
 }
