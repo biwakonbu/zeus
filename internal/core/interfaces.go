@@ -3,7 +3,20 @@ package core
 import "context"
 
 // FileStore はファイル操作の抽象化インターフェース
-// テスト時にモック実装に差し替え可能にするための抽象化
+//
+// 実装例:
+//   - yaml.FileManager: 実際のファイルシステム操作
+//   - mocks.MockFileStore: テスト用のインメモリ実装
+//
+// 使用例:
+//
+//	zeus := core.NewZeus(".", core.WithFileStore(myFileStore))
+//
+// テストでのモック注入例:
+//
+//	mockFS := mocks.NewMockFileStore()
+//	zeus := core.NewZeus(".", core.WithFileStore(mockFS))
+//	result, err := zeus.Init(ctx, "simple")
 type FileStore interface {
 	// Exists はファイルが存在するか確認
 	Exists(ctx context.Context, path string) bool
@@ -37,6 +50,20 @@ type FileStore interface {
 }
 
 // StateStore は状態管理の抽象化インターフェース
+//
+// 実装例:
+//   - StateManager: 実際の状態管理実装
+//   - mocks.MockStateStore: テスト用のインメモリ実装
+//
+// 使用例:
+//
+//	zeus := core.NewZeus(".", core.WithStateStore(myStateStore))
+//
+// テストでのモック注入例:
+//
+//	mockState := mocks.NewMockStateStore()
+//	zeus := core.NewZeus(".", core.WithStateStore(mockState))
+//	result, err := zeus.Status(ctx)
 type StateStore interface {
 	// GetCurrentState は現在の状態を取得
 	GetCurrentState(ctx context.Context) (*ProjectState, error)
@@ -61,6 +88,20 @@ type StateStore interface {
 }
 
 // ApprovalStore は承認管理の抽象化インターフェース
+//
+// 実装例:
+//   - ApprovalManager: 実際の承認管理実装
+//   - mocks.MockApprovalStore: テスト用のインメモリ実装
+//
+// 使用例:
+//
+//	zeus := core.NewZeus(".", core.WithApprovalStore(myApprovalStore))
+//
+// テストでのモック注入例:
+//
+//	mockApproval := mocks.NewMockApprovalStore()
+//	zeus := core.NewZeus(".", core.WithApprovalStore(mockApproval))
+//	approvals, err := zeus.Pending(ctx)
 type ApprovalStore interface {
 	// GetPending は承認待ちアイテムを取得
 	GetPending(ctx context.Context) ([]PendingApproval, error)

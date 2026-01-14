@@ -46,7 +46,7 @@ make install
 ```
 zeus/
 ├── cmd/                      # Cobra コマンド
-│   ├── root.go               # ルートコマンド
+│   ├── root.go               # ルートコマンド（DI対応）
 │   ├── init.go               # zeus init
 │   ├── status.go             # zeus status
 │   ├── pending.go            # zeus pending
@@ -57,19 +57,24 @@ zeus/
 │   └── ...
 ├── internal/                 # 内部パッケージ
 │   ├── core/                 # コアロジック
-│   │   ├── zeus.go           # メインロジック
+│   │   ├── zeus.go           # メインロジック（DI対応）
+│   │   ├── interfaces.go     # FileStore, StateStore, ApprovalStore インターフェース
+│   │   ├── entity.go         # EntityHandler, EntityRegistry
+│   │   ├── task_handler.go   # タスクエンティティハンドラー
 │   │   ├── types.go          # 型定義
-│   │   ├── state.go          # 状態・スナップショット管理
-│   │   ├── approval.go       # 3段階承認システム
-│   │   └── errors.go         # エラー定義
+│   │   ├── state.go          # 状態・スナップショット管理（Context対応）
+│   │   ├── approval.go       # 3段階承認システム（Context対応）
+│   │   ├── errors.go         # エラー定義
+│   │   └── mocks/            # テスト用モック
+│   │       └── mock_file_store.go
 │   ├── yaml/                 # YAML 操作
 │   │   ├── parser.go
 │   │   ├── writer.go
-│   │   ├── file_manager.go   # パス検証・セキュリティ
+│   │   ├── file_manager.go   # パス検証・セキュリティ（Context対応）
 │   │   └── filelock.go       # ファイルロック機構
-│   ├── doctor/               # 診断・修復
+│   ├── doctor/               # 診断・修復（Context対応）
 │   │   └── doctor.go
-│   └── generator/            # Claude Code 連携ファイル生成
+│   └── generator/            # Claude Code 連携ファイル生成（Context対応）
 │       └── generator.go
 ├── main.go
 ├── go.mod
@@ -85,6 +90,31 @@ zeus/
 | Zeus | メインロジック、プロジェクト初期化、コマンド実行 |
 | StateManager | 状態スナップショット管理、履歴追跡 |
 | ApprovalManager | 3段階承認フロー (auto/notify/approve)、ファイルロック |
+| TaskHandler | タスクエンティティの CRUD 操作 |
+| EntityRegistry | エンティティハンドラーの登録・取得 |
+
+### DI パターン
+
+Zeus は Option パターンによる依存性注入をサポート:
+
+```go
+// 本番環境
+z := core.New(projectPath)
+
+// テスト環境（モック注入）
+z := core.New(projectPath,
+    core.WithFileStore(mockFS),
+    core.WithStateStore(mockSS),
+    core.WithApprovalStore(mockAS),
+)
+```
+
+### Context 対応
+
+全ての公開 API が `context.Context` を第一引数として受け取る:
+- タイムアウト制御
+- キャンセル伝播
+- 非同期処理のコントロール
 
 ### セキュリティ対策
 
@@ -114,10 +144,12 @@ zeus init 実行後、ターゲットプロジェクトに生成される構造:
 └── backups/               # 自動バックアップ
 ```
 
-### Claude Code 連携
+### Claude Code 連携（Phase 3 で実装予定）
 
-zeus init --level=standard/advanced は .claude/ ディレクトリも生成:
+現時点では Zeus CLI と Claude Code の連携方法が未定義のため、.claude/ ディレクトリ生成は無効化されています。
+Phase 3 で適切な連携設計を行った上で有効化予定です。
 
+**Phase 3 で生成予定の構造:**
 ```
 .claude/
 ├── agents/                # Zeus 用エージェント
@@ -130,14 +162,21 @@ zeus init --level=standard/advanced は .claude/ ディレクトリも生成:
     └── zeus-risk-analysis/SKILL.md
 ```
 
+**設計方針:**
+- Zeus CLI はスタンドアロンで動作（外部依存なし）
+- Claude Code との連携は Plugin として別途実装
+- AI 提案は現在ルールベース、Phase 3 で AI ベースに拡張
+
 ## 実装フェーズ
 
 | Phase | 内容 | 状態 |
 |-------|------|------|
 | **Phase 1 (MVP)** | init, status, add, list, doctor, fix | 完了 |
-| **Phase 2 (Standard)** | pending, approve, reject, snapshot, history, Claude Code 連携 | 完了 |
+| **Phase 2 (Standard)** | pending, approve, reject, snapshot, history | 完了 |
 | **Phase 2.5 (Security)** | パス検証、UUID ID、ファイルロック | 完了 |
-| **Phase 3 (AI統合)** | suggest, apply, explain | 未実装 |
+| **Phase 2.6 (DI/Context)** | DI対応、Context対応、テスト強化 | 完了 |
+| **Phase 2.7 (Suggest)** | suggest, apply (ルールベース提案) | 完了 |
+| **Phase 3 (AI統合)** | Claude Code 連携、AI 提案、explain | 未実装 |
 
 ## ドキュメント
 
@@ -147,7 +186,7 @@ zeus init --level=standard/advanced は .claude/ ディレクトリも生成:
 
 ## 現在の状態
 
-**Phase 2.5 (Security) 完了** - 2026-01-14
+**Phase 2.7 (Suggest) 完了** - 2026-01-15
 
 ### 実装済みコマンド
 
@@ -168,6 +207,11 @@ zeus snapshot create [label]                    # スナップショット作成
 zeus snapshot list [-n limit]                   # スナップショット一覧
 zeus snapshot restore <timestamp>               # スナップショットから復元
 zeus history [-n limit]                         # プロジェクト履歴表示
+
+# Phase 2.7 (Suggest)
+zeus suggest [--limit N] [--impact high|medium|low]  # 提案生成（ルールベース）
+zeus apply <suggestion-id>                      # 提案適用
+zeus apply --all [--dry-run]                    # 全提案適用
 ```
 
 ### 承認レベル
@@ -180,7 +224,36 @@ zeus history [-n limit]                         # プロジェクト履歴表示
 | notify | 通知のみ | 中リスク操作、ログ記録して実行 |
 | approve | 明示的承認必要 | 高リスク操作、承認待ちキューに追加 |
 
+**現在の実装状態:**
+- Simple レベル: 全操作が auto（承認フローなし）
+- Standard/Advanced: 承認基盤は実装済み、Add との連携は Phase 3 で実装予定
+- 手動で `zeus approve/reject` コマンドは使用可能
+
+### テスト
+
+```bash
+# 全テスト実行
+go test ./...
+
+# 詳細出力
+go test -v ./internal/core/...
+
+# カバレッジ計測
+go test -cover ./...
+```
+
+テストカテゴリ:
+- DI テスト: モック注入の検証
+- Context タイムアウトテスト: キャンセル処理の検証
+- 統合テスト: Init から List までのフロー
+- TaskHandler 単体テスト: CRUD 操作の検証
+
 ### 次のステップ
 
-- Phase 3: AI 提案機能 (suggest, apply, explain)
-- テストカバレッジの向上
+- Phase 3: AI 統合
+  - Claude Code との連携設計・実装
+  - AI ベースの提案機能（現在はルールベース）
+  - explain コマンドの実装
+  - Add コマンドと承認フローの連携
+- E2E テストの整備
+- テストカバレッジ 80% 達成

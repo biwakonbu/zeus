@@ -155,7 +155,13 @@ func (g *Generator) EnsureClaudeDir() error {
 
 // Agent Templates
 
-const orchestratorTemplate = `# Zeus Orchestrator Agent
+const orchestratorTemplate = `---
+description: Zeus プロジェクト管理を統括するオーケストレーター
+tools: [Bash, Read, Write, Glob, Grep]
+model: sonnet
+---
+
+# Zeus Orchestrator Agent
 
 このエージェントは Zeus プロジェクト（{{.ProjectName}}）のオーケストレーターとして機能します。
 
@@ -185,7 +191,13 @@ const orchestratorTemplate = `# Zeus Orchestrator Agent
 - @zeus-risk-analysis - リスク分析
 `
 
-const plannerTemplate = `# Zeus Planner Agent
+const plannerTemplate = `---
+description: Zeus プロジェクトの計画立案エージェント
+tools: [Bash, Read, Write, Glob]
+model: sonnet
+---
+
+# Zeus Planner Agent
 
 このエージェントは Zeus プロジェクト（{{.ProjectName}}）の計画立案を担当します。
 
@@ -218,7 +230,13 @@ tasks:
 ` + "```" + `
 `
 
-const reviewerTemplate = `# Zeus Reviewer Agent
+const reviewerTemplate = `---
+description: Zeus プロジェクトのレビュー・品質管理エージェント
+tools: [Bash, Read, Glob, Grep]
+model: sonnet
+---
+
+# Zeus Reviewer Agent
 
 このエージェントは Zeus プロジェクト（{{.ProjectName}}）のレビューを担当します。
 
@@ -250,7 +268,11 @@ const reviewerTemplate = `# Zeus Reviewer Agent
 
 // Skill Templates
 
-const projectScanTemplate = `# zeus-project-scan
+const projectScanTemplate = `---
+description: プロジェクト全体をスキャンし、現在の状態を分析するスキル
+---
+
+# zeus-project-scan
 
 プロジェクト全体をスキャンし、現在の状態を分析するスキル。
 
@@ -288,7 +310,11 @@ project:
 - zeus-risk-analysis
 `
 
-const taskSuggestTemplate = `# zeus-task-suggest
+const taskSuggestTemplate = `---
+description: 現在の状態に基づいてタスクを提案するスキル
+---
+
+# zeus-task-suggest
 
 現在の状態に基づいてタスクを提案するスキル。
 
@@ -327,7 +353,11 @@ suggestions:
 提案は ` + "`zeus pending`" + ` で確認し、` + "`zeus approve <id>`" + ` で適用します。
 `
 
-const riskAnalysisTemplate = `# zeus-risk-analysis
+const riskAnalysisTemplate = `---
+description: プロジェクトのリスクを分析し、対策を提案するスキル
+---
+
+# zeus-risk-analysis
 
 プロジェクトのリスクを分析するスキル。
 

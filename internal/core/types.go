@@ -1,6 +1,9 @@
 package core
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // ZeusConfig はメイン設定
 type ZeusConfig struct {
@@ -142,4 +145,133 @@ func Now() string {
 // Today は今日の日付を返す
 func Today() string {
 	return time.Now().Format("2006-01-02")
+}
+
+// SuggestionType は提案タイプ
+type SuggestionType string
+
+const (
+	SuggestionNewTask        SuggestionType = "new_task"
+	SuggestionPriorityChange SuggestionType = "priority_change"
+	SuggestionDependency     SuggestionType = "dependency"
+	SuggestionRiskMitigation SuggestionType = "risk_mitigation"
+)
+
+// SuggestionImpact は提案の影響度
+type SuggestionImpact string
+
+const (
+	ImpactHigh   SuggestionImpact = "high"
+	ImpactMedium SuggestionImpact = "medium"
+	ImpactLow    SuggestionImpact = "low"
+)
+
+// SuggestionStatus は提案ステータス
+type SuggestionStatus string
+
+const (
+	SuggestionPending  SuggestionStatus = "pending"
+	SuggestionApplied  SuggestionStatus = "applied"
+	SuggestionRejected SuggestionStatus = "rejected"
+)
+
+// Suggestion はAI提案
+type Suggestion struct {
+	ID          string           `yaml:"id"`
+	Type        SuggestionType   `yaml:"type"`
+	Description string           `yaml:"description"`
+	Rationale   string           `yaml:"rationale"`
+	Impact      SuggestionImpact `yaml:"impact"`
+	Status      SuggestionStatus `yaml:"status"`
+	CreatedAt   string           `yaml:"created_at"`
+	UpdatedAt   string           `yaml:"updated_at,omitempty"`
+	// タイプ固有のデータ
+	TargetTaskID string   `yaml:"target_task_id,omitempty"` // priority_change, dependency用
+	NewPriority  string   `yaml:"new_priority,omitempty"`   // priority_change用
+	Dependencies []string `yaml:"dependencies,omitempty"`   // dependency用
+	TaskData     *Task    `yaml:"task_data,omitempty"`      // new_task用
+}
+
+// SuggestionStore は提案ストア
+type SuggestionStore struct {
+	Suggestions []Suggestion `yaml:"suggestions"`
+}
+
+// ApplyResult は提案適用結果
+type ApplyResult struct {
+	Applied       int
+	Skipped       int
+	Failed        int
+	AppliedIDs    []string
+	FailedIDs     []string
+	CreatedTaskID string
+}
+
+// Validate は Task の妥当性を検証
+func (t *Task) Validate() error {
+	if t.ID == "" {
+		return fmt.Errorf("task ID is required")
+	}
+	if t.Title == "" {
+		return fmt.Errorf("task title is required")
+	}
+	if t.Status == "" {
+		return fmt.Errorf("task status is required")
+	}
+	if t.EstimateHours < 0 {
+		return fmt.Errorf("estimate_hours must be non-negative, got %f", t.EstimateHours)
+	}
+	if t.ActualHours < 0 {
+		return fmt.Errorf("actual_hours must be non-negative, got %f", t.ActualHours)
+	}
+	if t.ApprovalLevel != "" &&
+		t.ApprovalLevel != ApprovalAuto &&
+		t.ApprovalLevel != ApprovalNotify &&
+		t.ApprovalLevel != ApprovalApprove {
+		return fmt.Errorf("invalid approval level: %s", t.ApprovalLevel)
+	}
+	return nil
+}
+
+// Validate は Suggestion の妥当性を検証
+func (s *Suggestion) Validate() error {
+	if s.ID == "" {
+		return fmt.Errorf("suggestion ID is required")
+	}
+	if s.Description == "" {
+		return fmt.Errorf("suggestion description is required")
+	}
+	if s.Impact == "" {
+		return fmt.Errorf("suggestion impact is required")
+	}
+
+	switch s.Type {
+	case SuggestionNewTask:
+		if s.TaskData == nil {
+			return fmt.Errorf("new_task suggestion must have TaskData")
+		}
+		if err := s.TaskData.Validate(); err != nil {
+			return fmt.Errorf("invalid task data: %w", err)
+		}
+	case SuggestionPriorityChange:
+		if s.TargetTaskID == "" {
+			return fmt.Errorf("priority_change suggestion must have TargetTaskID")
+		}
+		if s.NewPriority == "" {
+			return fmt.Errorf("priority_change suggestion must have NewPriority")
+		}
+	case SuggestionDependency:
+		if s.TargetTaskID == "" {
+			return fmt.Errorf("dependency suggestion must have TargetTaskID")
+		}
+		if len(s.Dependencies) == 0 {
+			return fmt.Errorf("dependency suggestion must have at least one dependency")
+		}
+	case SuggestionRiskMitigation:
+		// リスク対策は追加検証不要
+	default:
+		return fmt.Errorf("unknown suggestion type: %s", s.Type)
+	}
+
+	return nil
 }

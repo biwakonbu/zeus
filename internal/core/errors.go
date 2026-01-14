@@ -17,6 +17,16 @@ var (
 	ErrEntityNotFound = errors.New("entity not found")
 	// ErrUnknownEntity は不明なエンティティ
 	ErrUnknownEntity = errors.New("unknown entity type")
+	// ErrInitFailed は初期化失敗
+	ErrInitFailed = errors.New("initialization failed")
+	// ErrTaskNotFound はタスクが見つからない
+	ErrTaskNotFound = errors.New("task not found")
+	// ErrInvalidState は不正な状態
+	ErrInvalidState = errors.New("invalid state")
+	// ErrApprovalNotFound は承認が見つからない
+	ErrApprovalNotFound = errors.New("approval not found")
+	// ErrSuggestionNotFound は提案が見つからない
+	ErrSuggestionNotFound = errors.New("suggestion not found")
 )
 
 // セキュリティ関連エラー

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/biwakonbu/zeus/internal/generator"
+	// "github.com/biwakonbu/zeus/internal/generator" // Phase 3 で有効化
 	"github.com/biwakonbu/zeus/internal/yaml"
 	"github.com/google/uuid"
 )
@@ -128,14 +128,16 @@ func (z *Zeus) Init(ctx context.Context, level string) (*InitResult, error) {
 		return nil, err
 	}
 
-	// Claude Code 連携ファイルを生成（standard/advanced レベルの場合）
-	if level == "standard" || level == "advanced" {
-		gen := generator.NewGenerator(z.ProjectPath)
-		if err := gen.GenerateAll(ctx, config.Project.Name, level); err != nil {
-			// 生成に失敗しても初期化は続行
-			fmt.Printf("Warning: Failed to generate Claude Code files: %v\n", err)
-		}
-	}
+	// Phase 3: Claude Code 連携
+	// 現時点では Zeus CLI と Claude Code の連携方法が未定義のため無効化
+	// Phase 3 で適切な連携設計を行った上で有効化する
+	// if level == "standard" || level == "advanced" {
+	// 	gen := generator.NewGenerator(z.ProjectPath)
+	// 	if err := gen.GenerateAll(ctx, config.Project.Name, level); err != nil {
+	// 		fmt.Printf("Warning: Failed to generate Claude Code files: %v\n", err)
+	// 	}
+	// }
+	_ = level // unused warning 回避（Phase 3 で使用予定）
 
 	return &InitResult{
 		Success:    true,
@@ -330,4 +332,250 @@ func (z *Zeus) updateState(ctx context.Context) error {
 
 	state := z.stateStore.CalculateState(taskStore.Tasks)
 	return z.stateStore.SaveCurrentState(ctx, state)
+}
+
+// GenerateSuggestions はAI提案を生成
+// 注意: 現在はルールベースの簡易実装。Phase 3 で Claude Code AI 統合予定。
+func (z *Zeus) GenerateSuggestions(ctx context.Context, status *StatusResult, limit int, impactFilter string) ([]Suggestion, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	suggestions := []Suggestion{}
+
+	// プロジェクト状態を分析（status から統計を取得可能な場合は再利用）
+	pendingTasks := status.State.Summary.Pending
+	blockedTasks := 0
+
+	// ブロックされたタスク数はstateに含まれていないため、別途取得
+	var taskStore TaskStore
+	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err == nil {
+		for _, task := range taskStore.Tasks {
+			if task.Status == TaskStatusBlocked {
+				blockedTasks++
+			}
+		}
+	}
+
+	// ブロックされたタスクがある場合、リスク対策を提案
+	if blockedTasks > 0 && (impactFilter == "" || impactFilter == "high") {
+		suggestions = append(suggestions, Suggestion{
+			ID:          fmt.Sprintf("sugg-%s", uuid.New().String()[:8]),
+			Type:        SuggestionRiskMitigation,
+			Description: fmt.Sprintf("%d件のブロックされたタスクを解決する必要があります", blockedTasks),
+			Rationale:   "ブロックされたタスクはプロジェクト全体の進行を妨げます",
+			Impact:      ImpactHigh,
+			Status:      SuggestionPending,
+			CreatedAt:   Now(),
+		})
+	}
+
+	// 保留中のタスクが多い場合、優先順位付けを提案
+	if pendingTasks > 5 && (impactFilter == "" || impactFilter == "medium") {
+		suggestions = append(suggestions, Suggestion{
+			ID:          fmt.Sprintf("sugg-%s", uuid.New().String()[:8]),
+			Type:        SuggestionPriorityChange,
+			Description: "保留中のタスクが多いため、優先順位を明確にしましょう",
+			Rationale:   fmt.Sprintf("%d件のタスクが保留中です", pendingTasks),
+			Impact:      ImpactMedium,
+			Status:      SuggestionPending,
+			CreatedAt:   Now(),
+		})
+	}
+
+	// limit を適用
+	if len(suggestions) > limit {
+		suggestions = suggestions[:limit]
+	}
+
+	// 提案を保存
+	if len(suggestions) > 0 {
+		if err := z.saveSuggestions(ctx, suggestions); err != nil {
+			return nil, fmt.Errorf("提案の保存に失敗しました: %w", err)
+		}
+	}
+
+	return suggestions, nil
+}
+
+// ApplySuggestion は提案を適用
+// 部分的な成功をサポート: 一部の提案が失敗しても、成功した分は適用される
+func (z *Zeus) ApplySuggestion(ctx context.Context, suggestionID string, applyAll bool, dryRun bool) (*ApplyResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	result := &ApplyResult{
+		AppliedIDs: []string{},
+		FailedIDs:  []string{},
+	}
+
+	// 提案を読み込み
+	var store SuggestionStore
+	if err := z.fileStore.ReadYaml(ctx, "suggestions/active.yaml", &store); err != nil {
+		if !z.fileStore.Exists(ctx, "suggestions/active.yaml") {
+			return nil, fmt.Errorf("提案がまだ生成されていません。zeus suggest を実行してください")
+		}
+		return nil, fmt.Errorf("提案の読み込み失敗: %w", err)
+	}
+
+	// 引数検証: --all と提案ID の両方が指定された場合
+	if applyAll && suggestionID != "" {
+		return nil, fmt.Errorf("--all フラグと提案IDを同時に指定することはできません")
+	}
+
+	// 適用対象を特定
+	toApply := []int{} // ストア内のインデックスを保持
+	if applyAll {
+		for i, s := range store.Suggestions {
+			if s.Status == SuggestionPending {
+				toApply = append(toApply, i)
+			}
+		}
+	} else {
+		found := false
+		for i, s := range store.Suggestions {
+			if s.ID == suggestionID {
+				toApply = append(toApply, i)
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("提案 %s が見つかりません", suggestionID)
+		}
+	}
+
+	// Dry-run モード: 検証のみ
+	if dryRun {
+		for _, idx := range toApply {
+			suggestion := &store.Suggestions[idx]
+			if suggestion.Status != SuggestionPending {
+				result.Skipped++
+				continue
+			}
+			result.Applied++
+			result.AppliedIDs = append(result.AppliedIDs, suggestion.ID)
+		}
+		return result, nil
+	}
+
+	// 適用実行: 部分的な成功をサポート
+	for _, idx := range toApply {
+		suggestion := &store.Suggestions[idx]
+		if suggestion.Status != SuggestionPending {
+			result.Skipped++
+			continue
+		}
+
+		// 提案の検証
+		if err := suggestion.Validate(); err != nil {
+			result.Failed++
+			result.FailedIDs = append(result.FailedIDs, suggestion.ID)
+			continue
+		}
+
+		// 適用実行
+		if err := z.applySuggestion(ctx, suggestion); err != nil {
+			// エラーをログに記録するが、他の提案の適用は続行
+			result.Failed++
+			result.FailedIDs = append(result.FailedIDs, suggestion.ID)
+			continue
+		}
+
+		// 成功: ステータスを更新
+		store.Suggestions[idx].Status = SuggestionApplied
+		store.Suggestions[idx].UpdatedAt = Now()
+
+		if suggestion.Type == SuggestionNewTask && suggestion.TaskData != nil {
+			result.CreatedTaskID = suggestion.TaskData.ID
+		}
+
+		result.Applied++
+		result.AppliedIDs = append(result.AppliedIDs, suggestion.ID)
+	}
+
+	// 成功した提案がある場合、ストアを保存
+	if result.Applied > 0 {
+		if err := z.fileStore.WriteYaml(ctx, "suggestions/active.yaml", &store); err != nil {
+			return result, fmt.Errorf("提案は適用されましたが、ストア保存に失敗しました: %w", err)
+		}
+	}
+
+	return result, nil
+}
+
+// saveSuggestions は提案を保存
+// ディレクトリ作成を先に行い、既存提案を適切に読み込む
+func (z *Zeus) saveSuggestions(ctx context.Context, suggestions []Suggestion) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	// ディレクトリを先に確保
+	if err := z.fileStore.EnsureDir(ctx, "suggestions"); err != nil {
+		return fmt.Errorf("提案ディレクトリの作成に失敗しました: %w", err)
+	}
+
+	// 既存の提案を読み込む（ファイルが存在する場合のみ）
+	var store SuggestionStore
+	if z.fileStore.Exists(ctx, "suggestions/active.yaml") {
+		if err := z.fileStore.ReadYaml(ctx, "suggestions/active.yaml", &store); err != nil {
+			return fmt.Errorf("既存の提案の読み込みに失敗しました: %w", err)
+		}
+	}
+
+	// 新しい提案を追加
+	store.Suggestions = append(store.Suggestions, suggestions...)
+
+	// 保存
+	if err := z.fileStore.WriteYaml(ctx, "suggestions/active.yaml", &store); err != nil {
+		return fmt.Errorf("提案の保存に失敗しました: %w", err)
+	}
+
+	return nil
+}
+
+// applySuggestion は個別の提案を適用
+func (z *Zeus) applySuggestion(ctx context.Context, suggestion *Suggestion) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	switch suggestion.Type {
+	case SuggestionNewTask:
+		if suggestion.TaskData == nil {
+			return fmt.Errorf("new_task タイプの提案にタスクデータがありません")
+		}
+		// タスクデータを検証
+		if err := suggestion.TaskData.Validate(); err != nil {
+			return fmt.Errorf("タスクデータが無効です: %w", err)
+		}
+		// タスクを追加
+		var taskStore TaskStore
+		if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+			return fmt.Errorf("タスクストアの読み込みに失敗しました: %w", err)
+		}
+		taskStore.Tasks = append(taskStore.Tasks, *suggestion.TaskData)
+		if err := z.fileStore.WriteYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+			return fmt.Errorf("タスクストアの保存に失敗しました: %w", err)
+		}
+		return nil
+
+	case SuggestionPriorityChange:
+		// Phase 3 で実装予定
+		return fmt.Errorf("priority_change タイプは Phase 3 で実装予定です")
+
+	case SuggestionDependency:
+		// Phase 3 で実装予定
+		return fmt.Errorf("dependency タイプは Phase 3 で実装予定です")
+
+	case SuggestionRiskMitigation:
+		// リスク対策は情報提供のみ（タスク変更なし）
+		// ユーザーへの警告として機能し、適用済みとしてマークされる
+		return nil
+
+	default:
+		return fmt.Errorf("不明な提案タイプ: %s", suggestion.Type)
+	}
 }

@@ -2,8 +2,39 @@ package core
 
 import "context"
 
-// EntityHandler はエンティティの操作を定義するインターフェース
-// 新しいエンティティタイプを追加する場合は、このインターフェースを実装する
+// EntityHandler はエンティティの CRUD 操作を定義するインターフェース
+//
+// 新エンティティの追加手順:
+//  1. EntityHandler インターフェースを実装
+//  2. NewZeus() で EntityRegistry に登録
+//  3. cmd/ に対応するコマンドを追加（オプショナル）
+//
+// 実装例 (IssueHandler):
+//
+//	type IssueHandler struct {
+//	    fileStore core.FileStore
+//	}
+//
+//	func NewIssueHandler(fs core.FileStore) *IssueHandler {
+//	    return &IssueHandler{fileStore: fs}
+//	}
+//
+//	func (h *IssueHandler) Type() string {
+//	    return "issue"
+//	}
+//
+//	func (h *IssueHandler) Add(ctx context.Context, name string, opts ...EntityOption) (*AddResult, error) {
+//	    // Issue 固有のロジック
+//	    return &AddResult{Success: true, ID: "issue-1", Entity: "issue"}, nil
+//	}
+//
+//	// ... 他のメソッド実装 ...
+//
+// 登録例 (NewZeus内):
+//
+//	registry := NewEntityRegistry()
+//	registry.Register(NewTaskHandler(z.fileStore))
+//	registry.Register(NewIssueHandler(z.fileStore))
 type EntityHandler interface {
 	// Type はエンティティタイプを返す（例: "task", "objective", "milestone"）
 	Type() string
@@ -25,17 +56,43 @@ type EntityHandler interface {
 }
 
 // EntityOption はエンティティ作成時のオプション
+//
+// 使用例:
+//
+//	result, err := handler.Add(ctx, "Task Name",
+//	    WithPriority("high"),
+//	    WithAssignee("alice"),
+//	)
 type EntityOption func(any)
 
-// ListFilter はリストフィルタ
+// ListFilter はリストフィルタリング条件
+//
+// 使用例:
+//
+//	filter := &ListFilter{
+//	    Status: "active",
+//	    Limit:  10,
+//	    Offset: 0,
+//	}
+//	result, err := handler.List(ctx, filter)
 type ListFilter struct {
-	Status string // ステータスでフィルタ
-	Limit  int    // 最大件数
-	Offset int    // オフセット
+	Status string // ステータスでフィルタ（"active", "completed" など）
+	Limit  int    // 取得件数上限（0 = 無制限）
+	Offset int    // 取得開始位置
 }
 
 // EntityRegistry はエンティティハンドラーを管理するレジストリ
-// 新しいエンティティハンドラーを登録することで、拡張可能
+//
+// 使用例:
+//
+//	registry := NewEntityRegistry()
+//	registry.Register(NewTaskHandler(fileStore))
+//
+//	handler, ok := registry.Get("task")
+//	if !ok {
+//	    return fmt.Errorf("unknown entity type: task")
+//	}
+//	result, err := handler.Add(ctx, "New Task")
 type EntityRegistry struct {
 	handlers map[string]EntityHandler
 }

@@ -290,23 +290,29 @@ export async function projectScan(context) {
 
 ## 9. 実装優先順位
 
-### 9.1 Phase 1（MVP）
+### 9.1 Phase 1（MVP）- 完了
 1. zeus.yaml構造定義
 2. 基本CLIコマンド（init, status, add, list）
-3. 単純な承認フロー
-4. doctor/fix機能
+3. doctor/fix機能
 
-### 9.2 Phase 2（標準機能）
-1. 3段階承認レベル
-2. フィードバックシステム
-3. ロール別ビュー
-4. 分析機能
+### 9.2 Phase 2（標準機能）- 完了
+1. 3段階承認レベル（pending, approve, reject）
+2. スナップショット・履歴管理
+3. セキュリティ強化（パス検証、UUID、ファイルロック）
+4. DI/Context対応（テスタビリティ向上）
 
-### 9.3 Phase 3（高度機能）
-1. 依存関係グラフ
-2. 予測分析
-3. 外部システム連携
-4. 適応型自動化
+### 9.3 Phase 2.7（提案機能）- 完了
+1. suggest コマンド（ルールベース提案）
+2. apply コマンド（提案適用）
+3. 影響度フィルタリング
+
+### 9.4 Phase 3（AI統合）- 未実装
+1. Claude Code 連携設計・実装
+2. AI ベースの提案機能
+3. explain コマンド
+4. Add コマンドと承認フローの連携
+5. 依存関係グラフ
+6. 予測分析
 
 ## 10. 設計決定の根拠
 
