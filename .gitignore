@@ -1,2 +1,8 @@
 .agbullet
 .round
+zeus
+*.exe
+.zeus/backups/
+.zeus/.local/
+*.log
+.DS_Store

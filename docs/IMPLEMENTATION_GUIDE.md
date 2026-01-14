@@ -1,597 +1,652 @@
-# Zeus 実装ガイド
+# Zeus 実装ガイド（Go版）
 
 ## 1. はじめに
 
-このガイドでは、Zeus システムをClaude Code Pluginとして実装する手順を説明します。
+このガイドでは、Zeus システムを Go + Cobra で実装する手順を説明します。
 
-## 2. プロジェクト構造
+## 2. 技術スタック
 
-### 2.1 ディレクトリ構成
+| 項目 | 選定 |
+|------|------|
+| 実装言語 | Go 1.21+ |
+| CLIフレームワーク | Cobra |
+| データ形式 | YAML（gopkg.in/yaml.v3） |
+| AI接続 | Claude Code 経由 |
+| 配布形式 | スタンドアロン CLI + Claude Code Plugin |
+
+## 3. プロジェクト構造
+
+### 3.1 Zeus CLI ソースコード構造
+
 ```
-zeus-plugin/
-├── plugin.json              # プラグイン定義
-├── package.json             # Node.js依存関係
-├── README.md                # プラグイン説明
+zeus/
+├── cmd/                      # Cobra コマンド
+│   ├── root.go               # ルートコマンド
+│   ├── init.go               # zeus init
+│   ├── status.go             # zeus status
+│   ├── add.go                # zeus add
+│   ├── list.go               # zeus list
+│   ├── suggest.go            # zeus suggest
+│   ├── apply.go              # zeus apply
+│   ├── approve.go            # zeus approve/reject
+│   ├── pending.go            # zeus pending
+│   ├── doctor.go             # zeus doctor
+│   └── fix.go                # zeus fix
 │
-├── commands/                # スラッシュコマンド
-│   ├── init.md              # /zeus-init
-│   ├── status.md            # /zeus-status
-│   └── suggest.md           # /zeus-suggest
+├── internal/                 # 内部パッケージ
+│   ├── core/                 # コア機能
+│   │   ├── zeus.go           # メインロジック
+│   │   ├── state.go          # 状態管理
+│   │   └── approval.go       # 承認管理
+│   ├── yaml/                 # YAML操作
+│   │   ├── parser.go
+│   │   └── writer.go
+│   ├── doctor/               # 診断・修復
+│   │   └── doctor.go
+│   └── generator/            # Claude Code 連携ファイル生成
+│       ├── agents.go         # agent テンプレート生成
+│       └── skills.go         # skill テンプレート生成
 │
-├── skills/                  # Agent Skills
-│   ├── project-scan/        # プロジェクトスキャン
-│   │   ├── skill.js
-│   │   └── SKILL.md
-│   ├── task-suggest/        # タスク提案
-│   │   ├── skill.js
-│   │   └── SKILL.md
-│   ├── risk-analysis/       # リスク分析
-│   │   ├── skill.js
-│   │   └── SKILL.md
-│   └── timeline-optimize/   # タイムライン最適化
-│       ├── skill.js
-│       └── SKILL.md
+├── templates/                # 埋め込みテンプレート（embed）
+│   ├── zeus.yaml.tmpl
+│   ├── task.yaml.tmpl
+│   ├── state.yaml.tmpl
+│   ├── agents/               # agent テンプレート
+│   │   ├── zeus-orchestrator.md.tmpl
+│   │   ├── zeus-planner.md.tmpl
+│   │   └── zeus-reviewer.md.tmpl
+│   └── skills/               # skill テンプレート
+│       ├── project-scan.md.tmpl
+│       ├── task-suggest.md.tmpl
+│       └── risk-analysis.md.tmpl
 │
-├── lib/                     # 共通ライブラリ
-│   ├── zeus-core.js         # コア機能
-│   ├── file-manager.js      # ファイル操作
-│   ├── yaml-parser.js       # YAML処理
-│   ├── state-manager.js     # 状態管理
-│   ├── approval-manager.js  # 承認管理
-│   └── ai-interface.js      # AI連携
+├── docs/                     # ドキュメント
+│   ├── SYSTEM_DESIGN.md
+│   ├── IMPLEMENTATION_GUIDE.md
+│   └── OPERATIONS_MANUAL.md
 │
-├── templates/               # テンプレート
-│   ├── zeus.yaml.template
-│   ├── task.yaml.template
-│   └── report.html.template
+├── go.mod
+├── go.sum
+├── main.go
+├── Makefile
+└── README.md
+```
+
+### 3.2 zeus init 実行後のターゲットリポジトリ構造
+
+```
+target-project/               # Zeus を適用するプロジェクト
+├── .zeus/                    # Zeus プロジェクト管理
+│   ├── zeus.yaml             # メイン設定
+│   ├── tasks/                # タスク管理
+│   │   ├── active.yaml
+│   │   ├── backlog.yaml
+│   │   └── _archive/
+│   ├── state/                # 状態管理
+│   │   ├── current.yaml
+│   │   └── snapshots/
+│   └── backups/              # 自動バックアップ
 │
-└── tests/                   # テストコード
-    ├── unit/
-    └── integration/
+├── .claude/                  # Claude Code 標準構造
+│   ├── agents/               # Zeus 用エージェント
+│   │   ├── zeus-orchestrator.md
+│   │   ├── zeus-planner.md
+│   │   └── zeus-reviewer.md
+│   └── skills/               # Zeus 用スキル
+│       ├── zeus-project-scan/
+│       │   └── SKILL.md
+│       ├── zeus-task-suggest/
+│       │   └── SKILL.md
+│       └── zeus-risk-analysis/
+│           └── SKILL.md
+│
+└── ... (既存のプロジェクトファイル)
 ```
 
-## 3. プラグイン定義
+## 4. 依存パッケージ
 
-### 3.1 plugin.json
-```json
-{
-  "name": "zeus",
-  "version": "1.0.0",
-  "description": "AI-driven project management system with god's eye view",
-  "author": "Zeus Development Team",
-  "keywords": ["project-management", "ai", "wbs", "timeline"],
-  "repository": "https://github.com/biwakonbu/zeus",
-  "license": "MIT",
-  "commands": [
-    {
-      "name": "zeus-init",
-      "description": "Initialize Zeus project",
-      "path": "commands/init.md"
-    },
-    {
-      "name": "zeus-status",
-      "description": "Show project status overview",
-      "path": "commands/status.md"
-    },
-    {
-      "name": "zeus-suggest",
-      "description": "Get AI suggestions",
-      "path": "commands/suggest.md"
+### 4.1 go.mod
+
+```go
+module github.com/biwakonbu/zeus
+
+go 1.21
+
+require (
+    github.com/spf13/cobra v1.8.0
+    gopkg.in/yaml.v3 v3.0.1
+    github.com/fatih/color v1.16.0
+)
+```
+
+## 5. コア実装
+
+### 5.1 main.go
+
+```go
+package main
+
+import (
+    "os"
+
+    "github.com/biwakonbu/zeus/cmd"
+)
+
+func main() {
+    if err := cmd.Execute(); err != nil {
+        os.Exit(1)
     }
-  ],
-  "skills": [
-    {
-      "name": "project-scan",
-      "description": "Scan and analyze project structure",
-      "path": "skills/project-scan"
-    },
-    {
-      "name": "task-suggest",
-      "description": "Suggest task breakdown and priorities",
-      "path": "skills/task-suggest"
-    },
-    {
-      "name": "risk-analysis",
-      "description": "Analyze project risks",
-      "path": "skills/risk-analysis"
-    },
-    {
-      "name": "timeline-optimize",
-      "description": "Optimize project timeline",
-      "path": "skills/timeline-optimize"
-    }
-  ]
 }
 ```
 
-## 4. コア実装
+### 5.2 cmd/root.go
 
-### 4.1 zeus-core.js
-```javascript
-// lib/zeus-core.js
-import { FileManager } from './file-manager.js';
-import { YamlParser } from './yaml-parser.js';
-import { StateManager } from './state-manager.js';
-import { ApprovalManager } from './approval-manager.js';
+```go
+package cmd
 
-export class ZeusCore {
-  constructor(projectPath = '.') {
-    this.projectPath = projectPath;
-    this.zeusPath = `${projectPath}/.zeus`;
-    this.fileManager = new FileManager(this.zeusPath);
-    this.yamlParser = new YamlParser();
-    this.stateManager = new StateManager(this.fileManager, this.yamlParser);
-    this.approvalManager = new ApprovalManager(this.fileManager, this.yamlParser);
-  }
+import (
+    "github.com/spf13/cobra"
+)
 
-  async init(level = 'simple') {
-    // ディレクトリ構造を作成
-    const dirs = this.getDirectoryStructure(level);
-    for (const dir of dirs) {
-      await this.fileManager.ensureDir(dir);
-    }
+var rootCmd = &cobra.Command{
+    Use:   "zeus",
+    Short: "AI-driven project management with god's eye view",
+    Long: `Zeus は AI によるプロジェクトマネジメントを「神の視点」で
+俯瞰するシステムです。上流工程（方針立案からWBS化、タイムライン設計、
+仕様作成まで）を支援します。`,
+}
 
-    // zeus.yamlを生成
-    const zeusConfig = this.generateInitialConfig();
-    await this.fileManager.writeYaml('zeus.yaml', zeusConfig);
+func Execute() error {
+    return rootCmd.Execute()
+}
 
-    // 初期状態を記録
-    await this.stateManager.createSnapshot('initial');
-
-    return { success: true, level, path: this.zeusPath };
-  }
-
-  async status(options = {}) {
-    const config = await this.fileManager.readYaml('zeus.yaml');
-    const state = await this.stateManager.getCurrentState();
-    const pending = await this.approvalManager.getPending();
-
-    if (options.detail) {
-      return this.generateDetailedStatus(config, state, pending);
-    }
-
-    return this.generateQuickStatus(config, state, pending);
-  }
-
-  async suggest() {
-    const state = await this.stateManager.getCurrentState();
-    const suggestions = await this.generateSuggestions(state);
-
-    // 各提案に承認レベルを設定
-    for (const suggestion of suggestions) {
-      suggestion.approvalLevel = this.determineApprovalLevel(suggestion);
-    }
-
-    return suggestions;
-  }
-
-  async applyApproval(id, approved, reason = null) {
-    const approval = await this.approvalManager.get(id);
-    if (!approval) {
-      throw new Error(`Approval ${id} not found`);
-    }
-
-    if (approved) {
-      await this.executeSuggestion(approval.suggestion);
-      await this.approvalManager.markApproved(id);
-    } else {
-      await this.approvalManager.markRejected(id, reason);
-    }
-
-    // スナップショットを作成
-    await this.stateManager.createSnapshot(`approval-${id}`);
-
-    return { success: true, id, approved };
-  }
-
-  // プライベートメソッド
-  getDirectoryStructure(level) {
-    const dirs = {
-      simple: ['.'],
-      standard: [
-        'config', 'tasks', 'state', 'entities',
-        'approvals/pending', 'approvals/approved', 'approvals/rejected',
-        'logs', 'analytics'
-      ],
-      advanced: [
-        'config', 'tasks', 'state', 'entities',
-        'approvals/pending', 'approvals/approved', 'approvals/rejected',
-        'logs', 'analytics', 'graph', 'views', '.local'
-      ]
-    };
-
-    return dirs[level] || dirs.simple;
-  }
-
-  generateInitialConfig() {
-    return {
-      version: '1.0',
-      project: {
-        id: `zeus-${Date.now()}`,
-        name: 'New Zeus Project',
-        description: 'Project managed by Zeus',
-        start_date: new Date().toISOString().split('T')[0]
-      },
-      objectives: [],
-      settings: {
-        automation_level: 'standard',
-        approval_mode: 'default',
-        ai_provider: 'claude-code'
-      }
-    };
-  }
-
-  determineApprovalLevel(suggestion) {
-    // ルールベースで承認レベルを決定
-    if (suggestion.type === 'read' || suggestion.type === 'report') {
-      return 'auto';
-    }
-    if (suggestion.impact === 'low' && suggestion.risk === 'low') {
-      return 'notify';
-    }
-    return 'approve';
-  }
+func init() {
+    // グローバルフラグ
+    rootCmd.PersistentFlags().BoolP("verbose", "v", false, "詳細出力")
 }
 ```
 
-### 4.2 状態管理
-```javascript
-// lib/state-manager.js
-export class StateManager {
-  constructor(fileManager, yamlParser) {
-    this.fileManager = fileManager;
-    this.yamlParser = yamlParser;
-  }
+### 5.3 cmd/init.go
 
-  async getCurrentState() {
-    try {
-      return await this.fileManager.readYaml('state/current.yaml');
-    } catch (e) {
-      return this.getEmptyState();
-    }
-  }
+```go
+package cmd
 
-  async createSnapshot(label = null) {
-    const state = await this.calculateCurrentState();
-    const timestamp = new Date().toISOString();
-    const filename = `state/snapshots/${timestamp.replace(/[:.]/g, '-')}.yaml`;
+import (
+    "fmt"
 
-    const snapshot = {
-      timestamp,
-      label,
-      state
-    };
+    "github.com/spf13/cobra"
+    "github.com/biwakonbu/zeus/internal/core"
+)
 
-    await this.fileManager.writeYaml(filename, snapshot);
-    await this.fileManager.writeYaml('state/current.yaml', state);
+var initCmd = &cobra.Command{
+    Use:   "init",
+    Short: "Zeus プロジェクトを初期化",
+    Long:  `プロジェクトディレクトリに .zeus/ と .claude/ を生成します。`,
+    RunE: func(cmd *cobra.Command, args []string) error {
+        level, _ := cmd.Flags().GetString("level")
 
-    return snapshot;
-  }
-
-  async calculateCurrentState() {
-    const tasks = await this.getTaskStats();
-    const health = this.calculateHealth(tasks);
-    const risks = await this.identifyRisks();
-
-    return {
-      timestamp: new Date().toISOString(),
-      summary: tasks,
-      health,
-      risks
-    };
-  }
-
-  async getTaskStats() {
-    const active = await this.fileManager.readYaml('tasks/active.yaml') || { tasks: [] };
-    const backlog = await this.fileManager.readYaml('tasks/backlog.yaml') || { tasks: [] };
-
-    const allTasks = [...active.tasks, ...backlog.tasks];
-
-    return {
-      total_tasks: allTasks.length,
-      completed: allTasks.filter(t => t.status === 'completed').length,
-      in_progress: allTasks.filter(t => t.status === 'in_progress').length,
-      pending: allTasks.filter(t => t.status === 'pending').length
-    };
-  }
-
-  calculateHealth(taskStats) {
-    const progress = taskStats.completed / (taskStats.total_tasks || 1);
-    if (progress < 0.3) return 'poor';
-    if (progress < 0.7) return 'fair';
-    return 'good';
-  }
-
-  getEmptyState() {
-    return {
-      timestamp: new Date().toISOString(),
-      summary: {
-        total_tasks: 0,
-        completed: 0,
-        in_progress: 0,
-        pending: 0
-      },
-      health: 'unknown',
-      risks: []
-    };
-  }
-}
-```
-
-## 5. スキル実装
-
-### 5.1 project-scan スキル
-```javascript
-// skills/project-scan/skill.js
-export async function projectScan(context) {
-  const { fileSystem, yaml } = context.tools;
-
-  // プロジェクトファイルを探索
-  const projectFiles = await findProjectFiles(fileSystem);
-
-  // プロジェクト構造を分析
-  const structure = await analyzeProjectStructure(projectFiles);
-
-  // 既存のタスク管理ツールをチェック
-  const existingTools = await detectExistingTools(projectFiles);
-
-  // zeus.yamlの初期構造を生成
-  const zeusConfig = generateZeusConfig(structure, existingTools);
-
-  // タスクの初期セットを提案
-  const initialTasks = suggestInitialTasks(structure);
-
-  return {
-    projectStructure: structure,
-    existingTools,
-    suggestedConfig: zeusConfig,
-    suggestedTasks: initialTasks
-  };
-}
-
-async function findProjectFiles(fs) {
-  const patterns = [
-    'package.json',
-    'requirements.txt',
-    'Gemfile',
-    'Cargo.toml',
-    'go.mod',
-    'README*',
-    'Makefile',
-    '.git/config'
-  ];
-
-  const files = [];
-  for (const pattern of patterns) {
-    const found = await fs.glob(pattern);
-    files.push(...found);
-  }
-
-  return files;
-}
-
-function generateZeusConfig(structure, existingTools) {
-  return {
-    version: '1.0',
-    project: {
-      id: `zeus-${Date.now()}`,
-      name: 'Project',
-      description: `${structure.type} project using ${structure.languages.join(', ')}`,
-      tech_stack: {
-        languages: structure.languages,
-        frameworks: structure.frameworks
-      },
-      integration: {
-        existing_tools: existingTools
-      }
-    }
-  };
-}
-```
-
-### 5.2 task-suggest スキル
-```javascript
-// skills/task-suggest/skill.js
-export async function taskSuggest(context) {
-  const { zeus, ai } = context.tools;
-
-  // 現在の状態を取得
-  const state = await zeus.getState();
-  const objectives = await zeus.getObjectives();
-
-  // タスクブレークダウン
-  const breakdown = await generateTaskBreakdown(objectives, state, ai);
-
-  // 優先順位付け
-  const prioritized = prioritizeTasks(breakdown);
-
-  // 依存関係の特定
-  const withDependencies = identifyDependencies(prioritized);
-
-  // タイムライン推定
-  const timeline = estimateTimeline(withDependencies);
-
-  return {
-    tasks: withDependencies,
-    timeline,
-    criticalPath: calculateCriticalPath(withDependencies)
-  };
-}
-
-function prioritizeTasks(tasks) {
-  return tasks.sort((a, b) => {
-    const scoreA = calculatePriorityScore(a);
-    const scoreB = calculatePriorityScore(b);
-    return scoreB - scoreA;
-  });
-}
-
-function calculatePriorityScore(task) {
-  let score = 0;
-  score += task.business_value || 0;
-  if (task.mitigates_risk) score += 20;
-  if (task.is_blocker) score += 30;
-  if (task.urgent) score += 25;
-  return score;
-}
-```
-
-## 6. エラー処理と復旧
-
-### 6.1 doctor コマンド実装
-```javascript
-// lib/doctor.js
-export class ZeusDoctor {
-  constructor(zeusCore) {
-    this.core = zeusCore;
-    this.checks = [
-      this.checkConfigExists,
-      this.checkYamlSyntax,
-      this.checkStateIntegrity,
-      this.checkTaskConsistency,
-      this.checkApprovalQueue,
-      this.checkBackupHealth
-    ];
-  }
-
-  async diagnose() {
-    const results = [];
-
-    for (const check of this.checks) {
-      try {
-        const result = await check.call(this);
-        results.push(result);
-      } catch (error) {
-        results.push({
-          check: check.name,
-          status: 'error',
-          message: error.message,
-          fixable: false
-        });
-      }
-    }
-
-    return {
-      overall: this.calculateOverallHealth(results),
-      checks: results,
-      fixableCount: results.filter(r => r.fixable).length
-    };
-  }
-
-  async fix(dryRun = false) {
-    const diagnosis = await this.diagnose();
-    const fixes = [];
-
-    for (const check of diagnosis.checks) {
-      if (check.status === 'fail' && check.fixable) {
-        if (dryRun) {
-          fixes.push({
-            action: check.fix.description,
-            would_execute: true
-          });
-        } else {
-          await check.fix.action();
-          fixes.push({
-            action: check.fix.description,
-            executed: true
-          });
+        zeus := core.New(".")
+        result, err := zeus.Init(level)
+        if err != nil {
+            return err
         }
-      }
+
+        fmt.Printf("Zeus initialized successfully!\n")
+        fmt.Printf("  Level: %s\n", result.Level)
+        fmt.Printf("  Path: %s\n", result.ZeusPath)
+        fmt.Printf("  Claude integration: %s\n", result.ClaudePath)
+        return nil
+    },
+}
+
+func init() {
+    rootCmd.AddCommand(initCmd)
+    initCmd.Flags().StringP("level", "l", "simple", "初期化レベル (simple|standard|advanced)")
+}
+```
+
+### 5.4 internal/core/zeus.go
+
+```go
+package core
+
+import (
+    "embed"
+    "os"
+    "path/filepath"
+    "time"
+
+    "github.com/biwakonbu/zeus/internal/generator"
+    "github.com/biwakonbu/zeus/internal/yaml"
+)
+
+//go:embed templates/*
+var templates embed.FS
+
+// Zeus はメインのアプリケーション構造体
+type Zeus struct {
+    ProjectPath string
+    ZeusPath    string
+    ClaudePath  string
+    State       *StateManager
+    Approval    *ApprovalManager
+}
+
+// InitResult は初期化結果
+type InitResult struct {
+    Success    bool
+    Level      string
+    ZeusPath   string
+    ClaudePath string
+}
+
+// New は新しい Zeus インスタンスを作成
+func New(projectPath string) *Zeus {
+    return &Zeus{
+        ProjectPath: projectPath,
+        ZeusPath:    filepath.Join(projectPath, ".zeus"),
+        ClaudePath:  filepath.Join(projectPath, ".claude"),
+    }
+}
+
+// Init はプロジェクトを初期化
+func (z *Zeus) Init(level string) (*InitResult, error) {
+    // .zeus ディレクトリ構造を作成
+    if err := z.createZeusStructure(level); err != nil {
+        return nil, err
     }
 
-    return { fixes, dryRun };
-  }
+    // zeus.yaml を生成
+    config := z.generateInitialConfig()
+    if err := yaml.WriteFile(filepath.Join(z.ZeusPath, "zeus.yaml"), config); err != nil {
+        return nil, err
+    }
 
-  async checkConfigExists() {
-    const exists = await this.core.fileManager.exists('zeus.yaml');
-    return {
-      check: 'config_exists',
-      status: exists ? 'pass' : 'fail',
-      message: exists ? 'Configuration file found' : 'zeus.yaml not found',
-      fixable: true,
-      fix: {
-        description: 'Create default zeus.yaml',
-        action: () => this.core.init('simple')
-      }
-    };
-  }
+    // .claude ディレクトリを作成（agents, skills）
+    if err := generator.GenerateClaudeIntegration(z.ClaudePath); err != nil {
+        return nil, err
+    }
 
-  calculateOverallHealth(results) {
-    const failed = results.filter(r => r.status === 'fail').length;
-    const warned = results.filter(r => r.status === 'warn').length;
+    return &InitResult{
+        Success:    true,
+        Level:      level,
+        ZeusPath:   z.ZeusPath,
+        ClaudePath: z.ClaudePath,
+    }, nil
+}
 
-    if (failed > 0) return 'unhealthy';
-    if (warned > 2) return 'degraded';
-    if (warned > 0) return 'fair';
-    return 'healthy';
-  }
+func (z *Zeus) createZeusStructure(level string) error {
+    dirs := z.getDirectoryStructure(level)
+    for _, dir := range dirs {
+        path := filepath.Join(z.ZeusPath, dir)
+        if err := os.MkdirAll(path, 0755); err != nil {
+            return err
+        }
+    }
+    return nil
+}
+
+func (z *Zeus) getDirectoryStructure(level string) []string {
+    switch level {
+    case "simple":
+        return []string{".", "tasks", "state", "backups"}
+    case "standard":
+        return []string{
+            ".", "config", "tasks", "tasks/_archive",
+            "state", "state/snapshots",
+            "entities", "approvals/pending", "approvals/approved", "approvals/rejected",
+            "logs", "analytics", "backups",
+        }
+    case "advanced":
+        return []string{
+            ".", "config", "tasks", "tasks/_archive",
+            "state", "state/snapshots",
+            "entities", "approvals/pending", "approvals/approved", "approvals/rejected",
+            "logs", "logs/ai-actions", "logs/decisions",
+            "analytics", "graph", "graph/computed",
+            "views", "views/templates", "views/generated",
+            "backups", ".local",
+        }
+    default:
+        return []string{".", "tasks", "state", "backups"}
+    }
+}
+
+func (z *Zeus) generateInitialConfig() map[string]interface{} {
+    return map[string]interface{}{
+        "version": "1.0",
+        "project": map[string]interface{}{
+            "id":          fmt.Sprintf("zeus-%d", time.Now().Unix()),
+            "name":        "New Zeus Project",
+            "description": "Project managed by Zeus",
+            "start_date":  time.Now().Format("2006-01-02"),
+        },
+        "objectives": []interface{}{},
+        "settings": map[string]interface{}{
+            "automation_level": "standard",
+            "approval_mode":    "default",
+            "ai_provider":      "claude-code",
+        },
+    }
 }
 ```
 
-## 7. テスト戦略
+### 5.5 internal/generator/agents.go
 
-### 7.1 ユニットテスト
-```javascript
-// tests/unit/zeus-core.test.js
-import { describe, it, expect, beforeEach } from 'vitest';
-import { ZeusCore } from '../../lib/zeus-core.js';
+```go
+package generator
 
-describe('ZeusCore', () => {
-  let zeus;
+import (
+    "os"
+    "path/filepath"
+)
 
-  beforeEach(() => {
-    zeus = new ZeusCore('.');
-  });
+// GenerateClaudeIntegration は .claude/ ディレクトリを生成
+func GenerateClaudeIntegration(claudePath string) error {
+    // agents ディレクトリ
+    agentsPath := filepath.Join(claudePath, "agents")
+    if err := os.MkdirAll(agentsPath, 0755); err != nil {
+        return err
+    }
 
-  describe('init', () => {
-    it('should create simple structure by default', async () => {
-      const result = await zeus.init();
-      expect(result.success).toBe(true);
-      expect(result.level).toBe('simple');
-    });
-  });
+    // skills ディレクトリ
+    skillsPath := filepath.Join(claudePath, "skills")
+    if err := os.MkdirAll(skillsPath, 0755); err != nil {
+        return err
+    }
 
-  describe('status', () => {
-    it('should return quick status by default', async () => {
-      const status = await zeus.status();
-      expect(status.summary).toBeDefined();
-    });
-  });
-});
+    // エージェントファイルを生成
+    agents := map[string]string{
+        "zeus-orchestrator.md": zeusOrchestratorTemplate,
+        "zeus-planner.md":      zeusPlannerTemplate,
+        "zeus-reviewer.md":     zeusReviewerTemplate,
+    }
+    for name, content := range agents {
+        path := filepath.Join(agentsPath, name)
+        if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+            return err
+        }
+    }
+
+    // スキルディレクトリを生成
+    skills := []struct {
+        name    string
+        content string
+    }{
+        {"zeus-project-scan", zeusProjectScanSkill},
+        {"zeus-task-suggest", zeusTaskSuggestSkill},
+        {"zeus-risk-analysis", zeusRiskAnalysisSkill},
+    }
+    for _, skill := range skills {
+        skillDir := filepath.Join(skillsPath, skill.name)
+        if err := os.MkdirAll(skillDir, 0755); err != nil {
+            return err
+        }
+        skillFile := filepath.Join(skillDir, "SKILL.md")
+        if err := os.WriteFile(skillFile, []byte(skill.content), 0644); err != nil {
+            return err
+        }
+    }
+
+    return nil
+}
+
+const zeusOrchestratorTemplate = `---
+description: Zeus プロジェクト管理を統括するオーケストレーター
+tools: [Bash, Read, Write, Glob, Grep]
+model: sonnet
+---
+
+# Zeus Orchestrator
+
+Zeus CLI を使用してプロジェクト管理を行うエージェントです。
+
+## 役割
+
+1. プロジェクト全体の状況把握
+2. AI 提案の生成と管理
+3. 承認フローの調整
+4. レポート生成
+
+## 使用するコマンド
+
+- zeus status: プロジェクト状況確認
+- zeus suggest: AI 提案生成
+- zeus pending: 承認待ち確認
+- zeus report: レポート生成
+`
+
+const zeusPlannerTemplate = `---
+description: タスク計画とスケジューリングを担当
+tools: [Bash, Read, Write, Glob, Grep]
+model: sonnet
+---
+
+# Zeus Planner
+
+プロジェクトのタスク計画を担当するエージェントです。
+
+## 役割
+
+1. タスクブレークダウン
+2. 優先順位付け
+3. 依存関係の特定
+4. タイムライン最適化
+`
+
+const zeusReviewerTemplate = `---
+description: 進捗レビューと品質確認を担当
+tools: [Bash, Read, Glob, Grep]
+model: sonnet
+---
+
+# Zeus Reviewer
+
+プロジェクトの進捗レビューを担当するエージェントです。
+
+## 役割
+
+1. 進捗状況のレビュー
+2. リスク評価
+3. 品質チェック
+4. 改善提案
+`
+
+const zeusProjectScanSkill = `---
+description: プロジェクト構造をスキャンして分析
+---
+
+# Project Scan スキル
+
+プロジェクトの構造を分析し、Zeus 管理に必要な情報を収集します。
+
+## 実行内容
+
+1. プロジェクトファイルの探索
+2. 技術スタックの特定
+3. 既存タスク管理ツールの検出
+4. zeus.yaml の初期構造を提案
+`
+
+const zeusTaskSuggestSkill = `---
+description: タスク分割と優先順位を提案
+---
+
+# Task Suggest スキル
+
+プロジェクトの目標からタスクを分割し、優先順位を提案します。
+
+## 実行内容
+
+1. 目標の分析
+2. タスクブレークダウン
+3. 優先順位付け
+4. 依存関係の特定
+`
+
+const zeusRiskAnalysisSkill = `---
+description: プロジェクトリスクを分析して対策を提案
+---
+
+# Risk Analysis スキル
+
+プロジェクトのリスクを分析し、対策を提案します。
+
+## 実行内容
+
+1. リスク要因の特定
+2. 影響度の評価
+3. 発生確率の推定
+4. 対策の提案
+`
 ```
 
-## 8. デプロイメント
+### 5.6 internal/yaml/parser.go
 
-### 8.1 パッケージング
-```bash
-# package.json scripts
-{
-  "scripts": {
-    "build": "tsc && npm run bundle",
-    "test": "vitest run",
-    "lint": "eslint lib/ skills/",
-    "publish:marketplace": "claude-plugin publish"
-  }
+```go
+package yaml
+
+import (
+    "os"
+
+    "gopkg.in/yaml.v3"
+)
+
+// ReadFile は YAML ファイルを読み込む
+func ReadFile(path string, v interface{}) error {
+    data, err := os.ReadFile(path)
+    if err != nil {
+        return err
+    }
+    return yaml.Unmarshal(data, v)
+}
+
+// WriteFile は YAML ファイルを書き込む
+func WriteFile(path string, v interface{}) error {
+    data, err := yaml.Marshal(v)
+    if err != nil {
+        return err
+    }
+    return os.WriteFile(path, data, 0644)
 }
 ```
 
-### 8.2 Claude Code Marketplace 公開
-```bash
-# プラグインの検証
-claude plugin validate ./zeus-plugin
+## 6. ビルドと実行
 
-# マーケットプレイスに公開
-claude plugin publish ./zeus-plugin
+### 6.1 Makefile
+
+```makefile
+.PHONY: build clean test install
+
+BINARY_NAME=zeus
+VERSION=1.0.0
+
+build:
+	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY_NAME) .
+
+clean:
+	rm -f $(BINARY_NAME)
+
+test:
+	go test -v ./...
+
+install: build
+	cp $(BINARY_NAME) $(GOPATH)/bin/
+
+# 開発用
+dev:
+	go run . $(ARGS)
 ```
 
-## 9. 次のステップ
+### 6.2 ビルド確認
 
-1. **Phase 1 実装**: 基本コマンドとcore機能
-2. **テスト作成**: ユニット・統合テストの完成
-3. **ドキュメント**: APIリファレンスの作成
-4. **Phase 2 計画**: 高度な機能の設計詳細化
+```bash
+# ビルド
+make build
+
+# 実行確認
+./zeus --help
+./zeus init
+./zeus status
+```
+
+## 7. 実装優先順位
+
+### Phase 1: MVP（最小実行可能プロダクト）
+
+| コマンド | 優先度 | 説明 |
+|---------|--------|------|
+| `zeus init` | 高 | プロジェクト初期化（.zeus/ + .claude/ 生成） |
+| `zeus status` | 高 | 状態表示 |
+| `zeus add task` | 高 | タスク追加 |
+| `zeus list` | 高 | 一覧表示 |
+| `zeus doctor` | 中 | 診断 |
+| `zeus fix` | 中 | 修復 |
+
+### Phase 2: AI 統合
+
+| コマンド | 説明 |
+|---------|------|
+| `zeus suggest` | AI 提案 |
+| `zeus apply` | 提案適用 |
+| `zeus explain` | AI 解説 |
+
+### Phase 3: 承認フロー
+
+| コマンド | 説明 |
+|---------|------|
+| `zeus pending` | 承認待ち一覧 |
+| `zeus approve` | 承認 |
+| `zeus reject` | 却下 |
+
+## 8. テスト
+
+### 8.1 ユニットテスト例
+
+```go
+// internal/core/zeus_test.go
+package core
+
+import (
+    "os"
+    "path/filepath"
+    "testing"
+)
+
+func TestZeusInit(t *testing.T) {
+    // 一時ディレクトリを作成
+    tmpDir, err := os.MkdirTemp("", "zeus-test")
+    if err != nil {
+        t.Fatal(err)
+    }
+    defer os.RemoveAll(tmpDir)
+
+    // Zeus インスタンスを作成
+    zeus := New(tmpDir)
+
+    // 初期化を実行
+    result, err := zeus.Init("simple")
+    if err != nil {
+        t.Fatalf("Init failed: %v", err)
+    }
+
+    // 結果を検証
+    if !result.Success {
+        t.Error("Expected success to be true")
+    }
+    if result.Level != "simple" {
+        t.Errorf("Expected level 'simple', got '%s'", result.Level)
+    }
+
+    // ファイルが作成されたか確認
+    zeusYaml := filepath.Join(tmpDir, ".zeus", "zeus.yaml")
+    if _, err := os.Stat(zeusYaml); os.IsNotExist(err) {
+        t.Error("zeus.yaml was not created")
+    }
+}
+```
 
 ---
 
-*Zeus Implementation Guide v1.0*
+*Zeus Implementation Guide (Go版) v1.0*
 *作成日: 2026-01-14*
