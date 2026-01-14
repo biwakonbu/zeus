@@ -42,6 +42,16 @@ func (fm *FileManager) WriteYaml(relativePath string, data interface{}) error {
 	return fm.writer.WriteFile(fm.ResolvePath(relativePath), data)
 }
 
+// WriteFile はファイルを書き込む（バイナリ対応）
+func (fm *FileManager) WriteFile(relativePath string, data []byte) error {
+	fullPath := fm.ResolvePath(relativePath)
+	dir := filepath.Dir(fullPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(fullPath, data, 0644)
+}
+
 // EnsureDir はディレクトリを作成
 func (fm *FileManager) EnsureDir(relativePath string) error {
 	return os.MkdirAll(fm.ResolvePath(relativePath), 0755)
@@ -59,4 +69,44 @@ func (fm *FileManager) Copy(src, dest string) error {
 // Delete はファイルを削除
 func (fm *FileManager) Delete(relativePath string) error {
 	return os.Remove(fm.ResolvePath(relativePath))
+}
+
+// Glob はパターンに一致するファイルを検索
+func (fm *FileManager) Glob(pattern string) ([]string, error) {
+	fullPattern := fm.ResolvePath(pattern)
+	matches, err := filepath.Glob(fullPattern)
+	if err != nil {
+		return nil, err
+	}
+
+	// basePath からの相対パスに変換
+	relPaths := make([]string, len(matches))
+	for i, match := range matches {
+		rel, err := filepath.Rel(fm.basePath, match)
+		if err != nil {
+			relPaths[i] = match
+		} else {
+			relPaths[i] = rel
+		}
+	}
+
+	return relPaths, nil
+}
+
+// ListDir はディレクトリ内のファイルを列挙
+func (fm *FileManager) ListDir(relativePath string) ([]string, error) {
+	fullPath := fm.ResolvePath(relativePath)
+	entries, err := os.ReadDir(fullPath)
+	if err != nil {
+		return nil, err
+	}
+
+	files := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			files = append(files, entry.Name())
+		}
+	}
+
+	return files, nil
 }

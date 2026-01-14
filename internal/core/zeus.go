@@ -5,25 +5,30 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/biwakonbu/zeus/internal/generator"
 	"github.com/biwakonbu/zeus/internal/yaml"
 )
 
 // Zeus はメインアプリケーション構造体
 type Zeus struct {
-	ProjectPath string
-	ZeusPath    string
-	ClaudePath  string
-	FileManager *yaml.FileManager
+	ProjectPath     string
+	ZeusPath        string
+	ClaudePath      string
+	FileManager     *yaml.FileManager
+	StateManager    *StateManager
+	ApprovalManager *ApprovalManager
 }
 
 // New は新しい Zeus インスタンスを作成
 func New(projectPath string) *Zeus {
 	zeusPath := filepath.Join(projectPath, ".zeus")
 	return &Zeus{
-		ProjectPath: projectPath,
-		ZeusPath:    zeusPath,
-		ClaudePath:  filepath.Join(projectPath, ".claude"),
-		FileManager: yaml.NewFileManager(zeusPath),
+		ProjectPath:     projectPath,
+		ZeusPath:        zeusPath,
+		ClaudePath:      filepath.Join(projectPath, ".claude"),
+		FileManager:     yaml.NewFileManager(zeusPath),
+		StateManager:    NewStateManager(zeusPath),
+		ApprovalManager: NewApprovalManager(zeusPath),
 	}
 }
 
@@ -58,6 +63,15 @@ func (z *Zeus) Init(level string) (*InitResult, error) {
 		return nil, err
 	}
 
+	// Claude Code 連携ファイルを生成（standard/advanced レベルの場合）
+	if level == "standard" || level == "advanced" {
+		gen := generator.NewGenerator(z.ProjectPath)
+		if err := gen.GenerateAll(config.Project.Name, level); err != nil {
+			// 生成に失敗しても初期化は続行
+			fmt.Printf("Warning: Failed to generate Claude Code files: %v\n", err)
+		}
+	}
+
 	return &InitResult{
 		Success:    true,
 		Level:      level,
@@ -78,10 +92,14 @@ func (z *Zeus) Status() (*StatusResult, error) {
 		return nil, err
 	}
 
+	// 承認待ちアイテム数を取得
+	pending, _ := z.ApprovalManager.GetPending()
+	pendingCount := len(pending)
+
 	return &StatusResult{
 		Project:          config.Project,
 		State:            *state,
-		PendingApprovals: 0, // Phase 2 で実装
+		PendingApprovals: pendingCount,
 	}, nil
 }
 
@@ -142,6 +160,36 @@ func (z *Zeus) List(entity string) (*ListResult, error) {
 		Items:  taskStore.Tasks,
 		Total:  len(taskStore.Tasks),
 	}, nil
+}
+
+// Pending は承認待ちアイテムを取得
+func (z *Zeus) Pending() ([]PendingApproval, error) {
+	return z.ApprovalManager.GetPending()
+}
+
+// Approve はアイテムを承認
+func (z *Zeus) Approve(id string) (*ApprovalResult, error) {
+	return z.ApprovalManager.Approve(id)
+}
+
+// Reject はアイテムを却下
+func (z *Zeus) Reject(id, reason string) (*ApprovalResult, error) {
+	return z.ApprovalManager.Reject(id, reason)
+}
+
+// CreateSnapshot はスナップショットを作成
+func (z *Zeus) CreateSnapshot(label string) (*Snapshot, error) {
+	return z.StateManager.CreateSnapshot(label)
+}
+
+// GetHistory は履歴を取得
+func (z *Zeus) GetHistory(limit int) ([]Snapshot, error) {
+	return z.StateManager.GetHistory(limit)
+}
+
+// RestoreSnapshot はスナップショットから復元
+func (z *Zeus) RestoreSnapshot(timestamp string) error {
+	return z.StateManager.RestoreSnapshot(timestamp)
 }
 
 // Private methods
