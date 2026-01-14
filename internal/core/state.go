@@ -1,11 +1,11 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
-
-	"github.com/biwakonbu/zeus/internal/yaml"
+	"strings"
 )
 
 // SnapshotStore はスナップショットストア
@@ -15,36 +15,47 @@ type SnapshotStore struct {
 
 // StateManager は状態を管理
 type StateManager struct {
-	zeusPath    string
-	fileManager *yaml.FileManager
+	zeusPath  string
+	fileStore FileStore
 }
 
 // NewStateManager は新しい StateManager を作成
-func NewStateManager(zeusPath string) *StateManager {
+func NewStateManager(zeusPath string, fs FileStore) *StateManager {
 	return &StateManager{
-		zeusPath:    zeusPath,
-		fileManager: yaml.NewFileManager(zeusPath),
+		zeusPath:  zeusPath,
+		fileStore: fs,
 	}
 }
 
 // GetCurrentState は現在の状態を取得
-func (sm *StateManager) GetCurrentState() (*ProjectState, error) {
+func (sm *StateManager) GetCurrentState(ctx context.Context) (*ProjectState, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	var state ProjectState
-	if err := sm.fileManager.ReadYaml("state/current.yaml", &state); err != nil {
+	if err := sm.fileStore.ReadYaml(ctx, "state/current.yaml", &state); err != nil {
 		return sm.getEmptyState(), nil
 	}
 	return &state, nil
 }
 
 // SaveCurrentState は現在の状態を保存
-func (sm *StateManager) SaveCurrentState(state *ProjectState) error {
-	return sm.fileManager.WriteYaml("state/current.yaml", state)
+func (sm *StateManager) SaveCurrentState(ctx context.Context, state *ProjectState) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return sm.fileStore.WriteYaml(ctx, "state/current.yaml", state)
 }
 
 // CreateSnapshot はスナップショットを作成
-func (sm *StateManager) CreateSnapshot(label string) (*Snapshot, error) {
+func (sm *StateManager) CreateSnapshot(ctx context.Context, label string) (*Snapshot, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	// 現在の状態を取得
-	currentState, err := sm.GetCurrentState()
+	currentState, err := sm.GetCurrentState(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +68,7 @@ func (sm *StateManager) CreateSnapshot(label string) (*Snapshot, error) {
 	}
 
 	// スナップショットを保存
-	if err := sm.saveSnapshot(&snapshot); err != nil {
+	if err := sm.saveSnapshot(ctx, &snapshot); err != nil {
 		return nil, err
 	}
 
@@ -65,8 +76,12 @@ func (sm *StateManager) CreateSnapshot(label string) (*Snapshot, error) {
 }
 
 // GetHistory はスナップショット履歴を取得
-func (sm *StateManager) GetHistory(limit int) ([]Snapshot, error) {
-	snapshots, err := sm.getAllSnapshots()
+func (sm *StateManager) GetHistory(ctx context.Context, limit int) ([]Snapshot, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	snapshots, err := sm.getAllSnapshots(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -85,8 +100,12 @@ func (sm *StateManager) GetHistory(limit int) ([]Snapshot, error) {
 }
 
 // GetSnapshot は特定のスナップショットを取得
-func (sm *StateManager) GetSnapshot(timestamp string) (*Snapshot, error) {
-	snapshots, err := sm.getAllSnapshots()
+func (sm *StateManager) GetSnapshot(ctx context.Context, timestamp string) (*Snapshot, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	snapshots, err := sm.getAllSnapshots(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -101,14 +120,18 @@ func (sm *StateManager) GetSnapshot(timestamp string) (*Snapshot, error) {
 }
 
 // RestoreSnapshot はスナップショットから復元
-func (sm *StateManager) RestoreSnapshot(timestamp string) error {
-	snapshot, err := sm.GetSnapshot(timestamp)
+func (sm *StateManager) RestoreSnapshot(ctx context.Context, timestamp string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	snapshot, err := sm.GetSnapshot(ctx, timestamp)
 	if err != nil {
 		return err
 	}
 
 	// 現在の状態を更新
-	return sm.SaveCurrentState(&snapshot.State)
+	return sm.SaveCurrentState(ctx, &snapshot.State)
 }
 
 // CalculateState はタスクから状態を計算
@@ -192,23 +215,31 @@ func (sm *StateManager) detectRisks(tasks []Task, stats *TaskStats) []string {
 	return risks
 }
 
-func (sm *StateManager) saveSnapshot(snapshot *Snapshot) error {
-	if err := sm.fileManager.EnsureDir("state/snapshots"); err != nil {
+func (sm *StateManager) saveSnapshot(ctx context.Context, snapshot *Snapshot) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	if err := sm.fileStore.EnsureDir(ctx, "state/snapshots"); err != nil {
 		return err
 	}
 
 	// タイムスタンプをファイル名に使用（: を - に置換）
 	filename := fmt.Sprintf("snapshot_%s.yaml", sanitizeTimestamp(snapshot.Timestamp))
-	return sm.fileManager.WriteYaml(filepath.Join("state/snapshots", filename), snapshot)
+	return sm.fileStore.WriteYaml(ctx, filepath.Join("state/snapshots", filename), snapshot)
 }
 
-func (sm *StateManager) getAllSnapshots() ([]Snapshot, error) {
-	if err := sm.fileManager.EnsureDir("state/snapshots"); err != nil {
+func (sm *StateManager) getAllSnapshots(ctx context.Context) ([]Snapshot, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	if err := sm.fileStore.EnsureDir(ctx, "state/snapshots"); err != nil {
 		return nil, err
 	}
 
 	// スナップショットディレクトリ内のファイルを列挙
-	files, err := sm.fileManager.Glob("state/snapshots/snapshot_*.yaml")
+	files, err := sm.fileStore.Glob(ctx, "state/snapshots/snapshot_*.yaml")
 	if err != nil {
 		return []Snapshot{}, nil
 	}
@@ -216,7 +247,7 @@ func (sm *StateManager) getAllSnapshots() ([]Snapshot, error) {
 	snapshots := []Snapshot{}
 	for _, file := range files {
 		var snapshot Snapshot
-		if err := sm.fileManager.ReadYaml(file, &snapshot); err != nil {
+		if err := sm.fileStore.ReadYaml(ctx, file, &snapshot); err != nil {
 			continue
 		}
 		snapshots = append(snapshots, snapshot)
@@ -227,13 +258,14 @@ func (sm *StateManager) getAllSnapshots() ([]Snapshot, error) {
 
 // sanitizeTimestamp はタイムスタンプをファイル名に使える形式に変換
 func sanitizeTimestamp(ts string) string {
-	result := ""
+	var sb strings.Builder
+	sb.Grow(len(ts))
 	for _, c := range ts {
 		if c == ':' || c == '+' {
-			result += "-"
+			sb.WriteRune('-')
 		} else {
-			result += string(c)
+			sb.WriteRune(c)
 		}
 	}
-	return result
+	return sb.String()
 }

@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/biwakonbu/zeus/internal/yaml"
 )
 
 func TestGenerateApprovalID(t *testing.T) {
@@ -13,7 +15,9 @@ func TestGenerateApprovalID(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	am := NewApprovalManager(tmpDir)
+	// FileStore を作成して ApprovalManager に渡す
+	fs := yaml.NewFileManager(tmpDir)
+	am := NewApprovalManager(tmpDir, fs)
 
 	// ID 生成テスト
 	id1 := am.generateApprovalID()

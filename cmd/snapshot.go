@@ -5,8 +5,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-
-	"github.com/biwakonbu/zeus/internal/core"
 )
 
 var snapshotCmd = &cobra.Command{
@@ -45,13 +43,14 @@ func init() {
 }
 
 func runSnapshotCreate(cmd *cobra.Command, args []string) error {
+	ctx := getContext(cmd)
 	label := ""
 	if len(args) > 0 {
 		label = args[0]
 	}
 
-	sm := core.NewStateManager(".zeus")
-	snapshot, err := sm.CreateSnapshot(label)
+	zeus := getZeus(cmd)
+	snapshot, err := zeus.CreateSnapshot(ctx, label)
 	if err != nil {
 		return err
 	}
@@ -66,10 +65,11 @@ func runSnapshotCreate(cmd *cobra.Command, args []string) error {
 }
 
 func runSnapshotList(cmd *cobra.Command, args []string) error {
+	ctx := getContext(cmd)
 	limit, _ := cmd.Flags().GetInt("limit")
 
-	sm := core.NewStateManager(".zeus")
-	snapshots, err := sm.GetHistory(limit)
+	zeus := getZeus(cmd)
+	snapshots, err := zeus.GetHistory(ctx, limit)
 	if err != nil {
 		return err
 	}
@@ -100,10 +100,11 @@ func runSnapshotList(cmd *cobra.Command, args []string) error {
 }
 
 func runSnapshotRestore(cmd *cobra.Command, args []string) error {
+	ctx := getContext(cmd)
 	timestamp := args[0]
 
-	sm := core.NewStateManager(".zeus")
-	if err := sm.RestoreSnapshot(timestamp); err != nil {
+	zeus := getZeus(cmd)
+	if err := zeus.RestoreSnapshot(ctx, timestamp); err != nil {
 		return err
 	}
 

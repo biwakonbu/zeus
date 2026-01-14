@@ -22,13 +22,14 @@ func init() {
 }
 
 func runList(cmd *cobra.Command, args []string) error {
+	ctx := getContext(cmd)
 	entity := ""
 	if len(args) > 0 {
 		entity = args[0]
 	}
 
-	zeus := core.New(".")
-	result, err := zeus.List(entity)
+	zeus := getZeus(cmd)
+	result, err := zeus.List(ctx, entity)
 	if err != nil {
 		return err
 	}

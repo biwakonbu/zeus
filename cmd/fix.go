@@ -21,10 +21,11 @@ func init() {
 }
 
 func runFix(cmd *cobra.Command, args []string) error {
+	ctx := getContext(cmd)
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 
 	d := doctor.New(".")
-	result, err := d.Fix(dryRun)
+	result, err := d.Fix(ctx, dryRun)
 	if err != nil {
 		return err
 	}

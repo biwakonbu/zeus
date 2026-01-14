@@ -22,10 +22,11 @@ func init() {
 }
 
 func runHistory(cmd *cobra.Command, args []string) error {
+	ctx := getContext(cmd)
 	limit, _ := cmd.Flags().GetInt("limit")
 
-	sm := core.NewStateManager(".zeus")
-	history, err := sm.GetHistory(limit)
+	zeus := getZeus(cmd)
+	history, err := zeus.GetHistory(ctx, limit)
 	if err != nil {
 		return err
 	}

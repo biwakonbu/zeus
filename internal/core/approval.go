@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"path/filepath"
 	"time"
 
@@ -34,7 +35,7 @@ type PendingApproval struct {
 }
 
 // ApprovalStore は承認ストア
-type ApprovalStore struct {
+type ApprovalStoreData struct {
 	Approvals []PendingApproval `yaml:"approvals"`
 }
 
@@ -47,18 +48,18 @@ type ApprovalResult struct {
 
 // ApprovalManager は承認を管理
 type ApprovalManager struct {
-	zeusPath    string
-	fileManager *yaml.FileManager
-	lock        *yaml.FileLock
+	zeusPath  string
+	fileStore FileStore
+	lock      *yaml.FileLock
 }
 
 // NewApprovalManager は新しい ApprovalManager を作成
-func NewApprovalManager(zeusPath string) *ApprovalManager {
+func NewApprovalManager(zeusPath string, fs FileStore) *ApprovalManager {
 	queuePath := filepath.Join(zeusPath, "approvals", "pending", "queue.yaml")
 	return &ApprovalManager{
-		zeusPath:    zeusPath,
-		fileManager: yaml.NewFileManager(zeusPath),
-		lock:        yaml.NewFileLock(queuePath),
+		zeusPath:  zeusPath,
+		fileStore: fs,
+		lock:      yaml.NewFileLock(queuePath),
 	}
 }
 
@@ -69,9 +70,13 @@ func (am *ApprovalManager) generateApprovalID() string {
 }
 
 // GetPending は承認待ちアイテムを取得
-func (am *ApprovalManager) GetPending() ([]PendingApproval, error) {
-	var store ApprovalStore
-	if err := am.fileManager.ReadYaml("approvals/pending/queue.yaml", &store); err != nil {
+func (am *ApprovalManager) GetPending(ctx context.Context) ([]PendingApproval, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	var store ApprovalStoreData
+	if err := am.fileStore.ReadYaml(ctx, "approvals/pending/queue.yaml", &store); err != nil {
 		// ファイルが存在しない場合は空のリストを返す
 		return []PendingApproval{}, nil
 	}
@@ -88,17 +93,25 @@ func (am *ApprovalManager) GetPending() ([]PendingApproval, error) {
 }
 
 // GetAll は全承認アイテムを取得
-func (am *ApprovalManager) GetAll() ([]PendingApproval, error) {
-	var store ApprovalStore
-	if err := am.fileManager.ReadYaml("approvals/pending/queue.yaml", &store); err != nil {
+func (am *ApprovalManager) GetAll(ctx context.Context) ([]PendingApproval, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	var store ApprovalStoreData
+	if err := am.fileStore.ReadYaml(ctx, "approvals/pending/queue.yaml", &store); err != nil {
 		return []PendingApproval{}, nil
 	}
 	return store.Approvals, nil
 }
 
 // Get は特定の承認アイテムを取得
-func (am *ApprovalManager) Get(id string) (*PendingApproval, error) {
-	all, err := am.GetAll()
+func (am *ApprovalManager) Get(ctx context.Context, id string) (*PendingApproval, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	all, err := am.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -113,14 +126,18 @@ func (am *ApprovalManager) Get(id string) (*PendingApproval, error) {
 }
 
 // Create は新しい承認アイテムを作成（原子的操作）
-func (am *ApprovalManager) Create(approvalType, description string, level ApprovalLevel, entityID string, payload any) (*PendingApproval, error) {
+func (am *ApprovalManager) Create(ctx context.Context, approvalType, description string, level ApprovalLevel, entityID string, payload any) (*PendingApproval, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	// ロックを取得（タイムアウト: 5秒）
 	if err := am.lock.LockWithTimeout(5 * time.Second); err != nil {
 		return nil, ErrLockAcquireFailed
 	}
 	defer am.lock.Unlock()
 
-	all, err := am.GetAll()
+	all, err := am.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -142,12 +159,12 @@ func (am *ApprovalManager) Create(approvalType, description string, level Approv
 	}
 
 	all = append(all, approval)
-	store := ApprovalStore{Approvals: all}
+	store := ApprovalStoreData{Approvals: all}
 
-	if err := am.fileManager.EnsureDir("approvals/pending"); err != nil {
+	if err := am.fileStore.EnsureDir(ctx, "approvals/pending"); err != nil {
 		return nil, err
 	}
-	if err := am.fileManager.WriteYaml("approvals/pending/queue.yaml", &store); err != nil {
+	if err := am.fileStore.WriteYaml(ctx, "approvals/pending/queue.yaml", &store); err != nil {
 		return nil, err
 	}
 
@@ -155,14 +172,18 @@ func (am *ApprovalManager) Create(approvalType, description string, level Approv
 }
 
 // Approve は承認アイテムを承認（原子的操作）
-func (am *ApprovalManager) Approve(id string) (*ApprovalResult, error) {
+func (am *ApprovalManager) Approve(ctx context.Context, id string) (*ApprovalResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	// ロックを取得（タイムアウト: 5秒）
 	if err := am.lock.LockWithTimeout(5 * time.Second); err != nil {
 		return nil, ErrLockAcquireFailed
 	}
 	defer am.lock.Unlock()
 
-	all, err := am.GetAll()
+	all, err := am.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +212,7 @@ func (am *ApprovalManager) Approve(id string) (*ApprovalResult, error) {
 	}
 
 	// 承認済みファイルに移動
-	if err := am.moveToApproved(approvedItem); err != nil {
+	if err := am.moveToApproved(ctx, approvedItem); err != nil {
 		return nil, err
 	}
 
@@ -202,8 +223,8 @@ func (am *ApprovalManager) Approve(id string) (*ApprovalResult, error) {
 			remaining = append(remaining, a)
 		}
 	}
-	store := ApprovalStore{Approvals: remaining}
-	if err := am.fileManager.WriteYaml("approvals/pending/queue.yaml", &store); err != nil {
+	store := ApprovalStoreData{Approvals: remaining}
+	if err := am.fileStore.WriteYaml(ctx, "approvals/pending/queue.yaml", &store); err != nil {
 		return nil, err
 	}
 
@@ -215,14 +236,18 @@ func (am *ApprovalManager) Approve(id string) (*ApprovalResult, error) {
 }
 
 // Reject は承認アイテムを却下（原子的操作）
-func (am *ApprovalManager) Reject(id, reason string) (*ApprovalResult, error) {
+func (am *ApprovalManager) Reject(ctx context.Context, id, reason string) (*ApprovalResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	// ロックを取得（タイムアウト: 5秒）
 	if err := am.lock.LockWithTimeout(5 * time.Second); err != nil {
 		return nil, ErrLockAcquireFailed
 	}
 	defer am.lock.Unlock()
 
-	all, err := am.GetAll()
+	all, err := am.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +277,7 @@ func (am *ApprovalManager) Reject(id, reason string) (*ApprovalResult, error) {
 	}
 
 	// 却下済みファイルに移動
-	if err := am.moveToRejected(rejectedItem); err != nil {
+	if err := am.moveToRejected(ctx, rejectedItem); err != nil {
 		return nil, err
 	}
 
@@ -263,8 +288,8 @@ func (am *ApprovalManager) Reject(id, reason string) (*ApprovalResult, error) {
 			remaining = append(remaining, a)
 		}
 	}
-	store := ApprovalStore{Approvals: remaining}
-	if err := am.fileManager.WriteYaml("approvals/pending/queue.yaml", &store); err != nil {
+	store := ApprovalStoreData{Approvals: remaining}
+	if err := am.fileStore.WriteYaml(ctx, "approvals/pending/queue.yaml", &store); err != nil {
 		return nil, err
 	}
 
@@ -309,21 +334,29 @@ func (am *ApprovalManager) DetermineApprovalLevel(actionType string, settings *S
 }
 
 // moveToApproved は承認済みファイルに移動
-func (am *ApprovalManager) moveToApproved(approval PendingApproval) error {
-	if err := am.fileManager.EnsureDir("approvals/approved"); err != nil {
+func (am *ApprovalManager) moveToApproved(ctx context.Context, approval PendingApproval) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	if err := am.fileStore.EnsureDir(ctx, "approvals/approved"); err != nil {
 		return err
 	}
 
 	filename := approval.ID + ".yaml"
-	return am.fileManager.WriteYaml(filepath.Join("approvals/approved", filename), &approval)
+	return am.fileStore.WriteYaml(ctx, filepath.Join("approvals/approved", filename), &approval)
 }
 
 // moveToRejected は却下済みファイルに移動
-func (am *ApprovalManager) moveToRejected(approval PendingApproval) error {
-	if err := am.fileManager.EnsureDir("approvals/rejected"); err != nil {
+func (am *ApprovalManager) moveToRejected(ctx context.Context, approval PendingApproval) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	if err := am.fileStore.EnsureDir(ctx, "approvals/rejected"); err != nil {
 		return err
 	}
 
 	filename := approval.ID + ".yaml"
-	return am.fileManager.WriteYaml(filepath.Join("approvals/rejected", filename), &approval)
+	return am.fileStore.WriteYaml(ctx, filepath.Join("approvals/rejected", filename), &approval)
 }

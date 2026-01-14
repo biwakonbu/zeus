@@ -5,8 +5,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-
-	"github.com/biwakonbu/zeus/internal/core"
 )
 
 var addCmd = &cobra.Command{
@@ -21,11 +19,12 @@ func init() {
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
+	ctx := getContext(cmd)
 	entity := args[0]
 	name := args[1]
 
-	zeus := core.New(".")
-	result, err := zeus.Add(entity, name)
+	zeus := getZeus(cmd)
+	result, err := zeus.Add(ctx, entity, name)
 	if err != nil {
 		return err
 	}

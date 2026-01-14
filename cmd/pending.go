@@ -21,8 +21,9 @@ func init() {
 }
 
 func runPending(cmd *cobra.Command, args []string) error {
-	am := core.NewApprovalManager(".zeus")
-	pending, err := am.GetPending()
+	ctx := getContext(cmd)
+	zeus := getZeus(cmd)
+	pending, err := zeus.Pending(ctx)
 	if err != nil {
 		return err
 	}

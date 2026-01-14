@@ -20,8 +20,9 @@ func init() {
 }
 
 func runDoctor(cmd *cobra.Command, args []string) error {
+	ctx := getContext(cmd)
 	d := doctor.New(".")
-	result, err := d.Diagnose()
+	result, err := d.Diagnose(ctx)
 	if err != nil {
 		return err
 	}

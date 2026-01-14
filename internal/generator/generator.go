@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -25,20 +26,28 @@ func NewGenerator(projectPath string) *Generator {
 	}
 }
 
-// GenerateAll は全ての Claude Code 連携ファイルを生成
-func (g *Generator) GenerateAll(projectName string, level string) error {
-	if err := g.GenerateAgents(projectName); err != nil {
+// GenerateAll は全ての Claude Code 連携ファイルを生成（Context対応）
+func (g *Generator) GenerateAll(ctx context.Context, projectName string, level string) error {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := g.GenerateSkills(projectName); err != nil {
+
+	if err := g.GenerateAgents(ctx, projectName); err != nil {
+		return err
+	}
+	if err := g.GenerateSkills(ctx, projectName); err != nil {
 		return err
 	}
 	return nil
 }
 
-// GenerateAgents はエージェントファイルを生成
-func (g *Generator) GenerateAgents(projectName string) error {
-	if err := g.fileManager.EnsureDir("agents"); err != nil {
+// GenerateAgents はエージェントファイルを生成（Context対応）
+func (g *Generator) GenerateAgents(ctx context.Context, projectName string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	if err := g.fileManager.EnsureDir(ctx, "agents"); err != nil {
 		return err
 	}
 
@@ -56,11 +65,15 @@ func (g *Generator) GenerateAgents(projectName string) error {
 	}
 
 	for _, agent := range agents {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		content, err := g.executeTemplate(agent.template, data)
 		if err != nil {
 			return err
 		}
-		if err := g.fileManager.WriteFile(filepath.Join("agents", agent.name), []byte(content)); err != nil {
+		if err := g.fileManager.WriteFile(ctx, filepath.Join("agents", agent.name), []byte(content)); err != nil {
 			return err
 		}
 	}
@@ -68,8 +81,12 @@ func (g *Generator) GenerateAgents(projectName string) error {
 	return nil
 }
 
-// GenerateSkills はスキルファイルを生成
-func (g *Generator) GenerateSkills(projectName string) error {
+// GenerateSkills はスキルファイルを生成（Context対応）
+func (g *Generator) GenerateSkills(ctx context.Context, projectName string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	skills := []struct {
 		dir      string
 		template string
@@ -84,8 +101,12 @@ func (g *Generator) GenerateSkills(projectName string) error {
 	}
 
 	for _, skill := range skills {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		skillDir := filepath.Join("skills", skill.dir)
-		if err := g.fileManager.EnsureDir(skillDir); err != nil {
+		if err := g.fileManager.EnsureDir(ctx, skillDir); err != nil {
 			return err
 		}
 
@@ -93,7 +114,7 @@ func (g *Generator) GenerateSkills(projectName string) error {
 		if err != nil {
 			return err
 		}
-		if err := g.fileManager.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(content)); err != nil {
+		if err := g.fileManager.WriteFile(ctx, filepath.Join(skillDir, "SKILL.md"), []byte(content)); err != nil {
 			return err
 		}
 	}

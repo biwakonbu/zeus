@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -12,62 +13,125 @@ import (
 
 // Zeus はメインアプリケーション構造体
 type Zeus struct {
-	ProjectPath     string
-	ZeusPath        string
-	ClaudePath      string
-	FileManager     *yaml.FileManager
-	StateManager    *StateManager
-	ApprovalManager *ApprovalManager
+	ProjectPath string
+	ZeusPath    string
+	ClaudePath  string
+
+	// インターフェースに依存（DI対応）
+	fileStore      FileStore
+	stateStore     StateStore
+	approvalStore  ApprovalStore
+	entityRegistry *EntityRegistry
 }
 
-// New は新しい Zeus インスタンスを作成
-func New(projectPath string) *Zeus {
-	zeusPath := filepath.Join(projectPath, ".zeus")
-	return &Zeus{
-		ProjectPath:     projectPath,
-		ZeusPath:        zeusPath,
-		ClaudePath:      filepath.Join(projectPath, ".claude"),
-		FileManager:     yaml.NewFileManager(zeusPath),
-		StateManager:    NewStateManager(zeusPath),
-		ApprovalManager: NewApprovalManager(zeusPath),
+// Option は Zeus の設定オプション
+type Option func(*Zeus)
+
+// WithFileStore は FileStore を設定
+func WithFileStore(fs FileStore) Option {
+	return func(z *Zeus) {
+		z.fileStore = fs
 	}
 }
 
+// WithStateStore は StateStore を設定
+func WithStateStore(ss StateStore) Option {
+	return func(z *Zeus) {
+		z.stateStore = ss
+	}
+}
+
+// WithApprovalStore は ApprovalStore を設定
+func WithApprovalStore(as ApprovalStore) Option {
+	return func(z *Zeus) {
+		z.approvalStore = as
+	}
+}
+
+// WithEntityRegistry は EntityRegistry を設定
+func WithEntityRegistry(er *EntityRegistry) Option {
+	return func(z *Zeus) {
+		z.entityRegistry = er
+	}
+}
+
+// New は新しい Zeus インスタンスを作成
+func New(projectPath string, opts ...Option) *Zeus {
+	zeusPath := filepath.Join(projectPath, ".zeus")
+
+	z := &Zeus{
+		ProjectPath: projectPath,
+		ZeusPath:    zeusPath,
+		ClaudePath:  filepath.Join(projectPath, ".claude"),
+	}
+
+	// オプション適用
+	for _, opt := range opts {
+		opt(z)
+	}
+
+	// デフォルト実装の設定
+	if z.fileStore == nil {
+		z.fileStore = yaml.NewFileManager(zeusPath)
+	}
+	if z.stateStore == nil {
+		z.stateStore = NewStateManager(zeusPath, z.fileStore)
+	}
+	if z.approvalStore == nil {
+		z.approvalStore = NewApprovalManager(zeusPath, z.fileStore)
+	}
+	if z.entityRegistry == nil {
+		z.entityRegistry = NewEntityRegistry()
+		z.entityRegistry.Register(NewTaskHandler(z.fileStore))
+	}
+
+	return z
+}
+
 // Init はプロジェクトを初期化
-func (z *Zeus) Init(level string) (*InitResult, error) {
+func (z *Zeus) Init(ctx context.Context, level string) (*InitResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	// ディレクトリ構造を作成
 	dirs := z.getDirectoryStructure(level)
 	for _, dir := range dirs {
-		if err := z.FileManager.EnsureDir(dir); err != nil {
-			return nil, err
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			if err := z.fileStore.EnsureDir(ctx, dir); err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	// zeus.yaml を生成
 	config := z.generateInitialConfig()
-	if err := z.FileManager.WriteYaml("zeus.yaml", config); err != nil {
+	if err := z.fileStore.WriteYaml(ctx, "zeus.yaml", config); err != nil {
 		return nil, err
 	}
 
 	// 初期タスクストアを作成
 	taskStore := &TaskStore{Tasks: []Task{}}
-	if err := z.FileManager.WriteYaml("tasks/active.yaml", taskStore); err != nil {
+	if err := z.fileStore.WriteYaml(ctx, "tasks/active.yaml", taskStore); err != nil {
 		return nil, err
 	}
-	if err := z.FileManager.WriteYaml("tasks/backlog.yaml", taskStore); err != nil {
+	if err := z.fileStore.WriteYaml(ctx, "tasks/backlog.yaml", taskStore); err != nil {
 		return nil, err
 	}
 
 	// 初期状態を記録
-	state := z.calculateState(taskStore)
-	if err := z.FileManager.WriteYaml("state/current.yaml", state); err != nil {
+	state := z.stateStore.CalculateState(taskStore.Tasks)
+	if err := z.stateStore.SaveCurrentState(ctx, state); err != nil {
 		return nil, err
 	}
 
 	// Claude Code 連携ファイルを生成（standard/advanced レベルの場合）
 	if level == "standard" || level == "advanced" {
 		gen := generator.NewGenerator(z.ProjectPath)
-		if err := gen.GenerateAll(config.Project.Name, level); err != nil {
+		if err := gen.GenerateAll(ctx, config.Project.Name, level); err != nil {
 			// 生成に失敗しても初期化は続行
 			fmt.Printf("Warning: Failed to generate Claude Code files: %v\n", err)
 		}
@@ -82,19 +146,23 @@ func (z *Zeus) Init(level string) (*InitResult, error) {
 }
 
 // Status はプロジェクトステータスを取得
-func (z *Zeus) Status() (*StatusResult, error) {
+func (z *Zeus) Status(ctx context.Context) (*StatusResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	var config ZeusConfig
-	if err := z.FileManager.ReadYaml("zeus.yaml", &config); err != nil {
+	if err := z.fileStore.ReadYaml(ctx, "zeus.yaml", &config); err != nil {
 		return nil, ErrConfigNotFound
 	}
 
-	state, err := z.getCurrentState()
+	state, err := z.stateStore.GetCurrentState(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// 承認待ちアイテム数を取得
-	pending, _ := z.ApprovalManager.GetPending()
+	pending, _ := z.approvalStore.GetPending(ctx)
 	pendingCount := len(pending)
 
 	return &StatusResult{
@@ -111,93 +179,102 @@ func (z *Zeus) generateTaskID() string {
 }
 
 // Add はエンティティを追加
-func (z *Zeus) Add(entity, name string) (*AddResult, error) {
-	if entity != "task" {
-		return nil, ErrUnknownEntity
-	}
-
-	var taskStore TaskStore
-	if err := z.FileManager.ReadYaml("tasks/active.yaml", &taskStore); err != nil {
+func (z *Zeus) Add(ctx context.Context, entity, name string) (*AddResult, error) {
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	// UUID ベースの ID 生成（衝突防止）
-	id := z.generateTaskID()
-	now := Now()
-
-	task := Task{
-		ID:            id,
-		Title:         name,
-		Status:        TaskStatusPending,
-		Dependencies:  []string{},
-		ApprovalLevel: ApprovalAuto,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+	// EntityRegistry から適切なハンドラーを取得
+	handler, ok := z.entityRegistry.Get(entity)
+	if !ok {
+		return nil, ErrUnknownEntity
 	}
 
-	taskStore.Tasks = append(taskStore.Tasks, task)
-	if err := z.FileManager.WriteYaml("tasks/active.yaml", &taskStore); err != nil {
+	result, err := handler.Add(ctx, name)
+	if err != nil {
 		return nil, err
 	}
 
 	// 状態を更新
-	if err := z.updateState(); err != nil {
+	if err := z.updateState(ctx); err != nil {
 		return nil, err
 	}
 
-	return &AddResult{
-		Success: true,
-		ID:      id,
-		Entity:  entity,
-	}, nil
+	return result, nil
 }
 
 // List はエンティティ一覧を取得
-func (z *Zeus) List(entity string) (*ListResult, error) {
-	if entity != "" && entity != "tasks" {
-		return nil, ErrUnknownEntity
-	}
-
-	var taskStore TaskStore
-	if err := z.FileManager.ReadYaml("tasks/active.yaml", &taskStore); err != nil {
+func (z *Zeus) List(ctx context.Context, entity string) (*ListResult, error) {
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	return &ListResult{
-		Entity: "tasks",
-		Items:  taskStore.Tasks,
-		Total:  len(taskStore.Tasks),
-	}, nil
+	// "tasks" を "task" に正規化
+	normalizedEntity := entity
+	if normalizedEntity == "" || normalizedEntity == "tasks" {
+		normalizedEntity = "task"
+	}
+
+	// EntityRegistry から適切なハンドラーを取得
+	handler, ok := z.entityRegistry.Get(normalizedEntity)
+	if !ok {
+		return nil, ErrUnknownEntity
+	}
+
+	return handler.List(ctx, nil)
 }
 
 // Pending は承認待ちアイテムを取得
-func (z *Zeus) Pending() ([]PendingApproval, error) {
-	return z.ApprovalManager.GetPending()
+func (z *Zeus) Pending(ctx context.Context) ([]PendingApproval, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return z.approvalStore.GetPending(ctx)
 }
 
 // Approve はアイテムを承認
-func (z *Zeus) Approve(id string) (*ApprovalResult, error) {
-	return z.ApprovalManager.Approve(id)
+func (z *Zeus) Approve(ctx context.Context, id string) (*ApprovalResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return z.approvalStore.Approve(ctx, id)
 }
 
 // Reject はアイテムを却下
-func (z *Zeus) Reject(id, reason string) (*ApprovalResult, error) {
-	return z.ApprovalManager.Reject(id, reason)
+func (z *Zeus) Reject(ctx context.Context, id, reason string) (*ApprovalResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return z.approvalStore.Reject(ctx, id, reason)
 }
 
 // CreateSnapshot はスナップショットを作成
-func (z *Zeus) CreateSnapshot(label string) (*Snapshot, error) {
-	return z.StateManager.CreateSnapshot(label)
+func (z *Zeus) CreateSnapshot(ctx context.Context, label string) (*Snapshot, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return z.stateStore.CreateSnapshot(ctx, label)
 }
 
 // GetHistory は履歴を取得
-func (z *Zeus) GetHistory(limit int) ([]Snapshot, error) {
-	return z.StateManager.GetHistory(limit)
+func (z *Zeus) GetHistory(ctx context.Context, limit int) ([]Snapshot, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return z.stateStore.GetHistory(ctx, limit)
 }
 
 // RestoreSnapshot はスナップショットから復元
-func (z *Zeus) RestoreSnapshot(timestamp string) error {
-	return z.StateManager.RestoreSnapshot(timestamp)
+func (z *Zeus) RestoreSnapshot(ctx context.Context, timestamp string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return z.stateStore.RestoreSnapshot(ctx, timestamp)
+}
+
+// FileStore はFileStoreを返す（テスト用）
+func (z *Zeus) FileStore() FileStore {
+	return z.fileStore
 }
 
 // Private methods
@@ -241,67 +318,16 @@ func (z *Zeus) generateInitialConfig() *ZeusConfig {
 	}
 }
 
-func (z *Zeus) getCurrentState() (*ProjectState, error) {
-	var state ProjectState
-	if err := z.FileManager.ReadYaml("state/current.yaml", &state); err != nil {
-		return z.getEmptyState(), nil
-	}
-	return &state, nil
-}
-
-func (z *Zeus) calculateState(taskStore *TaskStore) *ProjectState {
-	stats := TaskStats{
-		TotalTasks: len(taskStore.Tasks),
-	}
-
-	for _, task := range taskStore.Tasks {
-		switch task.Status {
-		case TaskStatusCompleted:
-			stats.Completed++
-		case TaskStatusInProgress:
-			stats.InProgress++
-		case TaskStatusPending:
-			stats.Pending++
-		}
-	}
-
-	return &ProjectState{
-		Timestamp: Now(),
-		Summary:   stats,
-		Health:    z.calculateHealth(&stats),
-		Risks:     []string{},
-	}
-}
-
-func (z *Zeus) calculateHealth(stats *TaskStats) HealthStatus {
-	if stats.TotalTasks == 0 {
-		return HealthUnknown
-	}
-	progress := float64(stats.Completed) / float64(stats.TotalTasks)
-	if progress < 0.3 {
-		return HealthPoor
-	}
-	if progress < 0.7 {
-		return HealthFair
-	}
-	return HealthGood
-}
-
-func (z *Zeus) getEmptyState() *ProjectState {
-	return &ProjectState{
-		Timestamp: Now(),
-		Summary:   TaskStats{},
-		Health:    HealthUnknown,
-		Risks:     []string{},
-	}
-}
-
-func (z *Zeus) updateState() error {
-	var taskStore TaskStore
-	if err := z.FileManager.ReadYaml("tasks/active.yaml", &taskStore); err != nil {
+func (z *Zeus) updateState(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 
-	state := z.calculateState(&taskStore)
-	return z.FileManager.WriteYaml("state/current.yaml", state)
+	var taskStore TaskStore
+	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+		return err
+	}
+
+	state := z.stateStore.CalculateState(taskStore.Tasks)
+	return z.stateStore.SaveCurrentState(ctx, state)
 }

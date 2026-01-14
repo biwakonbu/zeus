@@ -1,6 +1,7 @@
 package yaml
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -94,8 +95,12 @@ func (fm *FileManager) resolvePathUnsafe(relativePath string) string {
 	return filepath.Join(fm.basePath, relativePath)
 }
 
-// Exists はファイルが存在するか確認
-func (fm *FileManager) Exists(relativePath string) bool {
+// Exists はファイルが存在するか確認（Context対応）
+func (fm *FileManager) Exists(ctx context.Context, relativePath string) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+
 	path, err := fm.ResolvePath(relativePath)
 	if err != nil {
 		return false
@@ -104,8 +109,12 @@ func (fm *FileManager) Exists(relativePath string) bool {
 	return err == nil
 }
 
-// ReadYaml は YAML ファイルを読み込む
-func (fm *FileManager) ReadYaml(relativePath string, v any) error {
+// ReadYaml は YAML ファイルを読み込む（Context対応）
+func (fm *FileManager) ReadYaml(ctx context.Context, relativePath string, v any) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	path, err := fm.ResolvePath(relativePath)
 	if err != nil {
 		return err
@@ -113,8 +122,12 @@ func (fm *FileManager) ReadYaml(relativePath string, v any) error {
 	return fm.parser.ReadFile(path, v)
 }
 
-// WriteYaml は YAML ファイルを書き込む
-func (fm *FileManager) WriteYaml(relativePath string, data any) error {
+// WriteYaml は YAML ファイルを書き込む（Context対応）
+func (fm *FileManager) WriteYaml(ctx context.Context, relativePath string, data any) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	path, err := fm.ResolvePath(relativePath)
 	if err != nil {
 		return err
@@ -122,8 +135,12 @@ func (fm *FileManager) WriteYaml(relativePath string, data any) error {
 	return fm.writer.WriteFile(path, data)
 }
 
-// WriteFile はファイルを書き込む（バイナリ対応）
-func (fm *FileManager) WriteFile(relativePath string, data []byte) error {
+// WriteFile はファイルを書き込む（バイナリ対応、Context対応）
+func (fm *FileManager) WriteFile(ctx context.Context, relativePath string, data []byte) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	fullPath, err := fm.ResolvePath(relativePath)
 	if err != nil {
 		return err
@@ -135,8 +152,12 @@ func (fm *FileManager) WriteFile(relativePath string, data []byte) error {
 	return os.WriteFile(fullPath, data, 0644)
 }
 
-// EnsureDir はディレクトリを作成
-func (fm *FileManager) EnsureDir(relativePath string) error {
+// EnsureDir はディレクトリを作成（Context対応）
+func (fm *FileManager) EnsureDir(ctx context.Context, relativePath string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	path, err := fm.ResolvePath(relativePath)
 	if err != nil {
 		return err
@@ -144,8 +165,12 @@ func (fm *FileManager) EnsureDir(relativePath string) error {
 	return os.MkdirAll(path, 0755)
 }
 
-// Copy はファイルをコピー
-func (fm *FileManager) Copy(src, dest string) error {
+// Copy はファイルをコピー（Context対応）
+func (fm *FileManager) Copy(ctx context.Context, src, dest string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	srcPath, err := fm.ResolvePath(src)
 	if err != nil {
 		return err
@@ -161,8 +186,12 @@ func (fm *FileManager) Copy(src, dest string) error {
 	return os.WriteFile(destPath, data, 0644)
 }
 
-// Delete はファイルを削除
-func (fm *FileManager) Delete(relativePath string) error {
+// Delete はファイルを削除（Context対応）
+func (fm *FileManager) Delete(ctx context.Context, relativePath string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	path, err := fm.ResolvePath(relativePath)
 	if err != nil {
 		return err
@@ -170,8 +199,12 @@ func (fm *FileManager) Delete(relativePath string) error {
 	return os.Remove(path)
 }
 
-// Glob はパターンに一致するファイルを検索
-func (fm *FileManager) Glob(pattern string) ([]string, error) {
+// Glob はパターンに一致するファイルを検索（Context対応）
+func (fm *FileManager) Glob(ctx context.Context, pattern string) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	// パターンも検証（基本的なチェック）
 	if strings.Contains(pattern, "..") {
 		return nil, ErrPathTraversal
@@ -200,8 +233,12 @@ func (fm *FileManager) Glob(pattern string) ([]string, error) {
 	return relPaths, nil
 }
 
-// ListDir はディレクトリ内のファイルを列挙
-func (fm *FileManager) ListDir(relativePath string) ([]string, error) {
+// ListDir はディレクトリ内のファイルを列挙（Context対応）
+func (fm *FileManager) ListDir(ctx context.Context, relativePath string) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	fullPath, err := fm.ResolvePath(relativePath)
 	if err != nil {
 		return nil, err

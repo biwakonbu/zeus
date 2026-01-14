@@ -5,8 +5,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-
-	"github.com/biwakonbu/zeus/internal/core"
 )
 
 var rejectCmd = &cobra.Command{
@@ -23,11 +21,12 @@ func init() {
 }
 
 func runReject(cmd *cobra.Command, args []string) error {
+	ctx := getContext(cmd)
 	id := args[0]
 	reason, _ := cmd.Flags().GetString("reason")
 
-	am := core.NewApprovalManager(".zeus")
-	result, err := am.Reject(id, reason)
+	zeus := getZeus(cmd)
+	result, err := zeus.Reject(ctx, id, reason)
 	if err != nil {
 		return err
 	}

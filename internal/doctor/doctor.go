@@ -1,6 +1,7 @@
 package doctor
 
 import (
+	"context"
 	"path/filepath"
 
 	"github.com/biwakonbu/zeus/internal/core"
@@ -13,7 +14,7 @@ type CheckResult struct {
 	Status  string // pass, warn, fail
 	Message string
 	Fixable bool
-	FixFunc func() error
+	FixFunc func(ctx context.Context) error
 }
 
 // DiagnosisResult は診断結果全体
@@ -50,18 +51,22 @@ func New(projectPath string) *Doctor {
 	}
 }
 
-// Diagnose はシステムを診断
-func (d *Doctor) Diagnose() (*DiagnosisResult, error) {
+// Diagnose はシステムを診断（Context対応）
+func (d *Doctor) Diagnose(ctx context.Context) (*DiagnosisResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	checks := []CheckResult{}
 
 	// 設定ファイル存在チェック
-	checks = append(checks, d.checkConfigExists())
+	checks = append(checks, d.checkConfigExists(ctx))
 
 	// タスクファイル存在チェック
-	checks = append(checks, d.checkTasksExists())
+	checks = append(checks, d.checkTasksExists(ctx))
 
 	// 状態ファイル存在チェック
-	checks = append(checks, d.checkStateExists())
+	checks = append(checks, d.checkStateExists(ctx))
 
 	// 全体の健全性を計算
 	overall := d.calculateOverall(checks)
@@ -79,9 +84,13 @@ func (d *Doctor) Diagnose() (*DiagnosisResult, error) {
 	}, nil
 }
 
-// Fix は問題を修復
-func (d *Doctor) Fix(dryRun bool) (*FixResult, error) {
-	diagnosis, err := d.Diagnose()
+// Fix は問題を修復（Context対応）
+func (d *Doctor) Fix(ctx context.Context, dryRun bool) (*FixResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	diagnosis, err := d.Diagnose(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +101,7 @@ func (d *Doctor) Fix(dryRun bool) (*FixResult, error) {
 			if dryRun {
 				fixes = append(fixes, FixAction{Action: check.Message, Executed: false})
 			} else {
-				if err := check.FixFunc(); err != nil {
+				if err := check.FixFunc(ctx); err != nil {
 					return nil, err
 				}
 				fixes = append(fixes, FixAction{Action: check.Message, Executed: true})
@@ -103,8 +112,8 @@ func (d *Doctor) Fix(dryRun bool) (*FixResult, error) {
 	return &FixResult{Fixes: fixes, DryRun: dryRun}, nil
 }
 
-func (d *Doctor) checkConfigExists() CheckResult {
-	if d.fileManager.Exists("zeus.yaml") {
+func (d *Doctor) checkConfigExists(ctx context.Context) CheckResult {
+	if d.fileManager.Exists(ctx, "zeus.yaml") {
 		return CheckResult{
 			Check:   "config_exists",
 			Status:  "pass",
@@ -118,16 +127,16 @@ func (d *Doctor) checkConfigExists() CheckResult {
 		Status:  "fail",
 		Message: "zeus.yaml not found - run 'zeus init' to create",
 		Fixable: true,
-		FixFunc: func() error {
+		FixFunc: func(ctx context.Context) error {
 			zeus := core.New(filepath.Dir(d.zeusPath))
-			_, err := zeus.Init("simple")
+			_, err := zeus.Init(ctx, "simple")
 			return err
 		},
 	}
 }
 
-func (d *Doctor) checkTasksExists() CheckResult {
-	if d.fileManager.Exists("tasks/active.yaml") {
+func (d *Doctor) checkTasksExists(ctx context.Context) CheckResult {
+	if d.fileManager.Exists(ctx, "tasks/active.yaml") {
 		return CheckResult{
 			Check:   "tasks_exists",
 			Status:  "pass",
@@ -141,18 +150,18 @@ func (d *Doctor) checkTasksExists() CheckResult {
 		Status:  "warn",
 		Message: "Task files missing",
 		Fixable: true,
-		FixFunc: func() error {
+		FixFunc: func(ctx context.Context) error {
 			taskStore := &core.TaskStore{Tasks: []core.Task{}}
-			if err := d.fileManager.EnsureDir("tasks"); err != nil {
+			if err := d.fileManager.EnsureDir(ctx, "tasks"); err != nil {
 				return err
 			}
-			return d.fileManager.WriteYaml("tasks/active.yaml", taskStore)
+			return d.fileManager.WriteYaml(ctx, "tasks/active.yaml", taskStore)
 		},
 	}
 }
 
-func (d *Doctor) checkStateExists() CheckResult {
-	if d.fileManager.Exists("state/current.yaml") {
+func (d *Doctor) checkStateExists(ctx context.Context) CheckResult {
+	if d.fileManager.Exists(ctx, "state/current.yaml") {
 		return CheckResult{
 			Check:   "state_exists",
 			Status:  "pass",
@@ -166,17 +175,17 @@ func (d *Doctor) checkStateExists() CheckResult {
 		Status:  "warn",
 		Message: "State file missing",
 		Fixable: true,
-		FixFunc: func() error {
+		FixFunc: func(ctx context.Context) error {
 			state := &core.ProjectState{
 				Timestamp: core.Now(),
 				Summary:   core.TaskStats{},
 				Health:    core.HealthUnknown,
 				Risks:     []string{},
 			}
-			if err := d.fileManager.EnsureDir("state"); err != nil {
+			if err := d.fileManager.EnsureDir(ctx, "state"); err != nil {
 				return err
 			}
-			return d.fileManager.WriteYaml("state/current.yaml", state)
+			return d.fileManager.WriteYaml(ctx, "state/current.yaml", state)
 		},
 	}
 }

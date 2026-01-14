@@ -5,8 +5,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-
-	"github.com/biwakonbu/zeus/internal/core"
 )
 
 var initCmd = &cobra.Command{
@@ -22,10 +20,11 @@ func init() {
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
+	ctx := getContext(cmd)
 	level, _ := cmd.Flags().GetString("level")
 
-	zeus := core.New(".")
-	result, err := zeus.Init(level)
+	zeus := getZeus(cmd)
+	result, err := zeus.Init(ctx, level)
 	if err != nil {
 		return err
 	}

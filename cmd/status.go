@@ -21,8 +21,9 @@ func init() {
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
-	zeus := core.New(".")
-	result, err := zeus.Status()
+	ctx := getContext(cmd)
+	zeus := getZeus(cmd)
+	result, err := zeus.Status(ctx)
 	if err != nil {
 		return err
 	}

@@ -5,8 +5,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-
-	"github.com/biwakonbu/zeus/internal/core"
 )
 
 var approveCmd = &cobra.Command{
@@ -22,10 +20,11 @@ func init() {
 }
 
 func runApprove(cmd *cobra.Command, args []string) error {
+	ctx := getContext(cmd)
 	id := args[0]
 
-	am := core.NewApprovalManager(".zeus")
-	result, err := am.Approve(id)
+	zeus := getZeus(cmd)
+	result, err := zeus.Approve(ctx, id)
 	if err != nil {
 		return err
 	}
