@@ -30,7 +30,19 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	green := color.New(color.FgGreen).SprintFunc()
-	fmt.Printf("%s Added %s: %s (ID: %s)\n", green("✓"), result.Entity, name, result.ID)
+	yellow := color.New(color.FgYellow).SprintFunc()
+
+	if result.NeedsApproval {
+		// 承認待ちの場合
+		fmt.Printf("%s %s '%s' は承認待ちキューに追加されました\n",
+			yellow("⏳"), result.Entity, name)
+		fmt.Printf("   承認ID: %s\n", result.ApprovalID)
+		fmt.Println("   'zeus pending' で確認、'zeus approve <id>' で承認できます")
+	} else {
+		// 即時追加の場合
+		fmt.Printf("%s Added %s: %s (ID: %s)\n",
+			green("✓"), result.Entity, name, result.ID)
+	}
 
 	return nil
 }

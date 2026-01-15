@@ -144,12 +144,11 @@ zeus init 実行後、ターゲットプロジェクトに生成される構造:
 └── backups/               # 自動バックアップ
 ```
 
-### Claude Code 連携（Phase 3 で実装予定）
+### Claude Code 連携
 
-現時点では Zeus CLI と Claude Code の連携方法が未定義のため、.claude/ ディレクトリ生成は無効化されています。
-Phase 3 で適切な連携設計を行った上で有効化予定です。
+`zeus init --level=standard` または `--level=advanced` で初期化すると、Claude Code 連携用のファイルが自動生成されます。
 
-**Phase 3 で生成予定の構造:**
+**生成される構造:**
 ```
 .claude/
 ├── agents/                # Zeus 用エージェント
@@ -164,8 +163,8 @@ Phase 3 で適切な連携設計を行った上で有効化予定です。
 
 **設計方針:**
 - Zeus CLI はスタンドアロンで動作（外部依存なし）
-- Claude Code との連携は Plugin として別途実装
-- AI 提案は現在ルールベース、Phase 3 で AI ベースに拡張
+- Claude Code との連携は生成されたエージェント/スキルを通じて実行
+- 提案機能はルールベース + AI ベースのハイブリッド対応
 
 ## 実装フェーズ
 
@@ -176,7 +175,7 @@ Phase 3 で適切な連携設計を行った上で有効化予定です。
 | **Phase 2.5 (Security)** | パス検証、UUID ID、ファイルロック | 完了 |
 | **Phase 2.6 (DI/Context)** | DI対応、Context対応、テスト強化 | 完了 |
 | **Phase 2.7 (Suggest)** | suggest, apply (ルールベース提案) | 完了 |
-| **Phase 3 (AI統合)** | Claude Code 連携、AI 提案、explain | 未実装 |
+| **Phase 3 (AI統合)** | Claude Code 連携、explain、Add+承認フロー連携 | 完了 |
 
 ## ドキュメント
 
@@ -186,7 +185,7 @@ Phase 3 で適切な連携設計を行った上で有効化予定です。
 
 ## 現在の状態
 
-**Phase 2.7 (Suggest) 完了** - 2026-01-15
+**Phase 3 (AI統合) 完了** - 2026-01-15
 
 ### 実装済みコマンド
 
@@ -194,7 +193,7 @@ Phase 3 で適切な連携設計を行った上で有効化予定です。
 # Phase 1 (MVP)
 zeus init [--level=simple|standard|advanced]   # プロジェクト初期化
 zeus status [--detail]                          # 状態表示
-zeus add <entity> <name>                        # エンティティ追加
+zeus add <entity> <name>                        # エンティティ追加（承認フロー連携）
 zeus list [entity]                              # 一覧表示
 zeus doctor                                     # 診断
 zeus fix [--dry-run]                            # 修復
@@ -209,9 +208,12 @@ zeus snapshot restore <timestamp>               # スナップショットから
 zeus history [-n limit]                         # プロジェクト履歴表示
 
 # Phase 2.7 (Suggest)
-zeus suggest [--limit N] [--impact high|medium|low]  # 提案生成（ルールベース）
+zeus suggest [--limit N] [--impact high|medium|low]  # 提案生成
 zeus apply <suggestion-id>                      # 提案適用
 zeus apply --all [--dry-run]                    # 全提案適用
+
+# Phase 3 (AI統合)
+zeus explain <entity-id> [--context]            # エンティティの詳細説明
 ```
 
 ### 承認レベル
@@ -224,10 +226,12 @@ zeus apply --all [--dry-run]                    # 全提案適用
 | notify | 通知のみ | 中リスク操作、ログ記録して実行 |
 | approve | 明示的承認必要 | 高リスク操作、承認待ちキューに追加 |
 
-**現在の実装状態:**
+**実装状態:**
 - Simple レベル: 全操作が auto（承認フローなし）
-- Standard/Advanced: 承認基盤は実装済み、Add との連携は Phase 3 で実装予定
-- 手動で `zeus approve/reject` コマンドは使用可能
+- Standard: 追加操作は notify（通知のみ）
+- Advanced: 追加操作は approve（事前承認必要）
+
+`zeus add` 実行時、automation_level に応じて承認フローが自動適用されます。
 
 ### テスト
 
@@ -250,10 +254,13 @@ go test -cover ./...
 
 ### 次のステップ
 
-- Phase 3: AI 統合
-  - Claude Code との連携設計・実装
-  - AI ベースの提案機能（現在はルールベース）
-  - explain コマンドの実装
-  - Add コマンドと承認フローの連携
-- E2E テストの整備
-- テストカバレッジ 80% 達成
+- Phase 4: 高度な分析機能
+  - 依存関係グラフの可視化
+  - 予測分析（進捗予測、リスク予測）
+  - レポート生成機能
+- テスト強化
+  - E2E テストの整備
+  - テストカバレッジ 80% 達成
+- ドキュメント整備
+  - ユーザーガイドの作成
+  - API リファレンスの整備

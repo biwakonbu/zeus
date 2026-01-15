@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	// "github.com/biwakonbu/zeus/internal/generator" // Phase 3 で有効化
+	"github.com/biwakonbu/zeus/internal/generator"
 	"github.com/biwakonbu/zeus/internal/yaml"
 	"github.com/google/uuid"
 )
@@ -128,16 +128,13 @@ func (z *Zeus) Init(ctx context.Context, level string) (*InitResult, error) {
 		return nil, err
 	}
 
-	// Phase 3: Claude Code 連携
-	// 現時点では Zeus CLI と Claude Code の連携方法が未定義のため無効化
-	// Phase 3 で適切な連携設計を行った上で有効化する
-	// if level == "standard" || level == "advanced" {
-	// 	gen := generator.NewGenerator(z.ProjectPath)
-	// 	if err := gen.GenerateAll(ctx, config.Project.Name, level); err != nil {
-	// 		fmt.Printf("Warning: Failed to generate Claude Code files: %v\n", err)
-	// 	}
-	// }
-	_ = level // unused warning 回避（Phase 3 で使用予定）
+	// Claude Code 連携ファイルを生成（Standard/Advanced レベル）
+	if level == "standard" || level == "advanced" {
+		gen := generator.NewGenerator(z.ProjectPath)
+		if err := gen.GenerateAll(ctx, config.Project.Name, level); err != nil {
+			fmt.Printf("Warning: Claude Code ファイル生成に失敗: %v\n", err)
+		}
+	}
 
 	return &InitResult{
 		Success:    true,
@@ -181,6 +178,7 @@ func (z *Zeus) generateTaskID() string {
 }
 
 // Add はエンティティを追加
+// Standard/Advanced レベルでは承認フローと連携
 func (z *Zeus) Add(ctx context.Context, entity, name string) (*AddResult, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -192,6 +190,66 @@ func (z *Zeus) Add(ctx context.Context, entity, name string) (*AddResult, error)
 		return nil, ErrUnknownEntity
 	}
 
+	// 設定を読み込んで承認レベルを判定
+	var config ZeusConfig
+	if err := z.fileStore.ReadYaml(ctx, "zeus.yaml", &config); err != nil {
+		// 設定読み込み失敗時は auto（Simple レベル）として扱う
+		config.Settings.ApprovalMode = "loose"
+		config.Settings.AutomationLevel = "simple"
+	}
+
+	// Simple レベルは常に即時実行
+	if config.Settings.AutomationLevel == "simple" {
+		return z.executeAdd(ctx, handler, entity, name)
+	}
+
+	// Standard/Advanced: 承認レベルを判定
+	approvalLevel := z.approvalStore.(*ApprovalManager).DetermineApprovalLevel("task_create", &config.Settings)
+
+	switch approvalLevel {
+	case ApprovalAuto:
+		// 自動承認: 即時実行
+		return z.executeAdd(ctx, handler, entity, name)
+
+	case ApprovalNotify:
+		// 通知付き実行: 実行してログに記録
+		result, err := z.executeAdd(ctx, handler, entity, name)
+		if err != nil {
+			return nil, err
+		}
+		// TODO: 通知ログの記録（将来の機能拡張）
+		return result, nil
+
+	case ApprovalApprove:
+		// 明示的承認が必要: 承認待ちキューに追加
+		approval, err := z.approvalStore.(*ApprovalManager).Create(
+			ctx,
+			"task_create",
+			fmt.Sprintf("%s '%s' の追加", entity, name),
+			approvalLevel,
+			"", // entityID は承認後に決定
+			map[string]string{"entity": entity, "name": name},
+		)
+		if err != nil {
+			return nil, fmt.Errorf("承認待ちキューへの追加に失敗しました: %w", err)
+		}
+
+		return &AddResult{
+			Success:       true,
+			ID:            "", // 承認後に決定
+			Entity:        entity,
+			NeedsApproval: true,
+			ApprovalID:    approval.ID,
+		}, nil
+
+	default:
+		// デフォルトは即時実行
+		return z.executeAdd(ctx, handler, entity, name)
+	}
+}
+
+// executeAdd は実際のエンティティ追加を実行
+func (z *Zeus) executeAdd(ctx context.Context, handler EntityHandler, entity, name string) (*AddResult, error) {
 	result, err := handler.Add(ctx, name)
 	if err != nil {
 		return nil, err
@@ -536,6 +594,161 @@ func (z *Zeus) saveSuggestions(ctx context.Context, suggestions []Suggestion) er
 	return nil
 }
 
+// Explain はエンティティの詳細説明を生成
+// 注意: 現在はルールベースの簡易実装。Phase 3 で AI ベースに拡張予定。
+func (z *Zeus) Explain(ctx context.Context, entityID string, includeContext bool) (*ExplainResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// "project" の場合はプロジェクト全体の説明
+	if entityID == "project" {
+		return z.explainProject(ctx, includeContext)
+	}
+
+	// タスクIDの場合
+	if len(entityID) >= 5 && entityID[:5] == "task-" {
+		return z.explainTask(ctx, entityID, includeContext)
+	}
+
+	return nil, fmt.Errorf("不明なエンティティ: %s", entityID)
+}
+
+// explainProject はプロジェクト全体の説明を生成
+func (z *Zeus) explainProject(ctx context.Context, includeContext bool) (*ExplainResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// 設定を読み込み
+	var config ZeusConfig
+	if err := z.fileStore.ReadYaml(ctx, "zeus.yaml", &config); err != nil {
+		return nil, ErrConfigNotFound
+	}
+
+	// 状態を取得
+	state, err := z.stateStore.GetCurrentState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 要約を生成
+	summary := fmt.Sprintf("%s は %s に開始されたプロジェクトです。",
+		config.Project.Name, config.Project.StartDate)
+
+	// 詳細を生成
+	details := fmt.Sprintf("現在の健全性: %s\nタスク: 全 %d 件 (完了: %d, 進行中: %d, 保留: %d)",
+		state.Health,
+		state.Summary.TotalTasks,
+		state.Summary.Completed,
+		state.Summary.InProgress,
+		state.Summary.Pending)
+
+	result := &ExplainResult{
+		EntityID:    "project",
+		EntityType:  "project",
+		Summary:     summary,
+		Details:     details,
+		Context:     make(map[string]string),
+		Suggestions: []string{},
+	}
+
+	// コンテキスト情報を追加
+	if includeContext {
+		result.Context["project_id"] = config.Project.ID
+		result.Context["automation_level"] = config.Settings.AutomationLevel
+		result.Context["ai_provider"] = config.Settings.AIProvider
+	}
+
+	// 改善提案を生成
+	if state.Summary.Pending > 5 {
+		result.Suggestions = append(result.Suggestions,
+			"保留中のタスクが多いです。優先順位を見直すことをお勧めします。")
+	}
+	if state.Health == HealthPoor {
+		result.Suggestions = append(result.Suggestions,
+			"プロジェクトの健全性が低下しています。リスク要因を確認してください。")
+	}
+
+	return result, nil
+}
+
+// explainTask は特定タスクの説明を生成
+func (z *Zeus) explainTask(ctx context.Context, taskID string, includeContext bool) (*ExplainResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// タスクストアを読み込み
+	var taskStore TaskStore
+	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+		return nil, err
+	}
+
+	// タスクを検索
+	var targetTask *Task
+	for i := range taskStore.Tasks {
+		if taskStore.Tasks[i].ID == taskID {
+			targetTask = &taskStore.Tasks[i]
+			break
+		}
+	}
+
+	if targetTask == nil {
+		return nil, fmt.Errorf("タスクが見つかりません: %s", taskID)
+	}
+
+	// 要約を生成
+	summary := fmt.Sprintf("「%s」は現在 %s 状態のタスクです。",
+		targetTask.Title, targetTask.Status)
+
+	// 詳細を生成
+	details := ""
+	if targetTask.Description != "" {
+		details = targetTask.Description
+	}
+	if targetTask.EstimateHours > 0 {
+		details += fmt.Sprintf("\n見積もり工数: %.1f 時間", targetTask.EstimateHours)
+	}
+	if targetTask.ActualHours > 0 {
+		details += fmt.Sprintf("\n実績工数: %.1f 時間", targetTask.ActualHours)
+	}
+
+	result := &ExplainResult{
+		EntityID:    taskID,
+		EntityType:  "task",
+		Summary:     summary,
+		Details:     details,
+		Context:     make(map[string]string),
+		Suggestions: []string{},
+	}
+
+	// コンテキスト情報を追加
+	if includeContext {
+		result.Context["status"] = string(targetTask.Status)
+		result.Context["approval_level"] = string(targetTask.ApprovalLevel)
+		result.Context["created_at"] = targetTask.CreatedAt
+		if targetTask.Assignee != "" {
+			result.Context["assignee"] = targetTask.Assignee
+		}
+		if len(targetTask.Dependencies) > 0 {
+			result.Context["dependencies"] = fmt.Sprintf("%v", targetTask.Dependencies)
+		}
+	}
+
+	// 改善提案を生成
+	if targetTask.Status == TaskStatusBlocked {
+		result.Suggestions = append(result.Suggestions,
+			"このタスクはブロックされています。依存関係を確認してください。")
+	}
+	if targetTask.EstimateHours > 0 && targetTask.ActualHours > targetTask.EstimateHours*1.5 {
+		result.Suggestions = append(result.Suggestions,
+			"実績が見積もりを大幅に超過しています。タスク分割を検討してください。")
+	}
+
+	return result, nil
+}
+
 // applySuggestion は個別の提案を適用
 func (z *Zeus) applySuggestion(ctx context.Context, suggestion *Suggestion) error {
 	if err := ctx.Err(); err != nil {
@@ -563,12 +776,73 @@ func (z *Zeus) applySuggestion(ctx context.Context, suggestion *Suggestion) erro
 		return nil
 
 	case SuggestionPriorityChange:
-		// Phase 3 で実装予定
-		return fmt.Errorf("priority_change タイプは Phase 3 で実装予定です")
+		if suggestion.TargetTaskID == "" {
+			return fmt.Errorf("priority_change タイプにターゲットタスクIDがありません")
+		}
+		if suggestion.NewPriority == "" {
+			return fmt.Errorf("priority_change タイプに新しい優先度がありません")
+		}
+		// タスクストアを読み込み
+		var taskStore TaskStore
+		if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+			return fmt.Errorf("タスクストアの読み込みに失敗しました: %w", err)
+		}
+		// 対象タスクを検索して更新
+		found := false
+		for i := range taskStore.Tasks {
+			if taskStore.Tasks[i].ID == suggestion.TargetTaskID {
+				taskStore.Tasks[i].Priority = TaskPriority(suggestion.NewPriority)
+				taskStore.Tasks[i].UpdatedAt = Now()
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("タスクが見つかりません: %s", suggestion.TargetTaskID)
+		}
+		if err := z.fileStore.WriteYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+			return fmt.Errorf("タスクストアの保存に失敗しました: %w", err)
+		}
+		return nil
 
 	case SuggestionDependency:
-		// Phase 3 で実装予定
-		return fmt.Errorf("dependency タイプは Phase 3 で実装予定です")
+		if suggestion.TargetTaskID == "" {
+			return fmt.Errorf("dependency タイプにターゲットタスクIDがありません")
+		}
+		if len(suggestion.Dependencies) == 0 {
+			return fmt.Errorf("dependency タイプに依存関係がありません")
+		}
+		// タスクストアを読み込み
+		var taskStore TaskStore
+		if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+			return fmt.Errorf("タスクストアの読み込みに失敗しました: %w", err)
+		}
+		// 対象タスクを検索して更新
+		found := false
+		for i := range taskStore.Tasks {
+			if taskStore.Tasks[i].ID == suggestion.TargetTaskID {
+				// 既存の依存関係に追加（重複を避ける）
+				existingDeps := make(map[string]bool)
+				for _, dep := range taskStore.Tasks[i].Dependencies {
+					existingDeps[dep] = true
+				}
+				for _, newDep := range suggestion.Dependencies {
+					if !existingDeps[newDep] {
+						taskStore.Tasks[i].Dependencies = append(taskStore.Tasks[i].Dependencies, newDep)
+					}
+				}
+				taskStore.Tasks[i].UpdatedAt = Now()
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("タスクが見つかりません: %s", suggestion.TargetTaskID)
+		}
+		if err := z.fileStore.WriteYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+			return fmt.Errorf("タスクストアの保存に失敗しました: %w", err)
+		}
+		return nil
 
 	case SuggestionRiskMitigation:
 		// リスク対策は情報提供のみ（タスク変更なし）

@@ -306,13 +306,16 @@ export async function projectScan(context) {
 2. apply コマンド（提案適用）
 3. 影響度フィルタリング
 
-### 9.4 Phase 3（AI統合）- 未実装
-1. Claude Code 連携設計・実装
-2. AI ベースの提案機能
-3. explain コマンド
-4. Add コマンドと承認フローの連携
-5. 依存関係グラフ
-6. 予測分析
+### 9.4 Phase 3（AI統合）- 完了
+1. Claude Code 連携（.claude/ 自動生成）
+2. explain コマンド（エンティティ詳細説明）
+3. Add コマンドと承認フローの連携
+4. priority_change / dependency 提案タイプ対応
+
+### 9.5 Phase 4（高度な分析）- 未実装
+1. 依存関係グラフの可視化
+2. 予測分析（進捗予測、リスク予測）
+3. レポート生成機能
 
 ## 10. 設計決定の根拠
 

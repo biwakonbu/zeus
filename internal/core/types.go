@@ -55,12 +55,22 @@ const (
 	ApprovalApprove ApprovalLevel = "approve"
 )
 
+// TaskPriority はタスク優先度
+type TaskPriority string
+
+const (
+	PriorityHigh   TaskPriority = "high"
+	PriorityMedium TaskPriority = "medium"
+	PriorityLow    TaskPriority = "low"
+)
+
 // Task はタスク
 type Task struct {
 	ID            string        `yaml:"id"`
 	Title         string        `yaml:"title"`
 	Description   string        `yaml:"description,omitempty"`
 	Status        TaskStatus    `yaml:"status"`
+	Priority      TaskPriority  `yaml:"priority,omitempty"`
 	Assignee      string        `yaml:"assignee,omitempty"`
 	EstimateHours float64       `yaml:"estimate_hours,omitempty"`
 	ActualHours   float64       `yaml:"actual_hours,omitempty"`
@@ -125,9 +135,11 @@ type StatusResult struct {
 
 // AddResult は追加結果
 type AddResult struct {
-	Success bool
-	ID      string
-	Entity  string
+	Success       bool
+	ID            string
+	Entity        string
+	NeedsApproval bool   // 承認が必要な場合 true
+	ApprovalID    string // 承認待ち ID（NeedsApproval が true の場合）
 }
 
 // ListResult は一覧結果
@@ -205,6 +217,16 @@ type ApplyResult struct {
 	AppliedIDs    []string
 	FailedIDs     []string
 	CreatedTaskID string
+}
+
+// ExplainResult は説明結果
+type ExplainResult struct {
+	EntityID    string            // 対象エンティティID
+	EntityType  string            // エンティティタイプ (project, task, etc.)
+	Summary     string            // 要約説明
+	Details     string            // 詳細説明
+	Context     map[string]string // コンテキスト情報
+	Suggestions []string          // 改善提案
 }
 
 // Validate は Task の妥当性を検証
