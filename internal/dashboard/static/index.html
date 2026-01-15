@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zeus Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <h1>Zeus Dashboard</h1>
+      <div class="header-info">
+        <span id="last-updated"></span>
+        <span id="connection-status" class="status-indicator"></span>
+      </div>
+    </div>
+  </header>
+
+  <div id="error-banner" class="error-banner" style="display: none;"></div>
+
+  <main>
+    <!-- プロジェクト概要 -->
+    <section id="overview" class="card">
+      <h2>Project Overview</h2>
+      <div class="overview-content">
+        <div class="project-info">
+          <h3 id="project-name">Loading...</h3>
+          <p id="project-description"></p>
+          <p class="meta"><span id="project-start-date"></span></p>
+        </div>
+        <div class="health-indicator">
+          <span class="label">Health</span>
+          <span id="project-health" class="health-badge">-</span>
+        </div>
+      </div>
+      <div class="progress-section">
+        <div class="progress-bar">
+          <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+        </div>
+        <span id="progress-text" class="progress-text">0%</span>
+      </div>
+    </section>
+
+    <!-- タスク統計 -->
+    <section id="stats" class="card">
+      <h2>Task Statistics</h2>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-value" id="stat-total">0</span>
+          <span class="stat-label">Total</span>
+        </div>
+        <div class="stat-item completed">
+          <span class="stat-value" id="stat-completed">0</span>
+          <span class="stat-label">Completed</span>
+        </div>
+        <div class="stat-item in-progress">
+          <span class="stat-value" id="stat-in-progress">0</span>
+          <span class="stat-label">In Progress</span>
+        </div>
+        <div class="stat-item pending">
+          <span class="stat-value" id="stat-pending">0</span>
+          <span class="stat-label">Pending</span>
+        </div>
+      </div>
+      <div id="pending-approvals" class="pending-approvals" style="display: none;">
+        <span class="warning-icon">!</span>
+        <span id="pending-approvals-count">0</span> pending approvals
+      </div>
+    </section>
+
+    <!-- タスク一覧 -->
+    <section id="tasks" class="card full-width">
+      <h2>Task List</h2>
+      <div class="table-container">
+        <table id="tasks-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Assignee</th>
+            </tr>
+          </thead>
+          <tbody id="tasks-body">
+            <tr>
+              <td colspan="5" class="loading">Loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 依存関係グラフ -->
+    <section id="graph" class="card full-width">
+      <h2>Dependency Graph</h2>
+      <div class="graph-stats">
+        <span>Nodes: <strong id="graph-nodes">0</strong></span>
+        <span>With Dependencies: <strong id="graph-deps">0</strong></span>
+        <span>Isolated: <strong id="graph-isolated">0</strong></span>
+        <span id="graph-cycles-warning" class="warning" style="display: none;">
+          Cycles: <strong id="graph-cycles">0</strong>
+        </span>
+      </div>
+      <div id="graph-container" class="graph-container">
+        <div class="mermaid" id="mermaid-graph"></div>
+      </div>
+      <div id="graph-empty" class="empty-state" style="display: none;">
+        No tasks with dependencies
+      </div>
+    </section>
+
+    <!-- 予測分析 -->
+    <section id="prediction" class="card full-width">
+      <h2>Prediction & Analysis</h2>
+      <div class="prediction-grid">
+        <!-- 完了予測 -->
+        <div class="prediction-card">
+          <h3>Completion Prediction</h3>
+          <div class="prediction-content">
+            <div class="prediction-main">
+              <span class="prediction-label">Estimated Date</span>
+              <span class="prediction-value" id="pred-date">N/A</span>
+            </div>
+            <div class="prediction-details">
+              <div class="detail-item">
+                <span class="detail-label">Remaining Tasks</span>
+                <span class="detail-value" id="pred-remaining">-</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Confidence</span>
+                <span class="detail-value" id="pred-confidence">-</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Margin</span>
+                <span class="detail-value" id="pred-margin">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- リスク分析 -->
+        <div class="prediction-card">
+          <h3>Risk Analysis</h3>
+          <div class="prediction-content">
+            <div class="prediction-main">
+              <span class="prediction-label">Risk Level</span>
+              <span class="prediction-value risk-badge" id="pred-risk-level">-</span>
+            </div>
+            <div class="risk-factors" id="risk-factors">
+              <span class="no-risk">No risk factors detected</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ベロシティ -->
+        <div class="prediction-card">
+          <h3>Velocity</h3>
+          <div class="prediction-content">
+            <div class="prediction-main">
+              <span class="prediction-label">Weekly Average</span>
+              <span class="prediction-value" id="pred-velocity">-</span>
+            </div>
+            <div class="velocity-details">
+              <div class="detail-item">
+                <span class="detail-label">Last 7 days</span>
+                <span class="detail-value" id="vel-7days">-</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Last 14 days</span>
+                <span class="detail-value" id="vel-14days">-</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Trend</span>
+                <span class="detail-value trend-badge" id="vel-trend">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Zeus - AI-driven project management with god's eye view</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

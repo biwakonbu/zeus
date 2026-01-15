@@ -54,10 +54,14 @@ zeus/
 │   ├── reject.go             # zeus reject
 │   ├── snapshot.go           # zeus snapshot
 │   ├── history.go            # zeus history
+│   ├── graph.go              # zeus graph（依存関係グラフ）
+│   ├── predict.go            # zeus predict（予測分析）
+│   ├── report.go             # zeus report（レポート生成）
+│   ├── dashboard.go          # zeus dashboard（Webダッシュボード）
 │   └── ...
 ├── internal/                 # 内部パッケージ
 │   ├── core/                 # コアロジック
-│   │   ├── zeus.go           # メインロジック（DI対応）
+│   │   ├── zeus.go           # メインロジック（DI対応、分析機能統合）
 │   │   ├── interfaces.go     # FileStore, StateStore, ApprovalStore インターフェース
 │   │   ├── entity.go         # EntityHandler, EntityRegistry
 │   │   ├── task_handler.go   # タスクエンティティハンドラー
@@ -67,6 +71,21 @@ zeus/
 │   │   ├── errors.go         # エラー定義
 │   │   └── mocks/            # テスト用モック
 │   │       └── mock_file_store.go
+│   ├── analysis/             # 分析機能（Phase 4）
+│   │   ├── types.go          # 分析用型定義（独立）
+│   │   ├── graph.go          # 依存関係グラフ構築・可視化
+│   │   └── predict.go        # 予測分析（完了日、リスク、ベロシティ）
+│   ├── report/               # レポート生成（Phase 4）
+│   │   ├── generator.go      # レポート生成ロジック
+│   │   └── templates.go      # 出力テンプレート（TEXT/HTML/Markdown）
+│   ├── dashboard/            # Web ダッシュボード（Phase 5）
+│   │   ├── server.go         # HTTP サーバー
+│   │   ├── handlers.go       # API ハンドラー
+│   │   ├── static/           # 静的ファイル（embed）
+│   │   │   ├── index.html
+│   │   │   ├── styles.css
+│   │   │   └── app.js
+│   │   └── dashboard_test.go
 │   ├── yaml/                 # YAML 操作
 │   │   ├── parser.go
 │   │   ├── writer.go
@@ -92,6 +111,38 @@ zeus/
 | ApprovalManager | 3段階承認フロー (auto/notify/approve)、ファイルロック |
 | TaskHandler | タスクエンティティの CRUD 操作 |
 | EntityRegistry | エンティティハンドラーの登録・取得 |
+
+### 分析モジュール (internal/analysis/)
+
+| モジュール | 責務 |
+|-----------|------|
+| GraphBuilder | タスク依存関係グラフの構築 |
+| DependencyGraph | グラフ構造、循環検出、統計計算、可視化出力 |
+| Predictor | 完了日予測、リスク分析、ベロシティ計算 |
+
+**設計ポイント:**
+- `analysis` パッケージは `core` からの import cycle を避けるため独自の型を定義
+- `core.Zeus` から `analysis` への変換関数で連携
+
+### レポートモジュール (internal/report/)
+
+| モジュール | 責務 |
+|-----------|------|
+| Generator | プロジェクトレポートの生成 |
+| Templates | TEXT/HTML/Markdown テンプレート |
+
+### ダッシュボードモジュール (internal/dashboard/)
+
+| モジュール | 責務 |
+|-----------|------|
+| Server | HTTP サーバー管理、静的ファイル配信 |
+| Handlers | REST API ハンドラー（/api/status, /api/tasks, /api/graph, /api/predict） |
+
+**設計ポイント:**
+- Go 標準ライブラリのみ使用（net/http, embed）
+- 静的ファイルは `//go:embed` で埋め込み
+- Mermaid.js は CDN から読み込み
+- 127.0.0.1 にバインドしてローカルアクセスのみ許可
 
 ### DI パターン
 
@@ -123,6 +174,7 @@ z := core.New(projectPath,
 | ディレクトリトラバーサル防止 | file_manager.go | ValidatePath でパス検証 |
 | ID 衝突防止 | zeus.go, approval.go | UUID v4 ベースの ID 生成 |
 | 承認フロー原子性 | approval.go | flock ベースのファイルロック |
+| ダッシュボードローカル専用 | server.go | 127.0.0.1 バインド |
 
 ### データ構造 (.zeus/)
 
@@ -176,6 +228,8 @@ zeus init 実行後、ターゲットプロジェクトに生成される構造:
 | **Phase 2.6 (DI/Context)** | DI対応、Context対応、テスト強化 | 完了 |
 | **Phase 2.7 (Suggest)** | suggest, apply (ルールベース提案) | 完了 |
 | **Phase 3 (AI統合)** | Claude Code 連携、explain、Add+承認フロー連携 | 完了 |
+| **Phase 4 (高度な分析)** | graph, predict, report（依存関係グラフ、予測分析、レポート生成） | 完了 |
+| **Phase 5 (ダッシュボード)** | Web UI、リアルタイム更新、Mermaid.js グラフ | 完了 |
 
 ## ドキュメント
 
@@ -185,7 +239,7 @@ zeus init 実行後、ターゲットプロジェクトに生成される構造:
 
 ## 現在の状態
 
-**Phase 3 (AI統合) 完了** - 2026-01-15
+**Phase 5 (ダッシュボード) 完了** - 2026-01-15
 
 ### 実装済みコマンド
 
@@ -214,7 +268,34 @@ zeus apply --all [--dry-run]                    # 全提案適用
 
 # Phase 3 (AI統合)
 zeus explain <entity-id> [--context]            # エンティティの詳細説明
+
+# Phase 4 (高度な分析)
+zeus graph [--format text|dot|mermaid] [-o file]    # 依存関係グラフ表示
+zeus predict [completion|risk|velocity|all]         # 予測分析
+zeus report [--format text|html|markdown] [-o file] # プロジェクトレポート生成
+
+# Phase 5 (ダッシュボード)
+zeus dashboard [--port 8080] [--no-open]            # Web ダッシュボードを起動
 ```
+
+### ダッシュボード機能
+
+Web ブラウザでプロジェクト状態を可視化:
+
+| 機能 | 説明 |
+|------|------|
+| プロジェクト概要 | 名前、説明、進捗率、健全性 |
+| タスク統計 | 完了/進行中/保留の内訳 |
+| タスク一覧 | テーブル形式、ステータス色分け |
+| 依存関係グラフ | Mermaid.js でインタラクティブ表示 |
+| 予測分析 | 完了日、リスク、ベロシティ |
+| 自動更新 | 5秒間隔で Polling |
+
+**API エンドポイント:**
+- `GET /api/status` - プロジェクト状態
+- `GET /api/tasks` - タスク一覧
+- `GET /api/graph` - 依存関係グラフ（Mermaid形式）
+- `GET /api/predict` - 予測分析結果
 
 ### 承認レベル
 
@@ -251,16 +332,18 @@ go test -cover ./...
 - Context タイムアウトテスト: キャンセル処理の検証
 - 統合テスト: Init から List までのフロー
 - TaskHandler 単体テスト: CRUD 操作の検証
+- 分析テスト: グラフ構築、予測計算の検証
+- レポートテスト: 各形式の出力検証
+- ダッシュボードテスト: API ハンドラー、サーバー起動/停止の検証
 
 ### 次のステップ
 
-- Phase 4: 高度な分析機能
-  - 依存関係グラフの可視化
-  - 予測分析（進捗予測、リスク予測）
-  - レポート生成機能
 - テスト強化
   - E2E テストの整備
   - テストカバレッジ 80% 達成
 - ドキュメント整備
   - ユーザーガイドの作成
   - API リファレンスの整備
+- Phase 6（将来）
+  - 外部連携（Slack/Email 通知）
+  - Git 統合

@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/biwakonbu/zeus/internal/analysis"
 	"github.com/biwakonbu/zeus/internal/generator"
+	"github.com/biwakonbu/zeus/internal/report"
 	"github.com/biwakonbu/zeus/internal/yaml"
 	"github.com/google/uuid"
 )
@@ -851,5 +853,233 @@ func (z *Zeus) applySuggestion(ctx context.Context, suggestion *Suggestion) erro
 
 	default:
 		return fmt.Errorf("不明な提案タイプ: %s", suggestion.Type)
+	}
+}
+
+// ===== Phase 4: 高度な分析機能 =====
+
+// toAnalysisTaskInfo は core.Task を analysis.TaskInfo に変換
+func toAnalysisTaskInfo(tasks []Task) []analysis.TaskInfo {
+	result := make([]analysis.TaskInfo, len(tasks))
+	for i, t := range tasks {
+		result[i] = analysis.TaskInfo{
+			ID:           t.ID,
+			Title:        t.Title,
+			Status:       string(t.Status),
+			Dependencies: t.Dependencies,
+		}
+	}
+	return result
+}
+
+// toAnalysisProjectState は core.ProjectState を analysis.ProjectState に変換
+func toAnalysisProjectState(state *ProjectState) *analysis.ProjectState {
+	return &analysis.ProjectState{
+		Health: string(state.Health),
+		Summary: analysis.TaskStats{
+			TotalTasks: state.Summary.TotalTasks,
+			Completed:  state.Summary.Completed,
+			InProgress: state.Summary.InProgress,
+			Pending:    state.Summary.Pending,
+		},
+	}
+}
+
+// toAnalysisSnapshots は core.Snapshot を analysis.Snapshot に変換
+func toAnalysisSnapshots(snapshots []Snapshot) []analysis.Snapshot {
+	result := make([]analysis.Snapshot, len(snapshots))
+	for i, s := range snapshots {
+		result[i] = analysis.Snapshot{
+			Timestamp: s.Timestamp,
+			State: analysis.ProjectState{
+				Health: string(s.State.Health),
+				Summary: analysis.TaskStats{
+					TotalTasks: s.State.Summary.TotalTasks,
+					Completed:  s.State.Summary.Completed,
+					InProgress: s.State.Summary.InProgress,
+					Pending:    s.State.Summary.Pending,
+				},
+			},
+		}
+	}
+	return result
+}
+
+// toReportConfig は core.ZeusConfig を report.ZeusConfig に変換
+func toReportConfig(config *ZeusConfig) *report.ZeusConfig {
+	return &report.ZeusConfig{
+		Project: report.ProjectInfo{
+			ID:          config.Project.ID,
+			Name:        config.Project.Name,
+			Description: config.Project.Description,
+			StartDate:   config.Project.StartDate,
+		},
+	}
+}
+
+// toReportProjectState は core.ProjectState を report.ProjectState に変換
+func toReportProjectState(state *ProjectState) *report.ProjectState {
+	return &report.ProjectState{
+		Health: string(state.Health),
+		Summary: report.TaskStats{
+			TotalTasks: state.Summary.TotalTasks,
+			Completed:  state.Summary.Completed,
+			InProgress: state.Summary.InProgress,
+			Pending:    state.Summary.Pending,
+		},
+	}
+}
+
+// BuildDependencyGraph は依存関係グラフを構築
+func (z *Zeus) BuildDependencyGraph(ctx context.Context) (*analysis.DependencyGraph, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// タスク一覧を取得
+	var taskStore TaskStore
+	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+		return nil, fmt.Errorf("タスクの読み込みに失敗しました: %w", err)
+	}
+
+	if len(taskStore.Tasks) == 0 {
+		return &analysis.DependencyGraph{
+			Nodes:    make(map[string]*analysis.GraphNode),
+			Edges:    []analysis.Edge{},
+			Cycles:   [][]string{},
+			Isolated: []string{},
+			Stats:    analysis.GraphStats{},
+		}, nil
+	}
+
+	// core.Task を analysis.TaskInfo に変換
+	taskInfos := toAnalysisTaskInfo(taskStore.Tasks)
+
+	// グラフを構築
+	builder := analysis.NewGraphBuilder(taskInfos)
+	return builder.Build(ctx)
+}
+
+// Predict は予測分析を実行
+func (z *Zeus) Predict(ctx context.Context, predType string) (*analysis.AnalysisResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// 現在の状態を取得
+	state, err := z.stateStore.GetCurrentState(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("状態の取得に失敗しました: %w", err)
+	}
+
+	// 履歴を取得
+	history, err := z.stateStore.GetHistory(ctx, 30) // 最大30件
+	if err != nil {
+		history = []Snapshot{} // エラー時は空のスライス
+	}
+
+	// タスク一覧を取得
+	var taskStore TaskStore
+	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+		taskStore = TaskStore{Tasks: []Task{}}
+	}
+
+	// 型変換
+	analysisState := toAnalysisProjectState(state)
+	analysisHistory := toAnalysisSnapshots(history)
+	analysisTaskInfos := toAnalysisTaskInfo(taskStore.Tasks)
+
+	// Predictor を作成
+	predictor := analysis.NewPredictor(analysisState, analysisHistory, analysisTaskInfos)
+
+	result := &analysis.AnalysisResult{}
+
+	// 予測タイプに応じて分析を実行
+	switch predType {
+	case "completion":
+		completion, err := predictor.PredictCompletion(ctx)
+		if err != nil {
+			return nil, err
+		}
+		result.Completion = completion
+
+	case "risk":
+		risk, err := predictor.PredictRisk(ctx)
+		if err != nil {
+			return nil, err
+		}
+		result.Risk = risk
+
+	case "velocity":
+		velocity, err := predictor.CalculateVelocity(ctx)
+		if err != nil {
+			return nil, err
+		}
+		result.Velocity = velocity
+
+	case "all", "":
+		// 全ての予測を実行
+		completion, _ := predictor.PredictCompletion(ctx)
+		result.Completion = completion
+
+		risk, _ := predictor.PredictRisk(ctx)
+		result.Risk = risk
+
+		velocity, _ := predictor.CalculateVelocity(ctx)
+		result.Velocity = velocity
+
+	default:
+		return nil, fmt.Errorf("不明な予測タイプ: %s", predType)
+	}
+
+	return result, nil
+}
+
+// GenerateReport はレポートを生成
+func (z *Zeus) GenerateReport(ctx context.Context, format string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+
+	// 設定を取得
+	var config ZeusConfig
+	if err := z.fileStore.ReadYaml(ctx, "zeus.yaml", &config); err != nil {
+		return "", ErrConfigNotFound
+	}
+
+	// 状態を取得
+	state, err := z.stateStore.GetCurrentState(ctx)
+	if err != nil {
+		return "", fmt.Errorf("状態の取得に失敗しました: %w", err)
+	}
+
+	// 分析結果を取得
+	analysisResult, _ := z.Predict(ctx, "all")
+
+	// グラフを取得（Markdown形式用）
+	if format == "markdown" {
+		graph, _ := z.BuildDependencyGraph(ctx)
+		if analysisResult == nil {
+			analysisResult = &analysis.AnalysisResult{}
+		}
+		analysisResult.Graph = graph
+	}
+
+	// 型変換
+	reportConfig := toReportConfig(&config)
+	reportState := toReportProjectState(state)
+
+	// レポートを生成
+	gen := report.NewGenerator(reportConfig, reportState, analysisResult)
+
+	switch format {
+	case "text", "":
+		return gen.GenerateText(ctx)
+	case "html":
+		return gen.GenerateHTML(ctx)
+	case "markdown":
+		return gen.GenerateMarkdown(ctx)
+	default:
+		return "", fmt.Errorf("不明なレポート形式: %s", format)
 	}
 }

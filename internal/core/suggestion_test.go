@@ -498,3 +498,453 @@ func TestApplySuggestionContextTimeout(t *testing.T) {
 		t.Error("expected error for timed out context")
 	}
 }
+
+// TestSuggestionValidate_AdditionalCases は追加の検証ケースをテスト
+func TestSuggestionValidate_AdditionalCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		sugg    Suggestion
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "missing impact",
+			sugg: Suggestion{
+				ID:          "sugg-1",
+				Type:        SuggestionRiskMitigation,
+				Description: "Test description",
+			},
+			wantErr: true,
+			errMsg:  "suggestion impact is required",
+		},
+		{
+			name: "priority change without new priority",
+			sugg: Suggestion{
+				ID:           "sugg-1",
+				Type:         SuggestionPriorityChange,
+				Description:  "Priority change",
+				Impact:       ImpactMedium,
+				TargetTaskID: "task-1",
+			},
+			wantErr: true,
+			errMsg:  "priority_change suggestion must have NewPriority",
+		},
+		{
+			name: "dependency without target task ID",
+			sugg: Suggestion{
+				ID:           "sugg-1",
+				Type:         SuggestionDependency,
+				Description:  "Add dependency",
+				Impact:       ImpactLow,
+				Dependencies: []string{"task-1"},
+			},
+			wantErr: true,
+			errMsg:  "dependency suggestion must have TargetTaskID",
+		},
+		{
+			name: "dependency without dependencies",
+			sugg: Suggestion{
+				ID:           "sugg-1",
+				Type:         SuggestionDependency,
+				Description:  "Add dependency",
+				Impact:       ImpactLow,
+				TargetTaskID: "task-1",
+			},
+			wantErr: true,
+			errMsg:  "dependency suggestion must have at least one dependency",
+		},
+		{
+			name: "valid dependency suggestion",
+			sugg: Suggestion{
+				ID:           "sugg-1",
+				Type:         SuggestionDependency,
+				Description:  "Add dependency",
+				Impact:       ImpactLow,
+				TargetTaskID: "task-1",
+				Dependencies: []string{"task-2"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid priority change",
+			sugg: Suggestion{
+				ID:           "sugg-1",
+				Type:         SuggestionPriorityChange,
+				Description:  "Priority change",
+				Impact:       ImpactMedium,
+				TargetTaskID: "task-1",
+				NewPriority:  "high",
+			},
+			wantErr: false,
+		},
+		{
+			name: "unknown suggestion type",
+			sugg: Suggestion{
+				ID:          "sugg-1",
+				Type:        "unknown_type",
+				Description: "Unknown type",
+				Impact:      ImpactLow,
+			},
+			wantErr: true,
+			errMsg:  "unknown suggestion type",
+		},
+		{
+			name: "new task with invalid task data",
+			sugg: Suggestion{
+				ID:          "sugg-1",
+				Type:        SuggestionNewTask,
+				Description: "New task",
+				Impact:      ImpactMedium,
+				TaskData: &Task{
+					ID: "task-1",
+					// Title がない
+					Status: TaskStatusPending,
+				},
+			},
+			wantErr: true,
+			errMsg:  "invalid task data",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.sugg.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr && err != nil && !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("Validate() error = %v, want error containing %s", err, tt.errMsg)
+			}
+		})
+	}
+}
+
+// TestApplySuggestion_NewTask は new_task タイプの提案適用をテスト
+func TestApplySuggestion_NewTask(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "zeus-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	z := New(tmpDir)
+	ctx := context.Background()
+
+	// 初期化
+	_, err = z.Init(ctx, "simple")
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	// 手動で new_task 提案を作成
+	suggestion := &Suggestion{
+		ID:          "sugg-new-task-1",
+		Type:        SuggestionNewTask,
+		Description: "Add new task for testing",
+		Impact:      ImpactMedium,
+		Status:      SuggestionPending,
+		TaskData: &Task{
+			ID:        "task-new-1",
+			Title:     "New Task from Suggestion",
+			Status:    TaskStatusPending,
+			CreatedAt: Now(),
+			UpdatedAt: Now(),
+		},
+	}
+
+	// 提案をストアに保存
+	store := &SuggestionStore{
+		Suggestions: []Suggestion{*suggestion},
+	}
+	if err := z.fileStore.WriteYaml(ctx, "suggestions/active.yaml", store); err != nil {
+		t.Fatalf("failed to write suggestion: %v", err)
+	}
+
+	// 提案を適用
+	result, err := z.ApplySuggestion(ctx, suggestion.ID, false, false)
+	if err != nil {
+		t.Fatalf("ApplySuggestion failed: %v", err)
+	}
+
+	if result.Applied != 1 {
+		t.Errorf("expected 1 applied, got %d", result.Applied)
+	}
+
+	// タスクが追加されたか確認
+	var taskStore TaskStore
+	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+		t.Fatalf("failed to read tasks: %v", err)
+	}
+
+	found := false
+	for _, task := range taskStore.Tasks {
+		if task.ID == "task-new-1" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected new task to be added")
+	}
+}
+
+// TestApplySuggestion_PriorityChange は priority_change タイプの提案適用をテスト
+func TestApplySuggestion_PriorityChange(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "zeus-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	z := New(tmpDir)
+	ctx := context.Background()
+
+	// 初期化
+	_, err = z.Init(ctx, "simple")
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	// タスクを追加
+	_, err = z.Add(ctx, "task", "Test Task")
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	// タスク ID を取得
+	var taskStore TaskStore
+	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+		t.Fatalf("failed to read tasks: %v", err)
+	}
+	if len(taskStore.Tasks) == 0 {
+		t.Fatal("no tasks found")
+	}
+	taskID := taskStore.Tasks[0].ID
+
+	// priority_change 提案を作成
+	suggestion := &Suggestion{
+		ID:           "sugg-priority-1",
+		Type:         SuggestionPriorityChange,
+		Description:  "Change priority to high",
+		Impact:       ImpactMedium,
+		Status:       SuggestionPending,
+		TargetTaskID: taskID,
+		NewPriority:  "high",
+	}
+
+	// 提案をストアに保存
+	store := &SuggestionStore{
+		Suggestions: []Suggestion{*suggestion},
+	}
+	if err := z.fileStore.WriteYaml(ctx, "suggestions/active.yaml", store); err != nil {
+		t.Fatalf("failed to write suggestion: %v", err)
+	}
+
+	// 提案を適用
+	result, err := z.ApplySuggestion(ctx, suggestion.ID, false, false)
+	if err != nil {
+		t.Fatalf("ApplySuggestion failed: %v", err)
+	}
+
+	if result.Applied != 1 {
+		t.Errorf("expected 1 applied, got %d", result.Applied)
+	}
+
+	// タスクの優先度が変更されたか確認
+	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+		t.Fatalf("failed to read tasks: %v", err)
+	}
+
+	for _, task := range taskStore.Tasks {
+		if task.ID == taskID {
+			if task.Priority != PriorityHigh {
+				t.Errorf("expected priority high, got %s", task.Priority)
+			}
+			break
+		}
+	}
+}
+
+// TestApplySuggestion_Dependency は dependency タイプの提案適用をテスト
+func TestApplySuggestion_Dependency(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "zeus-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	z := New(tmpDir)
+	ctx := context.Background()
+
+	// 初期化
+	_, err = z.Init(ctx, "simple")
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	// 2つのタスクを追加
+	_, err = z.Add(ctx, "task", "Test Task 1")
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	_, err = z.Add(ctx, "task", "Test Task 2")
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	// タスク ID を取得
+	var taskStore TaskStore
+	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+		t.Fatalf("failed to read tasks: %v", err)
+	}
+	if len(taskStore.Tasks) < 2 {
+		t.Fatal("not enough tasks")
+	}
+	task1ID := taskStore.Tasks[0].ID
+	task2ID := taskStore.Tasks[1].ID
+
+	// dependency 提案を作成
+	suggestion := &Suggestion{
+		ID:           "sugg-dep-1",
+		Type:         SuggestionDependency,
+		Description:  "Add dependency",
+		Impact:       ImpactLow,
+		Status:       SuggestionPending,
+		TargetTaskID: task1ID,
+		Dependencies: []string{task2ID},
+	}
+
+	// 提案をストアに保存
+	store := &SuggestionStore{
+		Suggestions: []Suggestion{*suggestion},
+	}
+	if err := z.fileStore.WriteYaml(ctx, "suggestions/active.yaml", store); err != nil {
+		t.Fatalf("failed to write suggestion: %v", err)
+	}
+
+	// 提案を適用
+	result, err := z.ApplySuggestion(ctx, suggestion.ID, false, false)
+	if err != nil {
+		t.Fatalf("ApplySuggestion failed: %v", err)
+	}
+
+	if result.Applied != 1 {
+		t.Errorf("expected 1 applied, got %d", result.Applied)
+	}
+
+	// 依存関係が追加されたか確認
+	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+		t.Fatalf("failed to read tasks: %v", err)
+	}
+
+	for _, task := range taskStore.Tasks {
+		if task.ID == task1ID {
+			found := false
+			for _, dep := range task.Dependencies {
+				if dep == task2ID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Error("expected dependency to be added")
+			}
+			break
+		}
+	}
+}
+
+// TestApplySuggestion_TargetTaskNotFound はターゲットタスクが見つからない場合をテスト
+func TestApplySuggestion_TargetTaskNotFound(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "zeus-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	z := New(tmpDir)
+	ctx := context.Background()
+
+	// 初期化
+	_, err = z.Init(ctx, "simple")
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	// priority_change 提案を作成（存在しないタスク）
+	suggestion := &Suggestion{
+		ID:           "sugg-priority-1",
+		Type:         SuggestionPriorityChange,
+		Description:  "Change priority to high",
+		Impact:       ImpactMedium,
+		Status:       SuggestionPending,
+		TargetTaskID: "nonexistent-task",
+		NewPriority:  "high",
+	}
+
+	// 提案をストアに保存
+	store := &SuggestionStore{
+		Suggestions: []Suggestion{*suggestion},
+	}
+	if err := z.fileStore.WriteYaml(ctx, "suggestions/active.yaml", store); err != nil {
+		t.Fatalf("failed to write suggestion: %v", err)
+	}
+
+	// 提案を適用（--all で実行）
+	result, err := z.ApplySuggestion(ctx, "", true, false)
+	if err != nil {
+		t.Fatalf("ApplySuggestion failed: %v", err)
+	}
+
+	// ターゲットが見つからないので失敗
+	if result.Failed != 1 {
+		t.Errorf("expected 1 failed, got %d", result.Failed)
+	}
+}
+
+// TestApplySuggestion_NewTaskWithoutTaskData は TaskData がない new_task をテスト
+func TestApplySuggestion_NewTaskWithoutTaskData(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "zeus-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	z := New(tmpDir)
+	ctx := context.Background()
+
+	// 初期化
+	_, err = z.Init(ctx, "simple")
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	// new_task 提案を作成（TaskData なし）
+	suggestion := &Suggestion{
+		ID:          "sugg-new-task-1",
+		Type:        SuggestionNewTask,
+		Description: "Add new task",
+		Impact:      ImpactMedium,
+		Status:      SuggestionPending,
+		// TaskData がない
+	}
+
+	// 提案をストアに保存
+	store := &SuggestionStore{
+		Suggestions: []Suggestion{*suggestion},
+	}
+	if err := z.fileStore.WriteYaml(ctx, "suggestions/active.yaml", store); err != nil {
+		t.Fatalf("failed to write suggestion: %v", err)
+	}
+
+	// 提案を適用（--all で実行）
+	result, err := z.ApplySuggestion(ctx, "", true, false)
+	if err != nil {
+		t.Fatalf("ApplySuggestion failed: %v", err)
+	}
+
+	// TaskData がないので失敗
+	if result.Failed != 1 {
+		t.Errorf("expected 1 failed, got %d", result.Failed)
+	}
+}
