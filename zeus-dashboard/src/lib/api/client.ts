@@ -4,6 +4,8 @@ import type {
 	TasksResponse,
 	GraphResponse,
 	PredictResponse,
+	WBSResponse,
+	TimelineResponse,
 	ErrorResponse
 } from '$lib/types/api';
 
@@ -65,6 +67,16 @@ export async function fetchGraph(): Promise<GraphResponse> {
 // 予測取得
 export async function fetchPredict(): Promise<PredictResponse> {
 	return fetchJSON<PredictResponse>('/predict');
+}
+
+// WBS 取得
+export async function fetchWBS(): Promise<WBSResponse> {
+	return fetchJSON<WBSResponse>('/wbs');
+}
+
+// タイムライン取得
+export async function fetchTimeline(): Promise<TimelineResponse> {
+	return fetchJSON<TimelineResponse>('/timeline');
 }
 
 // 全データ取得（並列実行）

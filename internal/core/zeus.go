@@ -178,7 +178,7 @@ func (z *Zeus) generateTaskID() string {
 
 // Add はエンティティを追加
 // automation_level に応じて承認フローと連携
-func (z *Zeus) Add(ctx context.Context, entity, name string) (*AddResult, error) {
+func (z *Zeus) Add(ctx context.Context, entity, name string, opts ...EntityOption) (*AddResult, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func (z *Zeus) Add(ctx context.Context, entity, name string) (*AddResult, error)
 
 	// auto レベルは常に即時実行
 	if config.Settings.AutomationLevel == "auto" {
-		return z.executeAdd(ctx, handler, entity, name)
+		return z.executeAdd(ctx, handler, entity, name, opts...)
 	}
 
 	// notify/approve: 承認レベルを判定
@@ -208,11 +208,11 @@ func (z *Zeus) Add(ctx context.Context, entity, name string) (*AddResult, error)
 	switch approvalLevel {
 	case ApprovalAuto:
 		// 自動承認: 即時実行
-		return z.executeAdd(ctx, handler, entity, name)
+		return z.executeAdd(ctx, handler, entity, name, opts...)
 
 	case ApprovalNotify:
 		// 通知付き実行: 実行してログに記録
-		result, err := z.executeAdd(ctx, handler, entity, name)
+		result, err := z.executeAdd(ctx, handler, entity, name, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -243,13 +243,13 @@ func (z *Zeus) Add(ctx context.Context, entity, name string) (*AddResult, error)
 
 	default:
 		// デフォルトは即時実行
-		return z.executeAdd(ctx, handler, entity, name)
+		return z.executeAdd(ctx, handler, entity, name, opts...)
 	}
 }
 
 // executeAdd は実際のエンティティ追加を実行
-func (z *Zeus) executeAdd(ctx context.Context, handler EntityHandler, entity, name string) (*AddResult, error) {
-	result, err := handler.Add(ctx, name)
+func (z *Zeus) executeAdd(ctx context.Context, handler EntityHandler, entity, name string, opts ...EntityOption) (*AddResult, error) {
+	result, err := handler.Add(ctx, name, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -848,10 +848,18 @@ func toAnalysisTaskInfo(tasks []Task) []analysis.TaskInfo {
 	result := make([]analysis.TaskInfo, len(tasks))
 	for i, t := range tasks {
 		result[i] = analysis.TaskInfo{
-			ID:           t.ID,
-			Title:        t.Title,
-			Status:       string(t.Status),
-			Dependencies: t.Dependencies,
+			ID:            t.ID,
+			Title:         t.Title,
+			Status:        string(t.Status),
+			Dependencies:  t.Dependencies,
+			ParentID:      t.ParentID,
+			StartDate:     t.StartDate,
+			DueDate:       t.DueDate,
+			Progress:      t.Progress,
+			WBSCode:       t.WBSCode,
+			Priority:      string(t.Priority),
+			Assignee:      t.Assignee,
+			EstimateHours: t.EstimateHours,
 		}
 	}
 	return result
@@ -1067,4 +1075,64 @@ func (z *Zeus) GenerateReport(ctx context.Context, format string) (string, error
 	default:
 		return "", fmt.Errorf("不明なレポート形式: %s", format)
 	}
+}
+
+// ===== Phase 6B: WBS 機能 =====
+
+// BuildWBSTree はWBS階層ツリーを構築
+func (z *Zeus) BuildWBSTree(ctx context.Context) (*analysis.WBSTree, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// タスク一覧を取得
+	var taskStore TaskStore
+	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+		return nil, fmt.Errorf("タスクの読み込みに失敗しました: %w", err)
+	}
+
+	if len(taskStore.Tasks) == 0 {
+		return &analysis.WBSTree{
+			Roots:    []*analysis.WBSNode{},
+			MaxDepth: 0,
+			Stats:    analysis.WBSStats{},
+		}, nil
+	}
+
+	// core.Task を analysis.TaskInfo に変換
+	taskInfos := toAnalysisTaskInfo(taskStore.Tasks)
+
+	// WBSツリーを構築
+	builder := analysis.NewWBSBuilder(taskInfos)
+	return builder.Build(ctx)
+}
+
+// ===== Phase 6C: タイムライン機能 =====
+
+// BuildTimeline はタイムラインを構築
+func (z *Zeus) BuildTimeline(ctx context.Context) (*analysis.Timeline, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// タスク一覧を取得
+	var taskStore TaskStore
+	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+		return nil, fmt.Errorf("タスクの読み込みに失敗しました: %w", err)
+	}
+
+	if len(taskStore.Tasks) == 0 {
+		return &analysis.Timeline{
+			Items:        []analysis.TimelineItem{},
+			CriticalPath: []string{},
+			Stats:        analysis.TimelineStats{},
+		}, nil
+	}
+
+	// core.Task を analysis.TaskInfo に変換
+	taskInfos := toAnalysisTaskInfo(taskStore.Tasks)
+
+	// タイムラインを構築
+	builder := analysis.NewTimelineBuilder(taskInfos)
+	return builder.Build(ctx)
 }

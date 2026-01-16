@@ -133,6 +133,8 @@ func (s *Server) handler() http.Handler {
 	mux.HandleFunc("/api/tasks", s.corsMiddleware(s.handleAPITasks))
 	mux.HandleFunc("/api/graph", s.corsMiddleware(s.handleAPIGraph))
 	mux.HandleFunc("/api/predict", s.corsMiddleware(s.handleAPIPredict))
+	mux.HandleFunc("/api/wbs", s.corsMiddleware(s.handleAPIWBS))
+	mux.HandleFunc("/api/timeline", s.corsMiddleware(s.handleAPITimeline))
 	mux.HandleFunc("/api/events", s.handleSSE) // SSE エンドポイント
 
 	// 静的ファイルを提供（本番モード）

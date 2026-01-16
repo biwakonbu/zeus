@@ -9,6 +9,16 @@ type TaskInfo struct {
 	Title        string   // タイトル
 	Status       string   // ステータス ("pending", "in_progress", "completed", "blocked")
 	Dependencies []string // 依存タスクID
+
+	// Phase 6A: WBS・タイムライン機能用フィールド
+	ParentID      string  // 親タスクID
+	StartDate     string  // 開始日（ISO8601）
+	DueDate       string  // 期限日（ISO8601）
+	Progress      int     // 進捗率（0-100）
+	WBSCode       string  // WBS番号（例: "1.2.3"）
+	Priority      string  // 優先度 ("high", "medium", "low")
+	Assignee      string  // 担当者
+	EstimateHours float64 // 見積もり時間
 }
 
 // ProjectState は分析に必要なプロジェクト状態

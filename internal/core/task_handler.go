@@ -238,3 +238,59 @@ func WithTaskApprovalLevel(level ApprovalLevel) EntityOption {
 		}
 	}
 }
+
+// WithTaskParent はタスクの親タスクIDを設定
+func WithTaskParent(parentID string) EntityOption {
+	return func(v any) {
+		if t, ok := v.(*Task); ok {
+			t.ParentID = parentID
+		}
+	}
+}
+
+// WithTaskStartDate はタスクの開始日を設定
+func WithTaskStartDate(startDate string) EntityOption {
+	return func(v any) {
+		if t, ok := v.(*Task); ok {
+			t.StartDate = startDate
+		}
+	}
+}
+
+// WithTaskDueDate はタスクの期限日を設定
+func WithTaskDueDate(dueDate string) EntityOption {
+	return func(v any) {
+		if t, ok := v.(*Task); ok {
+			t.DueDate = dueDate
+		}
+	}
+}
+
+// WithTaskProgress はタスクの進捗率を設定
+func WithTaskProgress(progress int) EntityOption {
+	return func(v any) {
+		if t, ok := v.(*Task); ok {
+			if progress >= 0 && progress <= 100 {
+				t.Progress = progress
+			}
+		}
+	}
+}
+
+// WithTaskWBSCode はタスクのWBSコードを設定
+func WithTaskWBSCode(wbsCode string) EntityOption {
+	return func(v any) {
+		if t, ok := v.(*Task); ok {
+			t.WBSCode = wbsCode
+		}
+	}
+}
+
+// WithTaskPriority はタスクの優先度を設定
+func WithTaskPriority(priority TaskPriority) EntityOption {
+	return func(v any) {
+		if t, ok := v.(*Task); ok {
+			t.Priority = priority
+		}
+	}
+}

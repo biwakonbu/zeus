@@ -3,6 +3,8 @@ package dashboard
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/biwakonbu/zeus/internal/analysis"
 )
 
 // StatusResponse はステータス API のレスポンス
@@ -48,6 +50,13 @@ type TaskItem struct {
 	Priority     string   `json:"priority"`
 	Assignee     string   `json:"assignee"`
 	Dependencies []string `json:"dependencies"`
+
+	// Phase 6A: WBS・タイムライン機能用フィールド
+	ParentID  string `json:"parent_id,omitempty"`
+	StartDate string `json:"start_date,omitempty"`
+	DueDate   string `json:"due_date,omitempty"`
+	Progress  int    `json:"progress"`
+	WBSCode   string `json:"wbs_code,omitempty"`
 }
 
 // GraphResponse はグラフ API のレスポンス
@@ -114,6 +123,71 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
+// WBSResponse はWBS API のレスポンス
+type WBSResponse struct {
+	Roots    []*WBSNode `json:"roots"`
+	MaxDepth int        `json:"max_depth"`
+	Stats    WBSStats   `json:"stats"`
+}
+
+// WBSNode はWBS階層のノード
+type WBSNode struct {
+	ID       string     `json:"id"`
+	Title    string     `json:"title"`
+	WBSCode  string     `json:"wbs_code"`
+	Status   string     `json:"status"`
+	Progress int        `json:"progress"`
+	Priority string     `json:"priority"`
+	Assignee string     `json:"assignee"`
+	Children []*WBSNode `json:"children,omitempty"`
+	Depth    int        `json:"depth"`
+}
+
+// WBSStats はWBS統計
+type WBSStats struct {
+	TotalNodes   int `json:"total_nodes"`
+	RootCount    int `json:"root_count"`
+	LeafCount    int `json:"leaf_count"`
+	MaxDepth     int `json:"max_depth"`
+	AvgProgress  int `json:"avg_progress"`
+	CompletedPct int `json:"completed_pct"`
+}
+
+// TimelineResponse はタイムライン API のレスポンス
+type TimelineResponse struct {
+	Items         []TimelineItem `json:"items"`
+	CriticalPath  []string       `json:"critical_path"`
+	ProjectStart  string         `json:"project_start"`
+	ProjectEnd    string         `json:"project_end"`
+	TotalDuration int            `json:"total_duration"`
+	Stats         TimelineStats  `json:"stats"`
+}
+
+// TimelineItem はタイムライン上のアイテム
+type TimelineItem struct {
+	TaskID           string   `json:"task_id"`
+	Title            string   `json:"title"`
+	StartDate        string   `json:"start_date"`
+	EndDate          string   `json:"end_date"`
+	Progress         int      `json:"progress"`
+	Status           string   `json:"status"`
+	Priority         string   `json:"priority"`
+	Assignee         string   `json:"assignee"`
+	IsOnCriticalPath bool     `json:"is_on_critical_path"`
+	Slack            int      `json:"slack"`
+	Dependencies     []string `json:"dependencies"`
+}
+
+// TimelineStats はタイムライン統計
+type TimelineStats struct {
+	TotalTasks      int     `json:"total_tasks"`
+	TasksWithDates  int     `json:"tasks_with_dates"`
+	OnCriticalPath  int     `json:"on_critical_path"`
+	AverageSlack    float64 `json:"average_slack"`
+	OverdueTasks    int     `json:"overdue_tasks"`
+	CompletedOnTime int     `json:"completed_on_time"`
+}
+
 // handleAPIStatus はステータス API を処理
 func (s *Server) handleAPIStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -173,6 +247,11 @@ func (s *Server) handleAPITasks(w http.ResponseWriter, r *http.Request) {
 			Priority:     string(t.Priority),
 			Assignee:     t.Assignee,
 			Dependencies: t.Dependencies,
+			ParentID:     t.ParentID,
+			StartDate:    t.StartDate,
+			DueDate:      t.DueDate,
+			Progress:     t.Progress,
+			WBSCode:      t.WBSCode,
 		}
 	}
 
@@ -273,6 +352,124 @@ func (s *Server) handleAPIPredict(w http.ResponseWriter, r *http.Request) {
 			Trend:         string(result.Velocity.Trend),
 			DataPoints:    result.Velocity.DataPoints,
 		}
+	}
+
+	writeJSON(w, http.StatusOK, response)
+}
+
+// handleAPIWBS はWBS API を処理
+func (s *Server) handleAPIWBS(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "GET メソッドのみ許可されています")
+		return
+	}
+
+	ctx := r.Context()
+	wbsTree, err := s.zeus.BuildWBSTree(ctx)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// analysis.WBSNode から dashboard.WBSNode に変換
+	response := WBSResponse{
+		Roots:    convertWBSNodes(wbsTree.Roots),
+		MaxDepth: wbsTree.MaxDepth,
+		Stats: WBSStats{
+			TotalNodes:   wbsTree.Stats.TotalNodes,
+			RootCount:    wbsTree.Stats.RootCount,
+			LeafCount:    wbsTree.Stats.LeafCount,
+			MaxDepth:     wbsTree.Stats.MaxDepth,
+			AvgProgress:  wbsTree.Stats.AvgProgress,
+			CompletedPct: wbsTree.Stats.CompletedPct,
+		},
+	}
+
+	if response.Roots == nil {
+		response.Roots = []*WBSNode{}
+	}
+
+	writeJSON(w, http.StatusOK, response)
+}
+
+// convertWBSNodes は analysis.WBSNode を dashboard.WBSNode に変換
+func convertWBSNodes(nodes []*analysis.WBSNode) []*WBSNode {
+	if nodes == nil {
+		return nil
+	}
+
+	result := make([]*WBSNode, len(nodes))
+	for i, n := range nodes {
+		result[i] = &WBSNode{
+			ID:       n.ID,
+			Title:    n.Title,
+			WBSCode:  n.WBSCode,
+			Status:   n.Status,
+			Progress: n.Progress,
+			Priority: n.Priority,
+			Assignee: n.Assignee,
+			Children: convertWBSNodes(n.Children),
+			Depth:    n.Depth,
+		}
+	}
+	return result
+}
+
+// handleAPITimeline はタイムライン API を処理
+func (s *Server) handleAPITimeline(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "GET メソッドのみ許可されています")
+		return
+	}
+
+	ctx := r.Context()
+	timeline, err := s.zeus.BuildTimeline(ctx)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// analysis.TimelineItem から dashboard.TimelineItem に変換
+	items := make([]TimelineItem, len(timeline.Items))
+	for i, item := range timeline.Items {
+		deps := item.Dependencies
+		if deps == nil {
+			deps = []string{}
+		}
+		items[i] = TimelineItem{
+			TaskID:           item.TaskID,
+			Title:            item.Title,
+			StartDate:        item.StartDate,
+			EndDate:          item.EndDate,
+			Progress:         item.Progress,
+			Status:           item.Status,
+			Priority:         item.Priority,
+			Assignee:         item.Assignee,
+			IsOnCriticalPath: item.IsOnCriticalPath,
+			Slack:            item.Slack,
+			Dependencies:     deps,
+		}
+	}
+
+	criticalPath := timeline.CriticalPath
+	if criticalPath == nil {
+		criticalPath = []string{}
+	}
+
+	response := TimelineResponse{
+		Items:         items,
+		CriticalPath:  criticalPath,
+		ProjectStart:  timeline.ProjectStart,
+		ProjectEnd:    timeline.ProjectEnd,
+		TotalDuration: timeline.TotalDuration,
+		Stats: TimelineStats{
+			TotalTasks:      timeline.Stats.TotalTasks,
+			TasksWithDates:  timeline.Stats.TasksWithDates,
+			OnCriticalPath:  timeline.Stats.OnCriticalPath,
+			AverageSlack:    timeline.Stats.AverageSlack,
+			OverdueTasks:    timeline.Stats.OverdueTasks,
+			CompletedOnTime: timeline.Stats.CompletedOnTime,
+		},
 	}
 
 	writeJSON(w, http.StatusOK, response)

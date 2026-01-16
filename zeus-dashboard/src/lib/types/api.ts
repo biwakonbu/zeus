@@ -44,6 +44,13 @@ export interface TaskItem {
 	priority: Priority;
 	assignee: string;
 	dependencies: string[];
+
+	// Phase 6A: WBS・タイムライン機能用フィールド
+	parent_id?: string;
+	start_date?: string;
+	due_date?: string;
+	progress: number;
+	wbs_code?: string;
 }
 
 export type TaskStatus = 'completed' | 'in_progress' | 'pending' | 'blocked';
@@ -118,4 +125,65 @@ export interface SSEEvent<T = unknown> {
 export interface ErrorResponse {
 	error: string;
 	message: string;
+}
+
+// Phase 6B: WBS API レスポンス
+export interface WBSResponse {
+	roots: WBSNode[];
+	max_depth: number;
+	stats: WBSStats;
+}
+
+export interface WBSNode {
+	id: string;
+	title: string;
+	wbs_code: string;
+	status: TaskStatus;
+	progress: number;
+	priority: Priority;
+	assignee: string;
+	children?: WBSNode[];
+	depth: number;
+}
+
+export interface WBSStats {
+	total_nodes: number;
+	root_count: number;
+	leaf_count: number;
+	max_depth: number;
+	avg_progress: number;
+	completed_pct: number;
+}
+
+// Phase 6C: タイムライン API レスポンス
+export interface TimelineResponse {
+	items: TimelineItem[];
+	critical_path: string[];
+	project_start: string;
+	project_end: string;
+	total_duration: number;
+	stats: TimelineStats;
+}
+
+export interface TimelineItem {
+	task_id: string;
+	title: string;
+	start_date: string;
+	end_date: string;
+	progress: number;
+	status: TaskStatus;
+	priority: Priority;
+	assignee: string;
+	is_on_critical_path: boolean;
+	slack: number | null;
+	dependencies: string[];
+}
+
+export interface TimelineStats {
+	total_tasks: number;
+	tasks_with_dates: number;
+	on_critical_path: number;
+	average_slack: number;
+	overdue_tasks: number;
+	completed_on_time: number;
 }

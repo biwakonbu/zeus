@@ -78,6 +78,13 @@ type Task struct {
 	ApprovalLevel ApprovalLevel `yaml:"approval_level"`
 	CreatedAt     string        `yaml:"created_at"`
 	UpdatedAt     string        `yaml:"updated_at"`
+
+	// Phase 6A: WBS・タイムライン機能用の新規フィールド（全て optional）
+	ParentID  string `yaml:"parent_id,omitempty"`  // 親タスクID
+	StartDate string `yaml:"start_date,omitempty"` // 開始日（ISO8601）
+	DueDate   string `yaml:"due_date,omitempty"`   // 期限日（ISO8601）
+	Progress  int    `yaml:"progress,omitempty"`   // 進捗率（0-100）
+	WBSCode   string `yaml:"wbs_code,omitempty"`   // WBS番号（例: "1.2.3"）
 }
 
 // TaskStore はタスクストア
@@ -250,6 +257,14 @@ func (t *Task) Validate() error {
 		t.ApprovalLevel != ApprovalNotify &&
 		t.ApprovalLevel != ApprovalApprove {
 		return fmt.Errorf("invalid approval level: %s", t.ApprovalLevel)
+	}
+	// Progress は 0-100 の範囲
+	if t.Progress < 0 || t.Progress > 100 {
+		return fmt.Errorf("progress must be between 0 and 100, got %d", t.Progress)
+	}
+	// 自己参照の禁止
+	if t.ParentID != "" && t.ParentID == t.ID {
+		return fmt.Errorf("task cannot be its own parent")
 	}
 	return nil
 }

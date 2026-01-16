@@ -30,10 +30,14 @@ const COLORS = {
 	backgroundSelected: 0x4a4a4a,
 	border: 0x4a4a4a,
 	borderHighlight: 0xff9533,
+	borderCritical: 0xff9533,
 	text: 0xffffff,
 	textSecondary: 0xb8b8b8,
 	textMuted: 0x888888,
-	progressBg: 0x1a1a1a
+	progressBg: 0x1a1a1a,
+	// クリティカルパス用
+	criticalGlow: 0xff9533,
+	slackBadge: 0x2d5a2d
 };
 
 // LOD レベル
@@ -62,6 +66,8 @@ export class TaskNode extends Container {
 	private titleText: Text;
 	private progressBar: Graphics;
 	private metaText: Text;
+	private slackBadge: Graphics;
+	private slackText: Text;
 
 	private isHovered = false;
 	private isSelected = false;
@@ -73,6 +79,10 @@ export class TaskNode extends Container {
 
 	// 進捗率（0-100）- タスク自体には進捗がないので、ステータスから推定
 	private progress: number;
+
+	// クリティカルパス・スラック情報
+	private isOnCriticalPath = false;
+	private slack: number | null = null;
 
 	constructor(task: TaskItem) {
 		super();
@@ -87,6 +97,8 @@ export class TaskNode extends Container {
 		this.titleText = new Text({ text: '', style: { fontSize: 11, fill: COLORS.textSecondary, fontFamily: 'IBM Plex Mono, monospace' } });
 		this.progressBar = new Graphics();
 		this.metaText = new Text({ text: '', style: { fontSize: 10, fill: COLORS.textMuted, fontFamily: 'IBM Plex Mono, monospace' } });
+		this.slackBadge = new Graphics();
+		this.slackText = new Text({ text: '', style: { fontSize: 9, fill: COLORS.text, fontFamily: 'IBM Plex Mono, monospace' } });
 
 		this.addChild(this.background);
 		this.addChild(this.statusIndicator);
@@ -94,6 +106,8 @@ export class TaskNode extends Container {
 		this.addChild(this.titleText);
 		this.addChild(this.progressBar);
 		this.addChild(this.metaText);
+		this.addChild(this.slackBadge);
+		this.addChild(this.slackText);
 
 		// インタラクション設定
 		this.eventMode = 'static';
@@ -128,6 +142,7 @@ export class TaskNode extends Container {
 		this.drawStatusIndicator();
 		this.drawTexts();
 		this.drawProgressBar();
+		this.drawSlackBadge();
 	}
 
 	/**
@@ -138,6 +153,7 @@ export class TaskNode extends Container {
 
 		let bgColor = COLORS.background;
 		let borderColor = COLORS.border;
+		let borderWidth = 2;
 
 		if (this.isSelected) {
 			bgColor = COLORS.backgroundSelected;
@@ -145,12 +161,22 @@ export class TaskNode extends Container {
 		} else if (this.isHovered) {
 			bgColor = COLORS.backgroundHover;
 			borderColor = COLORS.borderHighlight;
+		} else if (this.isOnCriticalPath) {
+			// クリティカルパス上のノードはオレンジボーダー
+			borderColor = COLORS.borderCritical;
+			borderWidth = 3;
 		}
 
 		// 背景
 		this.background.roundRect(0, 0, NODE_WIDTH, NODE_HEIGHT, CORNER_RADIUS);
 		this.background.fill(bgColor);
-		this.background.stroke({ width: 2, color: borderColor });
+		this.background.stroke({ width: borderWidth, color: borderColor });
+
+		// クリティカルパスの場合はグロー効果
+		if (this.isOnCriticalPath && !this.isSelected && !this.isHovered) {
+			this.background.roundRect(-2, -2, NODE_WIDTH + 4, NODE_HEIGHT + 4, CORNER_RADIUS + 2);
+			this.background.stroke({ width: 1, color: COLORS.criticalGlow, alpha: 0.3 });
+		}
 
 		// 金属フレーム効果（上部ハイライト）
 		this.background.moveTo(CORNER_RADIUS, 1);
@@ -253,6 +279,43 @@ export class TaskNode extends Container {
 	}
 
 	/**
+	 * スラックバッジを描画
+	 */
+	private drawSlackBadge(): void {
+		this.slackBadge.clear();
+		this.slackText.visible = false;
+
+		// スラック表示条件: 値が設定されていて、Microレベル
+		if (this.slack === null || this.currentLOD !== LODLevel.Micro) {
+			this.slackBadge.visible = false;
+			return;
+		}
+
+		this.slackBadge.visible = true;
+		this.slackText.visible = true;
+
+		// バッジの位置（右上角）
+		const badgeX = NODE_WIDTH - 8;
+		const badgeY = -4;
+		const badgeWidth = 40;
+		const badgeHeight = 16;
+
+		// バッジの色（スラック0はオレンジ、それ以外は緑系）
+		const badgeColor = this.slack === 0 ? COLORS.criticalGlow : COLORS.slackBadge;
+
+		// バッジ背景
+		this.slackBadge.roundRect(badgeX - badgeWidth + 8, badgeY, badgeWidth, badgeHeight, 4);
+		this.slackBadge.fill(badgeColor);
+		this.slackBadge.stroke({ width: 1, color: 0x1a1a1a });
+
+		// スラック日数テキスト
+		const slackStr = this.slack === 0 ? 'CRIT' : `+${this.slack}d`;
+		this.slackText.text = slackStr;
+		this.slackText.x = badgeX - badgeWidth + 12;
+		this.slackText.y = badgeY + 3;
+	}
+
+	/**
 	 * LODレベルを設定
 	 */
 	setLOD(level: LODLevel): void {
@@ -294,6 +357,56 @@ export class TaskNode extends Container {
 		this.task = task;
 		this.progress = this.estimateProgress(task.status);
 		this.draw();
+	}
+
+	/**
+	 * クリティカルパス状態を設定
+	 */
+	setCriticalPath(isOnCriticalPath: boolean): void {
+		if (this.isOnCriticalPath !== isOnCriticalPath) {
+			this.isOnCriticalPath = isOnCriticalPath;
+			this.draw();
+		}
+	}
+
+	/**
+	 * スラック（余裕日数）を設定
+	 * @param slack - スラック日数（null, または 0 以上の有限数値）
+	 */
+	setSlack(slack: number | null): void {
+		// null または undefined は常に許可
+		if (slack === null || slack === undefined) {
+			if (this.slack !== null) {
+				this.slack = null;
+				this.draw();
+			}
+			return;
+		}
+
+		// 無効な値（負数、Infinity, NaN）は無視してログ出力
+		if (!Number.isFinite(slack) || slack < 0) {
+			console.warn(`Invalid slack value for task ${this.task.id}: ${slack}`);
+			return;
+		}
+
+		if (this.slack !== slack) {
+			this.slack = slack;
+			this.draw();
+		}
+	}
+
+	/**
+	 * クリティカルパス上にあるかを取得
+	 */
+	isTaskOnCriticalPath(): boolean {
+		return this.isOnCriticalPath;
+	}
+
+	/**
+	 * スラック値を取得
+	 */
+	getSlack(): number | null {
+		return this.slack;
 	}
 
 	/**

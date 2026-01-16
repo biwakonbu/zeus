@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import type { TaskItem, TaskStatus, Priority } from '$lib/types/api';
+	import type { TaskItem, TaskStatus, Priority, TimelineItem, TimelineResponse } from '$lib/types/api';
+	import { fetchTimeline } from '$lib/api/client';
 	import { ViewerEngine, type Viewport } from './engine/ViewerEngine';
 	import { LayoutEngine, type NodePosition } from './engine/LayoutEngine';
 	import { SpatialIndex, type SpatialItem } from './engine/SpatialIndex';
@@ -67,6 +68,13 @@
 	let rectSelectGraphics: Graphics | null = null;
 
 	let resizeObserver: ResizeObserver | null = null;
+
+	// クリティカルパス情報
+	let criticalPathIds: Set<string> = $state(new Set());
+	let timelineItems: Map<string, TimelineItem> = $state(new Map());
+	let showCriticalPath: boolean = $state(true);
+	let isLoadingTimeline: boolean = $state(false);
+	let timelineLoadError: string | null = $state(null);
 
 	onMount(() => {
 		initializeEngine();
@@ -157,8 +165,150 @@
 	$effect(() => {
 		if (engine && layoutEngine) {
 			renderTasks(tasks);
+			// タイムラインデータを取得してクリティカルパス情報を適用
+			loadTimelineData();
 		}
 	});
+
+	/**
+	 * タイムラインデータを読み込み、クリティカルパス情報を更新
+	 */
+	async function loadTimelineData(): Promise<void> {
+		if (isLoadingTimeline) return; // 既に読み込み中の場合はスキップ
+
+		isLoadingTimeline = true;
+		timelineLoadError = null;
+
+		try {
+			const timeline = await fetchTimeline();
+
+			// レスポンスの検証
+			if (!timeline) {
+				console.debug('Timeline response is empty');
+				timelineLoadError = 'Timeline data is empty';
+				resetCriticalPath();
+				return;
+			}
+
+			// critical_path は配列として存在する必要がある
+			if (!Array.isArray(timeline.critical_path)) {
+				const errMsg = 'Invalid timeline response: critical_path is not an array';
+				console.warn(errMsg);
+				timelineLoadError = errMsg;
+				resetCriticalPath();
+				return;
+			}
+
+			// items は配列として存在する必要がある
+			if (!Array.isArray(timeline.items)) {
+				const errMsg = 'Invalid timeline response: items is not an array';
+				console.warn(errMsg);
+				timelineLoadError = errMsg;
+				resetCriticalPath();
+				return;
+			}
+
+			// クリティカルパスのIDセットを更新（文字列型チェック）
+			const validCriticalPaths = timeline.critical_path.filter((id) => typeof id === 'string');
+			criticalPathIds = new Set(validCriticalPaths);
+
+			// タイムラインアイテムをマップに格納（スラック値を検証）
+			const itemMap = new Map<string, TimelineItem>();
+			for (const item of timeline.items) {
+				// 必須フィールドの存在確認
+				if (!item.task_id || typeof item.task_id !== 'string') {
+					console.warn('Invalid timeline item: missing or invalid task_id', item);
+					continue;
+				}
+
+				// スラック値のバリデーション（null, undefined, 非負整数のみ許可）
+				if (item.slack !== null && item.slack !== undefined) {
+					if (typeof item.slack !== 'number' || item.slack < 0 || !Number.isFinite(item.slack)) {
+						console.warn(`Invalid slack value for task ${item.task_id}:`, item.slack);
+						item.slack = null;
+					}
+				}
+
+				itemMap.set(item.task_id, item);
+			}
+			timelineItems = itemMap;
+			timelineLoadError = null;
+
+			// ノードとエッジにクリティカルパス情報を適用
+			applyCriticalPathInfo();
+		} catch (error) {
+			// API エラーや予期しないエラーをログに記録
+			const errMsg = error instanceof Error ? error.message : 'Unknown error loading timeline data';
+			console.warn('Error loading timeline data:', error);
+			timelineLoadError = errMsg;
+			resetCriticalPath();
+		} finally {
+			isLoadingTimeline = false;
+		}
+	}
+
+	/**
+	 * クリティカルパス情報をリセット
+	 */
+	function resetCriticalPath(): void {
+		criticalPathIds = new Set();
+		timelineItems = new Map();
+
+		// ノードとエッジをリセット
+		for (const node of nodeMap.values()) {
+			node.setCriticalPath(false);
+			node.setSlack(null);
+		}
+		for (const edge of edgeFactory.getAll()) {
+			if (edge.getToId() && edge.getFromId()) {
+				edge.setType(EdgeType.Normal);
+			}
+		}
+	}
+
+	/**
+	 * クリティカルパス情報をノードとエッジに適用
+	 */
+	function applyCriticalPathInfo(): void {
+		if (!showCriticalPath) {
+			// クリティカルパス表示がオフの場合はクリア
+			for (const node of nodeMap.values()) {
+				node.setCriticalPath(false);
+				node.setSlack(null);
+			}
+			for (const edge of edgeFactory.getAll()) {
+				if (edge.getToId() && edge.getFromId()) {
+					edge.setType(EdgeType.Normal);
+				}
+			}
+			return;
+		}
+
+		// ノードにクリティカルパス・スラック情報を設定
+		for (const [id, node] of nodeMap) {
+			const isOnCritical = criticalPathIds.has(id);
+			node.setCriticalPath(isOnCritical);
+
+			// スラック値を設定
+			const timelineItem = timelineItems.get(id);
+			if (timelineItem) {
+				node.setSlack(timelineItem.slack);
+			} else {
+				node.setSlack(null);
+			}
+		}
+
+		// エッジにクリティカルパス情報を設定
+		for (const edge of edgeFactory.getAll()) {
+			const fromId = edge.getFromId();
+			const toId = edge.getToId();
+
+			// 両端がクリティカルパス上にある場合、エッジもクリティカル
+			if (criticalPathIds.has(fromId) && criticalPathIds.has(toId)) {
+				edge.setType(EdgeType.Critical);
+			}
+		}
+	}
 
 	// 外部からの選択状態変更を反映
 	$effect(() => {
@@ -372,10 +522,24 @@
 			if (taskId && (edge.getFromId() === taskId || edge.getToId() === taskId)) {
 				edge.setType(EdgeType.Highlighted);
 			} else {
-				// 元のタイプに戻す
-				edge.setType(EdgeType.Normal);
+				// 元のタイプに戻す（クリティカルパスを考慮）
+				const fromId = edge.getFromId();
+				const toId = edge.getToId();
+				if (showCriticalPath && criticalPathIds.has(fromId) && criticalPathIds.has(toId)) {
+					edge.setType(EdgeType.Critical);
+				} else {
+					edge.setType(EdgeType.Normal);
+				}
 			}
 		}
+	}
+
+	/**
+	 * クリティカルパス表示を切り替え
+	 */
+	function toggleCriticalPath(): void {
+		showCriticalPath = !showCriticalPath;
+		applyCriticalPathInfo();
 	}
 
 	/**
@@ -492,6 +656,14 @@
 		<button class="control-btn" onclick={resetZoom} title="Reset View">
 			<span class="icon">⊙</span>
 		</button>
+		<button
+			class="control-btn critical-path-toggle"
+			class:active={showCriticalPath}
+			onclick={toggleCriticalPath}
+			title={showCriticalPath ? 'Hide Critical Path' : 'Show Critical Path'}
+		>
+			<span class="icon">⚡</span>
+		</button>
 	</div>
 
 	<!-- フィルターパネル -->
@@ -549,6 +721,22 @@
 			<span class="legend-dot blocked"></span>
 			<span>Blocked</span>
 		</div>
+		{#if showCriticalPath && criticalPathIds.size > 0}
+			<div class="legend-divider"></div>
+			<div class="legend-title">CRITICAL PATH</div>
+			<div class="legend-item">
+				<span class="legend-line critical"></span>
+				<span>Critical</span>
+			</div>
+			<div class="legend-item">
+				<span class="legend-badge slack-zero">CRIT</span>
+				<span>No Slack</span>
+			</div>
+			<div class="legend-item">
+				<span class="legend-badge slack-positive">+3d</span>
+				<span>Slack Days</span>
+			</div>
+		{/if}
 	</div>
 
 	<!-- 操作ヒント -->
@@ -691,6 +879,50 @@
 
 	.legend-dot.blocked {
 		background-color: var(--status-poor);
+	}
+
+	.legend-divider {
+		height: 1px;
+		background-color: var(--border-dark);
+		margin: var(--spacing-xs) 0;
+	}
+
+	.legend-line {
+		width: 16px;
+		height: 3px;
+		border-radius: 1px;
+	}
+
+	.legend-line.critical {
+		background-color: var(--accent-primary);
+	}
+
+	.legend-badge {
+		font-size: 8px;
+		padding: 1px 4px;
+		border-radius: 2px;
+		font-weight: 600;
+	}
+
+	.legend-badge.slack-zero {
+		background-color: var(--accent-primary);
+		color: var(--bg-primary);
+	}
+
+	.legend-badge.slack-positive {
+		background-color: #2d5a2d;
+		color: var(--text-primary);
+	}
+
+	/* クリティカルパストグル */
+	.critical-path-toggle.active {
+		background-color: var(--accent-primary);
+		border-color: var(--accent-primary);
+		color: var(--bg-primary);
+	}
+
+	.critical-path-toggle.active:hover {
+		background-color: var(--accent-secondary);
 	}
 
 	/* 操作ヒント */
