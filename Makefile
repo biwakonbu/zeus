@@ -12,8 +12,8 @@ clean:
 test:
 	go test -v ./...
 
-install: build
-	cp $(BINARY_NAME) $(GOPATH)/bin/
+install:
+	go install -ldflags "-X main.version=$(VERSION)" .
 
 dev:
 	go run . $(ARGS)
