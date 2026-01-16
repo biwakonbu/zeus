@@ -31,9 +31,8 @@ zeus/
     │   │   │   └── prediction.ts # 予測
     │   │   ├── components/
     │   │   │   ├── layout/       # Header, Footer
-    │   │   │   ├── panels/       # Overview, Stats, Tasks, Graph, Prediction
-    │   │   │   ├── ui/           # Badge, ProgressBar, Table, Stat, Panel
-    │   │   │   └── graph/        # MermaidGraph
+    │   │   │   ├── ui/           # Badge, ProgressBar, Panel
+    │   │   │   └── viewer/       # Factorio 風ビューワー（lib/viewer/）
     │   │   ├── theme/            # Factorio デザインシステム
     │   │   │   ├── variables.css # CSS 変数
     │   │   │   └── factorio.css  # グローバルスタイル
@@ -89,24 +88,23 @@ internal/core/Zeus
          │
          ▼
 ┌─────────────────────────────────────────────────┐
-│ Dashboard Layout (Grid)                         │
-│  ┌─────────────┬─────────────┐                 │
-│  │ OverviewPanel│ StatsPanel │                 │
-│  └─────────────┴─────────────┘                 │
-│  ┌───────────────────────────┐                 │
-│  │       TasksPanel          │                 │
-│  └───────────────────────────┘                 │
-│  ┌─────────────┬─────────────┐                 │
-│  │ GraphPanel  │PredictionPanel│               │
-│  └─────────────┴─────────────┘                 │
+│ Dashboard Layout                                │
+│  ┌─────────────────────────────────────────┐   │
+│  │         FactorioViewer                   │   │
+│  │    ┌─────────────────────────────┐      │   │
+│  │    │     PixiJS Canvas Layer      │      │   │
+│  │    │  (TaskNode, TaskEdge, etc)   │      │   │
+│  │    └─────────────────────────────┘      │   │
+│  │    ┌──────────┐  ┌──────────────┐       │   │
+│  │    │ Minimap  │  │ FilterPanel  │       │   │
+│  │    └──────────┘  └──────────────┘       │   │
+│  └─────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────┘
          │
          ▼
 Svelte Stores (リアクティブ状態管理)
-  - statusStore → OverviewPanel, StatsPanel
-  - tasksStore → TasksPanel
-  - graphStore → GraphPanel
-  - predictionStore → PredictionPanel
+  - statusStore → Header
+  - tasksStore → FactorioViewer
   - connectionStore → Header (接続状態表示)
 ```
 

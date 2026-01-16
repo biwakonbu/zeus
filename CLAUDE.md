@@ -25,7 +25,7 @@ Zeus は「神の視点」でプロジェクト管理を支援する AI 駆動�
 **フロントエンド (zeus-dashboard/):**
 - **フレームワーク**: SvelteKit + TypeScript
 - **スタイル**: Factorio 風デザイン（ダーク + オレンジアクセント）
-- **グラフ**: Mermaid.js（npm パッケージ）
+- **グラフ描画**: PixiJS（WebGL ベース、高パフォーマンス）
 - **リアルタイム更新**: Server-Sent Events (SSE)
 - **ビルド**: Vite + @sveltejs/adapter-static
 - **統合**: Go embed で静的ファイル配信
@@ -118,10 +118,8 @@ zeus/
 │   │   │   ├── stores/       # Svelte ストア
 │   │   │   ├── components/   # UI コンポーネント
 │   │   │   │   ├── layout/   # Header, Footer
-│   │   │   │   ├── panels/   # Overview, Stats, Tasks, Graph, Prediction
-│   │   │   │   ├── ui/       # Badge, ProgressBar, Table, Stat
-│   │   │   │   └── graph/    # MermaidGraph
-│   │   │   ├── viewer/       # Factorio風ビューワー（Phase 5.5）
+│   │   │   │   └── ui/       # Badge, ProgressBar, Panel
+│   │   │   ├── viewer/       # Factorio風ビューワー
 │   │   │   │   ├── FactorioViewer.svelte  # メインコンポーネント
 │   │   │   │   ├── engine/   # 描画エンジン
 │   │   │   │   │   ├── ViewerEngine.ts    # PixiJS 初期化・管理
@@ -140,7 +138,7 @@ zeus/
 │   │   │   └── types/        # TypeScript 型定義
 │   │   └── routes/
 │   │       ├── +layout.svelte
-│   │       └── +page.svelte  # VIEWER/CLASSIC 切り替え対応
+│   │       └── +page.svelte  # Factorio風ビューワー
 │   ├── svelte.config.js      # adapter-static 設定
 │   ├── vite.config.ts        # Proxy 設定（開発時）
 │   └── package.json
@@ -199,7 +197,7 @@ zeus/
 **フロントエンド設計ポイント (zeus-dashboard/):**
 - SvelteKit + TypeScript で型安全な開発
 - Factorio 風インダストリアル UI テーマ
-- Mermaid.js（npm パッケージ）で依存関係グラフ描画
+- PixiJS (WebGL) で高パフォーマンスなタスクグラフ描画
 - Svelte Stores でリアクティブな状態管理
 - SSE クライアントで自動再接続ロジック実装
 
@@ -302,7 +300,7 @@ zeus init 実行後、ターゲットプロジェクトに生成される構造:
 | **Phase 2.7 (Suggest)** | suggest, apply (ルールベース提案) | 完了 |
 | **Phase 3 (AI統合)** | Claude Code 連携、explain、Add+承認フロー連携 | 完了 |
 | **Phase 4 (高度な分析)** | graph, predict, report（依存関係グラフ、予測分析、レポート生成） | 完了 |
-| **Phase 5 (ダッシュボード)** | Web UI、リアルタイム更新、Mermaid.js グラフ | 完了 |
+| **Phase 5 (ダッシュボード)** | Factorio風ビューワー、リアルタイム更新 | 完了 |
 
 ## ドキュメント
 
@@ -312,7 +310,7 @@ zeus init 実行後、ターゲットプロジェクトに生成される構造:
 
 ## 現在の状態
 
-**Phase 5 (ダッシュボード) 完了** - 2026-01-15
+**Phase 5 (ダッシュボード) 完了** - 2026-01-16
 
 ### 実装済みコマンド
 
@@ -357,11 +355,10 @@ Web ブラウザでプロジェクト状態を可視化（SvelteKit + Factorio �
 
 | 機能 | 説明 |
 |------|------|
-| プロジェクト概要 | 名前、説明、進捗率、健全性（OverviewPanel） |
-| タスク統計 | 完了/進行中/保留の内訳（StatsPanel） |
-| タスク一覧 | テーブル形式、ステータス色分け（TasksPanel） |
-| 依存関係グラフ | Mermaid.js でインタラクティブ表示（GraphPanel） |
-| 予測分析 | 完了日、リスク、ベロシティ（PredictionPanel） |
+| タスクグラフ | PixiJS によるインタラクティブな依存関係グラフ表示 |
+| ミニマップ | 全体像の把握と素早いナビゲーション |
+| フィルター | ステータス・優先度・担当者でフィルタリング |
+| タスク詳細 | タスク選択時に詳細パネル表示 |
 | リアルタイム更新 | SSE（Server-Sent Events）+ ポーリングフォールバック |
 
 **コマンドオプション:**

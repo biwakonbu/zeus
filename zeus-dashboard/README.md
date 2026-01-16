@@ -73,9 +73,8 @@ zeus-dashboard/
 │   │   │   └── prediction.ts # 予測分析
 │   │   ├── components/       # UI コンポーネント
 │   │   │   ├── layout/       # Header, Footer
-│   │   │   ├── panels/       # 各パネル
+│   │   │   ├── viewer/       # Factorio 風ビューワー
 │   │   │   ├── ui/           # 共通 UI
-│   │   │   └── graph/        # Mermaid グラフ
 │   │   ├── theme/            # Factorio デザインシステム
 │   │   │   ├── variables.css # CSS 変数
 │   │   │   └── factorio.css  # グローバルスタイル
@@ -95,15 +94,18 @@ zeus-dashboard/
 
 ## コンポーネント
 
-### パネル
+### Factorio 風ビューワー
 
 | コンポーネント | 説明 |
 |---------------|------|
-| OverviewPanel | プロジェクト概要（名前、説明、健全性、進捗） |
-| StatsPanel | タスク統計（完了/進行中/保留/ブロック） |
-| TasksPanel | タスク一覧テーブル |
-| GraphPanel | Mermaid.js 依存関係グラフ |
-| PredictionPanel | 予測分析（完了日、リスク、ベロシティ） |
+| FactorioViewer | メインビューワーコンポーネント（PixiJS 描画） |
+| ViewerEngine | PixiJS 初期化・管理 |
+| LayoutEngine | 自動レイアウト（トポロジカル + 力学） |
+| SpatialIndex | Quadtree 空間インデックス |
+| TaskNode | タスクノード描画（LOD 対応） |
+| TaskEdge | エッジ描画 |
+| Minimap | ミニマップ |
+| FilterPanel | フィルターパネル |
 
 ### 共通 UI
 
@@ -112,8 +114,6 @@ zeus-dashboard/
 | Panel | パネルコンテナ（金属フレーム効果） |
 | Badge | ステータスバッジ |
 | ProgressBar | プログレスバー |
-| Stat | 統計アイテム |
-| Table | Factorio 風テーブル |
 
 ## Svelte 5 Runes
 
