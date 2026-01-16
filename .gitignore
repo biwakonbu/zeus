@@ -6,3 +6,14 @@ zeus
 .zeus/.local/
 *.log
 .DS_Store
+
+.zeus
+
+# SvelteKit
+zeus-dashboard/node_modules/
+zeus-dashboard/.svelte-kit/
+zeus-dashboard/build/
+
+# Go embed build artifacts (except .gitkeep)
+internal/dashboard/build/*
+!internal/dashboard/build/.gitkeep

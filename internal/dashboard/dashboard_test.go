@@ -227,7 +227,10 @@ func TestHandleMethodNotAllowed(t *testing.T) {
 	}
 }
 
-func TestHandle404(t *testing.T) {
+// TestHandleSPAFallback は SPA フォールバックルーティングをテストします
+// SvelteKit SPA モードでは、不明なルートは index.html を返し、
+// フロントエンドルーターが 404 ページを処理します
+func TestHandleSPAFallback(t *testing.T) {
 	zeus := setupTestZeus(t)
 	server := NewServer(zeus, 0)
 
@@ -240,7 +243,13 @@ func TestHandle404(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusNotFound)
+	// SPA フォールバック: 不明なルートは index.html を返す
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	if contentType != "text/html; charset=utf-8" {
+		t.Errorf("Content-Type が正しくありません: got %s, want text/html; charset=utf-8", contentType)
 	}
 }

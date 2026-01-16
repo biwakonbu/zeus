@@ -292,3 +292,68 @@ func writeError(w http.ResponseWriter, status int, message string) {
 		Message: message,
 	})
 }
+
+// handleSSE は Server-Sent Events 接続を処理
+func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
+	// SSE に必要なヘッダーを設定
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	// CORS ヘッダー（開発モード時）
+	if s.devMode {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+
+	// Flusher を取得
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+
+	// クライアント ID を生成（UUID の代わりにシンプルな形式）
+	clientID := r.RemoteAddr + "-" + r.Header.Get("X-Request-ID")
+	if clientID == r.RemoteAddr+"-" {
+		clientID = r.RemoteAddr + "-" + string(rune(s.broadcaster.ClientCount()))
+	}
+
+	// クライアントを登録
+	client := s.broadcaster.AddClient(clientID)
+	defer s.broadcaster.RemoveClient(clientID)
+
+	// 接続確立メッセージを送信
+	_, _ = w.Write([]byte("event: connected\ndata: {\"client_id\":\"" + clientID + "\"}\n\n"))
+	flusher.Flush()
+
+	// クライアントの切断を検知
+	ctx := r.Context()
+
+	// イベントループ
+	for {
+		select {
+		case <-ctx.Done():
+			// クライアントが切断
+			return
+		case event, ok := <-client.Events:
+			if !ok {
+				// チャネルがクローズ
+				return
+			}
+
+			// イベントデータを JSON にエンコード
+			data, err := FormatSSEMessage(event)
+			if err != nil {
+				continue
+			}
+
+			// SSE 形式で送信
+			_, err = w.Write([]byte("event: " + string(event.Type) + "\ndata: " + string(data) + "\n\n"))
+			if err != nil {
+				return
+			}
+			flusher.Flush()
+		}
+	}
+}
+
