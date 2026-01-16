@@ -129,7 +129,7 @@ func (d *Doctor) checkConfigExists(ctx context.Context) CheckResult {
 		Fixable: true,
 		FixFunc: func(ctx context.Context) error {
 			zeus := core.New(filepath.Dir(d.zeusPath))
-			_, err := zeus.Init(ctx, "simple")
+			_, err := zeus.Init(ctx)
 			return err
 		},
 	}

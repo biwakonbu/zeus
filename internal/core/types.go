@@ -31,7 +31,7 @@ type Objective struct {
 
 // Settings は設定
 type Settings struct {
-	AutomationLevel string `yaml:"automation_level"` // simple, standard, advanced
+	AutomationLevel string `yaml:"automation_level"` // auto, notify, approve
 	ApprovalMode    string `yaml:"approval_mode"`    // default, strict, loose
 	AIProvider      string `yaml:"ai_provider"`      // claude-code, gemini, codex
 }
@@ -121,7 +121,6 @@ type Snapshot struct {
 // InitResult は初期化結果
 type InitResult struct {
 	Success    bool
-	Level      string
 	ZeusPath   string
 	ClaudePath string
 }

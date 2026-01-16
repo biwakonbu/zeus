@@ -23,7 +23,7 @@ func setupTestZeus(t *testing.T) *core.Zeus {
 	ctx := context.Background()
 
 	// プロジェクトを初期化
-	_, err := zeus.Init(ctx, "simple")
+	_, err := zeus.Init(ctx)
 	if err != nil {
 		t.Fatalf("Zeus の初期化に失敗: %v", err)
 	}

@@ -20,7 +20,7 @@ func TestGenerateSuggestions_EmptyProject(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestGenerateSuggestions_ManyPendingTasks(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestGenerateSuggestions_ImpactFilter(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestApplySuggestion_NotFound(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestApplySuggestion_DryRun(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -235,7 +235,7 @@ func TestApplySuggestion_AllFlag(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -454,7 +454,7 @@ func TestGenerateSuggestionsContextTimeout(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -483,7 +483,7 @@ func TestApplySuggestionContextTimeout(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -631,7 +631,7 @@ func TestApplySuggestion_NewTask(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -700,7 +700,7 @@ func TestApplySuggestion_PriorityChange(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -777,7 +777,7 @@ func TestApplySuggestion_Dependency(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -866,7 +866,7 @@ func TestApplySuggestion_TargetTaskNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -914,7 +914,7 @@ func TestApplySuggestion_NewTaskWithoutTaskData(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}

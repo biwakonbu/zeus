@@ -9,7 +9,7 @@ Zeusは、AIによるプロジェクトマネジメントを「神の視点」�
 - **神の視点（Zeus View）**: プロジェクト全体を俯瞰し、依存関係、リソース配分、進捗を一元的に把握
 - **ファイルベース**: 依存ミドルウェアゼロ、YAMLで可読性とGit親和性を確保
 - **人間中心**: AIは助言者、人間が最終決定者
-- **段階的複雑化**: Simple → Standard → Advancedの3段階構成
+- **シンプルな初期化**: 単一の `zeus init` コマンドで全機能を利用可能
 
 ### 1.3 対象ユーザー
 1. プロジェクトマネージャー
@@ -53,38 +53,36 @@ Zeusは、AIによるプロジェクトマネジメントを「神の視点」�
 │                                                              │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
 │  │  Entities    │  │  Approvals  │  │  Analytics  │        │
-│  │  (Standard)  │  │  Queue      │  │  Tracking   │        │
+│  │              │  │  Queue      │  │  Tracking   │        │
 │  └─────────────┘  └─────────────┘  └─────────────┘        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### 2.2 ディレクトリ構造
 
-#### 2.2.1 Core（必須）
+`zeus init` 実行後に生成される統一構造:
+
 ```
 .zeus/
 ├── zeus.yaml        # メインプロジェクト定義
+├── config/          # 設定ファイル
 ├── tasks/           # タスク管理
 ├── state/           # 状態管理
-└── backups/         # 自動バックアップ
-```
-
-#### 2.2.2 Standard（標準）
-```
-.zeus/
-├── config/          # 設定ファイル
 ├── entities/        # エンティティ定義
 ├── approvals/       # 承認管理
+│   ├── pending/     # 承認待ち
+│   ├── approved/    # 承認済み
+│   └── rejected/    # 却下済み
 ├── logs/            # ログ記録
-└── analytics/       # 分析データ
-```
-
-#### 2.2.3 Advanced（高度）
-```
-.zeus/
+├── analytics/       # 分析データ
 ├── graph/           # 関係性グラフ
 ├── views/           # カスタムビュー
+├── backups/         # 自動バックアップ
 └── .local/          # ローカル設定
+
+.claude/             # Claude Code 連携（常に生成）
+├── agents/          # Zeus 用エージェント
+└── skills/          # Zeus 用スキル
 ```
 
 ### 2.3 パッケージ構成
@@ -151,9 +149,9 @@ objectives:
     priority: "high"
 
 settings:
-  automation_level: "standard"  # simple|standard|advanced
-  approval_mode: "default"      # default|strict|loose
-  ai_provider: "claude-code"    # claude-code|gemini|codex
+  automation_level: "auto"        # auto|notify|approve（デフォルト: auto）
+  approval_mode: "default"        # default|strict|loose
+  ai_provider: "claude-code"      # claude-code|gemini|codex
 ```
 
 #### 2.4.2 タスク定義
@@ -190,10 +188,11 @@ snapshot:
 
 #### 3.1.1 初期化
 ```bash
-zeus init [--level=simple|standard|advanced]
+zeus init
 ```
 - プロジェクトディレクトリを初期化
-- レベルに応じた構造を生成
+- 統一された構造を生成（.zeus/ と .claude/）
+- デフォルトの `automation_level` は `auto`（即時実行、承認不要）
 
 #### 3.1.2 状態確認
 ```bash
@@ -226,9 +225,14 @@ zeus explain <entity-id>      # AIによる解説
 ### 3.3 承認フロー
 
 #### 3.3.1 承認レベル
-1. **auto**: 自動実行（読み取り、計算、レポート生成）
+1. **auto**: 自動実行（読み取り、計算、レポート生成）- デフォルト
 2. **notify**: 通知付き実行（ステータス更新、軽微な変更）
 3. **approve**: 事前承認必須（重要な変更、外部連携）
+
+承認レベルは `zeus.yaml` の `automation_level` で設定:
+- `auto`: 全操作が即時実行（承認フローなし）
+- `notify`: 追加操作は通知のみ（ログ記録して実行）
+- `approve`: 追加操作は事前承認必要（承認待ちキューに追加）
 
 #### 3.3.2 承認コマンド
 ```bash
@@ -501,8 +505,17 @@ export async function projectScan(context) {
 - セキュリティリスクの低減
 - 長期的なメンテナンス性
 
+### 10.5 init コマンドの簡略化（2026-01-16）
+- **変更前**: `zeus init --level=simple|standard|advanced`
+- **変更後**: `zeus init`（オプションなし）
+- **理由**:
+  - ユーザーの認知負荷を軽減
+  - 「Cursor yolo mode」スタイル: 即時実行、承認不要
+  - 承認フローは `zeus.yaml` の `automation_level` で個別設定可能
+  - 全機能を統一的に提供（必要に応じて設定で調整）
+
 ---
 
-*Zeus System Design Document v1.1*
+*Zeus System Design Document v1.2*
 *作成日: 2026-01-14*
-*更新日: 2026-01-15（Phase 4-5 追加）*
+*更新日: 2026-01-16（init コマンド簡略化）*

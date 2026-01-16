@@ -91,13 +91,13 @@ func New(projectPath string, opts ...Option) *Zeus {
 }
 
 // Init はプロジェクトを初期化
-func (z *Zeus) Init(ctx context.Context, level string) (*InitResult, error) {
+func (z *Zeus) Init(ctx context.Context) (*InitResult, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
 	// ディレクトリ構造を作成
-	dirs := z.getDirectoryStructure(level)
+	dirs := z.getDirectoryStructure()
 	for _, dir := range dirs {
 		select {
 		case <-ctx.Done():
@@ -130,17 +130,14 @@ func (z *Zeus) Init(ctx context.Context, level string) (*InitResult, error) {
 		return nil, err
 	}
 
-	// Claude Code 連携ファイルを生成（Standard/Advanced レベル）
-	if level == "standard" || level == "advanced" {
-		gen := generator.NewGenerator(z.ProjectPath)
-		if err := gen.GenerateAll(ctx, config.Project.Name, level); err != nil {
-			fmt.Printf("Warning: Claude Code ファイル生成に失敗: %v\n", err)
-		}
+	// Claude Code 連携ファイルを常に生成
+	gen := generator.NewGenerator(z.ProjectPath)
+	if err := gen.GenerateAll(ctx, config.Project.Name); err != nil {
+		fmt.Printf("Warning: Claude Code ファイル生成に失敗: %v\n", err)
 	}
 
 	return &InitResult{
 		Success:    true,
-		Level:      level,
 		ZeusPath:   z.ZeusPath,
 		ClaudePath: z.ClaudePath,
 	}, nil
@@ -180,7 +177,7 @@ func (z *Zeus) generateTaskID() string {
 }
 
 // Add はエンティティを追加
-// Standard/Advanced レベルでは承認フローと連携
+// automation_level に応じて承認フローと連携
 func (z *Zeus) Add(ctx context.Context, entity, name string) (*AddResult, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -195,17 +192,17 @@ func (z *Zeus) Add(ctx context.Context, entity, name string) (*AddResult, error)
 	// 設定を読み込んで承認レベルを判定
 	var config ZeusConfig
 	if err := z.fileStore.ReadYaml(ctx, "zeus.yaml", &config); err != nil {
-		// 設定読み込み失敗時は auto（Simple レベル）として扱う
+		// 設定読み込み失敗時は auto として扱う
 		config.Settings.ApprovalMode = "loose"
-		config.Settings.AutomationLevel = "simple"
+		config.Settings.AutomationLevel = "auto"
 	}
 
-	// Simple レベルは常に即時実行
-	if config.Settings.AutomationLevel == "simple" {
+	// auto レベルは常に即時実行
+	if config.Settings.AutomationLevel == "auto" {
 		return z.executeAdd(ctx, handler, entity, name)
 	}
 
-	// Standard/Advanced: 承認レベルを判定
+	// notify/approve: 承認レベルを判定
 	approvalLevel := z.approvalStore.(*ApprovalManager).DetermineApprovalLevel("task_create", &config.Settings)
 
 	switch approvalLevel {
@@ -341,24 +338,12 @@ func (z *Zeus) FileStore() FileStore {
 
 // Private methods
 
-func (z *Zeus) getDirectoryStructure(level string) []string {
-	switch level {
-	case "simple":
-		return []string{"tasks", "state", "backups"}
-	case "standard":
-		return []string{
-			"config", "tasks", "tasks/_archive", "state", "state/snapshots",
-			"entities", "approvals/pending", "approvals/approved", "approvals/rejected",
-			"logs", "analytics", "backups",
-		}
-	case "advanced":
-		return []string{
-			"config", "tasks", "tasks/_archive", "state", "state/snapshots",
-			"entities", "approvals/pending", "approvals/approved", "approvals/rejected",
-			"logs", "analytics", "graph", "views", ".local", "backups",
-		}
-	default:
-		return []string{"tasks", "state", "backups"}
+func (z *Zeus) getDirectoryStructure() []string {
+	// 全機能が使用可能な統一構造
+	return []string{
+		"config", "tasks", "tasks/_archive", "state", "state/snapshots",
+		"entities", "approvals/pending", "approvals/approved", "approvals/rejected",
+		"logs", "analytics", "backups",
 	}
 }
 
@@ -373,7 +358,7 @@ func (z *Zeus) generateInitialConfig() *ZeusConfig {
 		},
 		Objectives: []Objective{},
 		Settings: Settings{
-			AutomationLevel: "standard",
+			AutomationLevel: "auto",
 			ApprovalMode:    "default",
 			AIProvider:      "claude-code",
 		},

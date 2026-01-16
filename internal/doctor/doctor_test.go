@@ -35,7 +35,7 @@ func TestDiagnose_Healthy(t *testing.T) {
 	// Zeus を初期化して健全な状態を作成
 	z := core.New(tmpDir)
 	ctx := context.Background()
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
@@ -94,7 +94,7 @@ func TestDiagnose_Degraded(t *testing.T) {
 	// Zeus を初期化
 	z := core.New(tmpDir)
 	ctx := context.Background()
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
@@ -244,7 +244,7 @@ func TestCheckConfigExists(t *testing.T) {
 
 	// Zeus を初期化
 	z := core.New(tmpDir)
-	_, _ = z.Init(ctx, "simple")
+	_, _ = z.Init(ctx)
 
 	// ファイルあり
 	check = d.checkConfigExists(ctx)
@@ -264,7 +264,7 @@ func TestCheckTasksExists(t *testing.T) {
 
 	// Zeus を初期化
 	z := core.New(tmpDir)
-	_, _ = z.Init(ctx, "simple")
+	_, _ = z.Init(ctx)
 
 	d := New(tmpDir)
 
@@ -297,7 +297,7 @@ func TestCheckStateExists(t *testing.T) {
 
 	// Zeus を初期化
 	z := core.New(tmpDir)
-	_, _ = z.Init(ctx, "simple")
+	_, _ = z.Init(ctx)
 
 	d := New(tmpDir)
 

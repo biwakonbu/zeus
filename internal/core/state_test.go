@@ -55,7 +55,7 @@ func TestSaveCurrentState(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
@@ -99,7 +99,7 @@ func TestCreateSnapshot(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "standard")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
@@ -128,7 +128,7 @@ func TestGetHistory(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "standard")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
@@ -181,7 +181,7 @@ func TestGetSnapshot(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "standard")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
@@ -213,7 +213,7 @@ func TestGetSnapshot_NotFound(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "standard")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
@@ -236,7 +236,7 @@ func TestRestoreSnapshot(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "standard")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}

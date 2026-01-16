@@ -9,7 +9,7 @@ Zeus は「神の視点」でプロジェクト管理を支援する AI 駆動�
 **設計哲学:**
 - ファイルベース: 外部 DB 不要、YAML で人間可読
 - 人間中心: AI は提案者、人間が最終決定者
-- 段階的複雑化: Simple → Standard → Advanced の3レベル
+- シンプルな初期化: 単一の `zeus init` コマンドで全機能を利用可能
 - Git 親和性: 全データがテキストで差分追跡可能
 
 ## 技術スタック
@@ -35,7 +35,7 @@ go test -v ./internal/core/...
 
 # 開発実行
 go run . <command>
-make dev ARGS="init --level=simple"
+make dev ARGS="init"
 
 # インストール
 make install
@@ -183,22 +183,29 @@ zeus init 実行後、ターゲットプロジェクトに生成される構造:
 ```
 .zeus/
 ├── zeus.yaml              # プロジェクト定義（メイン）
+├── config/                # 設定ファイル
 ├── tasks/
 │   ├── active.yaml        # 進行中タスク
 │   └── backlog.yaml       # バックログ
 ├── state/
 │   ├── current.yaml       # 現在の状態
 │   └── snapshots/         # 履歴スナップショット
-├── approvals/             # 承認管理 (standard/advanced)
+├── entities/              # エンティティ定義
+├── approvals/             # 承認管理
 │   ├── pending/           # 承認待ち
 │   ├── approved/          # 承認済み
 │   └── rejected/          # 却下済み
-└── backups/               # 自動バックアップ
+├── logs/                  # ログ記録
+├── analytics/             # 分析データ
+├── graph/                 # 関係性グラフ
+├── views/                 # カスタムビュー
+├── backups/               # 自動バックアップ
+└── .local/                # ローカル設定
 ```
 
 ### Claude Code 連携
 
-`zeus init --level=standard` または `--level=advanced` で初期化すると、Claude Code 連携用のファイルが自動生成されます。
+`zeus init` で初期化すると、Claude Code 連携用のファイルが自動生成されます。
 
 **生成される構造:**
 ```
@@ -245,7 +252,7 @@ zeus init 実行後、ターゲットプロジェクトに生成される構造:
 
 ```bash
 # Phase 1 (MVP)
-zeus init [--level=simple|standard|advanced]   # プロジェクト初期化
+zeus init                                       # プロジェクト初期化
 zeus status [--detail]                          # 状態表示
 zeus add <entity> <name>                        # エンティティ追加（承認フロー連携）
 zeus list [entity]                              # 一覧表示
@@ -307,10 +314,9 @@ Web ブラウザでプロジェクト状態を可視化:
 | notify | 通知のみ | 中リスク操作、ログ記録して実行 |
 | approve | 明示的承認必要 | 高リスク操作、承認待ちキューに追加 |
 
-**実装状態:**
-- Simple レベル: 全操作が auto（承認フローなし）
-- Standard: 追加操作は notify（通知のみ）
-- Advanced: 追加操作は approve（事前承認必要）
+**デフォルト設定:**
+- `automation_level` のデフォルトは `auto`（即時実行、承認不要）
+- 承認フローが必要な場合は `zeus.yaml` で `automation_level` を `notify` または `approve` に変更
 
 `zeus add` 実行時、automation_level に応じて承認フローが自動適用されます。
 

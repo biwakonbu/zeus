@@ -17,8 +17,8 @@ func TestBasicFlow(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	// 1. init
-	result := runCommand(t, dir, "init", "--level=simple")
+	// 1. init（--level オプション削除済み）
+	result := runCommand(t, dir, "init")
 	assertSuccess(t, result)
 	assertOutputContains(t, result, "initialized successfully")
 	assertDirExists(t, filepath.Join(dir, ".zeus"))
@@ -35,40 +35,26 @@ func TestBasicFlow(t *testing.T) {
 	assertOutputContains(t, result, "Zeus Doctor")
 }
 
-// TestInitLevels は各初期化レベルをテストする
-func TestInitLevels(t *testing.T) {
-	levels := []struct {
-		level      string
-		expectDirs []string
-	}{
-		{
-			level:      "simple",
-			expectDirs: []string{".zeus", ".zeus/tasks", ".zeus/state", ".zeus/backups"},
-		},
-		{
-			level:      "standard",
-			expectDirs: []string{".zeus", ".zeus/tasks", ".zeus/state", ".zeus/approvals"},
-		},
-		{
-			level:      "advanced",
-			expectDirs: []string{".zeus", ".zeus/tasks", ".zeus/state", ".zeus/approvals", ".zeus/graph"},
-		},
+// TestInitCreatesDirs は init が統一構造を作成することをテストする
+func TestInitCreatesDirs(t *testing.T) {
+	t.Parallel()
+	dir := setupTempDir(t)
+	defer cleanupTempDir(t, dir)
+
+	result := runCommand(t, dir, "init")
+	assertSuccess(t, result)
+
+	// 統一構造のディレクトリを確認
+	expectDirs := []string{
+		".zeus",
+		".zeus/tasks",
+		".zeus/state",
+		".zeus/approvals",
+		".claude",
 	}
 
-	for _, tt := range levels {
-		tt := tt // capture range variable
-		t.Run(tt.level, func(t *testing.T) {
-			t.Parallel()
-			dir := setupTempDir(t)
-			defer cleanupTempDir(t, dir)
-
-			result := runCommand(t, dir, "init", "--level="+tt.level)
-			assertSuccess(t, result)
-
-			for _, expectedDir := range tt.expectDirs {
-				assertDirExists(t, filepath.Join(dir, expectedDir))
-			}
-		})
+	for _, expectedDir := range expectDirs {
+		assertDirExists(t, filepath.Join(dir, expectedDir))
 	}
 }
 
@@ -83,7 +69,7 @@ func TestTaskManagementFlow(t *testing.T) {
 	defer cleanupTempDir(t, dir)
 
 	// init
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 
 	// add task
 	result := runCommand(t, dir, "add", "task", "Test Task 1")
@@ -113,7 +99,7 @@ func TestAddMultipleTasks(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 
 	// 5個のタスクを追加
 	for i := 1; i <= 5; i++ {
@@ -131,41 +117,22 @@ func TestAddMultipleTasks(t *testing.T) {
 // 承認フロー
 // =============================================================================
 
-// TestApprovalFlowAdvanced はadvancedレベルの承認フローをテストする
-func TestApprovalFlowAdvanced(t *testing.T) {
+// TestApprovalFlow は承認フローをテストする
+// automation_level はデフォルトで auto なので、即時実行される
+func TestApprovalFlow(t *testing.T) {
 	t.Parallel()
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	// init with advanced
-	result := runCommand(t, dir, "init", "--level=advanced")
+	// init
+	result := runCommand(t, dir, "init")
 	assertSuccess(t, result)
 
-	// add task (should be pending in advanced mode)
-	result = runCommand(t, dir, "add", "task", "High Priority Task")
-	assertSuccess(t, result)
-	// advanced では承認待ちになる可能性がある
-
-	// pending
-	result = runCommand(t, dir, "pending")
-	assertSuccess(t, result)
-}
-
-// TestApprovalFlowStandard はstandardレベルの承認フローをテストする
-func TestApprovalFlowStandard(t *testing.T) {
-	t.Parallel()
-	dir := setupTempDir(t)
-	defer cleanupTempDir(t, dir)
-
-	// init with standard
-	result := runCommand(t, dir, "init", "--level=standard")
+	// add task（auto モードなので即時実行）
+	result = runCommand(t, dir, "add", "task", "Test Task")
 	assertSuccess(t, result)
 
-	// add task
-	result = runCommand(t, dir, "add", "task", "Standard Task")
-	assertSuccess(t, result)
-
-	// pending
+	// pending（auto モードなので承認待ちはない）
 	result = runCommand(t, dir, "pending")
 	assertSuccess(t, result)
 }
@@ -176,7 +143,7 @@ func TestApproveReject(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=advanced")
+	runCommand(t, dir, "init")
 
 	// 存在しないIDでapprove/rejectするとエラー
 	result := runCommand(t, dir, "approve", "nonexistent-id")
@@ -197,7 +164,7 @@ func TestSnapshotFlow(t *testing.T) {
 	defer cleanupTempDir(t, dir)
 
 	// init
-	runCommand(t, dir, "init", "--level=standard")
+	runCommand(t, dir, "init")
 
 	// add task
 	runCommand(t, dir, "add", "task", "Task Before Snapshot")
@@ -219,7 +186,7 @@ func TestSnapshotRestore(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=standard")
+	runCommand(t, dir, "init")
 	runCommand(t, dir, "add", "task", "Task 1")
 
 	// snapshot create
@@ -255,7 +222,7 @@ func TestHistoryFlow(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=standard")
+	runCommand(t, dir, "init")
 
 	// 複数スナップショット作成
 	runCommand(t, dir, "snapshot", "create", "snapshot-1")
@@ -276,7 +243,7 @@ func TestAnalysisFlow(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 	runCommand(t, dir, "add", "task", "Task 1")
 	runCommand(t, dir, "add", "task", "Task 2")
 
@@ -305,7 +272,7 @@ func TestGraphFormats(t *testing.T) {
 			dir := setupTempDir(t)
 			defer cleanupTempDir(t, dir)
 
-			runCommand(t, dir, "init", "--level=simple")
+			runCommand(t, dir, "init")
 			runCommand(t, dir, "add", "task", "Task 1")
 
 			result := runCommand(t, dir, "graph", "--format="+format)
@@ -325,7 +292,7 @@ func TestPredictTypes(t *testing.T) {
 			dir := setupTempDir(t)
 			defer cleanupTempDir(t, dir)
 
-			runCommand(t, dir, "init", "--level=simple")
+			runCommand(t, dir, "init")
 
 			result := runCommand(t, dir, "predict", predType)
 			assertSuccess(t, result)
@@ -344,7 +311,7 @@ func TestReportFormats(t *testing.T) {
 			dir := setupTempDir(t)
 			defer cleanupTempDir(t, dir)
 
-			runCommand(t, dir, "init", "--level=simple")
+			runCommand(t, dir, "init")
 
 			result := runCommand(t, dir, "report", "--format="+format)
 			assertSuccess(t, result)
@@ -362,7 +329,7 @@ func TestSuggestFlow(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 
 	// suggest
 	result := runCommand(t, dir, "suggest")
@@ -375,7 +342,7 @@ func TestSuggestWithOptions(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 
 	// suggest with limit
 	result := runCommand(t, dir, "suggest", "--limit=3")
@@ -392,7 +359,7 @@ func TestSuggestAndApply(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 
 	// suggest を実行して提案を生成
 	result := runCommand(t, dir, "suggest")
@@ -415,7 +382,7 @@ func TestExplainFlow(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 
 	// explain project
 	result := runCommand(t, dir, "explain", "project")
@@ -442,7 +409,7 @@ func TestExplainWithContext(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 
 	result := runCommand(t, dir, "explain", "project", "--context")
 	assertSuccess(t, result)
@@ -491,7 +458,7 @@ func TestInvalidArguments(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 
 	// add without name
 	result := runCommand(t, dir, "add", "task")
@@ -508,7 +475,7 @@ func TestApproveNonexistent(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=advanced")
+	runCommand(t, dir, "init")
 
 	result := runCommand(t, dir, "approve", "nonexistent-approval-id")
 	assertFailure(t, result)
@@ -520,7 +487,7 @@ func TestRejectNonexistent(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=advanced")
+	runCommand(t, dir, "init")
 
 	result := runCommand(t, dir, "reject", "nonexistent-approval-id")
 	assertFailure(t, result)
@@ -532,7 +499,7 @@ func TestExplainNonexistent(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 
 	result := runCommand(t, dir, "explain", "nonexistent-entity-id")
 	assertFailure(t, result)
@@ -545,7 +512,7 @@ func TestInvalidGraphFormat(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 	// タスクを追加して、実際にフォーマット処理が実行されるようにする
 	runCommand(t, dir, "add", "task", "Task 1")
 
@@ -559,7 +526,7 @@ func TestInvalidReportFormat(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 
 	result := runCommand(t, dir, "report", "--format=invalid")
 	assertFailure(t, result)
@@ -571,7 +538,7 @@ func TestInvalidPredictType(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 
 	result := runCommand(t, dir, "predict", "invalid")
 	assertFailure(t, result)
@@ -587,7 +554,7 @@ func TestEmptyProject(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 
 	// タスクなしで各コマンドを実行
 	result := runCommand(t, dir, "list", "task")
@@ -611,11 +578,11 @@ func TestDoubleInit(t *testing.T) {
 	defer cleanupTempDir(t, dir)
 
 	// 1回目
-	result := runCommand(t, dir, "init", "--level=simple")
+	result := runCommand(t, dir, "init")
 	assertSuccess(t, result)
 
 	// 2回目（エラーまたは成功、実装依存）
-	result = runCommand(t, dir, "init", "--level=simple")
+	result = runCommand(t, dir, "init")
 	// 既に初期化済みでもエラーにならない可能性がある
 }
 
@@ -625,7 +592,7 @@ func TestFixDryRun(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 
 	result := runCommand(t, dir, "fix", "--dry-run")
 	assertSuccess(t, result)
@@ -638,7 +605,7 @@ func TestApplyWithoutSuggestions(t *testing.T) {
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
-	runCommand(t, dir, "init", "--level=simple")
+	runCommand(t, dir, "init")
 
 	// apply --all --dry-run を実行
 	// 提案がない場合はエラーになることを確認

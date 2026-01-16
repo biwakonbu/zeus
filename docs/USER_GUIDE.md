@@ -77,7 +77,7 @@ Available Commands:
 cd your-project
 
 # 2. Zeus を初期化
-zeus init --level=simple
+zeus init
 
 # 3. タスクを追加
 zeus add task "ドキュメント作成"
@@ -109,23 +109,25 @@ Tasks Summary:
 `zeus init` コマンドでプロジェクトを初期化します。
 
 ```bash
-# シンプルモード（承認フローなし）
-zeus init --level=simple
-
-# スタンダードモード（承認フロー有効）
-zeus init --level=standard
-
-# アドバンスドモード（全機能有効）
-zeus init --level=advanced
+# プロジェクトを初期化
+zeus init
 ```
 
-初期化レベルの違い:
+初期化により以下が作成されます:
 
-| レベル | 承認フロー | Claude Code 連携 | 分析機能 |
-|--------|-----------|-----------------|---------|
-| simple | なし | なし | 基本のみ |
-| standard | あり | あり | 基本のみ |
-| advanced | あり | あり | 全機能 |
+- `.zeus/` ディレクトリ（タスク、状態、承認管理用）
+- `.claude/` ディレクトリ（Claude Code 連携用）
+- デフォルトの `automation_level` は `auto`（即時実行、承認不要）
+
+**承認フローの設定:**
+
+承認フローは `zeus.yaml` の `automation_level` で設定できます:
+
+| 値 | 説明 | 動作 |
+|---|------|------|
+| auto | 自動承認（デフォルト） | 即時実行、承認不要 |
+| notify | 通知のみ | 実行時に通知、ログ記録 |
+| approve | 事前承認必須 | 承認待ちキューに追加 |
 
 ### 4.2 状態確認
 
@@ -152,7 +154,7 @@ zeus add task "新機能の実装"
 ✓ Added task: 新機能の実装 (ID: task-abc123)
 ```
 
-Note: `standard` または `advanced` レベルでは、タスク追加時に承認フローが適用される場合があります。
+Note: `automation_level` が `approve` の場合、タスク追加時に承認フローが適用されます。
 
 #### タスク一覧の表示
 
@@ -570,5 +572,6 @@ Error: <エラーの概要>
 
 ---
 
-*Zeus User Guide v1.0*
+*Zeus User Guide v1.1*
 *作成日: 2026-01-15*
+*更新日: 2026-01-16（init コマンド簡略化）*

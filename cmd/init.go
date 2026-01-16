@@ -16,22 +16,20 @@ var initCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(initCmd)
-	initCmd.Flags().StringP("level", "l", "simple", "初期化レベル (simple|standard|advanced)")
+	// フラグなし（--level 削除済み）
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
 	ctx := getContext(cmd)
-	level, _ := cmd.Flags().GetString("level")
 
 	zeus := getZeus(cmd)
-	result, err := zeus.Init(ctx, level)
+	result, err := zeus.Init(ctx)
 	if err != nil {
 		return err
 	}
 
 	green := color.New(color.FgGreen).SprintFunc()
 	fmt.Printf("%s Zeus initialized successfully!\n", green("✓"))
-	fmt.Printf("  Level: %s\n", result.Level)
 	fmt.Printf("  Path:  %s\n", result.ZeusPath)
 
 	return nil

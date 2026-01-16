@@ -37,7 +37,7 @@ func TestGenerateAll(t *testing.T) {
 	g := NewGenerator(tmpDir)
 	ctx := context.Background()
 
-	err = g.GenerateAll(ctx, "TestProject", "standard")
+	err = g.GenerateAll(ctx, "TestProject")
 	if err != nil {
 		t.Errorf("GenerateAll() error = %v", err)
 	}
@@ -250,7 +250,7 @@ func TestGenerateAll_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err = g.GenerateAll(ctx, "TestProject", "standard")
+	err = g.GenerateAll(ctx, "TestProject")
 	if err != context.Canceled {
 		t.Errorf("expected context.Canceled, got %v", err)
 	}
@@ -413,39 +413,6 @@ func TestGenerateSkills_FileContent(t *testing.T) {
 	}
 }
 
-func TestGenerateAll_WithDifferentLevels(t *testing.T) {
-	levels := []string{"simple", "standard", "advanced"}
-
-	for _, level := range levels {
-		t.Run(level, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "generator-test")
-			if err != nil {
-				t.Fatalf("failed to create temp dir: %v", err)
-			}
-			defer os.RemoveAll(tmpDir)
-
-			g := NewGenerator(tmpDir)
-			ctx := context.Background()
-
-			err = g.GenerateAll(ctx, "TestProject", level)
-			if err != nil {
-				t.Errorf("GenerateAll() with level %s error = %v", level, err)
-			}
-
-			// エージェントとスキルが作成されているか確認
-			agentsDir := filepath.Join(tmpDir, ".claude", "agents")
-			skillsDir := filepath.Join(tmpDir, ".claude", "skills")
-
-			if _, err := os.Stat(agentsDir); os.IsNotExist(err) {
-				t.Errorf("agents directory should exist for level %s", level)
-			}
-			if _, err := os.Stat(skillsDir); os.IsNotExist(err) {
-				t.Errorf("skills directory should exist for level %s", level)
-			}
-		})
-	}
-}
-
 func TestGenerateAgents_AllFiles(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "generator-test")
 	if err != nil {
@@ -572,7 +539,7 @@ func TestGenerateAgents_ContextCancelledDuringLoop(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	g := NewGenerator(tmpDir)
-	
+
 	// 1つ目のファイルを生成した後でキャンセルされるシナリオをテスト
 	// まず正常に生成してファイルが作成されることを確認
 	ctx := context.Background()
@@ -580,7 +547,7 @@ func TestGenerateAgents_ContextCancelledDuringLoop(t *testing.T) {
 	if err != nil {
 		t.Errorf("GenerateAgents() should succeed with valid context, got error = %v", err)
 	}
-	
+
 	// ファイルが生成されていることを確認
 	path := filepath.Join(tmpDir, ".claude", "agents", "zeus-orchestrator.md")
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -597,14 +564,14 @@ func TestGenerateSkills_ContextCancelledDuringLoop(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	g := NewGenerator(tmpDir)
-	
+
 	// 正常なコンテキストでスキルを生成
 	ctx := context.Background()
 	err = g.GenerateSkills(ctx, "TestProject")
 	if err != nil {
 		t.Errorf("GenerateSkills() should succeed with valid context, got error = %v", err)
 	}
-	
+
 	// スキルファイルが生成されていることを確認
 	path := filepath.Join(tmpDir, ".claude", "skills", "zeus-project-scan", "SKILL.md")
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -621,15 +588,15 @@ func TestGenerateAll_AgentsError(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	g := NewGenerator(tmpDir)
-	
+
 	// .claude ディレクトリをファイルとして作成（ディレクトリ作成をエラーにする）
 	claudePath := filepath.Join(tmpDir, ".claude")
 	if err := os.WriteFile(claudePath, []byte("not a directory"), 0644); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
-	
+
 	ctx := context.Background()
-	err = g.GenerateAll(ctx, "TestProject", "standard")
+	err = g.GenerateAll(ctx, "TestProject")
 	if err == nil {
 		t.Error("GenerateAll() should return error when .claude is a file")
 	}

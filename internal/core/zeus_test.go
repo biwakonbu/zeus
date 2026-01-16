@@ -102,7 +102,7 @@ func TestInitContextTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err == nil {
 		t.Error("expected error for cancelled context")
 	}
@@ -196,7 +196,7 @@ func TestZeusIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	// Init
-	result, err := z.Init(ctx, "simple")
+	result, err := z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -262,7 +262,7 @@ func TestZeusSnapshot(t *testing.T) {
 	ctx := context.Background()
 
 	// Init
-	_, err = z.Init(ctx, "standard")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -300,7 +300,7 @@ func TestZeusWithTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	result, err := z.Init(ctx, "simple")
+	result, err := z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init with timeout failed: %v", err)
 	}
@@ -323,7 +323,7 @@ func TestPending(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "advanced")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -368,7 +368,7 @@ func TestApprove(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "advanced")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -410,7 +410,7 @@ func TestReject(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "advanced")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -452,7 +452,7 @@ func TestRestoreSnapshotIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "standard")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -515,7 +515,7 @@ func TestExplain_Project(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -549,7 +549,7 @@ func TestExplain_ProjectWithContext(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -581,7 +581,7 @@ func TestExplain_Task(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -618,7 +618,7 @@ func TestExplain_UnknownEntity(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -660,7 +660,7 @@ func TestBuildDependencyGraph(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -695,7 +695,7 @@ func TestBuildDependencyGraph_Empty(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -741,7 +741,7 @@ func TestPredict(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -773,7 +773,7 @@ func TestPredict_Types(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -805,7 +805,7 @@ func TestPredict_UnknownType(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -846,7 +846,7 @@ func TestGenerateReport(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -879,7 +879,7 @@ func TestGenerateReport_UnknownFormat(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -908,7 +908,7 @@ func TestGenerateReportContextTimeout(t *testing.T) {
 	}
 }
 
-// getDirectoryStructure テスト
+// getDirectoryStructure テスト（単一構造に変更）
 func TestGetDirectoryStructure(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "zeus-test")
 	if err != nil {
@@ -918,23 +918,27 @@ func TestGetDirectoryStructure(t *testing.T) {
 
 	z := New(tmpDir)
 
-	tests := []struct {
-		level    string
-		minDirs  int
-	}{
-		{"simple", 3},
-		{"standard", 10},
-		{"advanced", 14},
-		{"unknown", 3}, // デフォルトは simple と同じ
+	// 単一構造になったので、固定のディレクトリ数を確認
+	dirs := z.getDirectoryStructure()
+	expectedMinDirs := 10 // 統一構造の最低ディレクトリ数
+
+	if len(dirs) < expectedMinDirs {
+		t.Errorf("expected at least %d directories, got %d", expectedMinDirs, len(dirs))
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.level, func(t *testing.T) {
-			dirs := z.getDirectoryStructure(tt.level)
-			if len(dirs) < tt.minDirs {
-				t.Errorf("expected at least %d directories for %q, got %d", tt.minDirs, tt.level, len(dirs))
+	// 必須ディレクトリが含まれているか確認
+	requiredDirs := []string{"config", "tasks", "state", "approvals/pending", "approvals/approved", "approvals/rejected"}
+	for _, required := range requiredDirs {
+		found := false
+		for _, dir := range dirs {
+			if dir == required {
+				found = true
+				break
 			}
-		})
+		}
+		if !found {
+			t.Errorf("expected directory %q to be in structure", required)
+		}
 	}
 }
 
@@ -966,7 +970,7 @@ func TestAdd_UnknownEntity(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -990,7 +994,7 @@ func TestList_UnknownEntity(t *testing.T) {
 	ctx := context.Background()
 
 	// 初期化
-	_, err = z.Init(ctx, "simple")
+	_, err = z.Init(ctx)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -1002,33 +1006,25 @@ func TestList_UnknownEntity(t *testing.T) {
 	}
 }
 
-// Init 各レベルテスト
-func TestInit_AllLevels(t *testing.T) {
-	levels := []string{"simple", "standard", "advanced"}
-
-	for _, level := range levels {
-		t.Run(level, func(t *testing.T) {
-			tmpDir, err := os.MkdirTemp("", "zeus-test")
-			if err != nil {
-				t.Fatalf("failed to create temp dir: %v", err)
-			}
-			defer os.RemoveAll(tmpDir)
-
-			z := New(tmpDir)
-			ctx := context.Background()
-
-			result, err := z.Init(ctx, level)
-			if err != nil {
-				t.Fatalf("Init(%q) failed: %v", level, err)
-			}
-			if !result.Success {
-				t.Errorf("Init(%q) should succeed", level)
-			}
-			if result.Level != level {
-				t.Errorf("expected level %q, got %q", level, result.Level)
-			}
-		})
+// Init テスト（単一構造に変更）
+func TestInit(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "zeus-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
 	}
+	defer os.RemoveAll(tmpDir)
+
+	z := New(tmpDir)
+	ctx := context.Background()
+
+	result, err := z.Init(ctx)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	if !result.Success {
+		t.Error("Init should succeed")
+	}
+	// Level フィールドは削除されたので確認しない
 }
 
 // ===== DI オプション関数テスト =====

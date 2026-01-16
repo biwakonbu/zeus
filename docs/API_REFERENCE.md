@@ -30,33 +30,25 @@ zeus <command> [subcommand] [arguments] [options]
 
 **構文**
 ```bash
-zeus init [options]
+zeus init
 ```
 
 **説明**
 プロジェクトディレクトリに `.zeus/` フォルダを作成し、Zeus プロジェクトを初期化します。
+同時に `.claude/` ディレクトリも作成され、Claude Code 連携用のエージェント・スキルファイルが生成されます。
 
-**オプション**
-| オプション | 短縮形 | デフォルト | 説明 |
-|-----------|-------|----------|------|
-| `--level` | `-l` | `simple` | 初期化レベル（simple\|standard\|advanced） |
+デフォルトの `automation_level` は `auto`（即時実行、承認不要）に設定されます。
+承認フローが必要な場合は、初期化後に `zeus.yaml` の `automation_level` を `notify` または `approve` に変更してください。
 
 **使用例**
 ```bash
-# シンプルモードで初期化
+# プロジェクトを初期化
 zeus init
-
-# スタンダードモードで初期化
-zeus init --level=standard
-
-# アドバンスドモードで初期化
-zeus init -l advanced
 ```
 
 **出力例**
 ```
 ✓ Zeus initialized successfully!
-  Level: standard
   Path:  .zeus
 ```
 
@@ -142,7 +134,7 @@ zeus add task "新機能の実装"
 ✓ Added task: 新機能の実装 (ID: task-abc123)
 ```
 
-承認が必要な場合:
+承認が必要な場合（`automation_level: approve` の場合）:
 ```
 ⏳ task '新機能の実装' は承認待ちキューに追加されました
    承認ID: appr-xyz789
@@ -1035,8 +1027,8 @@ objectives:
     deadline: "2026-03-31"
     priority: "high"
 settings:
-  automation_level: "standard"  # simple|standard|advanced
-  approval_mode: "default"      # default|strict|loose
+  automation_level: "auto"        # auto|notify|approve（デフォルト: auto）
+  approval_mode: "default"        # default|strict|loose
   ai_provider: "claude-code"
 ```
 
@@ -1138,5 +1130,6 @@ dependencies:
 
 ---
 
-*Zeus API Reference v1.0*
+*Zeus API Reference v1.1*
 *作成日: 2026-01-15*
+*更新日: 2026-01-16（init コマンド簡略化）*

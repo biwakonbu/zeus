@@ -10,7 +10,13 @@ import (
 )
 
 // binaryPath はテスト用にビルドされたZeusバイナリのパス
-var binaryPath string
+// パッケージレベル変数として保持
+var testBinaryPath string
+
+// getBinaryPath はテスト用バイナリパスを返す
+func getBinaryPath() string {
+	return testBinaryPath
+}
 
 // TestMain はテスト実行前にバイナリをビルドし、終了後にクリーンアップする
 func TestMain(m *testing.M) {
@@ -31,7 +37,7 @@ func TestMain(m *testing.M) {
 		println("バイナリビルド失敗:", err.Error())
 		os.Exit(1)
 	}
-	binaryPath = tmpBin
+	testBinaryPath = tmpBin
 
 	// テスト実行
 	code := m.Run()

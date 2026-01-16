@@ -27,7 +27,7 @@ func NewGenerator(projectPath string) *Generator {
 }
 
 // GenerateAll は全ての Claude Code 連携ファイルを生成（Context対応）
-func (g *Generator) GenerateAll(ctx context.Context, projectName string, level string) error {
+func (g *Generator) GenerateAll(ctx context.Context, projectName string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}

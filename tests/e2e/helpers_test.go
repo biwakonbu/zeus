@@ -19,7 +19,7 @@ type CommandResult struct {
 
 // runCommand はZeusコマンドを実行して結果を返す
 // dir: 作業ディレクトリ
-// args: コマンド引数（例: "init", "--level=simple"）
+// args: コマンド引数（例: "init"）
 func runCommand(t *testing.T, dir string, args ...string) CommandResult {
 	t.Helper()
 
@@ -27,7 +27,7 @@ func runCommand(t *testing.T, dir string, args ...string) CommandResult {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, binaryPath, args...)
+	cmd := exec.CommandContext(ctx, getBinaryPath(), args...)
 	cmd.Dir = dir
 
 	var stdout, stderr bytes.Buffer
