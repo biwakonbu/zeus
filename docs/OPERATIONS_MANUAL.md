@@ -153,7 +153,6 @@ zeus report --format=json > report.json
 | `zeus add` | エンティティ追加 | `<entity> <name>` |
 | `zeus update` | エンティティ更新 | `<id> <field> <value>` |
 | `zeus list` | 一覧表示 | `[entity] [--filter]` |
-| `zeus report` | レポート生成 | `--format=md\|json\|html` |
 
 ### 3.2 AI コマンド
 
@@ -173,7 +172,21 @@ zeus report --format=json > report.json
 | `zeus edit` | 直接編集 | `<entity>` |
 | `zeus rollback` | 取り消し | `<override-id>` |
 
-### 3.4 フィードバックコマンド
+### 3.4 分析コマンド（Phase 4）
+
+| コマンド | 説明 | オプション |
+|---------|------|-----------|
+| `zeus graph` | 依存関係グラフ表示 | `--format text\|dot\|mermaid`, `-o <file>` |
+| `zeus predict` | 予測分析 | `completion\|risk\|velocity\|all` |
+| `zeus report` | レポート生成 | `--format text\|html\|markdown`, `-o <file>` |
+
+### 3.5 ダッシュボードコマンド（Phase 5）
+
+| コマンド | 説明 | オプション |
+|---------|------|-----------|
+| `zeus dashboard` | Web ダッシュボード起動 | `--port <port>`, `--no-open` |
+
+### 3.6 フィードバックコマンド
 
 | コマンド | 説明 | オプション |
 |---------|------|-----------|
@@ -182,7 +195,7 @@ zeus report --format=json > report.json
 | `zeus review` | 週次レビュー | - |
 | `zeus stats` | 精度統計 | `--detail`, `--json` |
 
-### 3.5 復旧コマンド
+### 3.7 復旧コマンド
 
 | コマンド | 説明 | オプション |
 |---------|------|-----------|
@@ -191,7 +204,7 @@ zeus report --format=json > report.json
 | `zeus restore` | バックアップ復元 | `[point]`, `--latest` |
 | `zeus resume` | 通常モード復帰 | - |
 
-### 3.6 自動化コマンド
+### 3.8 自動化コマンド
 
 | コマンド | 説明 | オプション |
 |---------|------|-----------|
@@ -199,9 +212,208 @@ zeus report --format=json > report.json
 | `zeus automation pause` | 一時停止 | - |
 | `zeus automation resume` | 再開 | - |
 
-## 4. ワークフロー
+## 4. 分析機能の運用（Phase 4）
 
-### 4.1 標準的な1日の流れ
+### 4.1 依存関係グラフ（graph コマンド）
+
+#### 基本的な使い方
+```bash
+# テキスト形式で表示（CLI確認用）
+zeus graph
+
+# Graphviz DOT形式で出力
+zeus graph --format dot -o dependencies.dot
+dot -Tpng dependencies.dot -o dependencies.png
+
+# Mermaid形式でMarkdownに出力
+zeus graph --format mermaid -o docs/dependencies.md
+```
+
+#### 出力形式の選択ガイド
+
+| 形式 | 用途 | 出力例 |
+|------|------|--------|
+| text | CLI での簡易確認 | `TASK-001 --> TASK-002` |
+| dot | 画像生成（Graphviz） | digraph G {...} |
+| mermaid | ドキュメント埋め込み | ```mermaid graph TD ...``` |
+
+#### 循環依存の検出
+```bash
+# グラフに循環依存がある場合、警告が表示される
+zeus graph
+# 出力例:
+# Warning: Circular dependency detected!
+#   TASK-001 -> TASK-002 -> TASK-003 -> TASK-001
+```
+
+### 4.2 予測分析（predict コマンド）
+
+#### 完了日予測
+```bash
+zeus predict completion
+# 出力例:
+# Completion Prediction
+# =====================
+# Estimated completion: 2024-03-15
+# Confidence interval: 2024-03-10 ~ 2024-03-20
+# Remaining tasks: 12
+# Average velocity: 2.5 tasks/day
+```
+
+#### リスク分析
+```bash
+zeus predict risk
+# 出力例:
+# Risk Analysis
+# =============
+# Overall risk level: MEDIUM
+#
+# Risk factors:
+#   [HIGH] Dependency complexity - 3 tasks have 5+ dependencies
+#   [MEDIUM] Estimation accuracy - 30% of tasks exceeded estimates
+#   [LOW] Scope creep - 2 new tasks added this week
+```
+
+#### ベロシティ分析
+```bash
+zeus predict velocity
+# 出力例:
+# Velocity Analysis
+# =================
+# Current velocity: 2.5 tasks/day
+# Trend: +0.3 (improving)
+# 7-day average: 2.2 tasks/day
+# 30-day average: 2.0 tasks/day
+```
+
+#### 全予測を一度に表示
+```bash
+zeus predict
+# または
+zeus predict all
+```
+
+### 4.3 レポート生成（report コマンド）
+
+#### テキストレポート
+```bash
+zeus report
+# プロジェクト概要、進捗、タスク一覧を標準出力に表示
+```
+
+#### HTMLレポート
+```bash
+# HTMLファイルとして出力
+zeus report --format html -o report.html
+
+# ブラウザで確認
+open report.html
+```
+
+#### Markdownレポート
+```bash
+# Markdownファイルとして出力
+zeus report --format markdown -o docs/STATUS.md
+
+# GitHubなどで表示
+```
+
+#### レポート内容
+1. プロジェクト概要（名前、説明、開始日）
+2. 進捗サマリー（完了率、残タスク数）
+3. タスク一覧（ステータス別）
+4. 依存関係グラフ（Mermaid形式、HTML/Markdownのみ）
+5. 予測分析結果
+6. リスク・課題
+
+## 5. Webダッシュボードの運用（Phase 5）
+
+### 5.1 ダッシュボードの起動
+
+#### 基本起動
+```bash
+# デフォルトポート(8080)で起動し、ブラウザを自動で開く
+zeus dashboard
+```
+
+#### カスタムポート
+```bash
+# ポート3000で起動
+zeus dashboard --port 3000
+```
+
+#### ブラウザ自動起動の無効化
+```bash
+# ヘッドレスサーバーとして起動（CIなど）
+zeus dashboard --no-open
+```
+
+### 5.2 ダッシュボードの停止
+
+```bash
+# Ctrl+C でサーバーを停止
+# または、別ターミナルから
+kill $(lsof -t -i:8080)
+```
+
+### 5.3 アクセス方法
+
+ダッシュボードは **ローカルホストのみ** からアクセス可能です:
+- URL: `http://localhost:8080` （または指定ポート）
+- 外部ネットワークからのアクセスは不可（セキュリティ対策）
+
+### 5.4 ダッシュボード機能
+
+| 機能 | 説明 |
+|------|------|
+| プロジェクト概要 | 名前、説明、進捗率、健全性をカード表示 |
+| タスク統計 | 完了/進行中/保留の内訳 |
+| タスク一覧 | テーブル形式、ステータス色分け |
+| 依存関係グラフ | Mermaid.js でインタラクティブ表示 |
+| 予測分析 | 完了日、リスク、ベロシティ |
+| 自動更新 | 5秒間隔で最新データを取得 |
+
+### 5.5 REST API の利用
+
+プログラムからダッシュボードAPIを利用:
+
+```bash
+# プロジェクト状態を取得
+curl http://localhost:8080/api/status | jq
+
+# タスク一覧を取得
+curl http://localhost:8080/api/tasks | jq
+
+# 依存関係グラフ（Mermaid形式）を取得
+curl http://localhost:8080/api/graph
+
+# 予測分析結果を取得
+curl http://localhost:8080/api/predict | jq
+```
+
+### 5.6 トラブルシューティング
+
+#### ポートが使用中の場合
+```bash
+# 別のポートを指定
+zeus dashboard --port 3000
+
+# または、使用中のプロセスを終了
+lsof -i:8080
+kill <PID>
+```
+
+#### ブラウザが開かない場合
+```bash
+# 手動でブラウザを開く
+zeus dashboard --no-open
+# 別ターミナルで
+open http://localhost:8080
+```
+
+## 6. ワークフロー
+
+### 6.1 標準的な1日の流れ
 
 ```
 Morning Check (朝)
@@ -220,7 +432,7 @@ End of Day (終業時)
 └── zeus report          # 日次レポート（オプション）
 ```
 
-### 4.2 週次レビューフロー
+### 6.2 週次レビューフロー
 
 ```bash
 # Step 1: AI精度の確認
@@ -231,9 +443,44 @@ zeus review
 
 # Step 3: レポート生成
 zeus report --format=html > weekly_report.html
+
+# Step 4: 予測分析の確認
+zeus predict
 ```
 
-### 4.3 問題発生時のフロー
+### 6.3 分析ワークフロー
+
+```bash
+# Step 1: 依存関係の確認
+zeus graph --format mermaid
+
+# Step 2: 循環依存のチェック
+zeus graph | grep -i "circular"
+
+# Step 3: 予測の確認
+zeus predict
+
+# Step 4: レポート生成
+zeus report --format html -o analysis_report.html
+```
+
+### 6.4 ダッシュボードを使った運用
+
+```bash
+# Step 1: ダッシュボードを起動（バックグラウンド）
+zeus dashboard &
+
+# Step 2: ブラウザで確認しながら作業
+#   - プロジェクト概要を確認
+#   - タスク進捗を監視
+#   - 依存関係グラフでボトルネックを特定
+
+# Step 3: 作業完了後に停止
+fg
+# Ctrl+C
+```
+
+### 6.5 問題発生時のフロー
 
 ```bash
 # Step 1: 診断
@@ -252,22 +499,22 @@ zeus fix
 zeus status
 ```
 
-## 5. 承認レベルの理解
+## 7. 承認レベルの理解
 
-### 5.1 auto（自動実行）
+### 7.1 auto（自動実行）
 人間の確認なしで実行される操作:
 - 読み取り操作
 - 計算処理
 - レポート生成
 - 完了タスクのアーカイブ
 
-### 5.2 notify（通知付き実行）
+### 7.2 notify（通知付き実行）
 実行後に通知される操作:
 - ステータス更新
 - 見積もり更新（20%以内の変更）
 - 依存関係追加
 
-### 5.3 approve（事前承認必須）
+### 7.3 approve（事前承認必須）
 実行前に承認が必要な操作:
 - マイルストーン変更
 - リソースアサイン
@@ -275,9 +522,9 @@ zeus status
 - 3タスク以上に影響する変更
 - 信頼度70%未満のAI提案
 
-## 6. トラブルシューティング
+## 8. トラブルシューティング
 
-### 6.1 よくある問題と解決方法
+### 8.1 よくある問題と解決方法
 
 #### zeus.yaml が見つからない
 ```bash
@@ -323,7 +570,7 @@ zeus doctor
 zeus fix  # 自動でバックアップを作成
 ```
 
-### 6.2 グレースフルデグラデーション
+### 8.2 グレースフルデグラデーション
 
 Zeusは問題発生時に段階的に機能を制限します：
 
@@ -342,9 +589,9 @@ zeus status
 zeus resume
 ```
 
-## 7. ベストプラクティス
+## 9. ベストプラクティス
 
-### 7.1 効果的な運用のコツ
+### 9.1 効果的な運用のコツ
 
 1. **毎日のチェック習慣化**
    - 朝一番に `zeus status` と `zeus pending` を確認
@@ -361,7 +608,12 @@ zeus resume
    - 複雑な変更は `zeus edit` で直接YAML編集
    - Gitでの差分管理が容易
 
-### 7.2 避けるべきこと
+5. **分析機能の活用**
+   - `zeus graph` で依存関係を可視化
+   - `zeus predict` でリスクを早期発見
+   - `zeus dashboard` でリアルタイム監視
+
+### 9.2 避けるべきこと
 
 1. **長期間の承認放置**
    - 7日以上放置すると警告が表示される
@@ -375,9 +627,12 @@ zeus resume
 4. **YAMLの直接編集でのシンタックスエラー**
    - 編集後は `zeus doctor` で確認
 
-## 8. 設定カスタマイズ
+5. **ダッシュボードの外部公開**
+   - セキュリティリスクがあるため、常にローカルアクセスのみ
 
-### 8.1 自動化ポリシーの調整
+## 10. 設定カスタマイズ
+
+### 10.1 自動化ポリシーの調整
 ```yaml
 # .zeus/config/automation.yaml
 automation:
@@ -391,7 +646,7 @@ automation:
       - "add_dependency"
 ```
 
-### 8.2 通知設定
+### 10.2 通知設定
 ```yaml
 # .zeus/config/notifications.yaml
 notifications:
@@ -402,7 +657,7 @@ notifications:
   # email: false
 ```
 
-### 8.3 ビュー設定
+### 10.3 ビュー設定
 ```yaml
 # .zeus/config/views.yaml
 views:
@@ -415,7 +670,16 @@ views:
     depth: 3
 ```
 
-## 9. 用語集
+### 10.4 ダッシュボード設定
+```yaml
+# .zeus/config/dashboard.yaml
+dashboard:
+  default_port: 8080
+  auto_open: true
+  refresh_interval: 5000  # ミリ秒
+```
+
+## 11. 用語集
 
 | 用語 | 説明 |
 |------|------|
@@ -426,24 +690,28 @@ views:
 | Override | 人間によるAI提案の上書き |
 | Snapshot | 特定時点の状態保存 |
 | Health | プロジェクトの健全性指標 |
+| Graph | 依存関係グラフ |
+| Velocity | タスク完了速度 |
+| Dashboard | Webベースの管理画面 |
 
-## 10. サポート
+## 12. サポート
 
-### 10.1 ヘルプの確認
+### 12.1 ヘルプの確認
 ```bash
 zeus --help
 zeus <command> --help
 ```
 
-### 10.2 バージョン確認
+### 12.2 バージョン確認
 ```bash
 zeus --version
 ```
 
-### 10.3 問題報告
+### 12.3 問題報告
 - GitHub Issues: https://github.com/biwakonbu/zeus/issues
 
 ---
 
-*Zeus Operations Manual v1.0*
+*Zeus Operations Manual v1.1*
 *作成日: 2026-01-14*
+*更新日: 2026-01-15（Phase 4-5 追加）*

@@ -24,10 +24,10 @@ Zeusは、AIによるプロジェクトマネジメントを「神の視点」�
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                         User Interface                       │
-│                    ┌─────────────────────┐                  │
-│                    │    Zeus CLI          │                  │
-│                    └──────────┬──────────┘                  │
-├───────────────────────────────┼─────────────────────────────┤
+│  ┌─────────────────────┐   ┌─────────────────────┐         │
+│  │    Zeus CLI          │   │   Web Dashboard     │         │
+│  └──────────┬──────────┘   └──────────┬──────────┘         │
+├─────────────┴──────────────────────────┴────────────────────┤
 │                         Core Layer                           │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
 │  │  Command     │  │  Approval   │  │  AI Engine  │        │
@@ -38,6 +38,12 @@ Zeusは、AIによるプロジェクトマネジメントを「神の視点」�
 │  ┌─────────────────────────────────────────────────┐       │
 │  │               State Manager                       │       │
 │  └─────────────────────────────────────────────────┘       │
+├───────────────────────────────┼─────────────────────────────┤
+│                       Analysis Layer                         │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │  Dependency  │  │  Prediction │  │  Report     │        │
+│  │  Graph       │  │  Engine     │  │  Generator  │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
 ├───────────────────────────────┼─────────────────────────────┤
 │                         Data Layer                           │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
@@ -81,9 +87,54 @@ Zeusは、AIによるプロジェクトマネジメントを「神の視点」�
 └── .local/          # ローカル設定
 ```
 
-### 2.3 データフォーマット
+### 2.3 パッケージ構成
 
-#### 2.3.1 メイン設定（zeus.yaml）
+#### 2.3.1 コアパッケージ (internal/core/)
+
+| モジュール | 責務 |
+|-----------|------|
+| Zeus | メインロジック、プロジェクト初期化、コマンド実行 |
+| StateManager | 状態スナップショット管理、履歴追跡 |
+| ApprovalManager | 3段階承認フロー (auto/notify/approve)、ファイルロック |
+| TaskHandler | タスクエンティティの CRUD 操作 |
+| EntityRegistry | エンティティハンドラーの登録・取得 |
+
+#### 2.3.2 分析パッケージ (internal/analysis/)
+
+| モジュール | 責務 |
+|-----------|------|
+| types.go | 分析用型定義（core への依存を避けるため独立） |
+| GraphBuilder | タスク依存関係グラフの構築 |
+| DependencyGraph | グラフ構造、循環検出、統計計算、可視化出力 |
+| Predictor | 完了日予測、リスク分析、ベロシティ計算 |
+
+**設計ポイント:**
+- `analysis` パッケージは `core` からの import cycle を避けるため独自の型を定義
+- `core.Zeus` から `analysis` への変換関数で連携
+
+#### 2.3.3 レポートパッケージ (internal/report/)
+
+| モジュール | 責務 |
+|-----------|------|
+| Generator | プロジェクトレポートの生成 |
+| Templates | TEXT/HTML/Markdown テンプレート |
+
+#### 2.3.4 ダッシュボードパッケージ (internal/dashboard/)
+
+| モジュール | 責務 |
+|-----------|------|
+| Server | HTTP サーバー管理、静的ファイル配信 |
+| Handlers | REST API ハンドラー（/api/status, /api/tasks, /api/graph, /api/predict） |
+
+**設計ポイント:**
+- Go 標準ライブラリのみ使用（net/http, embed）
+- 静的ファイルは `//go:embed` で埋め込み
+- Mermaid.js は CDN から読み込み
+- 127.0.0.1 にバインドしてローカルアクセスのみ許可
+
+### 2.4 データフォーマット
+
+#### 2.4.1 メイン設定（zeus.yaml）
 ```yaml
 # .zeus/zeus.yaml
 version: "1.0"
@@ -105,7 +156,7 @@ settings:
   ai_provider: "claude-code"    # claude-code|gemini|codex
 ```
 
-#### 2.3.2 タスク定義
+#### 2.4.2 タスク定義
 ```yaml
 # .zeus/tasks/active.yaml
 tasks:
@@ -119,7 +170,7 @@ tasks:
     approval_level: "auto"
 ```
 
-#### 2.3.3 状態スナップショット
+#### 2.4.3 状態スナップショット
 ```yaml
 # .zeus/state/current.yaml
 snapshot:
@@ -186,14 +237,99 @@ zeus approve <id>         # 承認
 zeus reject <id> [reason] # 却下
 ```
 
-### 3.4 フィードバックシステム
+### 3.4 分析機能（Phase 4）
 
-#### 3.4.1 自動追跡
+#### 3.4.1 依存関係グラフ
+```bash
+zeus graph                            # テキスト形式で表示
+zeus graph --format dot               # DOT形式（Graphviz互換）
+zeus graph --format mermaid           # Mermaid形式
+zeus graph --format mermaid -o graph.md  # ファイル出力
+```
+
+**出力形式:**
+
+| 形式 | 説明 | 用途 |
+|------|------|------|
+| text | ASCII アート風テキスト | CLI での確認 |
+| dot | Graphviz DOT 言語 | 画像生成（png, svg） |
+| mermaid | Mermaid 記法 | Markdown ドキュメント |
+
+**グラフ機能:**
+- タスク間の依存関係可視化
+- 循環依存の検出と警告
+- クリティカルパスの強調表示
+- 統計情報（ノード数、エッジ数、平均依存数）
+
+#### 3.4.2 予測分析
+```bash
+zeus predict                  # 全予測を表示
+zeus predict completion       # 完了日予測のみ
+zeus predict risk             # リスク分析のみ
+zeus predict velocity         # ベロシティ分析のみ
+```
+
+**予測モデル:**
+
+| 予測種別 | アルゴリズム | 出力 |
+|---------|-------------|------|
+| 完了日予測 | 残タスク / ベロシティ | 予測完了日、信頼区間 |
+| リスク分析 | 見積精度、依存関係複雑度 | リスクレベル（high/medium/low）、要因 |
+| ベロシティ | 過去実績の移動平均 | タスク/日、トレンド |
+
+#### 3.4.3 レポート生成
+```bash
+zeus report                           # テキスト形式で標準出力
+zeus report --format html             # HTML形式
+zeus report --format markdown         # Markdown形式
+zeus report --format html -o report.html  # ファイル出力
+```
+
+**レポート内容:**
+1. プロジェクト概要
+2. 進捗サマリー（完了率、残タスク数）
+3. タスク一覧（ステータス別）
+4. 依存関係グラフ（Mermaid形式）
+5. 予測分析結果
+6. リスク・課題
+
+### 3.5 Web ダッシュボード（Phase 5）
+
+#### 3.5.1 ダッシュボード起動
+```bash
+zeus dashboard                # デフォルトポート 8080 で起動
+zeus dashboard --port 3000    # カスタムポート
+zeus dashboard --no-open      # ブラウザ自動起動を無効化
+```
+
+#### 3.5.2 REST API
+
+| エンドポイント | メソッド | 説明 |
+|---------------|---------|------|
+| `/api/status` | GET | プロジェクト状態（名前、進捗率、健全性） |
+| `/api/tasks` | GET | タスク一覧（JSON配列） |
+| `/api/graph` | GET | 依存関係グラフ（Mermaid形式） |
+| `/api/predict` | GET | 予測分析結果 |
+
+#### 3.5.3 Web UI 機能
+
+| 機能 | 説明 |
+|------|------|
+| プロジェクト概要 | 名前、説明、進捗率、健全性をカード表示 |
+| タスク統計 | 完了/進行中/保留の円グラフ |
+| タスク一覧 | テーブル形式、ステータス色分け |
+| 依存関係グラフ | Mermaid.js でインタラクティブ表示 |
+| 予測分析 | 完了日、リスク、ベロシティ |
+| 自動更新 | 5秒間隔で Polling |
+
+### 3.6 フィードバックシステム
+
+#### 3.6.1 自動追跡
 - タスク完了時の見積もり精度
 - オーバーライド時の差分
 - 承認/却下の結果
 
-#### 3.4.2 明示的フィードバック
+#### 3.6.2 明示的フィードバック
 ```bash
 zeus ok <id>              # 成功報告
 zeus ng <id> [reason]     # 失敗報告
@@ -201,15 +337,15 @@ zeus review               # 週次レビュー
 zeus stats                # 精度統計
 ```
 
-### 3.5 エラー処理と復旧
+### 3.7 エラー処理と復旧
 
-#### 3.5.1 診断と修復
+#### 3.7.1 診断と修復
 ```bash
 zeus doctor               # システム診断
 zeus fix [--dry-run]      # 自動修復
 ```
 
-#### 3.5.2 バックアップと復元
+#### 3.7.2 バックアップと復元
 ```bash
 zeus restore [point]      # バックアップ復元
 zeus restore --latest     # 最新から復元
@@ -260,9 +396,9 @@ export async function projectScan(context) {
 - 標準APIの提供
 
 ### 6.2 外部連携（将来）
-- Git統合（Phase 2）
-- Slack/Email通知（Phase 2）
-- 他のCLIツールとの連携（Phase 3）
+- Git統合（Phase 6）
+- Slack/Email通知（Phase 6）
+- 他のCLIツールとの連携（Phase 6）
 
 ## 7. セキュリティとプライバシー
 
@@ -276,12 +412,21 @@ export async function projectScan(context) {
 - 承認履歴の完全記録
 - オーバーライドの監査証跡
 
+### 7.3 ダッシュボードセキュリティ
+- 127.0.0.1 バインドでローカルアクセスのみ許可
+- 外部ネットワークからのアクセス不可
+- 認証機能は将来実装予定（Phase 6）
+
 ## 8. パフォーマンス目標
 
 ### 8.1 レスポンスタイム
 - zeus status: < 100ms
 - zeus suggest: < 3s
 - zeus doctor: < 5s
+- zeus graph: < 1s（タスク1000件まで）
+- zeus predict: < 500ms
+- zeus report: < 2s
+- zeus dashboard起動: < 1s
 
 ### 8.2 スケーラビリティ
 - タスク数: ~10,000まで対応
@@ -312,10 +457,23 @@ export async function projectScan(context) {
 3. Add コマンドと承認フローの連携
 4. priority_change / dependency 提案タイプ対応
 
-### 9.5 Phase 4（高度な分析）- 未実装
-1. 依存関係グラフの可視化
-2. 予測分析（進捗予測、リスク予測）
-3. レポート生成機能
+### 9.5 Phase 4（高度な分析）- 完了
+1. 依存関係グラフの可視化（text/dot/mermaid）
+2. 予測分析（完了日予測、リスク予測、ベロシティ）
+3. レポート生成機能（text/html/markdown）
+
+### 9.6 Phase 5（Web ダッシュボード）- 完了
+1. HTTP サーバー（Go 標準 net/http）
+2. REST API（/api/status, /api/tasks, /api/graph, /api/predict）
+3. 静的ファイル埋め込み（//go:embed）
+4. Mermaid.js によるグラフ表示
+5. 自動更新（5秒 Polling）
+
+### 9.7 Phase 6（外部連携）- 未実装
+1. Git 統合（コミット履歴との連携）
+2. Slack/Email 通知
+3. 認証機能（ダッシュボード）
+4. 他のCLIツールとの連携
 
 ## 10. 設計決定の根拠
 
@@ -337,7 +495,14 @@ export async function projectScan(context) {
 - リモート操作の容易さ
 - Claude Code等との統合
 
+### 10.4 Go標準ライブラリを優先した理由（ダッシュボード）
+- 依存関係の最小化
+- 単一バイナリでの配布
+- セキュリティリスクの低減
+- 長期的なメンテナンス性
+
 ---
 
-*Zeus System Design Document v1.0*
+*Zeus System Design Document v1.1*
 *作成日: 2026-01-14*
+*更新日: 2026-01-15（Phase 4-5 追加）*
