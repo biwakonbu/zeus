@@ -1136,3 +1136,26 @@ func (z *Zeus) BuildTimeline(ctx context.Context) (*analysis.Timeline, error) {
 	builder := analysis.NewTimelineBuilder(taskInfos)
 	return builder.Build(ctx)
 }
+
+// ===== Claude Code 連携ファイル更新 =====
+
+// UpdateClaudeFiles は Claude Code 連携ファイルを最新テンプレートで再生成
+func (z *Zeus) UpdateClaudeFiles(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	// 設定からプロジェクト名を取得
+	var config ZeusConfig
+	if err := z.fileStore.ReadYaml(ctx, "zeus.yaml", &config); err != nil {
+		return fmt.Errorf("zeus.yaml の読み込みに失敗: %w", err)
+	}
+
+	// Claude Code 連携ファイルを生成
+	gen := generator.NewGenerator(z.ProjectPath)
+	if err := gen.GenerateAll(ctx, config.Project.Name); err != nil {
+		return fmt.Errorf("Claude Code ファイル生成に失敗: %w", err)
+	}
+
+	return nil
+}

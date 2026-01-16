@@ -331,6 +331,62 @@ func (graph *DependencyGraph) ToDot() string {
 	return sb.String()
 }
 
+// GetDownstreamTasks は指定タスクの下流タスク（依存しているタスク）を取得
+// taskID から始めて、そのタスクに依存している全てのタスクを再帰的に収集
+func (graph *DependencyGraph) GetDownstreamTasks(taskID string) []string {
+	downstream := []string{}
+	visited := make(map[string]bool)
+
+	var collect func(id string)
+	collect = func(id string) {
+		node, exists := graph.Nodes[id]
+		if !exists {
+			return
+		}
+
+		// このタスクを親として持つ（依存している）タスクを収集
+		for _, parentID := range node.Parents {
+			if !visited[parentID] {
+				visited[parentID] = true
+				downstream = append(downstream, parentID)
+				collect(parentID)
+			}
+		}
+	}
+
+	collect(taskID)
+	sort.Strings(downstream)
+	return downstream
+}
+
+// GetUpstreamTasks は指定タスクの上流タスク（依存先）を取得
+// taskID から始めて、そのタスクが依存している全てのタスクを再帰的に収集
+func (graph *DependencyGraph) GetUpstreamTasks(taskID string) []string {
+	upstream := []string{}
+	visited := make(map[string]bool)
+
+	var collect func(id string)
+	collect = func(id string) {
+		node, exists := graph.Nodes[id]
+		if !exists {
+			return
+		}
+
+		// このタスクが依存しているタスクを収集
+		for _, childID := range node.Children {
+			if !visited[childID] {
+				visited[childID] = true
+				upstream = append(upstream, childID)
+				collect(childID)
+			}
+		}
+	}
+
+	collect(taskID)
+	sort.Strings(upstream)
+	return upstream
+}
+
 // ToMermaid は Mermaid 形式で出力
 func (graph *DependencyGraph) ToMermaid() string {
 	var sb strings.Builder

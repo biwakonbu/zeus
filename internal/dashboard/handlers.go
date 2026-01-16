@@ -475,6 +475,62 @@ func (s *Server) handleAPITimeline(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, response)
 }
 
+// DownstreamResponse は下流タスク API のレスポンス
+type DownstreamResponse struct {
+	TaskID     string   `json:"task_id"`
+	Downstream []string `json:"downstream"`
+	Upstream   []string `json:"upstream"`
+	Count      int      `json:"count"`
+}
+
+// handleAPIDownstream は下流タスク API を処理
+func (s *Server) handleAPIDownstream(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "GET メソッドのみ許可されています")
+		return
+	}
+
+	// クエリパラメータからタスクIDを取得
+	taskID := r.URL.Query().Get("task_id")
+	if taskID == "" {
+		writeError(w, http.StatusBadRequest, "task_id パラメータが必要です")
+		return
+	}
+
+	ctx := r.Context()
+	graph, err := s.zeus.BuildDependencyGraph(ctx)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// タスクが存在するか確認
+	if _, exists := graph.Nodes[taskID]; !exists {
+		writeError(w, http.StatusNotFound, "指定されたタスクが見つかりません: "+taskID)
+		return
+	}
+
+	// 下流（このタスクに依存しているタスク）と上流（このタスクが依存しているタスク）を取得
+	downstream := graph.GetDownstreamTasks(taskID)
+	upstream := graph.GetUpstreamTasks(taskID)
+
+	if downstream == nil {
+		downstream = []string{}
+	}
+	if upstream == nil {
+		upstream = []string{}
+	}
+
+	response := DownstreamResponse{
+		TaskID:     taskID,
+		Downstream: downstream,
+		Upstream:   upstream,
+		Count:      len(downstream),
+	}
+
+	writeJSON(w, http.StatusOK, response)
+}
+
 // writeJSON は JSON レスポンスを書き込む
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")

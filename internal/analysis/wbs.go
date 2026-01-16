@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -56,6 +57,13 @@ func NewWBSBuilder(tasks []TaskInfo) *WBSBuilder {
 func (w *WBSBuilder) Build(ctx context.Context) (*WBSTree, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
+	}
+
+	// ParentID の循環参照を検出
+	if cycles := w.detectParentCycles(); len(cycles) > 0 {
+		// 最初の循環をエラーメッセージに含める
+		cycle := cycles[0]
+		return nil, fmt.Errorf("parent cycle detected: %s", strings.Join(cycle, " -> "))
 	}
 
 	// ノードマップを作成
@@ -351,4 +359,70 @@ func assignWBSCode(node *WBSNode, code string) {
 		childCode := code + "." + itoa(i+1)
 		assignWBSCode(child, childCode)
 	}
+}
+
+// detectParentCycles は ParentID による循環参照を検出（DFS アルゴリズム）
+// 返り値: 検出された循環のリスト（各循環は参加ノードIDのスライス）
+func (w *WBSBuilder) detectParentCycles() [][]string {
+	cycles := [][]string{}
+	visited := make(map[string]bool)
+	recStack := make(map[string]bool)
+
+	var dfs func(nodeID string, path []string) bool
+	dfs = func(nodeID string, path []string) bool {
+		visited[nodeID] = true
+		recStack[nodeID] = true
+		path = append(path, nodeID)
+
+		task, exists := w.tasks[nodeID]
+		if !exists || task.ParentID == "" {
+			recStack[nodeID] = false
+			return false
+		}
+
+		parentID := task.ParentID
+
+		// 親タスクが存在しない場合はスキップ
+		if _, exists := w.tasks[parentID]; !exists {
+			recStack[nodeID] = false
+			return false
+		}
+
+		if !visited[parentID] {
+			if dfs(parentID, path) {
+				return true
+			}
+		} else if recStack[parentID] {
+			// 循環検出: 現在のパスから循環部分を抽出
+			cycleStart := -1
+			for i, id := range path {
+				if id == parentID {
+					cycleStart = i
+					break
+				}
+			}
+			if cycleStart >= 0 {
+				cycle := append(path[cycleStart:], parentID)
+				cycles = append(cycles, cycle)
+			}
+		}
+
+		recStack[nodeID] = false
+		return false
+	}
+
+	// 全ノードを起点に DFS を実行
+	for nodeID := range w.tasks {
+		if !visited[nodeID] {
+			dfs(nodeID, []string{})
+		}
+	}
+
+	return cycles
+}
+
+// DetectParentCycles は外部から循環検出を呼び出すためのメソッド
+// WBS構築前に検証したい場合に使用
+func (w *WBSBuilder) DetectParentCycles() [][]string {
+	return w.detectParentCycles()
 }

@@ -37,8 +37,14 @@ const COLORS = {
 	progressBg: 0x1a1a1a,
 	// クリティカルパス用
 	criticalGlow: 0xff9533,
-	slackBadge: 0x2d5a2d
+	slackBadge: 0x2d5a2d,
+	// 影響範囲ハイライト用
+	downstreamHighlight: 0xffcc00,  // 下流タスク（黄色）
+	upstreamHighlight: 0x44aaff     // 上流タスク（水色）
 };
+
+// ハイライトタイプ
+export type HighlightType = 'downstream' | 'upstream' | null;
 
 // LOD レベル
 export enum LODLevel {
@@ -83,6 +89,9 @@ export class TaskNode extends Container {
 	// クリティカルパス・スラック情報
 	private isOnCriticalPath = false;
 	private slack: number | null = null;
+
+	// 影響範囲ハイライト
+	private highlightType: HighlightType = null;
 
 	constructor(task: TaskItem) {
 		super();
@@ -161,6 +170,14 @@ export class TaskNode extends Container {
 		} else if (this.isHovered) {
 			bgColor = COLORS.backgroundHover;
 			borderColor = COLORS.borderHighlight;
+		} else if (this.highlightType === 'downstream') {
+			// 下流タスク（黄色ハイライト）
+			borderColor = COLORS.downstreamHighlight;
+			borderWidth = 3;
+		} else if (this.highlightType === 'upstream') {
+			// 上流タスク（水色ハイライト）
+			borderColor = COLORS.upstreamHighlight;
+			borderWidth = 3;
 		} else if (this.isOnCriticalPath) {
 			// クリティカルパス上のノードはオレンジボーダー
 			borderColor = COLORS.borderCritical;
@@ -172,8 +189,16 @@ export class TaskNode extends Container {
 		this.background.fill(bgColor);
 		this.background.stroke({ width: borderWidth, color: borderColor });
 
+		// 影響範囲ハイライトのグロー効果
+		if (this.highlightType && !this.isSelected && !this.isHovered) {
+			const glowColor = this.highlightType === 'downstream'
+				? COLORS.downstreamHighlight
+				: COLORS.upstreamHighlight;
+			this.background.roundRect(-2, -2, NODE_WIDTH + 4, NODE_HEIGHT + 4, CORNER_RADIUS + 2);
+			this.background.stroke({ width: 1, color: glowColor, alpha: 0.4 });
+		}
 		// クリティカルパスの場合はグロー効果
-		if (this.isOnCriticalPath && !this.isSelected && !this.isHovered) {
+		else if (this.isOnCriticalPath && !this.isSelected && !this.isHovered && !this.highlightType) {
 			this.background.roundRect(-2, -2, NODE_WIDTH + 4, NODE_HEIGHT + 4, CORNER_RADIUS + 2);
 			this.background.stroke({ width: 1, color: COLORS.criticalGlow, alpha: 0.3 });
 		}
@@ -393,6 +418,26 @@ export class TaskNode extends Container {
 			this.slack = slack;
 			this.draw();
 		}
+	}
+
+	/**
+	 * 影響範囲ハイライトを設定
+	 * @param highlighted - ハイライト状態
+	 * @param type - ハイライトタイプ（'downstream' | 'upstream'）
+	 */
+	setHighlighted(highlighted: boolean, type?: 'downstream' | 'upstream'): void {
+		const newType: HighlightType = highlighted ? (type || 'downstream') : null;
+		if (this.highlightType !== newType) {
+			this.highlightType = newType;
+			this.drawBackground();
+		}
+	}
+
+	/**
+	 * ハイライトタイプを取得
+	 */
+	getHighlightType(): HighlightType {
+		return this.highlightType;
 	}
 
 	/**

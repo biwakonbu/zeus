@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import type { TaskItem, TaskStatus, Priority, TimelineItem, TimelineResponse } from '$lib/types/api';
-	import { fetchTimeline } from '$lib/api/client';
+	import { fetchTimeline, fetchDownstream } from '$lib/api/client';
 	import { ViewerEngine, type Viewport } from './engine/ViewerEngine';
 	import { LayoutEngine, type NodePosition } from './engine/LayoutEngine';
 	import { SpatialIndex, type SpatialItem } from './engine/SpatialIndex';
@@ -75,6 +75,11 @@
 	let showCriticalPath: boolean = $state(true);
 	let isLoadingTimeline: boolean = $state(false);
 	let timelineLoadError: string | null = $state(null);
+
+	// 影響範囲可視化（下流タスクのハイライト）
+	let highlightedDownstream: Set<string> = $state(new Set());
+	let highlightedUpstream: Set<string> = $state(new Set());
+	let showImpactHighlight: boolean = $state(true);
 
 	onMount(() => {
 		initializeEngine();
@@ -505,13 +510,58 @@
 	/**
 	 * ノードホバー処理
 	 */
-	function handleNodeHover(node: TaskNode, isHovered: boolean): void {
+	async function handleNodeHover(node: TaskNode, isHovered: boolean): Promise<void> {
 		const taskId = isHovered ? node.getTaskId() : null;
 		hoveredTaskId = taskId;
 		onTaskHover?.(taskId);
 
 		// 関連エッジをハイライト
 		highlightRelatedEdges(taskId);
+
+		// 影響範囲可視化（下流/上流タスクのハイライト）
+		if (showImpactHighlight && taskId) {
+			await highlightImpactedTasks(taskId);
+		} else {
+			clearImpactHighlight();
+		}
+	}
+
+	/**
+	 * 影響を受けるタスクをハイライト
+	 */
+	async function highlightImpactedTasks(taskId: string): Promise<void> {
+		try {
+			const response = await fetchDownstream(taskId);
+
+			highlightedDownstream = new Set(response.downstream);
+			highlightedUpstream = new Set(response.upstream);
+
+			// ノードにハイライト状態を設定
+			for (const [id, node] of nodeMap) {
+				if (highlightedDownstream.has(id)) {
+					node.setHighlighted(true, 'downstream');
+				} else if (highlightedUpstream.has(id)) {
+					node.setHighlighted(true, 'upstream');
+				} else if (id !== taskId) {
+					node.setHighlighted(false);
+				}
+			}
+		} catch (error) {
+			console.debug('Failed to fetch downstream tasks:', error);
+			clearImpactHighlight();
+		}
+	}
+
+	/**
+	 * 影響範囲ハイライトをクリア
+	 */
+	function clearImpactHighlight(): void {
+		highlightedDownstream = new Set();
+		highlightedUpstream = new Set();
+
+		for (const node of nodeMap.values()) {
+			node.setHighlighted(false);
+		}
 	}
 
 	/**

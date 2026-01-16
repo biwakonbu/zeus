@@ -6,6 +6,7 @@ import type {
 	PredictResponse,
 	WBSResponse,
 	TimelineResponse,
+	DownstreamResponse,
 	ErrorResponse
 } from '$lib/types/api';
 
@@ -77,6 +78,11 @@ export async function fetchWBS(): Promise<WBSResponse> {
 // タイムライン取得
 export async function fetchTimeline(): Promise<TimelineResponse> {
 	return fetchJSON<TimelineResponse>('/timeline');
+}
+
+// 下流タスク取得（影響範囲の可視化用）
+export async function fetchDownstream(taskId: string): Promise<DownstreamResponse> {
+	return fetchJSON<DownstreamResponse>(`/downstream?task_id=${encodeURIComponent(taskId)}`);
 }
 
 // 全データ取得（並列実行）

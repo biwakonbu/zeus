@@ -103,12 +103,15 @@ Zeusは、AIによるプロジェクトマネジメントを「神の視点」�
 |-----------|------|
 | types.go | 分析用型定義（core への依存を避けるため独立） |
 | GraphBuilder | タスク依存関係グラフの構築 |
-| DependencyGraph | グラフ構造、循環検出、統計計算、可視化出力 |
+| DependencyGraph | グラフ構造、循環検出、統計計算、可視化出力、下流/上流タスク取得 |
 | Predictor | 完了日予測、リスク分析、ベロシティ計算 |
+| WBSBuilder | WBS 階層構築、ParentID 循環参照検出 |
+| TimelineBuilder | タイムライン構築、クリティカルパス計算（CPM） |
 
 **設計ポイント:**
 - `analysis` パッケージは `core` からの import cycle を避けるため独自の型を定義
 - `core.Zeus` から `analysis` への変換関数で連携
+- WBS と依存関係グラフは独立した循環検出を持つ（ParentID vs Dependencies）
 
 #### 2.3.3 レポートパッケージ (internal/report/)
 
@@ -193,6 +196,14 @@ zeus init
 - プロジェクトディレクトリを初期化
 - 統一された構造を生成（.zeus/ と .claude/）
 - デフォルトの `automation_level` は `auto`（即時実行、承認不要）
+
+**Claude Code 連携ファイルの更新:**
+```bash
+zeus update-claude
+```
+- 既存プロジェクトの `.claude/` ディレクトリ内ファイルを最新テンプレートで再生成
+- `zeus init` を再実行せずに、Claude Code 連携ファイルのみを更新可能
+- Zeus のバージョンアップ後に新機能をエージェント・スキルに反映する際に使用
 
 #### 3.1.2 状態確認
 ```bash
@@ -314,6 +325,9 @@ zeus dashboard --no-open      # ブラウザ自動起動を無効化
 | `/api/tasks` | GET | タスク一覧（JSON配列） |
 | `/api/graph` | GET | 依存関係グラフ（Mermaid形式） |
 | `/api/predict` | GET | 予測分析結果 |
+| `/api/wbs` | GET | WBS 階層構造（Phase 6） |
+| `/api/timeline` | GET | タイムラインとクリティカルパス（Phase 6） |
+| `/api/downstream` | GET | 下流・上流タスク取得（Phase 6） |
 
 #### 3.5.3 Factorio 風ビューワー
 
@@ -406,14 +420,144 @@ zeus-dashboard/src/lib/viewer/
     └── FilterPanel.svelte     # フィルターパネル
 ```
 
-### 3.6 フィードバックシステム
+### 3.6 WBS・タイムライン機能（Phase 6）
 
-#### 3.6.1 自動追跡
+#### 3.6.1 データモデル拡張
+
+Task 型に以下のフィールドを追加（全て optional、後方互換性維持）:
+
+```yaml
+# タスク定義の拡張フィールド
+tasks:
+  - id: "task-001"
+    title: "Design core data structure"
+    # 既存フィールド...
+
+    # Phase 6 拡張フィールド
+    parent_id: "task-000"      # 親タスクID（WBS階層）
+    start_date: "2026-01-01"   # 開始日（ISO8601）
+    due_date: "2026-01-15"     # 期限日（ISO8601）
+    progress: 75               # 進捗率（0-100）
+    wbs_code: "1.2.3"          # WBS番号
+```
+
+#### 3.6.2 WBS 機能
+
+**コマンド:**
+```bash
+zeus add task "子タスク" --parent <parent-task-id>
+```
+
+**API レスポンス（/api/wbs）:**
+```json
+{
+  "roots": [
+    {
+      "id": "task-1",
+      "title": "プロジェクト設計",
+      "wbs_code": "1",
+      "status": "in_progress",
+      "progress": 80,
+      "children": [
+        {
+          "id": "task-2",
+          "title": "要件定義",
+          "wbs_code": "1.1",
+          "status": "completed",
+          "progress": 100,
+          "children": []
+        }
+      ]
+    }
+  ],
+  "max_depth": 3,
+  "stats": {
+    "total_nodes": 15,
+    "root_count": 3,
+    "leaf_count": 10,
+    "avg_progress": 65.5,
+    "completed_pct": 40.0
+  }
+}
+```
+
+**循環参照検出:**
+- ParentID の循環参照を DFS アルゴリズムで検出
+- 検出時はエラーを返却（WBS 構築を中止）
+- Dependencies の循環検出とは独立して動作
+
+#### 3.6.3 タイムライン機能
+
+**API レスポンス（/api/timeline）:**
+```json
+{
+  "items": [
+    {
+      "task_id": "task-1",
+      "title": "要件定義",
+      "start_date": "2026-01-01",
+      "end_date": "2026-01-15",
+      "progress": 100,
+      "status": "completed",
+      "is_on_critical_path": true,
+      "slack": 0,
+      "dependencies": []
+    }
+  ],
+  "critical_path": ["task-1", "task-3", "task-5"],
+  "project_start": "2026-01-01",
+  "project_end": "2026-03-31",
+  "total_duration": 90,
+  "stats": {
+    "total_tasks": 20,
+    "tasks_with_dates": 15,
+    "on_critical_path": 5,
+    "average_slack": 3.5,
+    "overdue_tasks": 2
+  }
+}
+```
+
+**クリティカルパス計算:**
+- CPM（Critical Path Method）アルゴリズムを使用
+- 各タスクの slack（余裕時間）を計算
+- クリティカルパス上のタスクは slack = 0
+
+#### 3.6.4 影響範囲可視化
+
+**API レスポンス（/api/downstream?task_id=X）:**
+```json
+{
+  "task_id": "task-3",
+  "downstream": ["task-5", "task-7", "task-8"],
+  "upstream": ["task-1", "task-2"],
+  "count": 5
+}
+```
+
+**フロントエンド機能:**
+- ノードホバー時に下流タスクを黄色でハイライト
+- 上流タスクを青色でハイライト
+- 選択タスクはオレンジ色で強調
+
+#### 3.6.5 ビュー切り替え
+
+ダッシュボードで 3 つのビューを切り替え可能:
+
+| ビュー | 説明 | 主な用途 |
+|-------|------|---------|
+| Graph View | 依存関係グラフ（Factorio 風） | 依存関係の確認 |
+| WBS View | 階層構造ツリー | 作業分解の確認 |
+| Timeline View | ガントチャート風表示 | スケジュール確認 |
+
+### 3.7 フィードバックシステム
+
+#### 3.7.1 自動追跡
 - タスク完了時の見積もり精度
 - オーバーライド時の差分
 - 承認/却下の結果
 
-#### 3.6.2 明示的フィードバック
+#### 3.7.2 明示的フィードバック
 ```bash
 zeus ok <id>              # 成功報告
 zeus ng <id> [reason]     # 失敗報告
@@ -421,15 +565,15 @@ zeus review               # 週次レビュー
 zeus stats                # 精度統計
 ```
 
-### 3.7 エラー処理と復旧
+### 3.8 エラー処理と復旧
 
-#### 3.7.1 診断と修復
+#### 3.8.1 診断と修復
 ```bash
 zeus doctor               # システム診断
 zeus fix [--dry-run]      # 自動修復
 ```
 
-#### 3.7.2 バックアップと復元
+#### 3.8.2 バックアップと復元
 ```bash
 zeus restore [point]      # バックアップ復元
 zeus restore --latest     # 最新から復元
@@ -540,6 +684,15 @@ export async function projectScan(context) {
 2. explain コマンド（エンティティ詳細説明）
 3. Add コマンドと承認フローの連携
 4. priority_change / dependency 提案タイプ対応
+5. update-claude コマンド（Claude Code ファイルの再生成）
+
+**Claude Code 連携テンプレート（Phase 6 対応済み）:**
+- `zeus-orchestrator.md` - 全コマンド一覧、ダッシュボード、Phase 6 機能
+- `zeus-planner.md` - WBS階層作成、タイムライン設計、依存関係
+- `zeus-reviewer.md` - 分析ツール、Phase 6 レビュー項目
+- `zeus-project-scan/SKILL.md` - graph, predict, wbs, timeline 対応
+- `zeus-task-suggest/SKILL.md` - WBS・タイムライン考慮の提案
+- `zeus-risk-analysis/SKILL.md` - Phase 6 固有のリスク分析
 
 ### 9.5 Phase 4（高度な分析）- 完了
 1. 依存関係グラフの可視化（text/dot/mermaid）
@@ -561,7 +714,17 @@ export async function projectScan(context) {
 5. 選択・フィルター機能
 6. ミニマップ
 
-### 9.8 Phase 6（外部連携）- 未実装
+### 9.8 Phase 6（WBS・タイムライン・依存関係強化）- 完了
+1. データモデル拡張（ParentID, StartDate, DueDate, Progress, WBSCode）
+2. WBS 階層構築・表示
+3. タイムライン・CPM 計算
+4. クリティカルパス表示
+5. ParentID 循環参照検出
+6. 影響範囲可視化（下流/上流タスクのハイライト）
+7. ビュー切り替え UI（Graph/WBS/Timeline）
+8. API エンドポイント（/api/wbs, /api/timeline, /api/downstream）
+
+### 9.9 Phase 7（外部連携）- 未実装
 1. Git 統合（コミット履歴との連携）
 2. Slack/Email 通知
 3. 認証機能（ダッシュボード）
@@ -604,6 +767,6 @@ export async function projectScan(context) {
 
 ---
 
-*Zeus System Design Document v1.3*
+*Zeus System Design Document v1.4*
 *作成日: 2026-01-14*
-*更新日: 2026-01-16（Factorio 風ビューワー追加）*
+*更新日: 2026-01-17（Phase 6: WBS・タイムライン・依存関係強化）*

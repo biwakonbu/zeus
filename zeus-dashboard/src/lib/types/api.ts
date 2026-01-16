@@ -187,3 +187,11 @@ export interface TimelineStats {
 	overdue_tasks: number;
 	completed_on_time: number;
 }
+
+// Phase 6D: 下流タスク API レスポンス
+export interface DownstreamResponse {
+	task_id: string;
+	downstream: string[];
+	upstream: string[];
+	count: number;
+}
