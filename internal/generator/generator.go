@@ -249,7 +249,7 @@ model: sonnet
 
 ## コマンド
 
-- ` + "`zeus status --detail`" + ` - 詳細な状態を確認
+- ` + "`zeus status`" + ` - 状態を確認
 - ` + "`zeus pending`" + ` - 承認待ちアイテムを確認
 - ` + "`zeus approve <id>`" + ` - アイテムを承認
 

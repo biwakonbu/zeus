@@ -67,7 +67,7 @@ zeus view manager
 zeus view executive
 
 # 詳細ビュー
-zeus status --detail
+zeus status
 ```
 
 ### 2.2 技術リーダー/アーキテクト向け
@@ -148,7 +148,7 @@ zeus report --format=json > report.json
 | コマンド | 説明 | オプション |
 |---------|------|-----------|
 | `zeus init` | プロジェクト初期化 | `--level=simple\|standard\|advanced` |
-| `zeus status` | ステータス表示 | `--detail`, `--format=text\|json\|html` |
+| `zeus status` | ステータス表示 | - |
 | `zeus scan` | プロジェクトスキャン | - |
 | `zeus add` | エンティティ追加 | `<entity> <name>` |
 | `zeus update` | エンティティ更新 | `<id> <field> <value>` |

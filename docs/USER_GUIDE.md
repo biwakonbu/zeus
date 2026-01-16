@@ -134,11 +134,7 @@ zeus init
 `zeus status` コマンドでプロジェクトの状態を確認できます。
 
 ```bash
-# 基本的な状態表示
 zeus status
-
-# 詳細表示
-zeus status --detail
 ```
 
 ### 4.3 タスク管理

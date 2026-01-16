@@ -196,7 +196,7 @@ zeus init
 
 #### 3.1.2 状態確認
 ```bash
-zeus status [--detail] [--format=text|json|html]
+zeus status
 ```
 - プロジェクト全体の状態を表示
 - 3層ビュー（Quick/Detailed/Rich）に対応

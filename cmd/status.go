@@ -17,7 +17,6 @@ var statusCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(statusCmd)
-	statusCmd.Flags().Bool("detail", false, "詳細表示")
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {

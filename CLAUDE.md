@@ -253,7 +253,7 @@ zeus init 実行後、ターゲットプロジェクトに生成される構造:
 ```bash
 # Phase 1 (MVP)
 zeus init                                       # プロジェクト初期化
-zeus status [--detail]                          # 状態表示
+zeus status                                     # 状態表示
 zeus add <entity> <name>                        # エンティティ追加（承認フロー連携）
 zeus list [entity]                              # 一覧表示
 zeus doctor                                     # 診断
