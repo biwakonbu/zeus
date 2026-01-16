@@ -1,0 +1,268 @@
+// タスク間のエッジ（依存関係）描画クラス
+import { Graphics } from 'pixi.js';
+
+// エッジタイプ
+export enum EdgeType {
+	// 通常の依存関係
+	Normal = 'normal',
+	// クリティカルパス上のエッジ
+	Critical = 'critical',
+	// ブロックされている（依存先が未完了）
+	Blocked = 'blocked',
+	// ハイライト（選択時）
+	Highlighted = 'highlighted'
+}
+
+// 色定義
+const COLORS = {
+	normal: 0x666666,
+	critical: 0xff9533,
+	blocked: 0xee4444,
+	highlighted: 0xff9533
+};
+
+const ALPHAS = {
+	normal: 0.5,
+	critical: 0.8,
+	blocked: 0.8,
+	highlighted: 1.0
+};
+
+const WIDTHS = {
+	normal: 2,
+	critical: 3,
+	blocked: 2,
+	highlighted: 3
+};
+
+// 矢印設定
+const ARROW_SIZE = 10;
+const ARROW_ANGLE = Math.PI / 6; // 30度
+
+/**
+ * TaskEdge - タスク間の依存関係を視覚化
+ *
+ * 責務:
+ * - 2つのノード間のエッジを描画
+ * - エッジタイプに応じたスタイリング
+ * - 曲線パスの計算（交差を減らす）
+ */
+export class TaskEdge extends Graphics {
+	private fromId: string;
+	private toId: string;
+	private edgeType: EdgeType = EdgeType.Normal;
+
+	// 座標
+	private fromX: number = 0;
+	private fromY: number = 0;
+	private toX: number = 0;
+	private toY: number = 0;
+
+	constructor(fromId: string, toId: string) {
+		super();
+
+		this.fromId = fromId;
+		this.toId = toId;
+	}
+
+	/**
+	 * エッジの両端の座標を設定
+	 */
+	setEndpoints(fromX: number, fromY: number, toX: number, toY: number): void {
+		this.fromX = fromX;
+		this.fromY = fromY;
+		this.toX = toX;
+		this.toY = toY;
+		this.draw();
+	}
+
+	/**
+	 * エッジタイプを設定
+	 */
+	setType(type: EdgeType): void {
+		this.edgeType = type;
+		this.draw();
+	}
+
+	/**
+	 * エッジを描画
+	 */
+	draw(): void {
+		this.clear();
+
+		const color = COLORS[this.edgeType];
+		const alpha = ALPHAS[this.edgeType];
+		const width = WIDTHS[this.edgeType];
+
+		// ベジェ曲線のコントロールポイントを計算
+		const { cp1x, cp1y, cp2x, cp2y } = this.calculateControlPoints();
+
+		// パスを描画
+		this.moveTo(this.fromX, this.fromY);
+		this.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, this.toX, this.toY);
+		this.stroke({ width, color, alpha });
+
+		// 矢印を描画
+		this.drawArrow(cp2x, cp2y, this.toX, this.toY, color, alpha);
+	}
+
+	/**
+	 * ベジェ曲線のコントロールポイントを計算
+	 */
+	private calculateControlPoints(): { cp1x: number; cp1y: number; cp2x: number; cp2y: number } {
+		const dx = this.toX - this.fromX;
+		const dy = this.toY - this.fromY;
+		const distance = Math.sqrt(dx * dx + dy * dy);
+
+		// 曲線の強さ（距離に比例）
+		const curvature = Math.min(distance * 0.3, 100);
+
+		// Y方向が主な場合（上から下への流れ）
+		if (Math.abs(dy) > Math.abs(dx)) {
+			const sign = dy > 0 ? 1 : -1;
+			return {
+				cp1x: this.fromX,
+				cp1y: this.fromY + curvature * sign,
+				cp2x: this.toX,
+				cp2y: this.toY - curvature * sign
+			};
+		}
+
+		// X方向が主な場合（横方向の流れ）
+		const sign = dx > 0 ? 1 : -1;
+		return {
+			cp1x: this.fromX + curvature * sign,
+			cp1y: this.fromY,
+			cp2x: this.toX - curvature * sign,
+			cp2y: this.toY
+		};
+	}
+
+	/**
+	 * 矢印を描画
+	 */
+	private drawArrow(
+		fromX: number,
+		fromY: number,
+		toX: number,
+		toY: number,
+		color: number,
+		alpha: number
+	): void {
+		// 方向ベクトルを計算
+		const dx = toX - fromX;
+		const dy = toY - fromY;
+		const angle = Math.atan2(dy, dx);
+
+		// 矢印の先端
+		const arrowX1 = toX - ARROW_SIZE * Math.cos(angle - ARROW_ANGLE);
+		const arrowY1 = toY - ARROW_SIZE * Math.sin(angle - ARROW_ANGLE);
+		const arrowX2 = toX - ARROW_SIZE * Math.cos(angle + ARROW_ANGLE);
+		const arrowY2 = toY - ARROW_SIZE * Math.sin(angle + ARROW_ANGLE);
+
+		// 矢印を描画
+		this.moveTo(toX, toY);
+		this.lineTo(arrowX1, arrowY1);
+		this.moveTo(toX, toY);
+		this.lineTo(arrowX2, arrowY2);
+		this.stroke({ width: WIDTHS[this.edgeType], color, alpha });
+	}
+
+	/**
+	 * From ノード ID を取得
+	 */
+	getFromId(): string {
+		return this.fromId;
+	}
+
+	/**
+	 * To ノード ID を取得
+	 */
+	getToId(): string {
+		return this.toId;
+	}
+
+	/**
+	 * エッジの識別キーを生成
+	 */
+	static createKey(fromId: string, toId: string): string {
+		return `${fromId}-->${toId}`;
+	}
+
+	/**
+	 * このエッジのキーを取得
+	 */
+	getKey(): string {
+		return TaskEdge.createKey(this.fromId, this.toId);
+	}
+}
+
+/**
+ * エッジファクトリー - 複数のエッジを効率的に管理
+ */
+export class EdgeFactory {
+	private edges: Map<string, TaskEdge> = new Map();
+
+	/**
+	 * エッジを作成または取得
+	 */
+	getOrCreate(fromId: string, toId: string): TaskEdge {
+		const key = TaskEdge.createKey(fromId, toId);
+
+		let edge = this.edges.get(key);
+		if (!edge) {
+			edge = new TaskEdge(fromId, toId);
+			this.edges.set(key, edge);
+		}
+
+		return edge;
+	}
+
+	/**
+	 * エッジを取得
+	 */
+	get(fromId: string, toId: string): TaskEdge | undefined {
+		const key = TaskEdge.createKey(fromId, toId);
+		return this.edges.get(key);
+	}
+
+	/**
+	 * エッジを削除
+	 */
+	remove(fromId: string, toId: string): boolean {
+		const key = TaskEdge.createKey(fromId, toId);
+		const edge = this.edges.get(key);
+		if (edge) {
+			edge.destroy();
+			this.edges.delete(key);
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * 全エッジを取得
+	 */
+	getAll(): TaskEdge[] {
+		return Array.from(this.edges.values());
+	}
+
+	/**
+	 * 全エッジを削除
+	 */
+	clear(): void {
+		for (const edge of this.edges.values()) {
+			edge.destroy();
+		}
+		this.edges.clear();
+	}
+
+	/**
+	 * ノードに関連する全エッジを取得
+	 */
+	getEdgesForNode(nodeId: string): TaskEdge[] {
+		return Array.from(this.edges.values()).filter(
+			edge => edge.getFromId() === nodeId || edge.getToId() === nodeId
+		);
+	}
+}

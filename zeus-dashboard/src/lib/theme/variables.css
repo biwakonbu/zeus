@@ -1,0 +1,70 @@
+/* Factorio 風 CSS 変数定義 */
+:root {
+	/* 背景色 */
+	--bg-primary: #1a1a1a;
+	--bg-secondary: #242424;
+	--bg-panel: #2d2d2d;
+	--bg-hover: #3a3a3a;
+
+	/* オレンジアクセント */
+	--accent-primary: #ff9533;
+	--accent-hover: #ffaa55;
+	--accent-muted: #cc7722;
+
+	/* 金属フレーム */
+	--border-metal: #4a4a4a;
+	--border-highlight: #666666;
+	--border-dark: #333333;
+
+	/* テキスト */
+	--text-primary: #ffffff;
+	--text-secondary: #b8b8b8;
+	--text-muted: #888888;
+
+	/* ステータス色 */
+	--status-good: #44cc44;
+	--status-fair: #ffcc00;
+	--status-poor: #ee4444;
+	--status-info: #4488ff;
+
+	/* タスクステータス */
+	--task-completed: #44cc44;
+	--task-in-progress: #4488ff;
+	--task-pending: #888888;
+	--task-blocked: #ee4444;
+
+	/* 優先度 */
+	--priority-high: #ee4444;
+	--priority-medium: #ffcc00;
+	--priority-low: #44cc44;
+
+	/* シャドウ */
+	--shadow-panel: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+	--shadow-button: 0 2px 4px rgba(0, 0, 0, 0.3);
+	--shadow-glow: 0 0 10px rgba(255, 149, 51, 0.3);
+
+	/* フォント */
+	--font-family: 'IBM Plex Mono', 'Consolas', 'Monaco', monospace;
+	--font-size-xs: 0.75rem;
+	--font-size-sm: 0.875rem;
+	--font-size-base: 1rem;
+	--font-size-lg: 1.125rem;
+	--font-size-xl: 1.25rem;
+	--font-size-2xl: 1.5rem;
+
+	/* スペーシング */
+	--spacing-xs: 0.25rem;
+	--spacing-sm: 0.5rem;
+	--spacing-md: 1rem;
+	--spacing-lg: 1.5rem;
+	--spacing-xl: 2rem;
+
+	/* ボーダー */
+	--border-radius-sm: 2px;
+	--border-radius-md: 4px;
+	--border-radius-lg: 6px;
+
+	/* トランジション */
+	--transition-fast: 0.15s ease;
+	--transition-normal: 0.25s ease;
+}

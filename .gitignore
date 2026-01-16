@@ -13,6 +13,8 @@ zeus
 zeus-dashboard/node_modules/
 zeus-dashboard/.svelte-kit/
 zeus-dashboard/build/
+zeus-dashboard/.npmrc
+zeus-dashboard/package-lock.json
 
 # Go embed build artifacts (except .gitkeep)
 internal/dashboard/build/*
