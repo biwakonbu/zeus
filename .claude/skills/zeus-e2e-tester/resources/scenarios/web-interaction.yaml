@@ -1,0 +1,164 @@
+# Web インタラクションシナリオ
+# Zeus ダッシュボードの Web UI をテスト
+
+name: Web インタラクションテスト
+description: ダッシュボードの表示、操作、状態検証をテスト
+
+dependencies:
+  - cli-basic  # CLI 基本テストが先に実行される必要あり
+
+setup:
+  # テスト用プロジェクトを作成
+  - type: cli
+    command: mktemp -d
+    capture: test_dir
+
+  - type: cli
+    command: zeus init
+    working_dir: ${test_dir}
+
+  # サンプルタスクを追加
+  - type: cli
+    command: zeus add task "フロントエンド実装"
+    working_dir: ${test_dir}
+    capture: task_frontend_id
+    capture_pattern: "Created task: ([a-z0-9-]+)"
+
+  - type: cli
+    command: zeus add task "バックエンド実装"
+    working_dir: ${test_dir}
+    capture: task_backend_id
+    capture_pattern: "Created task: ([a-z0-9-]+)"
+
+  - type: cli
+    command: zeus add task "API 統合" --parent ${task_frontend_id}
+    working_dir: ${test_dir}
+    capture: task_api_id
+    capture_pattern: "Created task: ([a-z0-9-]+)"
+
+  # ダッシュボードサーバー起動（バックグラウンド）
+  - type: cli
+    command: zeus dashboard --dev --port 8080 &
+    working_dir: ${test_dir}
+    background: true
+    capture: dashboard_pid
+
+  # サーバー起動待機
+  - type: wait
+    condition: http://localhost:8080/api/status
+    timeout: 10000
+    retry_interval: 500
+
+steps:
+  # ブラウザでダッシュボードを開く
+  - id: navigate
+    name: ダッシュボードを開く
+    type: web
+    action: navigate
+    url: http://localhost:8080
+
+  # 描画完了を待機
+  - id: wait-ready
+    name: 描画完了待機
+    type: web
+    action: wait
+    condition: window.__ZEUS__ && window.__ZEUS__.isReady()
+    timeout: 15000
+
+  # グラフ状態を取得・検証
+  - id: verify-graph-state
+    name: グラフ状態検証
+    type: web
+    action: capture_state
+    method: window.__ZEUS__.getGraphState()
+    golden: golden/graph-state.golden.json
+    tolerance:
+      position: 10  # 座標は 10px の誤差を許容
+      zoom: 0.05
+
+  # タスク数の検証
+  - id: verify-task-count
+    name: タスク数検証
+    type: assert
+    condition: |
+      const state = window.__ZEUS__.getGraphState();
+      return state.taskCount === 3;
+    error_message: "タスク数が期待値と異なります"
+
+  # エッジ数の検証
+  - id: verify-edge-count
+    name: エッジ数検証
+    type: assert
+    condition: |
+      const state = window.__ZEUS__.getGraphState();
+      return state.edgeCount === 1;
+    error_message: "エッジ数が期待値と異なります"
+
+  # 選択状態の初期確認
+  - id: verify-selection-initial
+    name: 選択状態（初期）
+    type: web
+    action: capture_state
+    method: window.__ZEUS__.getSelectionState()
+    expect:
+      count: 0
+      multiSelect: false
+
+  # フィルター状態の確認
+  - id: verify-filter-state
+    name: フィルター状態
+    type: web
+    action: capture_state
+    method: window.__ZEUS__.getFilterState()
+    expect:
+      visibleCount: 3
+      totalCount: 3
+
+  # クリティカルパス状態の確認
+  - id: verify-critical-path
+    name: クリティカルパス状態
+    type: web
+    action: capture_state
+    method: window.__ZEUS__.getCriticalPathState()
+    expect:
+      enabled: true
+
+  # スナップショット取得（参照用）
+  - id: snapshot-dashboard
+    name: ダッシュボードスナップショット
+    type: web
+    action: snapshot
+    path: golden/snapshots/dashboard-loaded.png
+    mode: reference
+    description: ダッシュボード初期表示の参照画像
+
+  # ズーム操作（キーボード/マウスホイールのシミュレーションは困難なため、API で代替）
+  - id: verify-version
+    name: バージョン確認
+    type: web
+    action: capture_state
+    method: window.__ZEUS__.getVersion()
+    expect: "0.1.0"
+
+teardown:
+  # ダッシュボードサーバー停止
+  - type: cli
+    command: kill ${dashboard_pid} 2>/dev/null || true
+
+  # テスト用ディレクトリ削除
+  - type: cli
+    command: rm -rf ${test_dir}
+
+assertions:
+  - type: graph_state
+    nodes_min: 3
+    edges_min: 1
+
+  - type: api_available
+    endpoint: /api/status
+
+  - type: api_available
+    endpoint: /api/tasks
+
+  - type: api_available
+    endpoint: /api/timeline

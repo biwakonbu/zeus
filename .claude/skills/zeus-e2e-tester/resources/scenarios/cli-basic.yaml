@@ -1,0 +1,124 @@
+# CLI 基本操作シナリオ
+# Zeus CLI コマンドの基本機能をテスト
+
+name: CLI 基本操作テスト
+description: zeus init, status, add, list などの基本コマンドをテスト
+
+setup:
+  # テスト用ディレクトリを作成
+  - type: cli
+    command: mktemp -d
+    capture: test_dir
+
+  - type: cli
+    command: cd ${test_dir}
+    working_dir: ${test_dir}
+
+steps:
+  # プロジェクト初期化
+  - id: init
+    name: プロジェクト初期化
+    type: cli
+    command: zeus init
+    working_dir: ${test_dir}
+    expect_exit_code: 0
+    expect_output_contains:
+      - "Zeus project initialized"
+      - "zeus.yaml"
+    golden: golden/cli-init.golden.json
+
+  # ステータス確認（初期状態）
+  - id: status-initial
+    name: 初期ステータス確認
+    type: cli
+    command: zeus status
+    working_dir: ${test_dir}
+    expect_exit_code: 0
+    expect_output_contains:
+      - "Status:"
+      - "Tasks:"
+
+  # タスク追加
+  - id: add-task-a
+    name: タスク A 追加
+    type: cli
+    command: zeus add task "タスク A"
+    working_dir: ${test_dir}
+    expect_exit_code: 0
+    capture: task_a_id
+    capture_pattern: "Created task: ([a-z0-9-]+)"
+
+  # 子タスク追加（依存関係）
+  - id: add-task-b
+    name: タスク B 追加（タスク A の子）
+    type: cli
+    command: zeus add task "タスク B" --parent ${task_a_id}
+    working_dir: ${test_dir}
+    expect_exit_code: 0
+    capture: task_b_id
+    capture_pattern: "Created task: ([a-z0-9-]+)"
+
+  # 別の独立タスク追加
+  - id: add-task-c
+    name: タスク C 追加
+    type: cli
+    command: zeus add task "タスク C" --priority high
+    working_dir: ${test_dir}
+    expect_exit_code: 0
+
+  # タスク一覧
+  - id: list-tasks
+    name: タスク一覧表示
+    type: cli
+    command: zeus list task
+    working_dir: ${test_dir}
+    expect_exit_code: 0
+    expect_output_contains:
+      - "タスク A"
+      - "タスク B"
+      - "タスク C"
+
+  # 依存関係グラフ（Mermaid 形式）
+  - id: graph-mermaid
+    name: 依存関係グラフ出力
+    type: cli
+    command: zeus graph --format mermaid
+    working_dir: ${test_dir}
+    expect_exit_code: 0
+    expect_output_contains:
+      - "graph"
+      - "-->"
+    golden: golden/cli-graph.golden.json
+
+  # ステータス確認（タスク追加後）
+  - id: status-with-tasks
+    name: タスク追加後のステータス
+    type: cli
+    command: zeus status
+    working_dir: ${test_dir}
+    expect_exit_code: 0
+    expect_output_contains:
+      - "Tasks: 3"
+
+  # doctor 診断
+  - id: doctor
+    name: プロジェクト診断
+    type: cli
+    command: zeus doctor
+    working_dir: ${test_dir}
+    expect_exit_code: 0
+    expect_output_contains:
+      - "OK"
+
+teardown:
+  # テスト用ディレクトリを削除
+  - type: cli
+    command: rm -rf ${test_dir}
+
+assertions:
+  - type: task_count
+    expected: 3
+
+  - type: dependency_exists
+    from: ${task_b_id}
+    to: ${task_a_id}

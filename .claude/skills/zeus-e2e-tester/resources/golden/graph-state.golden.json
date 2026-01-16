@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "test_id": "graph-state-001",
+    "generated_at": "2026-01-17T04:00:00Z",
+    "zeus_version": "0.1.0",
+    "description": "Web ダッシュボード グラフ状態の期待値"
+  },
+  "state": {
+    "taskCount": 3,
+    "edgeCount": 1,
+    "nodes": {
+      "_comment": "ノードの詳細は ID が UUID のため検証しない。数と構造のみ検証。",
+      "count": 3,
+      "required_fields": ["id", "name", "x", "y", "status", "progress"]
+    },
+    "edges": {
+      "_comment": "エッジの詳細は依存関係の存在のみ検証。",
+      "count": 1,
+      "required_fields": ["from", "to"]
+    },
+    "viewport": {
+      "_comment": "ビューポートは初期値に近い値を期待。tolerance で誤差許容。",
+      "zoom_range": [0.5, 2.0],
+      "panX_range": [-1000, 1000],
+      "panY_range": [-1000, 1000]
+    }
+  },
+  "tolerance": {
+    "position": 10,
+    "zoom": 0.1
+  },
+  "validation_rules": {
+    "all_nodes_have_valid_status": ["pending", "in_progress", "completed", "blocked"],
+    "all_edges_reference_existing_nodes": true,
+    "viewport_within_bounds": true
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "test_id": "cli-init-001",
+    "generated_at": "2026-01-17T04:00:00Z",
+    "zeus_version": "0.1.0",
+    "description": "zeus init コマンドの期待出力パターン"
+  },
+  "patterns": {
+    "success_messages": [
+      "Zeus project initialized",
+      "Created zeus.yaml",
+      "Created .claude/ directory"
+    ],
+    "exit_code": 0
+  },
+  "files_created": [
+    "zeus.yaml",
+    ".zeus/",
+    ".zeus/tasks/",
+    ".zeus/history/",
+    ".claude/agents/zeus-orchestrator.md",
+    ".claude/agents/zeus-planner.md",
+    ".claude/agents/zeus-reviewer.md",
+    ".claude/skills/zeus-project-scan/SKILL.md",
+    ".claude/skills/zeus-task-suggest/SKILL.md",
+    ".claude/skills/zeus-risk-analysis/SKILL.md"
+  ],
+  "zeus_yaml_schema": {
+    "required_fields": [
+      "project",
+      "version",
+      "automation_level"
+    ],
+    "project_fields": [
+      "name",
+      "description"
+    ],
+    "valid_automation_levels": ["auto", "notify", "approve"]
+  }
+}

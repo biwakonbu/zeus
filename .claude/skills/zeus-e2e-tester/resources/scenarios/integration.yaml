@@ -1,0 +1,165 @@
+# 統合シナリオ
+# CLI と Web の連携をテスト
+
+name: 統合テスト - CLI → Web 状態同期
+description: CLI でタスクを操作し、Web ダッシュボードで正しく反映されることを確認
+
+dependencies:
+  - cli-basic
+  - web-interaction
+
+setup:
+  # テスト用プロジェクトを作成
+  - type: cli
+    command: mktemp -d
+    capture: test_dir
+
+  - type: cli
+    command: zeus init
+    working_dir: ${test_dir}
+
+  # ダッシュボードサーバー起動
+  - type: cli
+    command: zeus dashboard --dev --port 8080 &
+    working_dir: ${test_dir}
+    background: true
+    capture: dashboard_pid
+
+  - type: wait
+    condition: http://localhost:8080/api/status
+    timeout: 10000
+
+steps:
+  # 初期状態：タスクなし
+  - id: web-initial
+    name: Web 初期状態確認
+    type: web
+    action: navigate
+    url: http://localhost:8080
+
+  - id: web-wait-initial
+    name: 描画完了待機
+    type: web
+    action: wait
+    condition: window.__ZEUS__ && window.__ZEUS__.isReady()
+    timeout: 15000
+
+  - id: verify-initial-state
+    name: 初期状態検証
+    type: web
+    action: capture_state
+    method: window.__ZEUS__.getGraphState()
+    expect:
+      taskCount: 0
+      edgeCount: 0
+
+  # CLI でタスクを追加
+  - id: cli-add-task-1
+    name: CLI でタスク 1 追加
+    type: cli
+    command: zeus add task "設計フェーズ"
+    working_dir: ${test_dir}
+    capture: task_design_id
+    capture_pattern: "Created task: ([a-z0-9-]+)"
+
+  # SSE で更新を受信（または少し待機）
+  - id: wait-sse-update-1
+    name: SSE 更新待機
+    type: wait
+    duration: 2000  # 2秒待機
+
+  # Web で状態確認
+  - id: web-verify-task-1
+    name: Web でタスク 1 確認
+    type: web
+    action: capture_state
+    method: window.__ZEUS__.getGraphState()
+    expect:
+      taskCount: 1
+
+  # CLI でさらにタスクを追加（依存関係あり）
+  - id: cli-add-task-2
+    name: CLI でタスク 2 追加
+    type: cli
+    command: zeus add task "実装フェーズ" --parent ${task_design_id}
+    working_dir: ${test_dir}
+    capture: task_impl_id
+    capture_pattern: "Created task: ([a-z0-9-]+)"
+
+  - id: cli-add-task-3
+    name: CLI でタスク 3 追加
+    type: cli
+    command: zeus add task "テストフェーズ" --parent ${task_impl_id}
+    working_dir: ${test_dir}
+    capture: task_test_id
+    capture_pattern: "Created task: ([a-z0-9-]+)"
+
+  # SSE 更新待機
+  - id: wait-sse-update-2
+    name: SSE 更新待機
+    type: wait
+    duration: 2000
+
+  # Web で依存関係を確認
+  - id: web-verify-dependencies
+    name: Web で依存関係確認
+    type: web
+    action: capture_state
+    method: window.__ZEUS__.getGraphState()
+    golden: golden/integration-graph-state.golden.json
+    tolerance:
+      position: 10
+    expect:
+      taskCount: 3
+      edgeCount: 2
+
+  # スナップショット取得
+  - id: snapshot-integration
+    name: 統合テストスナップショット
+    type: web
+    action: snapshot
+    path: golden/snapshots/integration-final.png
+    mode: reference
+
+  # クリティカルパスの確認
+  - id: verify-critical-path
+    name: クリティカルパス確認
+    type: web
+    action: capture_state
+    method: window.__ZEUS__.getCriticalPathState()
+    expect:
+      enabled: true
+      criticalPathCount: 3  # 全タスクが直列なのでクリティカルパス上
+
+  # API 経由での確認
+  - id: api-verify-tasks
+    name: API でタスク確認
+    type: cli
+    command: curl -s http://localhost:8080/api/tasks | jq '.tasks | length'
+    expect_output: "3"
+
+  - id: api-verify-timeline
+    name: API でタイムライン確認
+    type: cli
+    command: curl -s http://localhost:8080/api/timeline | jq '.critical_path | length'
+    expect_output: "3"
+
+teardown:
+  - type: cli
+    command: kill ${dashboard_pid} 2>/dev/null || true
+
+  - type: cli
+    command: rm -rf ${test_dir}
+
+assertions:
+  - type: cli_web_sync
+    description: CLI で追加したタスクが Web に反映される
+
+  - type: dependency_chain
+    chain:
+      - ${task_design_id}
+      - ${task_impl_id}
+      - ${task_test_id}
+
+  - type: critical_path
+    expected_length: 3

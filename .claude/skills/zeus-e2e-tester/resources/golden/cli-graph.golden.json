@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "test_id": "cli-graph-001",
+    "generated_at": "2026-01-17T04:00:00Z",
+    "zeus_version": "0.1.0",
+    "description": "zeus graph --format mermaid コマンドの期待出力パターン"
+  },
+  "patterns": {
+    "format": "mermaid",
+    "required_lines": [
+      "graph TD",
+      "-->"
+    ],
+    "exit_code": 0
+  },
+  "structure": {
+    "node_count_min": 2,
+    "edge_count_min": 1,
+    "node_pattern": "[a-z0-9-]+\\[.*\\]",
+    "edge_pattern": "[a-z0-9-]+ --> [a-z0-9-]+"
+  }
+}

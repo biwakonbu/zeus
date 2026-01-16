@@ -1,0 +1,42 @@
+{
+  "metadata": {
+    "test_id": "integration-graph-state-001",
+    "generated_at": "2026-01-17T04:00:00Z",
+    "zeus_version": "0.1.0",
+    "description": "統合テスト - CLI → Web 同期後のグラフ状態"
+  },
+  "state": {
+    "taskCount": 3,
+    "edgeCount": 2,
+    "nodes": {
+      "_comment": "設計 → 実装 → テスト の直列タスク",
+      "count": 3,
+      "required_fields": ["id", "name", "x", "y", "status", "progress"],
+      "expected_names": ["設計フェーズ", "実装フェーズ", "テストフェーズ"]
+    },
+    "edges": {
+      "_comment": "2つの依存関係: 設計→実装, 実装→テスト",
+      "count": 2,
+      "required_fields": ["from", "to"]
+    },
+    "viewport": {
+      "zoom_range": [0.5, 2.0],
+      "panX_range": [-1000, 1000],
+      "panY_range": [-1000, 1000]
+    }
+  },
+  "tolerance": {
+    "position": 10,
+    "zoom": 0.1
+  },
+  "validation_rules": {
+    "dependency_chain_exists": true,
+    "all_tasks_on_critical_path": true,
+    "sse_sync_verified": true
+  },
+  "critical_path": {
+    "_comment": "全タスクが直列のためクリティカルパス上にある",
+    "expected_count": 3,
+    "slack_values": [0, 0, 0]
+  }
+}

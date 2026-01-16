@@ -85,6 +85,94 @@
 		initializeEngine();
 	});
 
+	// E2E テスト用: 開発環境でのみグローバルにデバッグヘルパーを公開
+	$effect(() => {
+		if (import.meta.env.DEV && engine) {
+			const win = window as Window & {
+				__VIEWER_ENGINE__?: ViewerEngine;
+				__NODE_MAP__?: Map<string, TaskNode>;
+				__SELECTION_MANAGER__?: SelectionManager;
+				__FILTER_MANAGER__?: FilterManager;
+				__EDGE_FACTORY__?: EdgeFactory;
+				__CRITICAL_PATH_IDS__?: Set<string>;
+			};
+			win.__VIEWER_ENGINE__ = engine;
+			win.__NODE_MAP__ = nodeMap;
+			win.__SELECTION_MANAGER__ = selectionManager ?? undefined;
+			win.__FILTER_MANAGER__ = filterManager ?? undefined;
+			win.__EDGE_FACTORY__ = edgeFactory;
+			win.__CRITICAL_PATH_IDS__ = criticalPathIds;
+		}
+	});
+
+	// E2E テスト用: 統合テスト API（開発/テスト環境でのみ公開）
+	$effect(() => {
+		if ((import.meta.env.DEV || import.meta.env.MODE === 'test') && engine) {
+			const win = window as Window & {
+				__ZEUS__?: {
+					getGraphState: () => unknown;
+					getSelectionState: () => unknown;
+					getFilterState: () => unknown;
+					getCriticalPathState: () => unknown;
+					isReady: () => boolean;
+					getVersion: () => string;
+				};
+			};
+
+			win.__ZEUS__ = {
+				// グラフの論理構造を返す
+				getGraphState: () => ({
+					nodes: Array.from(nodeMap.values()).map((n) => ({
+						id: n.getTaskId(),
+						name: n.getTask().title,
+						x: Math.round(n.x),
+						y: Math.round(n.y),
+						status: n.getTask().status,
+						progress: n.getTask().progress ?? 0
+					})),
+					edges: edgeFactory.getAll().map((e) => ({
+						from: e.getFromId(),
+						to: e.getToId()
+					})),
+					viewport: {
+						zoom: currentViewport.scale,
+						panX: Math.round(currentViewport.x),
+						panY: Math.round(currentViewport.y)
+					},
+					taskCount: nodeMap.size,
+					edgeCount: edgeFactory.getAll().length
+				}),
+
+				// 選択状態を返す
+				getSelectionState: () => ({
+					selectedIds: selectedIds,
+					count: selectedIds.length,
+					multiSelect: selectedIds.length > 1
+				}),
+
+				// フィルター状態を返す
+				getFilterState: () => ({
+					criteria: filterCriteria,
+					visibleCount: visibleTaskIds.size,
+					totalCount: tasks.length
+				}),
+
+				// クリティカルパス状態を返す
+				getCriticalPathState: () => ({
+					enabled: showCriticalPath,
+					criticalPathIds: Array.from(criticalPathIds),
+					criticalPathCount: criticalPathIds.size
+				}),
+
+				// 描画完了を待機（アニメーション中でなく、エンジンが初期化済み）
+				isReady: () => engine !== null && !isLoadingTimeline,
+
+				// バージョン情報
+				getVersion: () => '0.1.0'
+			};
+		}
+	});
+
 	async function initializeEngine() {
 		engine = new ViewerEngine();
 		layoutEngine = new LayoutEngine();
