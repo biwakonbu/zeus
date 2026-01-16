@@ -121,11 +121,26 @@ zeus/
 │   │   │   │   ├── panels/   # Overview, Stats, Tasks, Graph, Prediction
 │   │   │   │   ├── ui/       # Badge, ProgressBar, Table, Stat
 │   │   │   │   └── graph/    # MermaidGraph
+│   │   │   ├── viewer/       # Factorio風ビューワー（Phase 5.5）
+│   │   │   │   ├── FactorioViewer.svelte  # メインコンポーネント
+│   │   │   │   ├── engine/   # 描画エンジン
+│   │   │   │   │   ├── ViewerEngine.ts    # PixiJS 初期化・管理
+│   │   │   │   │   ├── LayoutEngine.ts    # 自動レイアウト
+│   │   │   │   │   └── SpatialIndex.ts    # Quadtree 空間インデックス
+│   │   │   │   ├── rendering/# 描画クラス
+│   │   │   │   │   ├── TaskNode.ts        # ノード描画（LOD対応）
+│   │   │   │   │   └── TaskEdge.ts        # エッジ描画
+│   │   │   │   ├── interaction/# インタラクション
+│   │   │   │   │   ├── SelectionManager.ts # 選択管理
+│   │   │   │   │   └── FilterManager.ts    # フィルター管理
+│   │   │   │   └── ui/       # UI コンポーネント
+│   │   │   │       ├── Minimap.svelte      # ミニマップ
+│   │   │   │       └── FilterPanel.svelte  # フィルターパネル
 │   │   │   ├── theme/        # Factorio デザインシステム
 │   │   │   └── types/        # TypeScript 型定義
 │   │   └── routes/
 │   │       ├── +layout.svelte
-│   │       └── +page.svelte
+│   │       └── +page.svelte  # VIEWER/CLASSIC 切り替え対応
 │   ├── svelte.config.js      # adapter-static 設定
 │   ├── vite.config.ts        # Proxy 設定（開発時）
 │   └── package.json
