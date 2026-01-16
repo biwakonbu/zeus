@@ -82,7 +82,7 @@ go test -v ./tests/e2e/... -parallel 4
 コマンドを実行して結果を返す。30秒タイムアウト。
 
 ```go
-result := runCommand(t, dir, "init", "--level=simple")
+result := runCommand(t, dir, "init")
 ```
 
 ### setupTempDir / cleanupTempDir
@@ -129,7 +129,7 @@ func TestNewFeature(t *testing.T) {
     defer cleanupTempDir(t, dir)
 
     // テスト実装
-    result := runCommand(t, dir, "init", "--level=simple")
+    result := runCommand(t, dir, "init")
     assertSuccess(t, result)
 }
 ```

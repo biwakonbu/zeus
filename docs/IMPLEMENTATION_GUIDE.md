@@ -207,7 +207,6 @@ var initCmd = &cobra.Command{
         }
 
         fmt.Printf("Zeus initialized successfully!\n")
-        fmt.Printf("  Level: %s\n", result.Level)
         fmt.Printf("  Path: %s\n", result.ZeusPath)
         fmt.Printf("  Claude integration: %s\n", result.ClaudePath)
         return nil
@@ -216,7 +215,6 @@ var initCmd = &cobra.Command{
 
 func init() {
     rootCmd.AddCommand(initCmd)
-    initCmd.Flags().StringP("level", "l", "simple", "初期化レベル (simple|standard|advanced)")
 }
 ```
 
@@ -250,7 +248,6 @@ type Zeus struct {
 // InitResult は初期化結果
 type InitResult struct {
     Success    bool
-    Level      string
     ZeusPath   string
     ClaudePath string
 }
@@ -338,7 +335,7 @@ func (z *Zeus) generateInitialConfig() map[string]interface{} {
         },
         "objectives": []interface{}{},
         "settings": map[string]interface{}{
-            "automation_level": "standard",
+            "automation_level": "auto",
             "approval_mode":    "default",
             "ai_provider":      "claude-code",
         },

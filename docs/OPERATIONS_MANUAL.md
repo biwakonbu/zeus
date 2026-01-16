@@ -13,11 +13,8 @@ claude plugin add ./zeus-plugin
 
 ### 1.2 プロジェクト初期化
 ```bash
-# 基本的な初期化
+# プロジェクト初期化（全機能を使用可能な状態で初期化）
 zeus init
-
-# 詳細なセットアップ
-zeus init --level=standard
 ```
 
 ### 1.3 最初のステータス確認
@@ -147,7 +144,7 @@ zeus report --format=json > report.json
 
 | コマンド | 説明 | オプション |
 |---------|------|-----------|
-| `zeus init` | プロジェクト初期化 | `--level=simple\|standard\|advanced` |
+| `zeus init` | プロジェクト初期化 | - |
 | `zeus status` | ステータス表示 | - |
 | `zeus scan` | プロジェクトスキャン | - |
 | `zeus add` | エンティティ追加 | `<entity> <name>` |
