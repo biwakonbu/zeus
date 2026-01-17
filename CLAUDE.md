@@ -137,11 +137,37 @@ go test -cover ./...             # カバレッジ
 
 ### E2E テスト
 
+#### CLI テスト（Go）
+
 ```bash
 go test -v ./tests/e2e/...       # E2E テスト実行
 ```
 
 E2E テストは実バイナリをビルドして実行するため、事前の `go build` が必要です。
+
+#### Web テスト（agent-browser）
+
+```bash
+./scripts/e2e/run-web-test.sh     # Web E2E テスト実行
+./scripts/e2e/update-golden.sh    # ゴールデンファイル更新
+```
+
+**特性:**
+- State-First アプローチ: `window.__ZEUS__` API で内部状態を直接検証
+- 座標除外: x, y, id, viewport を比較から除外（安定性重視）
+- agent-browser 統合: ヘッドレスブラウザで自動化
+- jq 構造比較: JSON フィルタリングで正規化→ハッシュ比較
+- エラーハンドリング強化:
+  * agent-browser レスポンス検証 (JSON 形式チェック、成功フィールド確認)
+  * jq フィルタ null 値チェック (ID→名前変換失敗検出)
+  * window.__ZEUS__ API 存在確認 (型チェック + 関数検証)
+
+**ファイル構成:**
+- `scripts/e2e/run-web-test.sh` - メインテストスクリプト
+- `scripts/e2e/lib/common.sh` - ユーティリティ・検証関数
+- `scripts/e2e/lib/verify.sh` - jq 構造比較ロジック
+- `scripts/e2e/update-golden.sh` - ゴールデン更新
+- `scripts/e2e/golden/state/basic-tasks.json` - 参照状態
 
 ### ゴールデンテスト
 
