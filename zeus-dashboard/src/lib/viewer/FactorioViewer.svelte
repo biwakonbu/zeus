@@ -84,11 +84,20 @@
 	let highlightedUpstream: Set<string> = $state(new Set());
 	let showImpactHighlight: boolean = $state(true);
 
+	type MetricsEntry = {
+		timestamp: string;
+		label: string;
+		durationMs: number;
+		[key: string]: unknown;
+	};
+
 	const metricsParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 	const METRICS_ENABLED = import.meta.env.DEV || metricsParams?.has('metrics') === true;
 	const METRICS_VERBOSE = metricsParams?.has('metricsVerbose') === true;
 	const METRICS_SLOW_THRESHOLD_MS = 50;
+	const METRICS_MAX_ENTRIES = 2000;
 	let renderSequence = 0;
+	let metricsEntries: MetricsEntry[] = $state([]);
 
 	function nowMs(): number {
 		return typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
@@ -123,15 +132,45 @@
 		if (!force && !METRICS_VERBOSE && durationMs < METRICS_SLOW_THRESHOLD_MS) {
 			return;
 		}
+		const durationMsRounded = Math.round(durationMs);
 		const payload: Record<string, unknown> = {
-			durationMs: Math.round(durationMs),
+			durationMs: durationMsRounded,
 			...data
 		};
 		const memory = getMemorySnapshot();
 		if (memory) {
 			payload.memoryMB = memory;
 		}
+		const entry: MetricsEntry = {
+			timestamp: new Date().toISOString(),
+			label,
+			durationMs: durationMsRounded,
+			...payload
+		};
+		if (metricsEntries.length >= METRICS_MAX_ENTRIES) {
+			metricsEntries = metricsEntries.slice(-METRICS_MAX_ENTRIES + 1);
+		}
+		metricsEntries = [...metricsEntries, entry];
+		if (typeof window !== 'undefined') {
+			(window as Window & { __VIEWER_METRICS__?: MetricsEntry[] }).__VIEWER_METRICS__ = metricsEntries;
+		}
 		console.debug(`[ViewerMetrics] ${label}`, payload);
+	}
+
+	function downloadMetrics(): void {
+		if (!METRICS_ENABLED || metricsEntries.length === 0) return;
+		if (typeof document === 'undefined') return;
+
+		const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+		const filename = `zeus-viewer-metrics-${timestamp}.json`;
+		const blob = new Blob([JSON.stringify(metricsEntries, null, 2)], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = filename;
+		link.click();
+		URL.revokeObjectURL(url);
 	}
 
 	onMount(() => {
@@ -941,6 +980,11 @@
 		>
 			<span class="icon">⚡</span>
 		</button>
+		{#if METRICS_ENABLED}
+			<button class="control-btn metrics-btn" onclick={downloadMetrics} title="Download metrics log">
+				<span class="icon">DL</span>
+			</button>
+		{/if}
 	</div>
 
 	<!-- フィルターパネル -->
@@ -969,6 +1013,9 @@
 			Zoom: {(currentViewport.scale * 100).toFixed(0)}%
 		</span>
 		<span class="status-item"> Tasks: {visibleCount}/{tasks.length} </span>
+		{#if METRICS_ENABLED}
+			<span class="status-item metrics-info"> Logs: {metricsEntries.length} </span>
+		{/if}
 		{#if selectedIds.length > 0}
 			<span class="status-item selection-info"> Selected: {selectedIds.length} </span>
 		{/if}
@@ -1200,6 +1247,16 @@
 
 	.critical-path-toggle.active:hover {
 		background-color: var(--accent-secondary);
+	}
+
+	.metrics-btn {
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.02em;
+	}
+
+	.metrics-info {
+		color: var(--accent-primary);
 	}
 
 	/* 操作ヒント */
