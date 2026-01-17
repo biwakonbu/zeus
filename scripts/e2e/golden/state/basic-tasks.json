@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "test_id": "basic-tasks-001",
+    "schema_version": "1.0",
+    "zeus_version": ">=0.1.0",
+    "created": "2026-01-17",
+    "description": "Basic project with 3 tasks forming a chain"
+  },
+  "comparison": {
+    "mode": "structural",
+    "ignore_fields": ["nodes[*].x", "nodes[*].y", "nodes[*].id", "viewport"],
+    "edge_mode": "by_name"
+  },
+  "expected": {
+    "nodes": [
+      { "name": "Task A", "status": "pending", "progress": 0 },
+      { "name": "Task B", "status": "pending", "progress": 0 },
+      { "name": "Task C", "status": "pending", "progress": 0 }
+    ],
+    "edges": [
+      { "from": "Task A", "to": "Task C" }
+    ],
+    "counts": {
+      "taskCount": 3,
+      "edgeCount": 1
+    }
+  }
+}
