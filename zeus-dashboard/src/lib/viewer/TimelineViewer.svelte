@@ -225,8 +225,20 @@
 			</div>
 		{:else if filteredItems.length === 0}
 			<div class="timeline-empty">
-				<span>表示するタスクがありません</span>
-				<p class="timeline-hint">タスクに開始日・終了日を設定してください</p>
+				<div class="empty-icon">📅</div>
+				<h3 class="empty-title">タイムラインに表示するタスクがありません</h3>
+				<p class="empty-description">
+					タスクをタイムラインに表示するには、開始日と期限日を設定してください
+				</p>
+				<div class="empty-guide">
+					<p class="guide-label">タスクに日付を設定する方法:</p>
+					<div class="guide-code">
+						<code>zeus add task "タスク名" --start 2026-01-20 --due 2026-01-31</code>
+					</div>
+					<p class="guide-hint">
+						既存タスクの日付更新については <code>zeus help</code> を参照してください
+					</p>
+				</div>
 			</div>
 		{:else}
 			<!-- ガントチャート -->
@@ -549,9 +561,71 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		height: 200px;
+		min-height: 300px;
+		padding: var(--spacing-xl);
 		gap: 12px;
 		color: #888;
+	}
+
+	.timeline-empty .empty-icon {
+		font-size: 64px;
+		margin-bottom: var(--spacing-md);
+	}
+
+	.timeline-empty .empty-title {
+		font-size: var(--font-size-lg);
+		color: var(--text-primary);
+		margin: 0 0 var(--spacing-sm) 0;
+	}
+
+	.timeline-empty .empty-description {
+		font-size: var(--font-size-md);
+		color: var(--text-muted);
+		margin: 0 0 var(--spacing-lg) 0;
+		max-width: 500px;
+		text-align: center;
+	}
+
+	.timeline-empty .empty-guide {
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-dark);
+		border-radius: var(--border-radius-md);
+		padding: var(--spacing-lg);
+		max-width: 600px;
+	}
+
+	.timeline-empty .guide-label {
+		font-size: var(--font-size-sm);
+		color: var(--text-primary);
+		font-weight: 600;
+		margin: 0 0 var(--spacing-sm) 0;
+	}
+
+	.timeline-empty .guide-code {
+		background: var(--bg-primary);
+		border: 1px solid var(--border-metal);
+		border-radius: var(--border-radius-sm);
+		padding: var(--spacing-md);
+		margin-bottom: var(--spacing-md);
+		font-family: 'JetBrains Mono', 'Fira Code', monospace;
+	}
+
+	.timeline-empty .guide-code code {
+		color: var(--accent-primary);
+		font-size: var(--font-size-sm);
+	}
+
+	.timeline-empty .guide-hint {
+		font-size: var(--font-size-xs);
+		color: var(--text-muted);
+		margin: 0;
+	}
+
+	.timeline-empty .guide-hint code {
+		background: var(--bg-primary);
+		padding: 2px 6px;
+		border-radius: 3px;
+		color: var(--accent-secondary);
 	}
 
 	.spinner {
@@ -579,12 +653,6 @@
 
 	.retry-btn {
 		margin-top: 8px;
-	}
-
-	.timeline-hint {
-		font-size: 12px;
-		color: #666;
-		margin: 0;
 	}
 
 	/* ガントチャート */
