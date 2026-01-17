@@ -1,167 +1,152 @@
 # Zeus E2E テストスイート
 
-agent-browser を使用した Web ダッシュボードの E2E テストスイートです。
-State-First アプローチを採用し、PixiJS Canvas の内部状態を `window.__ZEUS__` API 経由で検証します。
+Zeus プロジェクトの E2E テストフレームワーク。`agent-browser` CLI を使用した Web UI の状態ベース検証と、複数形式のレポート生成機能を提供します。
 
 ## Quick Start
 
 ### 前提条件
 
 ```bash
-# 1. Zeus バイナリをビルド
+# Zeus ビルド
+cd /path/to/zeus
 make build
 
-# 2. ダッシュボードをビルド
-cd zeus-dashboard && npm ci && npm run build && cd ..
+# ダッシュボード依存関係インストール
+cd zeus-dashboard
+npm ci
+npm run build
+cd ..
 
-# 3. agent-browser をインストール
+# 必須ツール
 npm install -g agent-browser
-
-# 4. jq をインストール（macOS）
-brew install jq
-# または Ubuntu
-# apt install jq
+agent-browser install
+brew install jq  # または apt install jq
 ```
 
-### テスト実行
+### 単一テスト実行
 
 ```bash
-# E2E テスト実行
 ./scripts/e2e/run-web-test.sh
 ```
 
-### ゴールデンファイル更新
+**期待される出力:**
+```
+==> Zeus E2E テスト開始
+...
+==> テスト統計
+[INFO] 実行時間: 2秒
+[INFO] 成功ステップ: 9/9
+[INFO] 成功率: 100%
+
+[PASS] ============================================
+[PASS] Zeus E2E テスト: 全て成功
+[PASS] ============================================
+```
+
+### アーティファクト付きテスト実行
 
 ```bash
-# 更新スクリプト実行
+export KEEP_ARTIFACTS=true
+./scripts/e2e/run-web-test.sh
+
+# アーティファクトを確認
+ls -lh /tmp/zeus-e2e-artifacts/
+cat /tmp/zeus-e2e-artifacts/actual-state.json | jq .
+```
+
+**生成されるファイル:**
+- `actual-state.json` - キャプチャした実際の状態
+- `test-report.json` - JSON 形式のテスト結果
+- `report.md` - Markdown レポート
+- `report.html` - HTML レポート（ブラウザで表示可能）
+- `report.txt` - テキストレポート
+- `server.log` - ダッシュボードサーバーログ
+- `screenshot.png` - UI スクリーンショット
+- `zeus-data.tar.gz` - プロジェクトデータ
+
+## 機能
+
+### 1. 状態ベース検証（座標除外）
+
+**従来のピクセル比較ではなく、JSON 状態を検証。**
+
+- ✅ **除外フィールド** - x, y, id, viewport（環境依存的な要素）
+- ✅ **検証対象** - タスク名、ステータス、進捗度、依存関係
+- ✅ **クロスプラットフォーム** - OS/ブラウザ依存性なし
+- ✅ **Git フレンドリー** - 全ゴールデンファイルがテキスト形式
+
+```bash
+# ゴールデン比較の仕組み
+jq -S '.nodes[] | {name, status, progress}' actual.json
+# ↓ 名前順ソート + 座標除外 + 依存関係検証 → パス/フェイル
+```
+
+### 2. マルチシナリオ並列実行
+
+複数の異なるプロジェクト構成でテストを並列実行：
+
+```bash
+./scripts/e2e/run-parallel-tests.sh
+```
+
+### 3. 複数形式レポート
+
+テスト完了後、自動的に 3 形式のレポートを生成。
+
+### 4. カスタムタイムアウト設定
+
+環境変数で動的にタイムアウト値を変更：
+
+```bash
+TIMEOUT_APP_READY=40 ./scripts/e2e/run-web-test.sh
+```
+
+## 設定可能な環境変数
+
+| 変数 | デフォルト | 説明 |
+|------|-----------|------|
+| `TIMEOUT_SERVER_START` | 30秒 | サーバー起動待機 |
+| `TIMEOUT_API_READY` | 10秒 | API Ready 待機 |
+| `TIMEOUT_APP_READY` | 20秒 | アプリケーション Ready 待機 |
+| `TIMEOUT_CAPTURE` | 5秒 | 状態キャプチャタイムアウト |
+| `DASHBOARD_PORT` | 18080 | ダッシュボードポート |
+| `KEEP_ARTIFACTS` | false | アーティファクト保持 |
+
+## ゴールデンファイル更新
+
+```bash
 ./scripts/e2e/update-golden.sh
 
 # 差分確認
-git diff scripts/e2e/golden/state/basic-tasks.json
+git diff scripts/e2e/golden/
 
-# 意図的な変更の場合のみコミット
+# コミット
 git add scripts/e2e/golden/
 git commit -m 'chore: update E2E golden files'
 ```
 
-## ディレクトリ構造
-
-```
-scripts/e2e/
-├── run-web-test.sh           # メインテストスクリプト
-├── update-golden.sh          # ゴールデン更新ユーティリティ
-├── lib/
-│   ├── common.sh             # ログ、設定、ユーティリティ
-│   └── verify.sh             # jq を使った構造比較
-├── golden/
-│   ├── state/
-│   │   └── basic-tasks.json  # 構造ゴールデン（座標なし）
-│   └── performance/
-│       └── README.md         # 将来用プレースホルダー
-└── README.md                 # このファイル
-```
-
-## 検証方式
-
-### State-First アプローチ
-
-DOM ベースの検証ではなく、アプリケーション内部状態を直接検証します:
-
-1. `window.__ZEUS__.isReady()` で描画完了を待機
-2. `window.__ZEUS__.getGraphState()` で状態取得
-3. ゴールデンファイルと構造比較
-
-### 座標除外版の構造比較
-
-以下のフィールドは比較から除外されます:
-
-- `nodes[*].x`, `nodes[*].y` - 座標（レイアウトアルゴリズム依存）
-- `nodes[*].id` - UUID（動的生成）
-- `viewport` - ビューポート状態
-
-比較対象:
-- `nodes[*].name` - タスク名
-- `nodes[*].status` - ステータス
-- `nodes[*].progress` - 進捗率
-- `edges` - 名前ベースの依存関係
-
-### エッジの名前ベース変換
-
-ゴールデンファイルではエッジを名前で定義:
-
-```json
-{
-  "edges": [
-    { "from": "Task A", "to": "Task C" }
-  ]
-}
-```
-
-実際の状態（ID ベース）から名前ベースに変換して比較します。
-
-## タイムアウト設定
-
-| 設定 | デフォルト | 環境変数 |
-|------|-----------|----------|
-| サーバー起動 | 30秒 | `TIMEOUT_SERVER_START` |
-| API Ready | 10秒 | `TIMEOUT_API_READY` |
-| アプリ Ready | 20秒 | `TIMEOUT_APP_READY` |
-| 状態キャプチャ | 5秒 | `TIMEOUT_CAPTURE` |
-
-## 環境変数
-
-| 変数 | 説明 | デフォルト |
-|------|------|-----------|
-| `DASHBOARD_PORT` | ダッシュボードポート | `18080` |
-| `KEEP_ARTIFACTS` | アーティファクト保持 | `false` |
-| `ARTIFACTS_DIR` | アーティファクト保存先 | `/tmp/zeus-e2e-artifacts` |
-
-## エラー時のアーティファクト
-
-テスト失敗時に以下が自動収集されます:
-
-- `actual-state.json` - 取得したグラフ状態
-- `server.log` - ダッシュボードサーバーログ
-- `zeus-data.tar.gz` - .zeus ディレクトリのアーカイブ
-- `screenshot.png` - ブラウザスクリーンショット
-- `metrics.json` - パフォーマンスメトリクス
-
-保存先: `/tmp/zeus-e2e-artifacts/`
-
 ## トラブルシューティング
 
-### agent-browser が見つからない
-
+### ポート既に使用
 ```bash
-npm install -g agent-browser
-```
-
-### ブラウザが起動しない
-
-Playwright の依存関係をインストール:
-
-```bash
-npx playwright install chromium --with-deps
-```
-
-### ポートが使用中
-
-別のポートを指定:
-
-```bash
-DASHBOARD_PORT=18081 ./scripts/e2e/run-web-test.sh
+lsof -i :18080
+kill -9 <PID>
+./scripts/e2e/run-web-test.sh
 ```
 
 ### タイムアウト
-
-タイムアウトを延長:
-
 ```bash
-TIMEOUT_APP_READY=60 ./scripts/e2e/run-web-test.sh
+TIMEOUT_SERVER_START=60 TIMEOUT_APP_READY=40 ./scripts/e2e/run-web-test.sh
 ```
 
-## CI/CD
+### テスト失敗時に詳細確認
+```bash
+cat /tmp/zeus-e2e-artifacts/server.log
+open /tmp/zeus-e2e-artifacts/screenshot.png
+cat /tmp/zeus-e2e-artifacts/actual-state.json | jq .
+```
 
-GitHub Actions での実行は `.github/workflows/e2e.yml` を参照してください。
+## CI/CD 統合
 
-ヘッドレスモードで実行されます。
+GitHub Actions で自動実行可能。詳細は `.github/workflows/e2e.yml` を参照。
+

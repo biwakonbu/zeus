@@ -9,6 +9,8 @@ set -euo pipefail
 # =============================================================================
 
 # タイムアウト設定（秒）
+# 環境変数で各タイムアウト値をオーバーライド可能
+# 例: TIMEOUT_SERVER_START=60 TIMEOUT_APP_READY=40 ./run-web-test.sh
 export TIMEOUT_SERVER_START=${TIMEOUT_SERVER_START:-30}
 export TIMEOUT_API_READY=${TIMEOUT_API_READY:-10}
 export TIMEOUT_APP_READY=${TIMEOUT_APP_READY:-20}
@@ -191,9 +193,13 @@ check_port_available() {
 }
 
 # タイムアウト値の妥当性チェック
+# @param $1: タイムアウト値
+# @param $2: 設定名
+# @param $3: デフォルト値（警告表示用、オプション）
 validate_timeout() {
     local timeout="$1"
     local name="${2:-timeout}"
+    local default="${3:-0}"
 
     # 数値か確認
     if ! [[ "$timeout" =~ ^[0-9]+$ ]]; then
@@ -211,6 +217,12 @@ validate_timeout() {
     if [[ $timeout -gt 300 ]]; then
         log_error "$name が大きすぎます（最大300秒）: $timeout"
         return 1
+    fi
+
+    # デフォルト値からの変更を警告
+    if [[ $default -gt 0 && $timeout -ne $default ]]; then
+        log_warn "$name がオーバーライドされています: デフォルト ${default}秒 → 実行値 ${timeout}秒"
+        return 0
     fi
 
     log_info "$name: ${timeout}秒（妥当）"
@@ -231,11 +243,11 @@ validate_environment() {
         return 1
     fi
 
-    # タイムアウト値の妥当性
-    validate_timeout "$TIMEOUT_SERVER_START" "TIMEOUT_SERVER_START" || return 1
-    validate_timeout "$TIMEOUT_API_READY" "TIMEOUT_API_READY" || return 1
-    validate_timeout "$TIMEOUT_APP_READY" "TIMEOUT_APP_READY" || return 1
-    validate_timeout "$TIMEOUT_CAPTURE" "TIMEOUT_CAPTURE" || return 1
+    # タイムアウト値の妥当性（デフォルト値との比較）
+    validate_timeout "$TIMEOUT_SERVER_START" "TIMEOUT_SERVER_START" 30 || return 1
+    validate_timeout "$TIMEOUT_API_READY" "TIMEOUT_API_READY" 10 || return 1
+    validate_timeout "$TIMEOUT_APP_READY" "TIMEOUT_APP_READY" 20 || return 1
+    validate_timeout "$TIMEOUT_CAPTURE" "TIMEOUT_CAPTURE" 5 || return 1
 
     # ディレクトリの妥当性
     if [[ ! -d "$SCRIPT_DIR" ]]; then
@@ -252,6 +264,121 @@ validate_environment() {
 }
 
 export -f check_port_available validate_timeout validate_environment
+
+# =============================================================================
+# テスト統計
+# =============================================================================
+
+# テスト実行統計を記録
+record_test_stats() {
+    local start_time="$1"
+    local end_time="$2"
+    local steps_passed="$3"
+    local steps_total="$4"
+
+    # 実行時間を計算（秒単位）
+    local start_epoch
+    local end_epoch
+    local duration
+
+    start_epoch=$(date -f "%Y-%m-%d %H:%M:%S" "$start_time" +%s 2>/dev/null || echo "0")
+    end_epoch=$(date -f "%Y-%m-%d %H:%M:%S" "$end_time" +%s 2>/dev/null || echo "0")
+
+    if [[ $start_epoch -gt 0 && $end_epoch -gt 0 ]]; then
+        duration=$((end_epoch - start_epoch))
+    else
+        duration=0
+    fi
+
+    log_step "テスト統計"
+    log_info "実行時間: ${duration}秒"
+    log_info "成功ステップ: ${steps_passed}/${steps_total}"
+
+    if [[ $steps_total -gt 0 ]]; then
+        local success_rate
+        success_rate=$((steps_passed * 100 / steps_total))
+        log_info "成功率: ${success_rate}%"
+    fi
+}
+
+export -f record_test_stats
+
+# =============================================================================
+# テストレポート（JSON形式）
+# =============================================================================
+
+# テスト結果を JSON 形式で保存
+# @param $1: 開始時刻
+# @param $2: 終了時刻
+# @param $3: 成功ステップ数
+# @param $4: 総ステップ数
+# @param $5: 出力ファイルパス（オプション）
+save_test_report_json() {
+    local start_time="$1"
+    local end_time="$2"
+    local steps_passed="$3"
+    local steps_total="$4"
+    local output_file="${5:-${ARTIFACTS_DIR}/test-report.json}"
+
+    local start_epoch end_epoch duration success_rate
+
+    # 実行時間を計算
+    start_epoch=$(date -f "%Y-%m-%d %H:%M:%S" "$start_time" +%s 2>/dev/null || echo "0")
+    end_epoch=$(date -f "%Y-%m-%d %H:%M:%S" "$end_time" +%s 2>/dev/null || echo "0")
+
+    if [[ $start_epoch -gt 0 && $end_epoch -gt 0 ]]; then
+        duration=$((end_epoch - start_epoch))
+    else
+        duration=0
+    fi
+
+    # 成功率計算
+    if [[ $steps_total -gt 0 ]]; then
+        success_rate=$((steps_passed * 100 / steps_total))
+    else
+        success_rate=0
+    fi
+
+    # JSON レポート生成
+    local report
+    report=$(jq -n \
+        --arg start "$start_time" \
+        --arg end "$end_time" \
+        --arg zeus_version "$(cd "${PROJECT_ROOT}" && ./zeus --version 2>/dev/null || echo 'unknown')" \
+        --arg branch "$(git -C "${PROJECT_ROOT}" rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')" \
+        --arg commit "$(git -C "${PROJECT_ROOT}" rev-parse --short HEAD 2>/dev/null || echo 'unknown')" \
+        --argjson duration "$duration" \
+        --argjson steps_passed "$steps_passed" \
+        --argjson steps_total "$steps_total" \
+        --argjson success_rate "$success_rate" \
+        --arg timestamp "$(date +%Y-%m-%dT%H:%M:%SZ)" \
+        '{
+            metadata: {
+                timestamp: $timestamp,
+                zeus_version: $zeus_version,
+                git_branch: $branch,
+                git_commit: $commit
+            },
+            test_execution: {
+                start_time: $start,
+                end_time: $end,
+                duration_seconds: $duration
+            },
+            test_results: {
+                steps_passed: $steps_passed,
+                steps_total: $steps_total,
+                success_rate_percent: $success_rate,
+                overall_status: (if $success_rate == 100 then "PASS" else "FAIL" end)
+            }
+        }')
+
+    # ファイルに保存
+    mkdir -p "$(dirname "$output_file")"
+    echo "$report" > "$output_file"
+    log_info "テストレポート保存: $output_file"
+}
+
+export -f save_test_report_json
 
 # =============================================================================
 # agent-browser レスポンス検証

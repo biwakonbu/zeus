@@ -16,6 +16,8 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 # shellcheck source=lib/verify.sh
 source "${SCRIPT_DIR}/lib/verify.sh"
+# shellcheck source=lib/report.sh
+source "${SCRIPT_DIR}/lib/report.sh"
 
 # =============================================================================
 # グローバル変数
@@ -25,6 +27,10 @@ TEST_DIR=""
 SERVER_PID=""
 SESSION=""
 EXIT_CODE=0
+TEST_START_TIME=""
+TEST_END_TIME=""
+STEP_COUNT=0
+STEP_PASSED=0
 
 # =============================================================================
 # クリーンアップ
@@ -400,30 +406,62 @@ main() {
     echo ""
 
     # テスト実行時刻をログに記録
-    local start_time
-    start_time=$(date '+%Y-%m-%d %H:%M:%S')
-    log_info "テスト実行時刻: $start_time"
+    TEST_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+    log_info "テスト実行時刻: $TEST_START_TIME"
     log_info "ZEUS: $PROJECT_ROOT"
     log_info "アーティファクト保存先: $ARTIFACTS_DIR"
     echo ""
 
-    check_prerequisites
-    setup_test_project
-    start_dashboard
-    start_browser_session
-    wait_for_app_ready
-    capture_graph_state
-    save_state_artifact
-    collect_metrics
-    run_verification
+    # テストステップの実行と追跡
+    ((STEP_COUNT++))
+    if check_prerequisites; then ((STEP_PASSED++)); fi
+
+    ((STEP_COUNT++))
+    if setup_test_project; then ((STEP_PASSED++)); fi
+
+    ((STEP_COUNT++))
+    if start_dashboard; then ((STEP_PASSED++)); fi
+
+    ((STEP_COUNT++))
+    if start_browser_session; then ((STEP_PASSED++)); fi
+
+    ((STEP_COUNT++))
+    if wait_for_app_ready; then ((STEP_PASSED++)); fi
+
+    ((STEP_COUNT++))
+    if capture_graph_state; then ((STEP_PASSED++)); fi
+
+    ((STEP_COUNT++))
+    if save_state_artifact; then ((STEP_PASSED++)); fi
+
+    ((STEP_COUNT++))
+    if collect_metrics; then ((STEP_PASSED++)); fi
+
+    ((STEP_COUNT++))
+    if run_verification; then ((STEP_PASSED++)); fi
 
     echo ""
 
     # テスト完了時刻をログに記録
-    local end_time
-    end_time=$(date '+%Y-%m-%d %H:%M:%S')
-    log_info "テスト完了時刻: $end_time"
+    TEST_END_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+    log_info "テスト完了時刻: $TEST_END_TIME"
 
+    # テスト統計を記録
+    echo ""
+    record_test_stats "$TEST_START_TIME" "$TEST_END_TIME" "$STEP_PASSED" "$STEP_COUNT"
+
+    # レポート生成（KEEP_ARTIFACTS=true の場合）
+    if [[ "$KEEP_ARTIFACTS" == "true" ]]; then
+        # JSON レポート保存
+        save_test_report_json "$TEST_START_TIME" "$TEST_END_TIME" "$STEP_PASSED" "$STEP_COUNT"
+
+        # 複数形式レポート生成
+        echo ""
+        log_step "テストレポート生成"
+        generate_test_reports "$ARTIFACTS_DIR" "$TEST_START_TIME" "$TEST_END_TIME" "$STEP_PASSED" "$STEP_COUNT" "${GOLDEN_DIR}/state/basic-tasks.json"
+    fi
+
+    echo ""
     log_success "============================================"
     log_success "Zeus E2E テスト: 全て成功"
     log_success "============================================"
