@@ -51,6 +51,11 @@ func (h *TaskHandler) Add(ctx context.Context, name string, opts ...EntityOption
 		opt(&task)
 	}
 
+	// ParentID が設定されている場合、Dependencies に追加
+	if task.ParentID != "" {
+		task.Dependencies = append(task.Dependencies, task.ParentID)
+	}
+
 	taskStore.Tasks = append(taskStore.Tasks, task)
 	if err := h.fileStore.WriteYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
 		return nil, err

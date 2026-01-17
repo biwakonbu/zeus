@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/biwakonbu/zeus/internal/core"
 	"github.com/spf13/cobra"
@@ -55,4 +57,14 @@ func getContext(cmd *cobra.Command) context.Context {
 // WithZeus はZeusインスタンスをコンテキストに設定（テスト用）
 func WithZeus(ctx context.Context, z *core.Zeus) context.Context {
 	return context.WithValue(ctx, zeusContextKey, z)
+}
+
+// printJSONResult は AddResult を JSON 形式で出力
+func printJSONResult(result *core.AddResult) error {
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+	fmt.Println(string(data))
+	return nil
 }

@@ -84,6 +84,56 @@
 	let highlightedUpstream: Set<string> = $state(new Set());
 	let showImpactHighlight: boolean = $state(true);
 
+	const metricsParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+	const METRICS_ENABLED = import.meta.env.DEV || metricsParams?.has('metrics') === true;
+	const METRICS_VERBOSE = metricsParams?.has('metricsVerbose') === true;
+	const METRICS_SLOW_THRESHOLD_MS = 50;
+	let renderSequence = 0;
+
+	function nowMs(): number {
+		return typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+	}
+
+	function getMemorySnapshot(): { usedMB: number; totalMB: number; limitMB: number } | null {
+		const perf = typeof performance !== 'undefined'
+			? (performance as Performance & {
+					memory?: {
+						usedJSHeapSize: number;
+						totalJSHeapSize: number;
+						jsHeapSizeLimit: number;
+					};
+				})
+			: null;
+		if (!perf?.memory) return null;
+		return {
+			usedMB: Math.round(perf.memory.usedJSHeapSize / 1024 / 1024),
+			totalMB: Math.round(perf.memory.totalJSHeapSize / 1024 / 1024),
+			limitMB: Math.round(perf.memory.jsHeapSizeLimit / 1024 / 1024)
+		};
+	}
+
+	function logMetrics(
+		label: string,
+		startMs: number,
+		data: Record<string, unknown> = {},
+		force = false
+	): void {
+		if (!METRICS_ENABLED) return;
+		const durationMs = nowMs() - startMs;
+		if (!force && !METRICS_VERBOSE && durationMs < METRICS_SLOW_THRESHOLD_MS) {
+			return;
+		}
+		const payload: Record<string, unknown> = {
+			durationMs: Math.round(durationMs),
+			...data
+		};
+		const memory = getMemorySnapshot();
+		if (memory) {
+			payload.memoryMB = memory;
+		}
+		console.debug(`[ViewerMetrics] ${label}`, payload);
+	}
+
 	onMount(() => {
 		initializeEngine();
 	});
@@ -177,12 +227,17 @@
 	});
 
 	async function initializeEngine() {
+		const initStart = nowMs();
 		engine = new ViewerEngine();
 		layoutEngine = new LayoutEngine();
 		selectionManager = new SelectionManager();
 		filterManager = new FilterManager();
 
 		await engine.init(containerElement);
+		logMetrics('engine.init', initStart, {
+			containerWidth: containerElement.clientWidth,
+			containerHeight: containerElement.clientHeight
+		}, true);
 
 		// 空間インデックスを初期化（十分な大きさのバウンド）
 		spatialIndex = new SpatialIndex({
@@ -293,6 +348,14 @@
 	async function loadTimelineData(): Promise<void> {
 		if (isLoadingTimeline) return; // 既に読み込み中の場合はスキップ
 
+		const timelineStart = nowMs();
+		let result: 'ok' | 'invalid' | 'error' = 'ok';
+		let itemsCount = 0;
+		let validItems = 0;
+		let invalidItems = 0;
+		let criticalCount = 0;
+		let errorMessage: string | null = null;
+
 		isLoadingTimeline = true;
 		timelineLoadError = null;
 
@@ -303,6 +366,8 @@
 			if (!timeline) {
 				console.debug('Timeline response is empty');
 				timelineLoadError = 'Timeline data is empty';
+				result = 'invalid';
+				errorMessage = timelineLoadError;
 				resetCriticalPath();
 				return;
 			}
@@ -312,6 +377,8 @@
 				const errMsg = 'Invalid timeline response: critical_path is not an array';
 				console.warn(errMsg);
 				timelineLoadError = errMsg;
+				result = 'invalid';
+				errorMessage = errMsg;
 				resetCriticalPath();
 				return;
 			}
@@ -321,13 +388,18 @@
 				const errMsg = 'Invalid timeline response: items is not an array';
 				console.warn(errMsg);
 				timelineLoadError = errMsg;
+				result = 'invalid';
+				errorMessage = errMsg;
 				resetCriticalPath();
 				return;
 			}
 
+			itemsCount = timeline.items.length;
+
 			// クリティカルパスのIDセットを更新（文字列型チェック）
 			const validCriticalPaths = timeline.critical_path.filter((id) => typeof id === 'string');
 			criticalPathIds = new Set(validCriticalPaths);
+			criticalCount = validCriticalPaths.length;
 
 			// タイムラインアイテムをマップに格納（スラック値を検証）
 			const itemMap = new Map<string, TimelineItem>();
@@ -335,6 +407,7 @@
 				// 必須フィールドの存在確認
 				if (!item.task_id || typeof item.task_id !== 'string') {
 					console.warn('Invalid timeline item: missing or invalid task_id', item);
+					invalidItems++;
 					continue;
 				}
 
@@ -347,6 +420,7 @@
 				}
 
 				itemMap.set(item.task_id, item);
+				validItems++;
 			}
 			timelineItems = itemMap;
 			timelineLoadError = null;
@@ -358,9 +432,19 @@
 			const errMsg = error instanceof Error ? error.message : 'Unknown error loading timeline data';
 			console.warn('Error loading timeline data:', error);
 			timelineLoadError = errMsg;
+			result = 'error';
+			errorMessage = errMsg;
 			resetCriticalPath();
 		} finally {
 			isLoadingTimeline = false;
+			logMetrics('timeline.load', timelineStart, {
+				result,
+				items: itemsCount,
+				validItems,
+				invalidItems,
+				criticalPath: criticalCount,
+				error: errorMessage
+			}, true);
 		}
 	}
 
@@ -446,6 +530,13 @@
 	function renderTasks(taskList: TaskItem[]): void {
 		if (!engine || !layoutEngine || !spatialIndex || !filterManager || !selectionManager) return;
 
+		const renderStart = nowMs();
+		const renderSeq = ++renderSequence;
+		let dependencyCount = 0;
+		for (const task of taskList) {
+			dependencyCount += task.dependencies.length;
+		}
+
 		const nodeContainer = engine.getNodeContainer();
 		const edgeContainer = engine.getEdgeContainer();
 		if (!nodeContainer || !edgeContainer) return;
@@ -456,7 +547,9 @@
 		availableAssignees = filterManager.getAvailableAssignees();
 
 		// レイアウト計算
+		const layoutStart = nowMs();
 		const layout = layoutEngine.layout(taskList);
+		const layoutMs = nowMs() - layoutStart;
 		positions = layout.positions;
 		layoutBounds = layout.bounds;
 		layers = layout.layers;
@@ -552,6 +645,20 @@
 			const centerY = (layout.bounds.minY + layout.bounds.maxY) / 2;
 			engine.panTo(centerX, centerY, false);
 		}
+
+		logMetrics('renderTasks', renderStart, {
+			seq: renderSeq,
+			tasks: taskList.length,
+			dependencies: dependencyCount,
+			nodes: nodeMap.size,
+			edges: edgeFactory.getAll().length,
+			layoutMs: Math.round(layoutMs),
+			boundsW: Math.round(layout.bounds.width),
+			boundsH: Math.round(layout.bounds.height),
+			layers: layout.layers.length,
+			visibleFilterCount: visibleTaskIds.size,
+			viewportScale: Number(currentViewport.scale.toFixed(2))
+		}, true);
 	}
 
 	/**

@@ -69,6 +69,13 @@ func runAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// JSON 出力
+	format, _ := cmd.Flags().GetString("format")
+	if format == "json" {
+		return printJSONResult(result)
+	}
+
+	// テキスト出力
 	green := color.New(color.FgGreen).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
 
