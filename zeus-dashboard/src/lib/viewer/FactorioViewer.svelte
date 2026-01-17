@@ -91,13 +91,27 @@
 		[key: string]: unknown;
 	};
 
+	type MetricsPayload = {
+		session_id: string;
+		reason: string;
+		meta: Record<string, unknown>;
+		entries: MetricsEntry[];
+	};
+
 	const metricsParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-	const METRICS_ENABLED = import.meta.env.DEV || metricsParams?.has('metrics') === true;
+	const METRICS_ENABLED = import.meta.env.DEV || import.meta.env.MODE === 'test' || metricsParams?.has('metrics') === true;
 	const METRICS_VERBOSE = metricsParams?.has('metricsVerbose') === true;
 	const METRICS_SLOW_THRESHOLD_MS = 50;
 	const METRICS_MAX_ENTRIES = 2000;
+	const METRICS_AUTOSAVE = METRICS_ENABLED && (import.meta.env.MODE === 'test' || metricsParams?.has('metricsAutoSave') === true);
+	const METRICS_FLUSH_INTERVAL_MS = 5000;
+	const METRICS_ENDPOINT = '/api/metrics';
 	let renderSequence = 0;
 	let metricsEntries: MetricsEntry[] = $state([]);
+	let metricsPending: MetricsEntry[] = $state([]);
+	let metricsFlushTimer: ReturnType<typeof setInterval> | null = null;
+	let isMetricsFlushing = false;
+	const metricsSessionId = createMetricsSessionId();
 
 	function nowMs(): number {
 		return typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
@@ -121,6 +135,133 @@
 		};
 	}
 
+	function createMetricsSessionId(): string {
+		if (typeof window === 'undefined') return 'server';
+		if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+			return crypto.randomUUID();
+		}
+		const ts = Date.now().toString(36);
+		const rand = Math.random().toString(36).slice(2, 10);
+		return `session-${ts}-${rand}`;
+	}
+
+	function getMetricsMeta(): Record<string, unknown> {
+		const meta: Record<string, unknown> = {
+			mode: import.meta.env.MODE,
+			viewer: 'graph'
+		};
+		if (typeof location !== 'undefined') {
+			meta.url = location.href;
+		}
+		if (typeof navigator !== 'undefined') {
+			meta.userAgent = navigator.userAgent;
+		}
+		return meta;
+	}
+
+	function enqueueMetrics(entry: MetricsEntry): void {
+		metricsEntries = [...metricsEntries, entry];
+		if (metricsEntries.length > METRICS_MAX_ENTRIES) {
+			metricsEntries = metricsEntries.slice(-METRICS_MAX_ENTRIES);
+		}
+
+		if (METRICS_AUTOSAVE) {
+			metricsPending = [...metricsPending, entry];
+			if (metricsPending.length > METRICS_MAX_ENTRIES) {
+				metricsPending = metricsPending.slice(-METRICS_MAX_ENTRIES);
+			}
+		}
+
+		if (typeof window !== 'undefined') {
+			(window as Window & { __VIEWER_METRICS__?: MetricsEntry[] }).__VIEWER_METRICS__ = metricsEntries;
+		}
+	}
+
+	function buildMetricsPayload(entries: MetricsEntry[], reason: string): MetricsPayload {
+		return {
+			session_id: metricsSessionId,
+			reason,
+			meta: getMetricsMeta(),
+			entries
+		};
+	}
+
+	async function flushMetrics(reason: string, useBeacon = false): Promise<void> {
+		if (!METRICS_AUTOSAVE || metricsPending.length === 0) return;
+		if (isMetricsFlushing && !useBeacon) return;
+
+		const batch = metricsPending;
+		metricsPending = [];
+
+		const payload = buildMetricsPayload(batch, reason);
+		const body = JSON.stringify(payload);
+
+		if (useBeacon && typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+			const ok = navigator.sendBeacon(
+				METRICS_ENDPOINT,
+				new Blob([body], { type: 'application/json' })
+			);
+			if (!ok) {
+				metricsPending = [...batch, ...metricsPending];
+			}
+			return;
+		}
+
+		isMetricsFlushing = true;
+		try {
+			const response = await fetch(METRICS_ENDPOINT, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body,
+				keepalive: reason === 'unload'
+			});
+			if (!response.ok) {
+				throw new Error(`metrics upload failed: ${response.status}`);
+			}
+		} catch {
+			metricsPending = [...batch, ...metricsPending];
+		} finally {
+			isMetricsFlushing = false;
+		}
+	}
+
+	function handleMetricsPageHide(): void {
+		void flushMetrics('pagehide', true);
+	}
+
+	function handleMetricsVisibilityChange(): void {
+		if (typeof document === 'undefined') return;
+		if (document.hidden) {
+			void flushMetrics('visibility', true);
+		}
+	}
+
+	function startMetricsAutoSave(): void {
+		if (!METRICS_AUTOSAVE || typeof window === 'undefined') return;
+		if (!metricsFlushTimer) {
+			metricsFlushTimer = setInterval(() => {
+				void flushMetrics('interval');
+			}, METRICS_FLUSH_INTERVAL_MS);
+		}
+		window.addEventListener('pagehide', handleMetricsPageHide);
+		if (typeof document !== 'undefined') {
+			document.addEventListener('visibilitychange', handleMetricsVisibilityChange);
+		}
+	}
+
+	function stopMetricsAutoSave(): void {
+		if (metricsFlushTimer) {
+			clearInterval(metricsFlushTimer);
+			metricsFlushTimer = null;
+		}
+		if (typeof window !== 'undefined') {
+			window.removeEventListener('pagehide', handleMetricsPageHide);
+		}
+		if (typeof document !== 'undefined') {
+			document.removeEventListener('visibilitychange', handleMetricsVisibilityChange);
+		}
+	}
+
 	function logMetrics(
 		label: string,
 		startMs: number,
@@ -134,26 +275,20 @@
 		}
 		const durationMsRounded = Math.round(durationMs);
 		const payload: Record<string, unknown> = {
-			durationMs: durationMsRounded,
 			...data
 		};
 		const memory = getMemorySnapshot();
 		if (memory) {
 			payload.memoryMB = memory;
 		}
+		payload.durationMs = durationMsRounded;
 		const entry: MetricsEntry = {
 			timestamp: new Date().toISOString(),
 			label,
 			durationMs: durationMsRounded,
 			...payload
 		};
-		if (metricsEntries.length >= METRICS_MAX_ENTRIES) {
-			metricsEntries = metricsEntries.slice(-METRICS_MAX_ENTRIES + 1);
-		}
-		metricsEntries = [...metricsEntries, entry];
-		if (typeof window !== 'undefined') {
-			(window as Window & { __VIEWER_METRICS__?: MetricsEntry[] }).__VIEWER_METRICS__ = metricsEntries;
-		}
+		enqueueMetrics(entry);
 		console.debug(`[ViewerMetrics] ${label}`, payload);
 	}
 
@@ -175,6 +310,9 @@
 
 	onMount(() => {
 		initializeEngine();
+		if (METRICS_AUTOSAVE) {
+			startMetricsAutoSave();
+		}
 	});
 
 	// E2E テスト用: 開発/テスト環境でのみグローバルにデバッグヘルパーを公開
@@ -197,9 +335,14 @@
 		}
 	});
 
-	// E2E テスト用: 統合テスト API（開発/テスト環境でのみ公開）
+	// E2E テスト用: 統合テスト API（開発/テスト環境、または ?e2e パラメータ付きで公開）
 	$effect(() => {
-		if ((import.meta.env.DEV || import.meta.env.MODE === 'test') && engine) {
+		const isE2EMode =
+			import.meta.env.DEV ||
+			import.meta.env.MODE === 'test' ||
+			new URLSearchParams(window.location.search).has('e2e');
+
+		if (isE2EMode && engine) {
 			const win = window as Window & {
 				__ZEUS__?: {
 					getGraphState: () => unknown;
@@ -360,6 +503,11 @@
 		nodeMap.clear();
 		selectionManager?.destroy();
 		filterManager?.destroy();
+
+		if (METRICS_AUTOSAVE) {
+			void flushMetrics('destroy', true);
+		}
+		stopMetricsAutoSave();
 	});
 
 	// タイムライン読み込みのデバウンス用タイマー

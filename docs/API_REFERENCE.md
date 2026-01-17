@@ -943,6 +943,7 @@ Phase 6 で追加された WBS 階層とタイムライン機能です。
 | `/api/wbs` | GET | WBS 階層データを取得 |
 | `/api/timeline` | GET | タイムラインデータを取得 |
 | `/api/downstream/<id>` | GET | 指定タスクの影響範囲（downstream 依存）を取得 |
+| `/api/metrics` | POST | ダッシュボード計測ログを保存 |
 
 **使用例**
 ```bash
@@ -954,6 +955,11 @@ curl http://localhost:8080/api/timeline | jq
 
 # 特定タスクの影響範囲を取得
 curl http://localhost:8080/api/downstream/task-001 | jq
+
+# 計測ログを保存（Graph View）
+curl -X POST http://localhost:8080/api/metrics \
+  -H "Content-Type: application/json" \
+  -d '{"session_id":"session-001","reason":"manual","entries":[{"timestamp":"2025-01-01T00:00:00Z","label":"renderTasks","durationMs":42}]}'
 ```
 
 **WBS レスポンス例**

@@ -154,6 +154,12 @@ check_prerequisites() {
     # ゴールデンファイル
     require_file "${GOLDEN_DIR}/state/basic-tasks.json"
 
+    # 環境設定の妥当性チェック
+    validate_environment || return 1
+
+    # ポートの利用可能性チェック
+    check_port_available "$DASHBOARD_PORT" || return 1
+
     log_success "前提条件チェック完了"
 }
 
@@ -221,10 +227,14 @@ start_browser_session() {
     # ブラウザ起動とページ遷移（open コマンドでブラウザ起動 + ページ遷移）
     # ?e2e パラメータで __ZEUS__ API を有効化
     log_info "ダッシュボードにアクセス中..."
-    agent-browser --session "$SESSION" open "${API_URL}/?e2e" 2>/dev/null || {
+    if ! agent-browser --session "$SESSION" open "${API_URL}/?e2e" 2>/dev/null; then
         log_error "ブラウザ起動/ページ遷移失敗"
+        log_info "確認項目:"
+        log_info "  1. agent-browser がインストール済みか確認: agent-browser install"
+        log_info "  2. ダッシュボードサーバーが起動しているか確認: curl $API_URL"
+        log_info "  3. ネットワーク接続を確認"
         return 1
-    }
+    fi
 
     log_success "ブラウザセッション開始完了"
 }
@@ -389,6 +399,14 @@ main() {
     log_step "Zeus E2E テスト開始"
     echo ""
 
+    # テスト実行時刻をログに記録
+    local start_time
+    start_time=$(date '+%Y-%m-%d %H:%M:%S')
+    log_info "テスト実行時刻: $start_time"
+    log_info "ZEUS: $PROJECT_ROOT"
+    log_info "アーティファクト保存先: $ARTIFACTS_DIR"
+    echo ""
+
     check_prerequisites
     setup_test_project
     start_dashboard
@@ -400,6 +418,12 @@ main() {
     run_verification
 
     echo ""
+
+    # テスト完了時刻をログに記録
+    local end_time
+    end_time=$(date '+%Y-%m-%d %H:%M:%S')
+    log_info "テスト完了時刻: $end_time"
+
     log_success "============================================"
     log_success "Zeus E2E テスト: 全て成功"
     log_success "============================================"

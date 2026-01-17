@@ -176,6 +176,84 @@ export -f require_command is_port_in_use wait_for_port wait_for_http
 export -f create_temp_dir json_get require_file safe_kill
 
 # =============================================================================
+# 環境検証
+# =============================================================================
+
+# ポートが利用可能か確認（既に使用されていないか）
+check_port_available() {
+    local port="$1"
+    if is_port_in_use "$port"; then
+        log_error "ポート $port は既に使用されています"
+        log_info "使用中のプロセスを確認: lsof -i :$port"
+        return 1
+    fi
+    log_info "ポート $port は利用可能です"
+}
+
+# タイムアウト値の妥当性チェック
+validate_timeout() {
+    local timeout="$1"
+    local name="${2:-timeout}"
+
+    # 数値か確認
+    if ! [[ "$timeout" =~ ^[0-9]+$ ]]; then
+        log_error "$name が数値ではありません: $timeout"
+        return 1
+    fi
+
+    # 最小値チェック（1秒以上）
+    if [[ $timeout -lt 1 ]]; then
+        log_error "$name が小さすぎます（最小1秒）: $timeout"
+        return 1
+    fi
+
+    # 最大値チェック（300秒以下）
+    if [[ $timeout -gt 300 ]]; then
+        log_error "$name が大きすぎます（最大300秒）: $timeout"
+        return 1
+    fi
+
+    log_info "$name: ${timeout}秒（妥当）"
+}
+
+# 環境設定の妥当性チェック
+validate_environment() {
+    log_step "環境設定の妥当性チェック"
+
+    # ポート番号の妥当性
+    if ! [[ "$DASHBOARD_PORT" =~ ^[0-9]+$ ]]; then
+        log_error "DASHBOARD_PORT が無効です: $DASHBOARD_PORT"
+        return 1
+    fi
+
+    if [[ $DASHBOARD_PORT -lt 1024 || $DASHBOARD_PORT -gt 65535 ]]; then
+        log_error "DASHBOARD_PORT が範囲外です: $DASHBOARD_PORT"
+        return 1
+    fi
+
+    # タイムアウト値の妥当性
+    validate_timeout "$TIMEOUT_SERVER_START" "TIMEOUT_SERVER_START" || return 1
+    validate_timeout "$TIMEOUT_API_READY" "TIMEOUT_API_READY" || return 1
+    validate_timeout "$TIMEOUT_APP_READY" "TIMEOUT_APP_READY" || return 1
+    validate_timeout "$TIMEOUT_CAPTURE" "TIMEOUT_CAPTURE" || return 1
+
+    # ディレクトリの妥当性
+    if [[ ! -d "$SCRIPT_DIR" ]]; then
+        log_error "SCRIPT_DIR が見つかりません: $SCRIPT_DIR"
+        return 1
+    fi
+
+    if [[ ! -d "$LIB_DIR" ]]; then
+        log_error "LIB_DIR が見つかりません: $LIB_DIR"
+        return 1
+    fi
+
+    log_success "環境設定: 妥当"
+}
+
+export -f check_port_available validate_timeout validate_environment
+
+# =============================================================================
 # agent-browser レスポンス検証
 # =============================================================================
 

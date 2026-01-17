@@ -357,7 +357,24 @@ curl http://localhost:8080/api/graph
 curl http://localhost:8080/api/predict | jq
 ```
 
-### 5.6 トラブルシューティング
+### 5.6 ダッシュボード計測ログ（Graph View）
+
+Graph View の描画/更新メトリクスを自動保存できます。
+
+- 開発時: `http://localhost:5173/?metricsAutoSave`
+- 本番時: `http://localhost:8080/?metricsAutoSave`
+- テストモード（`import.meta.env.MODE === 'test'`）では自動記録が常時有効
+
+保存先:
+
+- `.zeus/metrics/dashboard-metrics-<session>.jsonl`（JSON Lines）
+
+補足:
+
+- 手動ダウンロードは `?metrics` で有効化後、Graph View 右上の `DL` ボタン
+- 自動保存は `/api/metrics` に送信され、サーバー側で追記保存される
+
+### 5.7 トラブルシューティング
 
 #### ポートが使用中の場合
 ```bash
