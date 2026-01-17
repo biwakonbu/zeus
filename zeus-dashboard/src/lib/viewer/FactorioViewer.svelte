@@ -54,6 +54,9 @@
 	// ホバー中のタスク
 	let hoveredTaskId: string | null = $state(null);
 
+	// ホバー時の影響範囲読み込みデバウンス用タイマー
+	let hoverDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
 	// フィルター状態
 	let filterCriteria: FilterCriteria = $state({});
 	let availableAssignees: string[] = $state([]);
@@ -85,9 +88,9 @@
 		initializeEngine();
 	});
 
-	// E2E テスト用: 開発環境でのみグローバルにデバッグヘルパーを公開
+	// E2E テスト用: 開発/テスト環境でのみグローバルにデバッグヘルパーを公開
 	$effect(() => {
-		if (import.meta.env.DEV && engine) {
+		if ((import.meta.env.DEV || import.meta.env.MODE === 'test') && engine) {
 			const win = window as Window & {
 				__VIEWER_ENGINE__?: ViewerEngine;
 				__NODE_MAP__?: Map<string, TaskNode>;
@@ -247,6 +250,17 @@
 	onDestroy(() => {
 		window.removeEventListener('keydown', handleKeyDown);
 		resizeObserver?.disconnect();
+
+		// タイマーをクリア
+		if (timelineLoadTimer) {
+			clearTimeout(timelineLoadTimer);
+			timelineLoadTimer = null;
+		}
+		if (hoverDebounceTimer) {
+			clearTimeout(hoverDebounceTimer);
+			hoverDebounceTimer = null;
+		}
+
 		engine?.destroy();
 		edgeFactory.clear();
 		nodeMap.clear();
@@ -254,12 +268,22 @@
 		filterManager?.destroy();
 	});
 
+	// タイムライン読み込みのデバウンス用タイマー
+	let timelineLoadTimer: ReturnType<typeof setTimeout> | null = null;
+
 	// タスクが変更されたら再レンダリング
 	$effect(() => {
 		if (engine && layoutEngine) {
 			renderTasks(tasks);
-			// タイムラインデータを取得してクリティカルパス情報を適用
-			loadTimelineData();
+
+			// タイムラインデータの読み込みをデバウンス（500ms）
+			if (timelineLoadTimer) {
+				clearTimeout(timelineLoadTimer);
+			}
+			timelineLoadTimer = setTimeout(() => {
+				loadTimelineData();
+				timelineLoadTimer = null;
+			}, 500);
 		}
 	});
 
@@ -596,19 +620,27 @@
 	}
 
 	/**
-	 * ノードホバー処理
+	 * ノードホバー処理（デバウンス付き）
 	 */
 	async function handleNodeHover(node: TaskNode, isHovered: boolean): Promise<void> {
 		const taskId = isHovered ? node.getTaskId() : null;
 		hoveredTaskId = taskId;
 		onTaskHover?.(taskId);
 
-		// 関連エッジをハイライト
+		// 関連エッジをハイライト（即座に実行）
 		highlightRelatedEdges(taskId);
 
-		// 影響範囲可視化（下流/上流タスクのハイライト）
+		// 影響範囲可視化はデバウンス（300ms）
+		if (hoverDebounceTimer) {
+			clearTimeout(hoverDebounceTimer);
+			hoverDebounceTimer = null;
+		}
+
 		if (showImpactHighlight && taskId) {
-			await highlightImpactedTasks(taskId);
+			hoverDebounceTimer = setTimeout(async () => {
+				await highlightImpactedTasks(taskId);
+				hoverDebounceTimer = null;
+			}, 300);
 		} else {
 			clearImpactHighlight();
 		}
@@ -1070,13 +1102,13 @@
 		left: var(--spacing-md);
 		display: flex;
 		gap: var(--spacing-md);
-		font-size: 10px;
-		color: var(--text-muted);
+		font-size: 11px;
+		color: var(--text-secondary);
 	}
 
 	.hint-item {
-		background-color: rgba(0, 0, 0, 0.5);
-		padding: 2px 6px;
+		background-color: rgba(0, 0, 0, 0.7);
+		padding: 3px 8px;
 		border-radius: var(--border-radius-sm);
 	}
 </style>

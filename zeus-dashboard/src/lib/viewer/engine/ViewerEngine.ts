@@ -23,12 +23,20 @@ export interface NodePosition {
 	y: number;
 }
 
-// デフォルト設定
+// デフォルト設定（SSR 対応: window は実行時に参照）
 const DEFAULT_CONFIG: ViewerConfig = {
 	backgroundColor: 0x1a1a1a,
 	antialias: true,
-	resolution: window.devicePixelRatio || 1
+	resolution: 1 // 実行時に getDefaultConfig() で上書き
 };
+
+// クライアントサイドでのデフォルト設定を取得
+function getDefaultConfig(): ViewerConfig {
+	return {
+		...DEFAULT_CONFIG,
+		resolution: typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1
+	};
+}
 
 // ズーム設定
 const MIN_SCALE = 0.1;
@@ -69,7 +77,7 @@ export class ViewerEngine {
 	private onNodeHover?: (nodeId: string | null) => void;
 
 	constructor(config: Partial<ViewerConfig> = {}) {
-		this.config = { ...DEFAULT_CONFIG, ...config };
+		this.config = { ...getDefaultConfig(), ...config };
 	}
 
 	/**

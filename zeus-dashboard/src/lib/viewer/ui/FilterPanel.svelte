@@ -23,8 +23,8 @@
 		onClear
 	}: Props = $props();
 
-	// フィルターパネルの開閉
-	let isExpanded = $state(false);
+	// フィルターパネルの開閉（初回はデフォルトで展開）
+	let isExpanded = $state(true);
 
 	// ステータス一覧
 	const statuses: { value: TaskStatus; label: string; color: string }[] = [

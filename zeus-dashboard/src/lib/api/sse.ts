@@ -149,7 +149,9 @@ export class SSEClient {
 				this.connect();
 			}, delay);
 		} else {
-			console.error('[SSE] Max reconnect attempts reached');
+			console.error('[SSE] Max reconnect attempts reached, giving up');
+			// カスタムイベントを発火してポーリングへのフォールバックを通知
+			window.dispatchEvent(new CustomEvent('sse-failed'));
 		}
 	}
 

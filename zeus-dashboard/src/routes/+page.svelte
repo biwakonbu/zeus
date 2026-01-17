@@ -23,19 +23,32 @@
 	let selectedTimelineItem: TimelineItem | null = $state(null);
 
 	onMount(() => {
+		// SSE 失敗時のフォールバックハンドラー
+		const handleSSEFailed = () => {
+			if (useSSE) {
+				console.log('[Dashboard] SSE failed, falling back to polling');
+				useSSE = false;
+				disconnectSSE();
+				startPolling();
+			}
+		};
+		window.addEventListener('sse-failed', handleSSEFailed);
+
 		// 初期データを読み込み
 		setConnecting();
 		refreshAllData()
 			.then(() => {
 				setConnected();
 
-				// SSE 接続を試行
+				// SSE 接続を試行（ポーリングとは排他的に実行）
 				if (useSSE) {
 					try {
 						connectSSE();
-					} catch {
-						// SSE が利用できない場合はポーリングにフォールバック
-						console.log('SSE not available, falling back to polling');
+						// SSE が成功した場合はポーリングを開始しない
+					} catch (error) {
+						// SSE が利用できない場合のみポーリングにフォールバック
+						console.log('SSE not available, falling back to polling', error);
+						useSSE = false; // SSE を無効化
 						startPolling();
 					}
 				} else {
@@ -44,8 +57,15 @@
 			})
 			.catch(() => {
 				setDisconnected();
+				// エラー時もポーリングを開始（SSE は使わない）
+				useSSE = false;
 				startPolling();
 			});
+
+		// クリーンアップ
+		return () => {
+			window.removeEventListener('sse-failed', handleSSEFailed);
+		};
 	});
 
 	onDestroy(() => {
