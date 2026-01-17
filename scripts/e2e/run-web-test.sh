@@ -63,28 +63,55 @@ collect_artifacts() {
     log_step "アーティファクト収集"
     init_artifacts_dir
 
+    local artifacts_collected=0
+    local artifacts_failed=0
+
     # 現在の状態をJSON として保存（取得済みの場合）
     if [[ -n "${ACTUAL_STATE:-}" ]]; then
-        save_artifact "actual-state.json" "$ACTUAL_STATE"
+        if save_artifact "actual-state.json" "$ACTUAL_STATE" 2>/dev/null; then
+            ((artifacts_collected++))
+            log_info "✓ 状態ファイル保存"
+        else
+            ((artifacts_failed++))
+            log_warn "✗ 状態ファイル保存失敗"
+        fi
     fi
 
     # サーバーログがあれば保存
     if [[ -f "${TEST_DIR:-/tmp}/server.log" ]]; then
-        copy_artifact "${TEST_DIR}/server.log" "server.log"
+        if copy_artifact "${TEST_DIR}/server.log" "server.log" 2>/dev/null; then
+            ((artifacts_collected++))
+            log_info "✓ サーバーログ保存"
+        else
+            ((artifacts_failed++))
+            log_warn "✗ サーバーログ保存失敗"
+        fi
     fi
 
     # テストプロジェクトの状態
     if [[ -d "${TEST_DIR:-/tmp}/.zeus" ]]; then
-        tar -czf "${ARTIFACTS_DIR}/zeus-data.tar.gz" -C "$TEST_DIR" .zeus 2>/dev/null || true
+        if tar -czf "${ARTIFACTS_DIR}/zeus-data.tar.gz" -C "$TEST_DIR" .zeus 2>/dev/null; then
+            ((artifacts_collected++))
+            log_info "✓ Zeus データ保存"
+        else
+            ((artifacts_failed++))
+            log_warn "✗ Zeus データ保存失敗"
+        fi
     fi
 
     # スクリーンショット取得（セッションが有効な場合）
     if [[ -n "$SESSION" ]]; then
-        log_info "スクリーンショット取得試行"
-        agent-browser --session "$SESSION" --json screenshot \
-            --output "${ARTIFACTS_DIR}/screenshot.png" 2>/dev/null || true
+        if agent-browser --session "$SESSION" --json screenshot \
+            --output "${ARTIFACTS_DIR}/screenshot.png" 2>/dev/null; then
+            ((artifacts_collected++))
+            log_info "✓ スクリーンショット保存"
+        else
+            ((artifacts_failed++))
+            log_warn "✗ スクリーンショット保存失敗"
+        fi
     fi
 
+    log_info "アーティファクト収集完了: 成功=$artifacts_collected, 失敗=$artifacts_failed"
     log_info "アーティファクト保存先: $ARTIFACTS_DIR"
 }
 
@@ -150,7 +177,11 @@ setup_test_project() {
 start_dashboard() {
     log_step "ダッシュボードサーバー起動"
 
-    cd "$TEST_DIR"
+    # テストディレクトリに移動（失敗ハンドリング）
+    if ! cd "$TEST_DIR"; then
+        log_error "テストディレクトリへの移動に失敗: $TEST_DIR"
+        return 1
+    fi
 
     # サーバー起動（バックグラウンド）
     "${PROJECT_ROOT}/zeus" dashboard --port "$DASHBOARD_PORT" --no-open \
@@ -295,14 +326,25 @@ collect_metrics() {
     json_string=$(eval_with_validation "$SESSION" \
         "JSON.stringify(window.__VIEWER_METRICS__ || [])") || {
         log_warn "メトリクス取得失敗（非致命的）"
-        metrics="[]"
         json_string="[]"
     }
 
+    # JSON パースと null チェック
     metrics=$(echo "$json_string" | jq '.' 2>/dev/null) || metrics="[]"
+
+    if [[ -z "$metrics" || "$metrics" == "null" ]]; then
+        log_warn "メトリクスが無効です（null またはパース失敗）"
+        metrics="[]"
+    fi
 
     local count
     count=$(echo "$metrics" | jq 'length' 2>/dev/null) || count=0
+
+    # count の妥当性チェック
+    if [[ -z "$count" || ! "$count" =~ ^[0-9]+$ ]]; then
+        log_warn "メトリクス数が不正です: $count"
+        count=0
+    fi
 
     log_info "収集メトリクス数: $count"
 

@@ -64,11 +64,31 @@ main() {
 
     # ゴールデン形式に変換して保存
     log_step "ゴールデンファイル生成"
-    convert_to_golden_format "$actual_state" \
-        "basic-tasks-001" \
-        "Basic project with 3 tasks forming a chain" \
-        > "$GOLDEN_FILE"
 
+    # スキーマバージョン確認（既存ゴールデンがある場合）
+    if [[ -f "$BACKUP_FILE" ]]; then
+        local current_schema
+        current_schema=$(jq -r '.metadata.schema_version' "$BACKUP_FILE" 2>/dev/null) || {
+            log_warn "既存ゴールデンのスキーマバージョンが読めません"
+            current_schema="unknown"
+        }
+        log_info "現在のスキーマバージョン: $current_schema"
+    fi
+
+    local new_golden
+    new_golden=$(convert_to_golden_format "$actual_state" \
+        "basic-tasks-001" \
+        "Basic project with 3 tasks forming a chain")
+
+    # スキーマバージョン確認
+    local new_schema
+    new_schema=$(echo "$new_golden" | jq -r '.metadata.schema_version' 2>/dev/null) || {
+        log_error "新規ゴールデンのスキーマバージョン抽出失敗"
+        return 1
+    }
+    log_info "新規スキーマバージョン: $new_schema"
+
+    echo "$new_golden" > "$GOLDEN_FILE"
     log_success "ゴールデンファイル更新: $GOLDEN_FILE"
     echo ""
 
