@@ -48,6 +48,7 @@ paths:
 - `GET /api/timeline` - タイムラインとクリティカルパス
 - `GET /api/downstream?task_id=X` - 下流・上流タスク取得
 - `GET /api/events` - SSE ストリーム（リアルタイム更新）
+- `POST /api/metrics` - メトリクス保存（Graph View 計測ログ）
 
 ## ダッシュボード機能
 

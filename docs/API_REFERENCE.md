@@ -932,6 +932,62 @@ Press Ctrl+C to stop the server
 
 ---
 
+### 2.9 WBS・タイムライン（Phase 6）
+
+Phase 6 で追加された WBS 階層とタイムライン機能です。
+
+#### ダッシュボード API エンドポイント
+
+| エンドポイント | メソッド | 説明 |
+|---------------|---------|------|
+| `/api/wbs` | GET | WBS 階層データを取得 |
+| `/api/timeline` | GET | タイムラインデータを取得 |
+| `/api/downstream/<id>` | GET | 指定タスクの影響範囲（downstream 依存）を取得 |
+
+**使用例**
+```bash
+# WBS 階層データを取得
+curl http://localhost:8080/api/wbs | jq
+
+# タイムラインデータを取得
+curl http://localhost:8080/api/timeline | jq
+
+# 特定タスクの影響範囲を取得
+curl http://localhost:8080/api/downstream/task-001 | jq
+```
+
+**WBS レスポンス例**
+```json
+{
+  "nodes": [
+    {
+      "id": "task-001",
+      "title": "親タスク",
+      "wbs_code": "1",
+      "children": ["task-002", "task-003"]
+    }
+  ]
+}
+```
+
+**タイムライン レスポンス例**
+```json
+{
+  "items": [
+    {
+      "id": "task-001",
+      "title": "タスク名",
+      "start_date": "2026-01-15",
+      "due_date": "2026-01-31",
+      "progress": 50,
+      "is_critical": true
+    }
+  ]
+}
+```
+
+---
+
 ## 3. データ型
 
 ### 3.1 TaskStatus
@@ -1121,6 +1177,6 @@ dependencies:
 
 ---
 
-*Zeus API Reference v1.1*
+*Zeus API Reference v1.2*
 *作成日: 2026-01-15*
-*更新日: 2026-01-16（init コマンド簡略化）*
+*更新日: 2026-01-17（Phase 6 エンドポイント追加）*

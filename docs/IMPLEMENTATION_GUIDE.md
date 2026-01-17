@@ -198,10 +198,8 @@ var initCmd = &cobra.Command{
     Short: "Zeus プロジェクトを初期化",
     Long:  `プロジェクトディレクトリに .zeus/ と .claude/ を生成します。`,
     RunE: func(cmd *cobra.Command, args []string) error {
-        level, _ := cmd.Flags().GetString("level")
-
         zeus := core.New(".")
-        result, err := zeus.Init(level)
+        result, err := zeus.Init()
         if err != nil {
             return err
         }
@@ -262,9 +260,9 @@ func New(projectPath string) *Zeus {
 }
 
 // Init はプロジェクトを初期化
-func (z *Zeus) Init(level string) (*InitResult, error) {
+func (z *Zeus) Init() (*InitResult, error) {
     // .zeus ディレクトリ構造を作成
-    if err := z.createZeusStructure(level); err != nil {
+    if err := z.createZeusStructure(); err != nil {
         return nil, err
     }
 
@@ -281,14 +279,18 @@ func (z *Zeus) Init(level string) (*InitResult, error) {
 
     return &InitResult{
         Success:    true,
-        Level:      level,
         ZeusPath:   z.ZeusPath,
         ClaudePath: z.ClaudePath,
     }, nil
 }
 
-func (z *Zeus) createZeusStructure(level string) error {
-    dirs := z.getDirectoryStructure(level)
+func (z *Zeus) createZeusStructure() error {
+    dirs := []string{
+        ".", "config", "tasks", "tasks/_archive",
+        "state", "state/snapshots",
+        "entities", "approvals/pending", "approvals/approved", "approvals/rejected",
+        "logs", "analytics", "backups",
+    }
     for _, dir := range dirs {
         path := filepath.Join(z.ZeusPath, dir)
         if err := os.MkdirAll(path, 0755); err != nil {
@@ -296,32 +298,6 @@ func (z *Zeus) createZeusStructure(level string) error {
         }
     }
     return nil
-}
-
-func (z *Zeus) getDirectoryStructure(level string) []string {
-    switch level {
-    case "simple":
-        return []string{".", "tasks", "state", "backups"}
-    case "standard":
-        return []string{
-            ".", "config", "tasks", "tasks/_archive",
-            "state", "state/snapshots",
-            "entities", "approvals/pending", "approvals/approved", "approvals/rejected",
-            "logs", "analytics", "backups",
-        }
-    case "advanced":
-        return []string{
-            ".", "config", "tasks", "tasks/_archive",
-            "state", "state/snapshots",
-            "entities", "approvals/pending", "approvals/approved", "approvals/rejected",
-            "logs", "logs/ai-actions", "logs/decisions",
-            "analytics", "graph", "graph/computed",
-            "views", "views/templates", "views/generated",
-            "backups", ".local",
-        }
-    default:
-        return []string{".", "tasks", "state", "backups"}
-    }
 }
 
 func (z *Zeus) generateInitialConfig() map[string]interface{} {
@@ -1467,7 +1443,16 @@ make build
 |---------|------|
 | `zeus dashboard` | Web ダッシュボード起動 |
 
-### Phase 6: 外部連携 - 未実装
+### Phase 6: WBS・タイムライン - 完了
+
+| 機能 | 説明 |
+|------|------|
+| WBS 階層 | タスクの階層構造管理 |
+| タイムライン | 開始日・終了日の可視化 |
+| クリティカルパス | 依存関係に基づくクリティカルパス表示 |
+| 影響範囲可視化 | downstream 依存の表示 |
+
+### Phase 7: 外部連携 - 計画中
 
 | 機能 | 説明 |
 |------|------|
@@ -1549,6 +1534,6 @@ func TestHandleStatus(t *testing.T) {
 
 ---
 
-*Zeus Implementation Guide (Go版) v1.1*
+*Zeus Implementation Guide (Go版) v1.2*
 *作成日: 2026-01-14*
-*更新日: 2026-01-15（Phase 4-5 追加）*
+*更新日: 2026-01-17（--level フラグ削除、Phase 6 追加）*

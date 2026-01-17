@@ -38,8 +38,8 @@ zeus suggest                   # AI提案を確認
 zeus apply <id>                # 提案を適用
 
 # 週次レビュー
-zeus review                    # 対話的レビュー
 zeus report --format=html      # レポート生成
+zeus predict                   # 予測分析
 ```
 
 #### 承認ワークフロー
@@ -57,14 +57,11 @@ zeus reject <id> --reason "理由をここに記述"
 
 #### ビュー切替
 ```bash
-# マネージャービュー（デフォルト）
-zeus view manager
-
-# エグゼクティブサマリー
-zeus view executive
-
 # 詳細ビュー
 zeus status
+
+# ダッシュボードで可視化
+zeus dashboard
 ```
 
 ### 2.2 技術リーダー/アーキテクト向け
@@ -72,58 +69,50 @@ zeus status
 #### タスク分析
 ```bash
 # タスク構造の確認
-zeus list tasks --with-deps    # 依存関係付き
+zeus list tasks                # タスク一覧
 zeus explain <task-id>         # AI解説
+zeus graph                     # 依存関係グラフ
 
 # リスク分析
-zeus health                    # プロジェクト健全性
+zeus predict risk              # リスク予測
+zeus doctor                    # プロジェクト診断
 ```
 
-#### 直接編集
+#### YAML直接編集
 ```bash
-# YAMLファイルを直接編集
-zeus edit tasks                # $EDITORで編集
-zeus edit config               # 設定を編集
-```
-
-#### 技術的調整
-```bash
-# 見積もり更新
-zeus update <task-id> estimate_hours 16
-
-# 依存関係追加
-zeus add dependency <task-id> --depends-on <other-id>
+# .zeus/tasks/active.yaml を直接編集
+# 編集後は zeus doctor で構文チェック
 ```
 
 ### 2.3 プロダクトマネージャー向け
 
 #### 目標管理
 ```bash
-# 目標の確認
-zeus list objectives
+# タスク一覧の確認
+zeus list tasks
 
-# 新規目標追加
-zeus add objective "Q2 MVP Release" --deadline 2024-06-30
+# 新規タスク追加
+zeus add task "新機能の実装" --due 2026-03-31
 
 # 進捗確認
-zeus status --objectives
+zeus status
 ```
 
 #### 優先順位調整
 ```bash
 # AI提案の確認
-zeus suggest --category=priorities
+zeus suggest
 
-# 優先順位変更
-zeus update <task-id> priority high
+# 提案を適用
+zeus apply <suggestion-id>
 ```
 
 ### 2.4 経営層/ステークホルダー向け
 
 #### ダッシュボード
 ```bash
-# エグゼクティブビュー
-zeus view executive
+# Web ダッシュボードで可視化
+zeus dashboard
 
 # 簡潔なステータス
 zeus status
@@ -132,10 +121,10 @@ zeus status
 #### レポート
 ```bash
 # HTMLレポート生成
-zeus report --format=html
+zeus report --format=html -o report.html
 
-# JSON出力（BI連携用）
-zeus report --format=json > report.json
+# Markdown レポート
+zeus report --format=markdown -o report.md
 ```
 
 ## 3. コマンドリファレンス
@@ -146,10 +135,10 @@ zeus report --format=json > report.json
 |---------|------|-----------|
 | `zeus init` | プロジェクト初期化 | - |
 | `zeus status` | ステータス表示 | - |
-| `zeus scan` | プロジェクトスキャン | - |
 | `zeus add` | エンティティ追加 | `<entity> <name>` |
-| `zeus update` | エンティティ更新 | `<id> <field> <value>` |
-| `zeus list` | 一覧表示 | `[entity] [--filter]` |
+| `zeus list` | 一覧表示 | `[entity] [--status]` |
+| `zeus doctor` | システム診断 | - |
+| `zeus fix` | 自動修復 | `--dry-run` |
 
 ### 3.2 AI コマンド
 
@@ -166,8 +155,8 @@ zeus report --format=json > report.json
 | `zeus pending` | 承認待ち一覧 | - |
 | `zeus approve` | 承認 | `<id>` |
 | `zeus reject` | 却下 | `<id> [--reason ""]` |
-| `zeus edit` | 直接編集 | `<entity>` |
-| `zeus rollback` | 取り消し | `<override-id>` |
+| `zeus snapshot` | スナップショット管理 | `create\|list\|restore` |
+| `zeus history` | 履歴表示 | `-n <limit>` |
 
 ### 3.4 分析コマンド（Phase 4）
 
@@ -183,31 +172,11 @@ zeus report --format=json > report.json
 |---------|------|-----------|
 | `zeus dashboard` | Web ダッシュボード起動 | `--port <port>`, `--no-open` |
 
-### 3.6 フィードバックコマンド
+### 3.6 ユーティリティコマンド
 
 | コマンド | 説明 | オプション |
 |---------|------|-----------|
-| `zeus ok` | 成功報告 | `<id>` |
-| `zeus ng` | 失敗報告 | `<id> [--reason "..."]` |
-| `zeus review` | 週次レビュー | - |
-| `zeus stats` | 精度統計 | `--detail`, `--json` |
-
-### 3.7 復旧コマンド
-
-| コマンド | 説明 | オプション |
-|---------|------|-----------|
-| `zeus doctor` | システム診断 | - |
-| `zeus fix` | 自動修復 | `--dry-run` |
-| `zeus restore` | バックアップ復元 | `[point]`, `--latest` |
-| `zeus resume` | 通常モード復帰 | - |
-
-### 3.8 自動化コマンド
-
-| コマンド | 説明 | オプション |
-|---------|------|-----------|
-| `zeus automation status` | 自動化状態 | - |
-| `zeus automation pause` | 一時停止 | - |
-| `zeus automation resume` | 再開 | - |
+| `zeus update-claude` | Claude Code 連携ファイル再生成 | - |
 
 ## 4. 分析機能の運用（Phase 4）
 
@@ -420,11 +389,10 @@ Morning Check (朝)
 
 Work Session (作業中)
 ├── zeus approve/reject  # 提案への対応
-├── zeus update          # タスク更新
-└── zeus add             # 新規項目追加
+├── zeus add task        # タスク追加
+└── zeus apply           # AI提案の適用
 
 End of Day (終業時)
-├── zeus ok/ng           # フィードバック
 ├── zeus status          # 最終確認
 └── zeus report          # 日次レポート（オプション）
 ```
@@ -432,17 +400,14 @@ End of Day (終業時)
 ### 6.2 週次レビューフロー
 
 ```bash
-# Step 1: AI精度の確認
-zeus stats
+# Step 1: 依存関係の確認
+zeus graph --format mermaid
 
-# Step 2: 対話的レビュー
-zeus review
+# Step 2: 予測分析の確認
+zeus predict
 
 # Step 3: レポート生成
-zeus report --format=html > weekly_report.html
-
-# Step 4: 予測分析の確認
-zeus predict
+zeus report --format=html -o weekly_report.html
 ```
 
 ### 6.3 分析ワークフロー
@@ -582,8 +547,9 @@ Zeusは問題発生時に段階的に機能を制限します：
 # 現在のモード確認
 zeus status
 
-# 通常モードへ復帰
-zeus resume
+# 問題の診断と修復
+zeus doctor
+zeus fix
 ```
 
 ## 9. ベストプラクティス
@@ -593,16 +559,16 @@ zeus resume
 1. **毎日のチェック習慣化**
    - 朝一番に `zeus status` と `zeus pending` を確認
 
-2. **フィードバックを忘れずに**
-   - タスク完了時に `zeus ok` / `zeus ng` を実行
-   - これによりAIの精度が向上
+2. **AI提案の活用**
+   - `zeus suggest` で改善提案を取得
+   - `zeus apply` で提案を適用
 
 3. **週次レビューの実施**
-   - 毎週 `zeus review` で対話的レビュー
-   - 問題点の早期発見
+   - `zeus predict` で予測分析
+   - `zeus report` でレポート生成
 
 4. **直接編集の活用**
-   - 複雑な変更は `zeus edit` で直接YAML編集
+   - 複雑な変更は `.zeus/tasks/active.yaml` を直接編集
    - Gitでの差分管理が容易
 
 5. **分析機能の活用**
@@ -615,16 +581,13 @@ zeus resume
 1. **長期間の承認放置**
    - 7日以上放置すると警告が表示される
 
-2. **フィードバックの省略**
-   - AI精度向上の機会を逃す
-
-3. **バックアップの削除**
+2. **バックアップの削除**
    - `.zeus/backups/` は手動で削除しない
 
-4. **YAMLの直接編集でのシンタックスエラー**
+3. **YAMLの直接編集でのシンタックスエラー**
    - 編集後は `zeus doctor` で確認
 
-5. **ダッシュボードの外部公開**
+4. **ダッシュボードの外部公開**
    - セキュリティリスクがあるため、常にローカルアクセスのみ
 
 ## 10. 設定カスタマイズ
@@ -709,6 +672,6 @@ zeus --version
 
 ---
 
-*Zeus Operations Manual v1.1*
+*Zeus Operations Manual v1.2*
 *作成日: 2026-01-14*
-*更新日: 2026-01-15（Phase 4-5 追加）*
+*更新日: 2026-01-17（未実装コマンドを削除、実装済み機能のみに整理）*

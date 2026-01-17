@@ -40,7 +40,9 @@ make build-all          # 統合ビルド
 ## ダッシュボード計測（Graph View）
 
 - `http://localhost:5173/?metrics` でメトリクス収集を有効化（dev モードでも有効）
+- `?metricsAutoSave` を付けると `/api/metrics` に自動保存（テストモードは自動で有効）
 - 画面右上の `DL` ボタンで `zeus-viewer-metrics-*.json` をダウンロード
+- 自動保存先: `.zeus/metrics/dashboard-metrics-<session>.jsonl`
 - 収集ログは `window.__VIEWER_METRICS__` にも格納され、ステータスバーに件数が表示される
 
 ## 実装フェーズ
@@ -132,3 +134,21 @@ go test ./...                    # 全テスト
 go test -v ./internal/core/...   # 詳細出力
 go test -cover ./...             # カバレッジ
 ```
+
+### E2E テスト
+
+```bash
+go test -v ./tests/e2e/...       # E2E テスト実行
+```
+
+E2E テストは実バイナリをビルドして実行するため、事前の `go build` が必要です。
+
+### ゴールデンテスト
+
+ゴールデンファイルは `.claude/skills/zeus-e2e-tester/resources/golden/` に配置:
+- `cli-init.golden.json` - zeus init 出力検証
+- `cli-graph.golden.json` - zeus graph 出力検証
+- `graph-state.golden.json` - Web グラフ状態検証
+- `integration-graph-state.golden.json` - 統合テスト検証
+
+詳細は `golden/README.md` を参照。
