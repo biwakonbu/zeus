@@ -37,6 +37,12 @@ go run . dashboard --dev  # Go サーバー起動（CORS 有効）
 make build-all          # 統合ビルド
 ```
 
+## ダッシュボード計測（Graph View）
+
+- `http://localhost:5173/?metrics` でメトリクス収集を有効化（dev モードでも有効）
+- 画面右上の `DL` ボタンで `zeus-viewer-metrics-*.json` をダウンロード
+- 収集ログは `window.__VIEWER_METRICS__` にも格納され、ステータスバーに件数が表示される
+
 ## 実装フェーズ
 
 | Phase | 内容 | 状態 |
