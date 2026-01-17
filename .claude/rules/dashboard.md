@@ -77,3 +77,16 @@ paths:
 - 選択タスクの下流タスクを黄色でハイライト
 - 上流タスクを青色でハイライト
 - 選択タスクはオレンジ色で強調
+
+## メトリクス計測（Graph View）
+
+開発時やテスト時に Graph View の操作ログを収集する機能。
+
+**有効化方法:**
+- `http://localhost:5173/?metrics` でメトリクス収集を有効化
+- `?metricsAutoSave` を付けると `/api/metrics` に自動保存（テストモードは自動で有効）
+
+**出力:**
+- 画面右上の `DL` ボタンで `zeus-viewer-metrics-*.json` をダウンロード
+- 自動保存先: `.zeus/metrics/dashboard-metrics-<session>.jsonl`
+- 収集ログは `window.__VIEWER_METRICS__` にも格納され、ステータスバーに件数が表示される
