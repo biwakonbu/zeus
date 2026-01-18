@@ -37,7 +37,7 @@ type TaskStats struct {
 
 // Snapshot はスナップショット情報
 type Snapshot struct {
-	Timestamp string        // タイムスタンプ
+	Timestamp string       // タイムスタンプ
 	State     ProjectState // 状態
 }
 

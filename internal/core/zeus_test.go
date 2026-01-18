@@ -59,7 +59,6 @@ func TestGenerateTaskIDUniqueness(t *testing.T) {
 	}
 }
 
-
 // DI テスト: デフォルト実装が使用されることを確認
 func TestZeusDefaultImplementations(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "zeus-test")

@@ -8,16 +8,16 @@ import (
 
 // TimelineItem はタイムライン上のアイテム
 type TimelineItem struct {
-	TaskID           string `json:"task_id"`
-	Title            string `json:"title"`
-	StartDate        string `json:"start_date"`
-	EndDate          string `json:"end_date"`
-	Progress         int    `json:"progress"`
-	Status           string `json:"status"`
-	Priority         string `json:"priority"`
-	Assignee         string `json:"assignee"`
-	IsOnCriticalPath bool   `json:"is_on_critical_path"`
-	Slack            int    `json:"slack"` // 余裕日数
+	TaskID           string   `json:"task_id"`
+	Title            string   `json:"title"`
+	StartDate        string   `json:"start_date"`
+	EndDate          string   `json:"end_date"`
+	Progress         int      `json:"progress"`
+	Status           string   `json:"status"`
+	Priority         string   `json:"priority"`
+	Assignee         string   `json:"assignee"`
+	IsOnCriticalPath bool     `json:"is_on_critical_path"`
+	Slack            int      `json:"slack"` // 余裕日数
 	Dependencies     []string `json:"dependencies"`
 }
 
@@ -33,12 +33,12 @@ type Timeline struct {
 
 // TimelineStats はタイムライン統計
 type TimelineStats struct {
-	TotalTasks       int     `json:"total_tasks"`
-	TasksWithDates   int     `json:"tasks_with_dates"`
-	OnCriticalPath   int     `json:"on_critical_path"`
-	AverageSlack     float64 `json:"average_slack"`
-	OverdueTasks     int     `json:"overdue_tasks"`
-	CompletedOnTime  int     `json:"completed_on_time"`
+	TotalTasks      int     `json:"total_tasks"`
+	TasksWithDates  int     `json:"tasks_with_dates"`
+	OnCriticalPath  int     `json:"on_critical_path"`
+	AverageSlack    float64 `json:"average_slack"`
+	OverdueTasks    int     `json:"overdue_tasks"`
+	CompletedOnTime int     `json:"completed_on_time"`
 }
 
 // TimelineBuilder はタイムラインを構築するビルダー

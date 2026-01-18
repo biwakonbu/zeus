@@ -10,14 +10,26 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"clean": "rm -rf build .svelte-kit"
+		"clean": "rm -rf build .svelte-kit",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix",
+		"format": "prettier --write ."
 	},
 	"devDependencies": {
+		"@eslint/js": "^9.39.2",
 		"@sveltejs/adapter-static": "^3.0.0",
 		"@sveltejs/kit": "^2.49.1",
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
+		"@typescript-eslint/eslint-plugin": "^8.53.0",
+		"@typescript-eslint/parser": "^8.53.0",
+		"eslint": "^9.39.2",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-svelte": "^3.14.0",
+		"prettier": "^3.8.0",
+		"prettier-plugin-svelte": "^3.4.1",
 		"svelte": "^5.45.6",
 		"svelte-check": "^4.3.4",
+		"svelte-eslint-parser": "^0.43.0",
 		"typescript": "^5.9.3",
 		"vite": "^7.2.6"
 	},

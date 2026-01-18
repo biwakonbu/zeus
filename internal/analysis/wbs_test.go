@@ -123,10 +123,10 @@ func TestWBSBuilder_DetectParentCycles_NonExistentParent(t *testing.T) {
 func TestWBSBuilder_DetectParentCycles_MixedCycleAndNonCycle(t *testing.T) {
 	// 一部に循環あり、他は正常
 	tasks := []TaskInfo{
-		{ID: "task-a", Title: "Task A", ParentID: ""},          // ルート
-		{ID: "task-b", Title: "Task B", ParentID: "task-a"},    // 正常
-		{ID: "task-c", Title: "Task C", ParentID: "task-d"},    // 循環
-		{ID: "task-d", Title: "Task D", ParentID: "task-c"},    // 循環
+		{ID: "task-a", Title: "Task A", ParentID: ""},       // ルート
+		{ID: "task-b", Title: "Task B", ParentID: "task-a"}, // 正常
+		{ID: "task-c", Title: "Task C", ParentID: "task-d"}, // 循環
+		{ID: "task-d", Title: "Task D", ParentID: "task-c"}, // 循環
 	}
 
 	builder := NewWBSBuilder(tasks)
