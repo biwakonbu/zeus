@@ -175,12 +175,12 @@ Task ベースのシステムを拡張し、プロジェクト管理の本質的
 
 ## ドキュメント
 
-- `docs/SYSTEM_DESIGN.md` - システム設計書（必読）
-- `docs/IMPLEMENTATION_GUIDE.md` - Go 実装ガイド
-- `docs/OPERATIONS_MANUAL.md` - 運用マニュアル
-- `docs/DETAILED_DESIGN.md` - 10概念モデル詳細設計
-- `docs/API_SPEC.md` - API 仕様（将来実装）
-- `docs/SECURITY.md` - セキュリティ実装ガイド
+- `docs/system-design.md` - システム設計書（必読）
+- `docs/implementation-guide.md` - Go 実装ガイド
+- `docs/operations-manual.md` - 運用マニュアル
+- `docs/detailed-design.md` - 10概念モデル詳細設計
+- `docs/api-spec.md` - API 仕様（将来実装）
+- `docs/security.md` - セキュリティ実装ガイド
 
 ## 詳細情報
 
