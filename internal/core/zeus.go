@@ -20,10 +20,11 @@ type Zeus struct {
 	ClaudePath  string
 
 	// インターフェースに依存（DI対応）
-	fileStore      FileStore
-	stateStore     StateStore
-	approvalStore  ApprovalStore
-	entityRegistry *EntityRegistry
+	fileStore        FileStore
+	stateStore       StateStore
+	approvalStore    ApprovalStore
+	entityRegistry   *EntityRegistry
+	idCounterManager *IDCounterManager
 }
 
 // Option は Zeus の設定オプション
@@ -82,29 +83,32 @@ func New(projectPath string, opts ...Option) *Zeus {
 	if z.approvalStore == nil {
 		z.approvalStore = NewApprovalManager(zeusPath, z.fileStore)
 	}
+	if z.idCounterManager == nil {
+		z.idCounterManager = NewIDCounterManager(z.fileStore)
+	}
 	if z.entityRegistry == nil {
 		z.entityRegistry = NewEntityRegistry()
 		z.entityRegistry.Register(NewTaskHandler(z.fileStore))
 
 		// 10 概念モデルのハンドラー登録（Phase 1）
 		z.entityRegistry.Register(NewVisionHandler(z.fileStore))
-		objHandler := NewObjectiveHandler(z.fileStore)
+		objHandler := NewObjectiveHandler(z.fileStore, z.idCounterManager)
 		z.entityRegistry.Register(objHandler)
-		delHandler := NewDeliverableHandler(z.fileStore, objHandler)
+		delHandler := NewDeliverableHandler(z.fileStore, objHandler, z.idCounterManager)
 		z.entityRegistry.Register(delHandler)
 
 		// 10 概念モデルのハンドラー登録（Phase 2）
-		conHandler := NewConsiderationHandler(z.fileStore, objHandler, delHandler)
+		conHandler := NewConsiderationHandler(z.fileStore, objHandler, delHandler, z.idCounterManager)
 		z.entityRegistry.Register(conHandler)
-		decHandler := NewDecisionHandler(z.fileStore, conHandler)
+		decHandler := NewDecisionHandler(z.fileStore, conHandler, z.idCounterManager)
 		z.entityRegistry.Register(decHandler)
-		z.entityRegistry.Register(NewProblemHandler(z.fileStore, objHandler, delHandler))
-		z.entityRegistry.Register(NewRiskHandler(z.fileStore, objHandler, delHandler))
-		z.entityRegistry.Register(NewAssumptionHandler(z.fileStore, objHandler, delHandler))
+		z.entityRegistry.Register(NewProblemHandler(z.fileStore, objHandler, delHandler, z.idCounterManager))
+		z.entityRegistry.Register(NewRiskHandler(z.fileStore, objHandler, delHandler, z.idCounterManager))
+		z.entityRegistry.Register(NewAssumptionHandler(z.fileStore, objHandler, delHandler, z.idCounterManager))
 
 		// 10 概念モデルのハンドラー登録（Phase 3）
 		z.entityRegistry.Register(NewConstraintHandler(z.fileStore))
-		z.entityRegistry.Register(NewQualityHandler(z.fileStore, delHandler))
+		z.entityRegistry.Register(NewQualityHandler(z.fileStore, delHandler, z.idCounterManager))
 	}
 
 	return z

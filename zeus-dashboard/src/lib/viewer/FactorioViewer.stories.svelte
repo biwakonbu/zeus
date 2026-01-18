@@ -194,3 +194,75 @@
 	</div>
 </Story>
 
+<!-- 大規模グラフ（100+ ノード） -->
+<Story name="LargeGraph">
+	{@const generateLargeTasks = () => {
+		const tasks: TaskItem[] = [];
+		const assignees = ['alice', 'bob', 'charlie', 'david', 'eve'];
+		const priorities = ['high', 'medium', 'low'] as const;
+		const statuses = ['completed', 'in_progress', 'pending', 'blocked'] as const;
+
+		// 120 ノードを生成（12 レイヤー × 10 ノード）
+		for (let layer = 0; layer < 12; layer++) {
+			for (let node = 0; node < 10; node++) {
+				const id = `task-${layer}-${node}`;
+				const deps: string[] = [];
+
+				// 前レイヤーからランダムに 1-3 個の依存を追加
+				if (layer > 0) {
+					const numDeps = Math.min(3, Math.floor(Math.random() * 3) + 1);
+					for (let d = 0; d < numDeps; d++) {
+						const depNode = Math.floor(Math.random() * 10);
+						const depId = `task-${layer - 1}-${depNode}`;
+						if (!deps.includes(depId)) deps.push(depId);
+					}
+				}
+
+				const statusIdx = layer < 4 ? 0 : layer < 8 ? Math.min(layer - 4, 1) : Math.min(layer - 8, 3);
+				tasks.push({
+					id,
+					title: `タスク ${layer + 1}-${node + 1}`,
+					status: statuses[statusIdx],
+					priority: priorities[node % 3],
+					assignee: assignees[node % 5],
+					dependencies: deps,
+					progress: statuses[statusIdx] === 'completed' ? 100 : statuses[statusIdx] === 'in_progress' ? Math.floor(Math.random() * 80) + 10 : 0
+				});
+			}
+		}
+		return tasks;
+	}}
+	{@const largeTasks = generateLargeTasks()}
+	<div style="height: 800px; background: var(--bg-primary);">
+		<FactorioViewer
+			tasks={largeTasks}
+			onTaskSelect={handleTaskSelect}
+			onTaskHover={handleTaskHover}
+		/>
+	</div>
+</Story>
+
+<!-- Objective ノード付きグラフ（10概念モデル） -->
+<Story name="WithObjectives">
+	{@const objectiveTasks: TaskItem[] = [
+		// Objective ノード（親タスクとして表現）
+		{ id: 'obj-1', title: 'Phase 1: MVP 開発', status: 'completed', priority: 'high', assignee: '', dependencies: [], progress: 100, wbs_code: '1.0' },
+		{ id: 'obj-2', title: 'Phase 2: 標準機能', status: 'in_progress', priority: 'high', assignee: '', dependencies: ['obj-1'], progress: 60, wbs_code: '2.0' },
+		{ id: 'obj-3', title: 'Phase 3: AI 統合', status: 'pending', priority: 'medium', assignee: '', dependencies: ['obj-2'], progress: 0, wbs_code: '3.0' },
+		// 実際のタスク
+		{ id: 'task-1', title: 'CLI 基盤実装', status: 'completed', priority: 'high', assignee: 'alice', dependencies: ['obj-1'], progress: 100, parent_id: 'obj-1' },
+		{ id: 'task-2', title: 'YAML パーサー', status: 'completed', priority: 'high', assignee: 'bob', dependencies: ['task-1'], progress: 100, parent_id: 'obj-1' },
+		{ id: 'task-3', title: '承認システム', status: 'in_progress', priority: 'high', assignee: 'alice', dependencies: ['obj-2', 'task-2'], progress: 75, parent_id: 'obj-2' },
+		{ id: 'task-4', title: 'スナップショット', status: 'in_progress', priority: 'medium', assignee: 'charlie', dependencies: ['obj-2'], progress: 40, parent_id: 'obj-2' },
+		{ id: 'task-5', title: 'Claude 連携', status: 'pending', priority: 'high', assignee: 'alice', dependencies: ['obj-3', 'task-3'], progress: 0, parent_id: 'obj-3' },
+		{ id: 'task-6', title: '分析機能', status: 'pending', priority: 'medium', assignee: 'bob', dependencies: ['obj-3', 'task-4'], progress: 0, parent_id: 'obj-3' }
+	]}
+	<div style="height: 600px; background: var(--bg-primary);">
+		<FactorioViewer
+			tasks={objectiveTasks}
+			onTaskSelect={handleTaskSelect}
+			onTaskHover={handleTaskHover}
+		/>
+	</div>
+</Story>
+

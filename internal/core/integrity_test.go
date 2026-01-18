@@ -30,8 +30,8 @@ func setupIntegrityCheckerTest(t *testing.T) (*IntegrityChecker, *ObjectiveHandl
 	}
 
 	fs := yaml.NewFileManager(zeusPath)
-	objHandler := NewObjectiveHandler(fs)
-	delHandler := NewDeliverableHandler(fs, objHandler)
+	objHandler := NewObjectiveHandler(fs, nil)
+	delHandler := NewDeliverableHandler(fs, objHandler, nil)
 	checker := NewIntegrityChecker(objHandler, delHandler)
 
 	cleanup := func() {

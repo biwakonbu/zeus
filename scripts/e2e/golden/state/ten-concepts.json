@@ -1,0 +1,106 @@
+{
+  "metadata": {
+    "test_id": "ten-concepts-001",
+    "schema_version": "1.0",
+    "zeus_version": ">=0.2.0",
+    "created": "2026-01-19",
+    "description": "10概念モデル Phase 1-3 の基本プロジェクト状態"
+  },
+  "comparison": {
+    "mode": "structural",
+    "ignore_fields": ["nodes[*].x", "nodes[*].y", "nodes[*].id", "viewport", "created_at", "updated_at"],
+    "edge_mode": "by_name"
+  },
+  "expected": {
+    "vision": {
+      "title": "テストビジョン",
+      "statement": "テスト用のプロジェクトビジョン"
+    },
+    "objectives": [
+      {
+        "title": "Phase 1 目標",
+        "wbs_code": "1.0",
+        "status": "not_started"
+      }
+    ],
+    "deliverables": [
+      {
+        "title": "設計書",
+        "format": "document",
+        "objective_id_ref": "obj-001"
+      }
+    ],
+    "considerations": [
+      {
+        "title": "技術選定",
+        "status": "open",
+        "objective_id_ref": "obj-001"
+      }
+    ],
+    "decisions": [
+      {
+        "title": "React採用",
+        "consideration_id_ref": "con-001",
+        "selected_option": {
+          "id": "opt-1",
+          "title": "React"
+        },
+        "rationale": "コミュニティの大きさとエコシステム"
+      }
+    ],
+    "problems": [
+      {
+        "title": "パフォーマンス問題",
+        "severity": "high",
+        "status": "open",
+        "objective_id_ref": "obj-001"
+      }
+    ],
+    "risks": [
+      {
+        "title": "外部API依存",
+        "probability": "medium",
+        "impact": "high",
+        "score": 6,
+        "objective_id_ref": "obj-001"
+      }
+    ],
+    "assumptions": [
+      {
+        "title": "ユーザー数1000人以下",
+        "status": "unverified",
+        "objective_id_ref": "obj-001"
+      }
+    ],
+    "constraints": [
+      {
+        "title": "外部DB不使用",
+        "category": "technical",
+        "non_negotiable": true
+      }
+    ],
+    "quality": [
+      {
+        "title": "コードカバレッジ",
+        "deliverable_id_ref": "del-001",
+        "metric": {
+          "name": "coverage",
+          "target": 80,
+          "unit": "%"
+        }
+      }
+    ],
+    "counts": {
+      "visionCount": 1,
+      "objectiveCount": 1,
+      "deliverableCount": 1,
+      "considerationCount": 1,
+      "decisionCount": 1,
+      "problemCount": 1,
+      "riskCount": 1,
+      "assumptionCount": 1,
+      "constraintCount": 1,
+      "qualityCount": 1
+    }
+  }
+}

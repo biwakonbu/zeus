@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "test_id": "valid-refs-001",
+    "schema_version": "1.0",
+    "zeus_version": ">=0.2.0",
+    "created": "2026-01-19",
+    "description": "参照整合性検証用ゴールデンテスト"
+  },
+  "comparison": {
+    "mode": "structural",
+    "ignore_fields": ["checked_at", "duration_ms"]
+  },
+  "expected": {
+    "doctor_output": {
+      "overall": "healthy",
+      "reference_integrity": "pass",
+      "cyclic_reference": "pass",
+      "orphan_check": "pass"
+    },
+    "reference_chains": {
+      "deliverable_to_objective": {
+        "valid": true,
+        "count": 1
+      },
+      "decision_to_consideration": {
+        "valid": true,
+        "count": 1
+      },
+      "quality_to_deliverable": {
+        "valid": true,
+        "count": 1
+      },
+      "problem_to_objective": {
+        "valid": true,
+        "count": 1
+      },
+      "risk_to_objective": {
+        "valid": true,
+        "count": 1
+      },
+      "assumption_to_objective": {
+        "valid": true,
+        "count": 1
+      }
+    },
+    "invalid_reference_detection": {
+      "nonexistent_objective_ref": {
+        "should_fail": true,
+        "error_type": "reference_not_found"
+      },
+      "nonexistent_consideration_ref": {
+        "should_fail": true,
+        "error_type": "reference_not_found"
+      },
+      "nonexistent_deliverable_ref": {
+        "should_fail": true,
+        "error_type": "reference_not_found"
+      }
+    },
+    "cyclic_reference_detection": {
+      "objective_parent_cycle": {
+        "should_detect": true,
+        "error_type": "cyclic_reference"
+      }
+    },
+    "entity_counts": {
+      "vision": 1,
+      "objectives": 1,
+      "deliverables": 1,
+      "considerations": 1,
+      "decisions": 1,
+      "problems": 1,
+      "risks": 1,
+      "assumptions": 1,
+      "constraints": 1,
+      "quality": 1
+    }
+  }
+}

@@ -195,3 +195,226 @@ export interface DownstreamResponse {
 	upstream: string[];
 	count: number;
 }
+
+// =============================================================================
+// 10概念モデル API レスポンス
+// =============================================================================
+
+// Vision
+export interface VisionResponse {
+	vision: Vision | null;
+}
+
+export interface Vision {
+	title: string;
+	statement: string;
+	created_at: string;
+	updated_at: string;
+}
+
+// Objective
+export interface ObjectivesResponse {
+	objectives: Objective[];
+	total: number;
+}
+
+export interface Objective {
+	id: string;
+	title: string;
+	description?: string;
+	wbs_code: string;
+	status: ObjectiveStatus;
+	parent_id?: string;
+	start_date?: string;
+	due_date?: string;
+	progress: number;
+	created_at: string;
+	updated_at: string;
+}
+
+export type ObjectiveStatus = 'not_started' | 'in_progress' | 'completed' | 'on_hold';
+
+// Deliverable
+export interface DeliverablesResponse {
+	deliverables: Deliverable[];
+	total: number;
+}
+
+export interface Deliverable {
+	id: string;
+	title: string;
+	description?: string;
+	format: DeliverableFormat;
+	objective_id: string;
+	status: DeliverableStatus;
+	due_date?: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export type DeliverableFormat = 'document' | 'code' | 'design' | 'other';
+export type DeliverableStatus = 'draft' | 'in_review' | 'approved' | 'delivered';
+
+// Consideration
+export interface ConsiderationsResponse {
+	considerations: Consideration[];
+	total: number;
+}
+
+export interface Consideration {
+	id: string;
+	title: string;
+	description?: string;
+	status: ConsiderationStatus;
+	objective_id?: string;
+	options: ConsiderationOption[];
+	due_date?: string;
+	decision_id?: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface ConsiderationOption {
+	id: string;
+	title: string;
+	description?: string;
+	pros?: string[];
+	cons?: string[];
+}
+
+export type ConsiderationStatus = 'open' | 'decided' | 'deferred';
+
+// Decision
+export interface DecisionsResponse {
+	decisions: Decision[];
+	total: number;
+}
+
+export interface Decision {
+	id: string;
+	title: string;
+	consideration_id: string;
+	selected_option: {
+		id: string;
+		title: string;
+	};
+	rationale: string;
+	decided_at: string;
+	created_at: string;
+}
+
+// Problem
+export interface ProblemsResponse {
+	problems: Problem[];
+	total: number;
+}
+
+export interface Problem {
+	id: string;
+	title: string;
+	description?: string;
+	severity: Severity;
+	status: ProblemStatus;
+	objective_id?: string;
+	deliverable_id?: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export type Severity = 'low' | 'medium' | 'high' | 'critical';
+export type ProblemStatus = 'open' | 'investigating' | 'resolved' | 'wont_fix';
+
+// Risk
+export interface RisksResponse {
+	risks: Risk[];
+	total: number;
+}
+
+export interface Risk {
+	id: string;
+	title: string;
+	description?: string;
+	probability: RiskProbability;
+	impact: RiskImpact;
+	score: number;
+	status: RiskStatus;
+	objective_id?: string;
+	deliverable_id?: string;
+	mitigation?: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export type RiskProbability = 'low' | 'medium' | 'high';
+export type RiskImpact = 'low' | 'medium' | 'high';
+export type RiskStatus = 'identified' | 'mitigating' | 'mitigated' | 'accepted';
+
+// Assumption
+export interface AssumptionsResponse {
+	assumptions: Assumption[];
+	total: number;
+}
+
+export interface Assumption {
+	id: string;
+	title: string;
+	description?: string;
+	status: AssumptionStatus;
+	objective_id?: string;
+	verified_at?: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export type AssumptionStatus = 'unverified' | 'verified' | 'invalid';
+
+// Constraint
+export interface ConstraintsResponse {
+	constraints: Constraint[];
+	total: number;
+}
+
+export interface Constraint {
+	id: string;
+	title: string;
+	description?: string;
+	category: ConstraintCategory;
+	non_negotiable: boolean;
+	created_at: string;
+	updated_at: string;
+}
+
+export type ConstraintCategory = 'technical' | 'business' | 'legal' | 'resource' | 'time';
+
+// Quality
+export interface QualityResponse {
+	quality_items: QualityItem[];
+	total: number;
+}
+
+export interface QualityItem {
+	id: string;
+	title: string;
+	description?: string;
+	deliverable_id: string;
+	metric?: QualityMetric;
+	gate?: QualityGate;
+	status: QualityStatus;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface QualityMetric {
+	name: string;
+	target: number;
+	current?: number;
+	unit: string;
+}
+
+export interface QualityGate {
+	name: string;
+	passed: boolean;
+	checked_at?: string;
+}
+
+export type QualityStatus = 'not_checked' | 'passing' | 'failing';

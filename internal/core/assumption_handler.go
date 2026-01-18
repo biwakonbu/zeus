@@ -16,15 +16,17 @@ type AssumptionHandler struct {
 	sanitizer          *Sanitizer
 	objectiveHandler   *ObjectiveHandler
 	deliverableHandler *DeliverableHandler
+	idCounterManager   *IDCounterManager
 }
 
 // NewAssumptionHandler は新しい AssumptionHandler を作成
-func NewAssumptionHandler(fs FileStore, objHandler *ObjectiveHandler, delHandler *DeliverableHandler) *AssumptionHandler {
+func NewAssumptionHandler(fs FileStore, objHandler *ObjectiveHandler, delHandler *DeliverableHandler, idMgr *IDCounterManager) *AssumptionHandler {
 	return &AssumptionHandler{
 		fileStore:          fs,
 		sanitizer:          NewSanitizer(),
 		objectiveHandler:   objHandler,
 		deliverableHandler: delHandler,
+		idCounterManager:   idMgr,
 	}
 }
 
@@ -224,8 +226,17 @@ func (h *AssumptionHandler) Delete(ctx context.Context, id string) error {
 	return h.fileStore.Delete(ctx, filePath)
 }
 
-// getNextIDNumber は次の ID 番号を取得
+// getNextIDNumber は次の ID 番号を取得（O(1)）
 func (h *AssumptionHandler) getNextIDNumber(ctx context.Context) (int, error) {
+	if h.idCounterManager != nil {
+		return h.idCounterManager.GetNextID(ctx, "assumption")
+	}
+	// フォールバック: 従来の O(N) 方式
+	return h.getNextIDNumberLegacy(ctx)
+}
+
+// getNextIDNumberLegacy は従来の O(N) 方式で次の ID 番号を取得
+func (h *AssumptionHandler) getNextIDNumberLegacy(ctx context.Context) (int, error) {
 	assumptions, err := h.getAllAssumptions(ctx)
 	if err != nil {
 		return 1, nil

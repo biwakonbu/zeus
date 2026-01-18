@@ -29,8 +29,8 @@ func setupDeliverableHandlerTest(t *testing.T) (*DeliverableHandler, *ObjectiveH
 	}
 
 	fs := yaml.NewFileManager(zeusPath)
-	objHandler := NewObjectiveHandler(fs)
-	delHandler := NewDeliverableHandler(fs, objHandler)
+	objHandler := NewObjectiveHandler(fs, nil)
+	delHandler := NewDeliverableHandler(fs, objHandler, nil)
 
 	cleanup := func() {
 		os.RemoveAll(tmpDir)

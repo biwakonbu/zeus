@@ -12,15 +12,17 @@ import (
 // ObjectiveHandler は ObjectiveEntity エンティティのハンドラー
 // 個別ファイル (objectives/obj-NNN.yaml) で管理
 type ObjectiveHandler struct {
-	fileStore FileStore
-	sanitizer *Sanitizer
+	fileStore        FileStore
+	sanitizer        *Sanitizer
+	idCounterManager *IDCounterManager
 }
 
 // NewObjectiveHandler は新しい ObjectiveHandler を作成
-func NewObjectiveHandler(fs FileStore) *ObjectiveHandler {
+func NewObjectiveHandler(fs FileStore, idMgr *IDCounterManager) *ObjectiveHandler {
 	return &ObjectiveHandler{
-		fileStore: fs,
-		sanitizer: NewSanitizer(),
+		fileStore:        fs,
+		sanitizer:        NewSanitizer(),
+		idCounterManager: idMgr,
 	}
 }
 
@@ -221,8 +223,17 @@ func (h *ObjectiveHandler) Delete(ctx context.Context, id string) error {
 	return h.fileStore.Delete(ctx, filePath)
 }
 
-// getNextIDNumber は次の ID 番号を取得
+// getNextIDNumber は次の ID 番号を取得（O(1)）
 func (h *ObjectiveHandler) getNextIDNumber(ctx context.Context) (int, error) {
+	if h.idCounterManager != nil {
+		return h.idCounterManager.GetNextID(ctx, "objective")
+	}
+	// フォールバック: 従来の O(N) 方式
+	return h.getNextIDNumberLegacy(ctx)
+}
+
+// getNextIDNumberLegacy は従来の O(N) 方式で次の ID 番号を取得
+func (h *ObjectiveHandler) getNextIDNumberLegacy(ctx context.Context) (int, error) {
 	objectives, err := h.getAllObjectives(ctx)
 	if err != nil {
 		return 1, nil // 初回は 1

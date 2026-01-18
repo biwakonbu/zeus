@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -163,4 +164,161 @@ func assertFileNotExists(t *testing.T, path string) {
 	} else if !os.IsNotExist(err) {
 		t.Errorf("ファイル確認エラー: %v", err)
 	}
+}
+
+// =============================================================================
+// 10概念モデル用ヘルパー関数
+// =============================================================================
+
+// extractEntityID はコマンド結果からエンティティIDを抽出する
+// 出力例: "Added objective: Test Objective (ID: obj-001)"
+// prefix: "obj-", "del-", "con-", "dec-", "prob-", "risk-", "assum-", "qual-", "vision-"
+func extractEntityID(t *testing.T, result CommandResult, prefix string) string {
+	t.Helper()
+	re := regexp.MustCompile(`ID: (` + regexp.QuoteMeta(prefix) + `\w+)`)
+	matches := re.FindStringSubmatch(result.Stdout)
+	if len(matches) < 2 {
+		t.Logf("出力からIDを抽出できませんでした（prefix: %s）: %s", prefix, result.Stdout)
+		return ""
+	}
+	return matches[1]
+}
+
+// setupBasicProject は基本プロジェクトをセットアップする（init + Vision + Objective + Deliverable）
+// 返り値: map[string]string{"vision": visionID, "objective": objID, "deliverable": delID}
+func setupBasicProject(t *testing.T, dir string) map[string]string {
+	t.Helper()
+	ids := make(map[string]string)
+
+	// init
+	result := runCommand(t, dir, "init")
+	assertSuccess(t, result)
+
+	// Vision 作成
+	result = runCommand(t, dir, "add", "vision", "テストビジョン",
+		"--statement", "テスト用のプロジェクトビジョン")
+	assertSuccess(t, result)
+	ids["vision"] = "vision-001"
+
+	// Objective 作成
+	result = runCommand(t, dir, "add", "objective", "Phase 1 目標",
+		"--wbs", "1.0",
+		"--due", "2026-03-31")
+	assertSuccess(t, result)
+	objID := extractEntityID(t, result, "obj-")
+	if objID == "" {
+		objID = "obj-001"
+	}
+	ids["objective"] = objID
+
+	// Deliverable 作成（Objective 参照必須）
+	result = runCommand(t, dir, "add", "deliverable", "設計書",
+		"--objective", objID,
+		"--format", "document")
+	assertSuccess(t, result)
+	delID := extractEntityID(t, result, "del-")
+	if delID == "" {
+		delID = "del-001"
+	}
+	ids["deliverable"] = delID
+
+	return ids
+}
+
+// setupDecisionFlow は検討・決定フローをセットアップする
+// 基本プロジェクト（Vision + Objective + Deliverable）の上に Consideration を作成
+// 返り値: map に "consideration" を追加（Decision は後から作成する想定）
+func setupDecisionFlow(t *testing.T, dir string) map[string]string {
+	t.Helper()
+
+	// 基本プロジェクトをセットアップ
+	ids := setupBasicProject(t, dir)
+
+	// Consideration 作成
+	result := runCommand(t, dir, "add", "consideration", "技術選定",
+		"--objective", ids["objective"],
+		"--due", "2026-02-15")
+	assertSuccess(t, result)
+	conID := extractEntityID(t, result, "con-")
+	if conID == "" {
+		conID = "con-001"
+	}
+	ids["consideration"] = conID
+
+	return ids
+}
+
+// setupFullProject はすべてのエンティティを含むプロジェクトをセットアップする
+// Phase 1-3 の各エンティティを作成し、参照整合性テスト用に使用
+func setupFullProject(t *testing.T, dir string) map[string]string {
+	t.Helper()
+
+	// 基本 + Consideration フローをセットアップ
+	ids := setupDecisionFlow(t, dir)
+
+	// Decision 作成
+	result := runCommand(t, dir, "add", "decision", "React採用",
+		"--consideration", ids["consideration"],
+		"--selected-opt-id", "opt-1",
+		"--selected-title", "React",
+		"--rationale", "コミュニティの大きさとエコシステム")
+	assertSuccess(t, result)
+	decID := extractEntityID(t, result, "dec-")
+	if decID == "" {
+		decID = "dec-001"
+	}
+	ids["decision"] = decID
+
+	// Problem 作成
+	result = runCommand(t, dir, "add", "problem", "パフォーマンス問題",
+		"--severity", "high",
+		"--objective", ids["objective"])
+	assertSuccess(t, result)
+	probID := extractEntityID(t, result, "prob-")
+	if probID == "" {
+		probID = "prob-001"
+	}
+	ids["problem"] = probID
+
+	// Risk 作成
+	result = runCommand(t, dir, "add", "risk", "外部API依存",
+		"--probability", "medium",
+		"--impact", "high",
+		"--objective", ids["objective"])
+	assertSuccess(t, result)
+	riskID := extractEntityID(t, result, "risk-")
+	if riskID == "" {
+		riskID = "risk-001"
+	}
+	ids["risk"] = riskID
+
+	// Assumption 作成
+	result = runCommand(t, dir, "add", "assumption", "ユーザー数1000人以下",
+		"--objective", ids["objective"])
+	assertSuccess(t, result)
+	assumID := extractEntityID(t, result, "assum-")
+	if assumID == "" {
+		assumID = "assum-001"
+	}
+	ids["assumption"] = assumID
+
+	// Constraint 作成
+	result = runCommand(t, dir, "add", "constraint", "外部DB不使用",
+		"--category", "technical",
+		"--non-negotiable")
+	assertSuccess(t, result)
+	ids["constraint"] = "constraint" // Constraint はグローバルファイルのため固定
+
+	// Quality 作成
+	result = runCommand(t, dir, "add", "quality", "コードカバレッジ",
+		"--deliverable", ids["deliverable"],
+		"--metric", "coverage:80:%")
+	assertSuccess(t, result)
+	qualID := extractEntityID(t, result, "qual-")
+	if qualID == "" {
+		qualID = "qual-001"
+	}
+	ids["quality"] = qualID
+
+	return ids
 }

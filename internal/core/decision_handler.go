@@ -16,14 +16,16 @@ type DecisionHandler struct {
 	fileStore            FileStore
 	sanitizer            *Sanitizer
 	considerationHandler *ConsiderationHandler
+	idCounterManager     *IDCounterManager
 }
 
 // NewDecisionHandler は新しい DecisionHandler を作成
-func NewDecisionHandler(fs FileStore, conHandler *ConsiderationHandler) *DecisionHandler {
+func NewDecisionHandler(fs FileStore, conHandler *ConsiderationHandler, idMgr *IDCounterManager) *DecisionHandler {
 	return &DecisionHandler{
 		fileStore:            fs,
 		sanitizer:            NewSanitizer(),
 		considerationHandler: conHandler,
+		idCounterManager:     idMgr,
 	}
 }
 
@@ -157,8 +159,17 @@ func (h *DecisionHandler) Delete(ctx context.Context, id string) error {
 	return fmt.Errorf("decision is immutable: cannot delete decision %s (decisions are permanent records)", id)
 }
 
-// getNextIDNumber は次の ID 番号を取得
+// getNextIDNumber は次の ID 番号を取得（O(1)）
 func (h *DecisionHandler) getNextIDNumber(ctx context.Context) (int, error) {
+	if h.idCounterManager != nil {
+		return h.idCounterManager.GetNextID(ctx, "decision")
+	}
+	// フォールバック: 従来の O(N) 方式
+	return h.getNextIDNumberLegacy(ctx)
+}
+
+// getNextIDNumberLegacy は従来の O(N) 方式で次の ID 番号を取得
+func (h *DecisionHandler) getNextIDNumberLegacy(ctx context.Context) (int, error) {
 	decisions, err := h.getAllDecisions(ctx)
 	if err != nil {
 		return 1, nil

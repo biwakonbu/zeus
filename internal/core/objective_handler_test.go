@@ -25,7 +25,7 @@ func setupObjectiveHandlerTest(t *testing.T) (*ObjectiveHandler, string, func())
 	}
 
 	fs := yaml.NewFileManager(zeusPath)
-	handler := NewObjectiveHandler(fs)
+	handler := NewObjectiveHandler(fs, nil)
 
 	cleanup := func() {
 		os.RemoveAll(tmpDir)

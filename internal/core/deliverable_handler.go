@@ -12,17 +12,19 @@ import (
 // DeliverableHandler は DeliverableEntity エンティティのハンドラー
 // 個別ファイル (deliverables/del-NNN.yaml) で管理
 type DeliverableHandler struct {
-	fileStore         FileStore
-	sanitizer         *Sanitizer
-	objectiveHandler  *ObjectiveHandler
+	fileStore        FileStore
+	sanitizer        *Sanitizer
+	objectiveHandler *ObjectiveHandler
+	idCounterManager *IDCounterManager
 }
 
 // NewDeliverableHandler は新しい DeliverableHandler を作成
-func NewDeliverableHandler(fs FileStore, objHandler *ObjectiveHandler) *DeliverableHandler {
+func NewDeliverableHandler(fs FileStore, objHandler *ObjectiveHandler, idMgr *IDCounterManager) *DeliverableHandler {
 	return &DeliverableHandler{
 		fileStore:        fs,
 		sanitizer:        NewSanitizer(),
 		objectiveHandler: objHandler,
+		idCounterManager: idMgr,
 	}
 }
 
@@ -213,8 +215,17 @@ func (h *DeliverableHandler) Delete(ctx context.Context, id string) error {
 	return h.fileStore.Delete(ctx, filePath)
 }
 
-// getNextIDNumber は次の ID 番号を取得
+// getNextIDNumber は次の ID 番号を取得（O(1)）
 func (h *DeliverableHandler) getNextIDNumber(ctx context.Context) (int, error) {
+	if h.idCounterManager != nil {
+		return h.idCounterManager.GetNextID(ctx, "deliverable")
+	}
+	// フォールバック: 従来の O(N) 方式
+	return h.getNextIDNumberLegacy(ctx)
+}
+
+// getNextIDNumberLegacy は従来の O(N) 方式で次の ID 番号を取得
+func (h *DeliverableHandler) getNextIDNumberLegacy(ctx context.Context) (int, error) {
 	deliverables, err := h.getAllDeliverables(ctx)
 	if err != nil {
 		return 1, nil // 初回は 1

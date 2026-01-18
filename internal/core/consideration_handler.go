@@ -16,15 +16,17 @@ type ConsiderationHandler struct {
 	sanitizer          *Sanitizer
 	objectiveHandler   *ObjectiveHandler
 	deliverableHandler *DeliverableHandler
+	idCounterManager   *IDCounterManager
 }
 
 // NewConsiderationHandler は新しい ConsiderationHandler を作成
-func NewConsiderationHandler(fs FileStore, objHandler *ObjectiveHandler, delHandler *DeliverableHandler) *ConsiderationHandler {
+func NewConsiderationHandler(fs FileStore, objHandler *ObjectiveHandler, delHandler *DeliverableHandler, idMgr *IDCounterManager) *ConsiderationHandler {
 	return &ConsiderationHandler{
 		fileStore:          fs,
 		sanitizer:          NewSanitizer(),
 		objectiveHandler:   objHandler,
 		deliverableHandler: delHandler,
+		idCounterManager:   idMgr,
 	}
 }
 
@@ -262,8 +264,17 @@ func (h *ConsiderationHandler) checkDecisionReferences(ctx context.Context, cons
 	return "", nil // 参照なし
 }
 
-// getNextIDNumber は次の ID 番号を取得
+// getNextIDNumber は次の ID 番号を取得（O(1)）
 func (h *ConsiderationHandler) getNextIDNumber(ctx context.Context) (int, error) {
+	if h.idCounterManager != nil {
+		return h.idCounterManager.GetNextID(ctx, "consideration")
+	}
+	// フォールバック: 従来の O(N) 方式
+	return h.getNextIDNumberLegacy(ctx)
+}
+
+// getNextIDNumberLegacy は従来の O(N) 方式で次の ID 番号を取得
+func (h *ConsiderationHandler) getNextIDNumberLegacy(ctx context.Context) (int, error) {
 	considerations, err := h.getAllConsiderations(ctx)
 	if err != nil {
 		return 1, nil // 初回は 1

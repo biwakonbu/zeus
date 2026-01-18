@@ -1,0 +1,47 @@
+{
+  "metadata": {
+    "test_id": "decision-flow-001",
+    "schema_version": "1.0",
+    "zeus_version": ">=0.2.0",
+    "created": "2026-01-19",
+    "description": "Consideration → Decision フローの状態遷移テスト"
+  },
+  "comparison": {
+    "mode": "structural",
+    "ignore_fields": ["created_at", "updated_at", "decided_at"],
+    "edge_mode": "by_name"
+  },
+  "expected": {
+    "consideration_before": {
+      "title": "技術選定",
+      "status": "open",
+      "options": [
+        { "id": "opt-1", "title": "選択肢A" },
+        { "id": "opt-2", "title": "選択肢B" }
+      ]
+    },
+    "decision": {
+      "title": "技術選定完了",
+      "consideration_id_ref": "con-001",
+      "selected_option": {
+        "id": "opt-1",
+        "title": "選択肢A"
+      },
+      "rationale": "コスト効率が最も高いため"
+    },
+    "consideration_after": {
+      "title": "技術選定",
+      "status": "decided",
+      "decision_id_ref": "dec-001"
+    },
+    "immutability": {
+      "update_prohibited": true,
+      "delete_prohibited": true,
+      "error_message_contains": "イミュータブル"
+    },
+    "reverse_reference": {
+      "consideration_has_decision_ref": true,
+      "decision_has_consideration_ref": true
+    }
+  }
+}

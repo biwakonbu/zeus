@@ -15,14 +15,16 @@ type QualityHandler struct {
 	fileStore          FileStore
 	sanitizer          *Sanitizer
 	deliverableHandler *DeliverableHandler
+	idCounterManager   *IDCounterManager
 }
 
 // NewQualityHandler は新しい QualityHandler を作成
-func NewQualityHandler(fs FileStore, delHandler *DeliverableHandler) *QualityHandler {
+func NewQualityHandler(fs FileStore, delHandler *DeliverableHandler, idMgr *IDCounterManager) *QualityHandler {
 	return &QualityHandler{
 		fileStore:          fs,
 		sanitizer:          NewSanitizer(),
 		deliverableHandler: delHandler,
+		idCounterManager:   idMgr,
 	}
 }
 
@@ -201,8 +203,17 @@ func (h *QualityHandler) Delete(ctx context.Context, id string) error {
 	return h.fileStore.Delete(ctx, filePath)
 }
 
-// getNextIDNumber は次の ID 番号を取得
+// getNextIDNumber は次の ID 番号を取得（O(1)）
 func (h *QualityHandler) getNextIDNumber(ctx context.Context) (int, error) {
+	if h.idCounterManager != nil {
+		return h.idCounterManager.GetNextID(ctx, "quality")
+	}
+	// フォールバック: 従来の O(N) 方式
+	return h.getNextIDNumberLegacy(ctx)
+}
+
+// getNextIDNumberLegacy は従来の O(N) 方式で次の ID 番号を取得
+func (h *QualityHandler) getNextIDNumberLegacy(ctx context.Context) (int, error) {
 	qualities, err := h.getAllQualities(ctx)
 	if err != nil {
 		return 1, nil
