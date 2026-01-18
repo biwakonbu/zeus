@@ -85,6 +85,12 @@ func New(projectPath string, opts ...Option) *Zeus {
 	if z.entityRegistry == nil {
 		z.entityRegistry = NewEntityRegistry()
 		z.entityRegistry.Register(NewTaskHandler(z.fileStore))
+
+		// 10 概念モデルのハンドラー登録
+		z.entityRegistry.Register(NewVisionHandler(z.fileStore))
+		objHandler := NewObjectiveHandler(z.fileStore)
+		z.entityRegistry.Register(objHandler)
+		z.entityRegistry.Register(NewDeliverableHandler(z.fileStore, objHandler))
 	}
 
 	return z
@@ -281,6 +287,26 @@ func (z *Zeus) List(ctx context.Context, entity string) (*ListResult, error) {
 	}
 
 	return handler.List(ctx, nil)
+}
+
+// Get は指定されたエンティティを取得
+func (z *Zeus) Get(ctx context.Context, entity, id string) (any, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// EntityRegistry から適切なハンドラーを取得
+	handler, ok := z.entityRegistry.Get(entity)
+	if !ok {
+		return nil, ErrUnknownEntity
+	}
+
+	return handler.Get(ctx, id)
+}
+
+// GetRegistry は EntityRegistry を返す
+func (z *Zeus) GetRegistry() *EntityRegistry {
+	return z.entityRegistry
 }
 
 // Pending は承認待ちアイテムを取得

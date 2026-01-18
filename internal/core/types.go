@@ -311,3 +311,216 @@ func (s *Suggestion) Validate() error {
 
 	return nil
 }
+
+// ============================================================
+// 10 概念モデル型定義 (Phase 1: Vision, Objective, Deliverable)
+// ============================================================
+
+// Metadata は 10 概念モデルの共通メタデータ
+type Metadata struct {
+	CreatedAt string   `yaml:"created_at"`
+	UpdatedAt string   `yaml:"updated_at,omitempty"`
+	Owner     string   `yaml:"owner,omitempty"`
+	Tags      []string `yaml:"tags,omitempty"`
+}
+
+// VisionStatus は Vision の状態
+type VisionStatus string
+
+const (
+	VisionStatusDraft    VisionStatus = "draft"
+	VisionStatusActive   VisionStatus = "active"
+	VisionStatusArchived VisionStatus = "archived"
+)
+
+// Vision は 10 概念モデルのビジョン
+// 単一ファイル (vision.yaml) で管理
+type Vision struct {
+	ID              string       `yaml:"id"`
+	Title           string       `yaml:"title"`
+	Statement       string       `yaml:"statement"`
+	SuccessCriteria []string     `yaml:"success_criteria,omitempty"`
+	Status          VisionStatus `yaml:"status"`
+	Metadata        Metadata     `yaml:"metadata"`
+}
+
+// ObjectiveStatus は Objective の状態
+type ObjectiveStatus string
+
+const (
+	ObjectiveStatusNotStarted ObjectiveStatus = "not_started"
+	ObjectiveStatusInProgress ObjectiveStatus = "in_progress"
+	ObjectiveStatusCompleted  ObjectiveStatus = "completed"
+	ObjectiveStatusOnHold     ObjectiveStatus = "on_hold"
+	ObjectiveStatusCancelled  ObjectiveStatus = "cancelled"
+)
+
+// ObjectiveEntity は 10 概念モデルの目標（個別ファイル管理）
+// objectives/obj-NNN.yaml で管理
+// 注: ZeusConfig 内の Objective とは別の構造
+type ObjectiveEntity struct {
+	ID          string          `yaml:"id"`
+	Title       string          `yaml:"title"`
+	Description string          `yaml:"description,omitempty"`
+	Status      ObjectiveStatus `yaml:"status"`
+	Progress    int             `yaml:"progress"`
+	Owner       string          `yaml:"owner,omitempty"`
+	ParentID    string          `yaml:"parent_id,omitempty"` // 親 Objective ID（階層化用）
+	WBSCode     string          `yaml:"wbs_code,omitempty"`
+	StartDate   string          `yaml:"start_date,omitempty"`
+	DueDate     string          `yaml:"due_date,omitempty"`
+	Tags        []string        `yaml:"tags,omitempty"`
+	Metadata    Metadata        `yaml:"metadata"`
+}
+
+// DeliverableStatus は Deliverable の状態
+type DeliverableStatus string
+
+const (
+	DeliverableStatusPlanned    DeliverableStatus = "planned"
+	DeliverableStatusInProgress DeliverableStatus = "in_progress"
+	DeliverableStatusReview     DeliverableStatus = "review"
+	DeliverableStatusCompleted  DeliverableStatus = "completed"
+	DeliverableStatusCancelled  DeliverableStatus = "cancelled"
+)
+
+// DeliverableFormat は成果物のフォーマット
+type DeliverableFormat string
+
+const (
+	DeliverableFormatDocument    DeliverableFormat = "document"
+	DeliverableFormatCode        DeliverableFormat = "code"
+	DeliverableFormatData        DeliverableFormat = "data"
+	DeliverableFormatDesign      DeliverableFormat = "design"
+	DeliverableFormatPresentation DeliverableFormat = "presentation"
+	DeliverableFormatOther       DeliverableFormat = "other"
+)
+
+// DeliverableEntity は 10 概念モデルの成果物
+// deliverables/del-NNN.yaml で管理
+type DeliverableEntity struct {
+	ID                 string            `yaml:"id"`
+	Title              string            `yaml:"title"`
+	Description        string            `yaml:"description,omitempty"`
+	ObjectiveID        string            `yaml:"objective_id"` // 紐づく Objective
+	Format             DeliverableFormat `yaml:"format"`
+	AcceptanceCriteria []string          `yaml:"acceptance_criteria,omitempty"`
+	Status             DeliverableStatus `yaml:"status"`
+	Progress           int               `yaml:"progress"`
+	Metadata           Metadata          `yaml:"metadata"`
+}
+
+// Validate は Vision の妥当性を検証
+func (v *Vision) Validate() error {
+	if v.ID == "" {
+		return fmt.Errorf("vision ID is required")
+	}
+	if err := ValidateID("vision", v.ID); err != nil {
+		return err
+	}
+	if v.Title == "" {
+		return fmt.Errorf("vision title is required")
+	}
+	if v.Statement == "" {
+		return fmt.Errorf("vision statement is required")
+	}
+	if v.Status == "" {
+		v.Status = VisionStatusDraft
+	}
+	switch v.Status {
+	case VisionStatusDraft, VisionStatusActive, VisionStatusArchived:
+		// 有効
+	default:
+		return fmt.Errorf("invalid vision status: %s", v.Status)
+	}
+	return nil
+}
+
+// Validate は ObjectiveEntity の妥当性を検証
+func (o *ObjectiveEntity) Validate() error {
+	if o.ID == "" {
+		return fmt.Errorf("objective ID is required")
+	}
+	if err := ValidateID("objective", o.ID); err != nil {
+		return err
+	}
+	if o.Title == "" {
+		return fmt.Errorf("objective title is required")
+	}
+	if o.Status == "" {
+		o.Status = ObjectiveStatusNotStarted
+	}
+	switch o.Status {
+	case ObjectiveStatusNotStarted, ObjectiveStatusInProgress, ObjectiveStatusCompleted,
+		ObjectiveStatusOnHold, ObjectiveStatusCancelled:
+		// 有効
+	default:
+		return fmt.Errorf("invalid objective status: %s", o.Status)
+	}
+	if o.Progress < 0 || o.Progress > 100 {
+		return fmt.Errorf("progress must be between 0 and 100, got %d", o.Progress)
+	}
+	// 自己参照の禁止
+	if o.ParentID != "" && o.ParentID == o.ID {
+		return fmt.Errorf("objective cannot be its own parent")
+	}
+	return nil
+}
+
+// Validate は DeliverableEntity の妥当性を検証
+func (d *DeliverableEntity) Validate() error {
+	if d.ID == "" {
+		return fmt.Errorf("deliverable ID is required")
+	}
+	if err := ValidateID("deliverable", d.ID); err != nil {
+		return err
+	}
+	if d.Title == "" {
+		return fmt.Errorf("deliverable title is required")
+	}
+	if d.ObjectiveID == "" {
+		return fmt.Errorf("deliverable objective_id is required")
+	}
+	if d.Format == "" {
+		d.Format = DeliverableFormatOther
+	}
+	switch d.Format {
+	case DeliverableFormatDocument, DeliverableFormatCode, DeliverableFormatData,
+		DeliverableFormatDesign, DeliverableFormatPresentation, DeliverableFormatOther:
+		// 有効
+	default:
+		return fmt.Errorf("invalid deliverable format: %s", d.Format)
+	}
+	if d.Status == "" {
+		d.Status = DeliverableStatusPlanned
+	}
+	switch d.Status {
+	case DeliverableStatusPlanned, DeliverableStatusInProgress, DeliverableStatusReview,
+		DeliverableStatusCompleted, DeliverableStatusCancelled:
+		// 有効
+	default:
+		return fmt.Errorf("invalid deliverable status: %s", d.Status)
+	}
+	if d.Progress < 0 || d.Progress > 100 {
+		return fmt.Errorf("progress must be between 0 and 100, got %d", d.Progress)
+	}
+	return nil
+}
+
+// GetID は Entity インターフェースを実装（Vision）
+func (v *Vision) GetID() string { return v.ID }
+
+// GetTitle は Entity インターフェースを実装（Vision）
+func (v *Vision) GetTitle() string { return v.Title }
+
+// GetID は Entity インターフェースを実装（ObjectiveEntity）
+func (o *ObjectiveEntity) GetID() string { return o.ID }
+
+// GetTitle は Entity インターフェースを実装（ObjectiveEntity）
+func (o *ObjectiveEntity) GetTitle() string { return o.Title }
+
+// GetID は Entity インターフェースを実装（DeliverableEntity）
+func (d *DeliverableEntity) GetID() string { return d.ID }
+
+// GetTitle は Entity インターフェースを実装（DeliverableEntity）
+func (d *DeliverableEntity) GetTitle() string { return d.Title }

@@ -199,9 +199,12 @@ export class TaskEdge extends Graphics {
 
 /**
  * エッジファクトリー - 複数のエッジを効率的に管理
+ * ノード→エッジのインデックスにより O(1) でエッジを取得可能
  */
 export class EdgeFactory {
 	private edges: Map<string, TaskEdge> = new Map();
+	// ノードID → 関連するエッジキーのセット（高速検索用インデックス）
+	private nodeToEdges: Map<string, Set<string>> = new Map();
 
 	/**
 	 * エッジを作成または取得
@@ -213,9 +216,38 @@ export class EdgeFactory {
 		if (!edge) {
 			edge = new TaskEdge(fromId, toId);
 			this.edges.set(key, edge);
+
+			// インデックスを更新
+			this.addToIndex(fromId, key);
+			this.addToIndex(toId, key);
 		}
 
 		return edge;
+	}
+
+	/**
+	 * インデックスにエッジを追加
+	 */
+	private addToIndex(nodeId: string, edgeKey: string): void {
+		let edgeSet = this.nodeToEdges.get(nodeId);
+		if (!edgeSet) {
+			edgeSet = new Set();
+			this.nodeToEdges.set(nodeId, edgeSet);
+		}
+		edgeSet.add(edgeKey);
+	}
+
+	/**
+	 * インデックスからエッジを削除
+	 */
+	private removeFromIndex(nodeId: string, edgeKey: string): void {
+		const edgeSet = this.nodeToEdges.get(nodeId);
+		if (edgeSet) {
+			edgeSet.delete(edgeKey);
+			if (edgeSet.size === 0) {
+				this.nodeToEdges.delete(nodeId);
+			}
+		}
 	}
 
 	/**
@@ -233,6 +265,10 @@ export class EdgeFactory {
 		const key = TaskEdge.createKey(fromId, toId);
 		const edge = this.edges.get(key);
 		if (edge) {
+			// インデックスから削除
+			this.removeFromIndex(fromId, key);
+			this.removeFromIndex(toId, key);
+
 			edge.destroy();
 			this.edges.delete(key);
 			return true;
@@ -255,14 +291,30 @@ export class EdgeFactory {
 			edge.destroy();
 		}
 		this.edges.clear();
+		this.nodeToEdges.clear();
 	}
 
 	/**
-	 * ノードに関連する全エッジを取得
+	 * ノードに関連する全エッジを取得（O(1) インデックス検索）
 	 */
 	getEdgesForNode(nodeId: string): TaskEdge[] {
-		return Array.from(this.edges.values()).filter(
-			edge => edge.getFromId() === nodeId || edge.getToId() === nodeId
-		);
+		const edgeKeys = this.nodeToEdges.get(nodeId);
+		if (!edgeKeys) return [];
+
+		const result: TaskEdge[] = [];
+		for (const key of edgeKeys) {
+			const edge = this.edges.get(key);
+			if (edge) {
+				result.push(edge);
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * ノードに関連するエッジの数を取得（O(1)）
+	 */
+	getEdgeCountForNode(nodeId: string): number {
+		return this.nodeToEdges.get(nodeId)?.size ?? 0;
 	}
 }

@@ -38,9 +38,63 @@
 
 	let nodeMap: Map<string, TaskNode> = new Map();
 	let edgeFactory: EdgeFactory = new EdgeFactory();
+	let engineReady = $state(false); // エンジン初期化完了フラグ（$effect の依存関係用）
 	let positions: Map<string, NodePosition> = $state(new Map());
 	let layoutBounds = $state({ minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 });
 	let layers: string[][] = [];
+
+	// 差分更新用のキャッシュ
+	let previousTasksHash: string = '';
+	let previousTaskIds: Set<string> = new Set();
+	let previousDependencyHash: string = '';
+
+	// Visibility/LOD 差分更新用
+	let previousVisibleNodeIds: Set<string> = new Set();
+	let previousLODLevel: LODLevel | null = null;
+
+	/**
+	 * タスクリストのハッシュを計算（浅い比較用）
+	 */
+	function computeTasksHash(taskList: TaskItem[]): string {
+		return taskList.map(t =>
+			`${t.id}:${t.status}:${t.progress ?? 0}:${t.priority ?? ''}:${t.assignee ?? ''}`
+		).join('|');
+	}
+
+	/**
+	 * 依存関係のハッシュを計算（構造変更の検出用）
+	 */
+	function computeDependencyHash(taskList: TaskItem[]): string {
+		return taskList.map(t => `${t.id}:${t.dependencies.join(',')}`).sort().join('|');
+	}
+
+	/**
+	 * タスクが変更されたかチェック
+	 * @returns 変更タイプ: 'none' | 'data' | 'structure'
+	 */
+	function detectTaskChanges(newTasks: TaskItem[]): 'none' | 'data' | 'structure' {
+		const newHash = computeTasksHash(newTasks);
+		const newDepHash = computeDependencyHash(newTasks);
+		const newIds = new Set(newTasks.map(t => t.id));
+
+		// 構造変更（追加/削除/依存関係変更）をチェック
+		if (newDepHash !== previousDependencyHash ||
+			newIds.size !== previousTaskIds.size ||
+			!Array.from(newIds).every(id => previousTaskIds.has(id))) {
+			previousTasksHash = newHash;
+			previousDependencyHash = newDepHash;
+			previousTaskIds = newIds;
+			return 'structure';
+		}
+
+		// データ変更（ステータス/進捗など）をチェック
+		if (newHash !== previousTasksHash) {
+			previousTasksHash = newHash;
+			return 'data';
+		}
+
+		return 'none';
+	}
 
 	// ビューポート情報（UI表示用）
 	let currentViewport: Viewport = $state({
@@ -480,8 +534,8 @@
 		});
 		resizeObserver.observe(containerElement);
 
-		// 初回レンダリング
-		renderTasks(tasks);
+		// エンジン準備完了を通知（$effect をトリガー）
+		engineReady = true;
 	}
 
 	onDestroy(() => {
@@ -514,9 +568,26 @@
 	let timelineLoadTimer: ReturnType<typeof setTimeout> | null = null;
 
 	// タスクが変更されたら再レンダリング
+	// NOTE: Svelte 5 の $effect は条件分岐内でのみ読み取られた変数を追跡しない
+	// そのため tasks と engineReady を条件の外で明示的に読み取り、依存関係として登録する
 	$effect(() => {
-		if (engine && layoutEngine) {
-			renderTasks(tasks);
+		const currentTasks = tasks; // 依存関係を明示的に登録
+		const ready = engineReady; // エンジン初期化完了を依存関係に追加
+		if (ready && engine && layoutEngine) {
+			const changeType = detectTaskChanges(currentTasks);
+
+			if (changeType === 'none') {
+				// 変更なし - 何もしない
+				return;
+			}
+
+			if (changeType === 'data') {
+				// データのみ変更 - ノードの表示を更新
+				updateTaskNodes(currentTasks);
+			} else {
+				// 構造変更 - フルレンダリング
+				renderTasks(currentTasks);
+			}
 
 			// タイムラインデータの読み込みをデバウンス（500ms）
 			if (timelineLoadTimer) {
@@ -698,6 +769,41 @@
 		}
 	}
 
+	/**
+	 * 既存ノードのデータを更新（差分更新 - レイアウト再計算なし）
+	 */
+	function updateTaskNodes(taskList: TaskItem[]): void {
+		if (!filterManager || !selectionManager) return;
+
+		const updateStart = nowMs();
+		let updatedCount = 0;
+
+		// タスクマップを作成
+		const taskMap = new Map(taskList.map(t => [t.id, t]));
+
+		// フィルターマネージャーを更新
+		filterManager.setTasks(taskList);
+		availableAssignees = filterManager.getAvailableAssignees();
+
+		// 既存ノードのデータを更新
+		for (const [id, node] of nodeMap) {
+			const task = taskMap.get(id);
+			if (task) {
+				node.updateTask(task);
+				updatedCount++;
+			}
+		}
+
+		// フィルター適用
+		visibleTaskIds = new Set(filterManager.getVisibleIds());
+		updateVisibility();
+
+		logMetrics('updateTaskNodes', updateStart, {
+			totalNodes: nodeMap.size,
+			updatedNodes: updatedCount
+		}, true);
+	}
+
 	// 外部からの選択状態変更を反映
 	$effect(() => {
 		if (selectionManager && selectedTaskId !== undefined) {
@@ -849,7 +955,7 @@
 	}
 
 	/**
-	 * 表示/非表示を更新（仮想化レンダリング）
+	 * 表示/非表示を更新（仮想化レンダリング - 差分更新対応）
 	 */
 	function updateVisibility(): void {
 		if (!engine || !spatialIndex) return;
@@ -858,41 +964,81 @@
 
 		// 空間インデックスで可視範囲のノードを取得
 		const visibleInViewport = spatialIndex.queryRect(worldViewport);
-		const visibleInViewportIds = new Set(visibleInViewport.map((item) => item.id));
+		const currentVisibleIds = new Set<string>();
 
-		// ノードの表示/非表示を更新
-		for (const [id, node] of nodeMap) {
-			const isInViewport = visibleInViewportIds.has(id);
-			const passesFilter = visibleTaskIds.size === 0 || visibleTaskIds.has(id);
-
-			// ビューポート内かつフィルターを通過したノードのみ表示
-			node.visible = isInViewport && passesFilter;
+		// 可視判定を計算
+		for (const item of visibleInViewport) {
+			const passesFilter = visibleTaskIds.size === 0 || visibleTaskIds.has(item.id);
+			if (passesFilter) {
+				currentVisibleIds.add(item.id);
+			}
 		}
 
-		// エッジの表示/非表示を更新
+		// 差分検出: 新しく見えるようになったノード
+		for (const id of currentVisibleIds) {
+			if (!previousVisibleNodeIds.has(id)) {
+				const node = nodeMap.get(id);
+				if (node) node.visible = true;
+			}
+		}
+
+		// 差分検出: 見えなくなったノード
+		for (const id of previousVisibleNodeIds) {
+			if (!currentVisibleIds.has(id)) {
+				const node = nodeMap.get(id);
+				if (node) node.visible = false;
+			}
+		}
+
+		// 今回非表示のノードを確認（空間インデックス外）
+		for (const [id, node] of nodeMap) {
+			if (!currentVisibleIds.has(id) && !previousVisibleNodeIds.has(id)) {
+				// 初回または空間インデックス外のノード
+				const passesFilter = visibleTaskIds.size === 0 || visibleTaskIds.has(id);
+				node.visible = false; // ビューポート外
+			}
+		}
+
+		// キャッシュを更新
+		previousVisibleNodeIds = currentVisibleIds;
+
+		// エッジの表示/非表示を更新（可視ノードに接続されているもののみ）
 		for (const edge of edgeFactory.getAll()) {
-			const fromVisible = nodeMap.get(edge.getFromId())?.visible ?? false;
-			const toVisible = nodeMap.get(edge.getToId())?.visible ?? false;
+			const fromVisible = currentVisibleIds.has(edge.getFromId());
+			const toVisible = currentVisibleIds.has(edge.getToId());
 			edge.visible = fromVisible || toVisible;
 		}
 	}
 
 	/**
-	 * LODレベルを更新
+	 * スケールからLODレベルを計算
+	 */
+	function computeLODLevel(scale: number): LODLevel {
+		if (scale < 0.3) {
+			return LODLevel.Macro;
+		} else if (scale < 0.7) {
+			return LODLevel.Meso;
+		} else {
+			return LODLevel.Micro;
+		}
+	}
+
+	/**
+	 * LODレベルを更新（条件付き - レベルが変わった時のみ）
 	 */
 	function updateLOD(scale: number): void {
-		let lodLevel: LODLevel;
+		const lodLevel = computeLODLevel(scale);
 
-		if (scale < 0.3) {
-			lodLevel = LODLevel.Macro;
-		} else if (scale < 0.7) {
-			lodLevel = LODLevel.Meso;
-		} else {
-			lodLevel = LODLevel.Micro;
-		}
+		// LODレベルが変わっていない場合はスキップ
+		if (lodLevel === previousLODLevel) return;
+		previousLODLevel = lodLevel;
 
-		for (const node of nodeMap.values()) {
-			node.setLOD(lodLevel);
+		// 可視ノードのみLODを更新
+		for (const id of previousVisibleNodeIds) {
+			const node = nodeMap.get(id);
+			if (node) {
+				node.setLOD(lodLevel);
+			}
 		}
 	}
 
@@ -978,24 +1124,41 @@
 		}
 	}
 
+	// 前回ハイライトしたエッジを追跡（差分更新用）
+	let previousHighlightedEdges: Set<string> = new Set();
+
 	/**
-	 * 関連エッジをハイライト
+	 * 関連エッジをハイライト（差分更新対応）
 	 */
 	function highlightRelatedEdges(taskId: string | null): void {
-		for (const edge of edgeFactory.getAll()) {
-			if (taskId && (edge.getFromId() === taskId || edge.getToId() === taskId)) {
+		const currentHighlightedEdges = new Set<string>();
+
+		if (taskId) {
+			// インデックスを使って関連エッジのみ取得（O(1)）
+			const relatedEdges = edgeFactory.getEdgesForNode(taskId);
+			for (const edge of relatedEdges) {
 				edge.setType(EdgeType.Highlighted);
-			} else {
-				// 元のタイプに戻す（クリティカルパスを考慮）
-				const fromId = edge.getFromId();
-				const toId = edge.getToId();
-				if (showCriticalPath && criticalPathIds.has(fromId) && criticalPathIds.has(toId)) {
-					edge.setType(EdgeType.Critical);
-				} else {
-					edge.setType(EdgeType.Normal);
+				currentHighlightedEdges.add(edge.getKey());
+			}
+		}
+
+		// 前回ハイライトされていたが今回されていないエッジを元に戻す
+		for (const edgeKey of previousHighlightedEdges) {
+			if (!currentHighlightedEdges.has(edgeKey)) {
+				const edge = edgeFactory.getAll().find(e => e.getKey() === edgeKey);
+				if (edge) {
+					const fromId = edge.getFromId();
+					const toId = edge.getToId();
+					if (showCriticalPath && criticalPathIds.has(fromId) && criticalPathIds.has(toId)) {
+						edge.setType(EdgeType.Critical);
+					} else {
+						edge.setType(EdgeType.Normal);
+					}
 				}
 			}
 		}
+
+		previousHighlightedEdges = currentHighlightedEdges;
 	}
 
 	/**

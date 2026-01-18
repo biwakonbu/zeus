@@ -38,8 +38,9 @@ type FixAction struct {
 
 // Doctor は診断・修復を行う
 type Doctor struct {
-	zeusPath    string
-	fileManager *yaml.FileManager
+	zeusPath         string
+	fileManager      *yaml.FileManager
+	integrityChecker *core.IntegrityChecker
 }
 
 // New は新しい Doctor を作成
@@ -48,6 +49,16 @@ func New(projectPath string) *Doctor {
 	return &Doctor{
 		zeusPath:    zeusPath,
 		fileManager: yaml.NewFileManager(zeusPath),
+	}
+}
+
+// NewWithIntegrity は IntegrityChecker を含む Doctor を作成
+func NewWithIntegrity(projectPath string, checker *core.IntegrityChecker) *Doctor {
+	zeusPath := filepath.Join(projectPath, ".zeus")
+	return &Doctor{
+		zeusPath:         zeusPath,
+		fileManager:      yaml.NewFileManager(zeusPath),
+		integrityChecker: checker,
 	}
 }
 
@@ -67,6 +78,11 @@ func (d *Doctor) Diagnose(ctx context.Context) (*DiagnosisResult, error) {
 
 	// 状態ファイル存在チェック
 	checks = append(checks, d.checkStateExists(ctx))
+
+	// 参照整合性チェック（IntegrityChecker が設定されている場合）
+	if d.integrityChecker != nil {
+		checks = append(checks, d.checkIntegrity(ctx)...)
+	}
 
 	// 全体の健全性を計算
 	overall := d.calculateOverall(checks)
@@ -210,4 +226,60 @@ func (d *Doctor) calculateOverall(checks []CheckResult) string {
 		return "degraded"
 	}
 	return "healthy"
+}
+
+// checkIntegrity は参照整合性をチェック
+func (d *Doctor) checkIntegrity(ctx context.Context) []CheckResult {
+	var checks []CheckResult
+
+	result, err := d.integrityChecker.CheckAll(ctx)
+	if err != nil {
+		checks = append(checks, CheckResult{
+			Check:   "integrity_check",
+			Status:  "fail",
+			Message: "Integrity check failed: " + err.Error(),
+			Fixable: false,
+		})
+		return checks
+	}
+
+	// 参照エラーのチェック
+	if len(result.ReferenceErrors) > 0 {
+		for _, refErr := range result.ReferenceErrors {
+			checks = append(checks, CheckResult{
+				Check:   "reference_integrity",
+				Status:  "fail",
+				Message: refErr.Error(),
+				Fixable: false, // 参照エラーは自動修復不可
+			})
+		}
+	} else {
+		checks = append(checks, CheckResult{
+			Check:   "reference_integrity",
+			Status:  "pass",
+			Message: "All entity references are valid",
+			Fixable: false,
+		})
+	}
+
+	// 循環参照のチェック
+	if len(result.CycleErrors) > 0 {
+		for _, cycleErr := range result.CycleErrors {
+			checks = append(checks, CheckResult{
+				Check:   "cycle_check",
+				Status:  "fail",
+				Message: cycleErr.Error(),
+				Fixable: false, // 循環参照は自動修復不可
+			})
+		}
+	} else {
+		checks = append(checks, CheckResult{
+			Check:   "cycle_check",
+			Status:  "pass",
+			Message: "No circular references detected",
+			Fixable: false,
+		})
+	}
+
+	return checks
 }

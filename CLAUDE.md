@@ -48,6 +48,7 @@ make build-all          # 統合ビルド
 | Phase 4 (分析) | graph, predict, report | 完了 |
 | Phase 5 (ダッシュボード) | Factorio風ビューワー、SSE | 完了 |
 | Phase 6 (WBS・タイムライン) | WBS階層、クリティカルパス、影響範囲可視化 | 完了 |
+| 10概念モデル Phase 1 | Vision, Objective, Deliverable, 参照整合性 | 完了 |
 
 ## 実装済みコマンド
 
@@ -56,9 +57,12 @@ make build-all          # 統合ビルド
 zeus init                                       # プロジェクト初期化
 zeus status                                     # 状態表示
 zeus add <entity> <name> [options]              # エンティティ追加
+  # entity: task, vision, objective, deliverable
   # --parent <id>  --start <date>  --due <date>  --progress <0-100>  --wbs <code>
+  # --statement <text>  --objective <id>  --format <type>
 zeus list [entity]                              # 一覧表示
-zeus doctor                                     # 診断
+  # entity: tasks, vision, objectives, deliverables
+zeus doctor                                     # 診断（参照整合性・循環参照チェック含む）
 zeus fix [--dry-run]                            # 修復
 
 # 承認管理
@@ -106,11 +110,36 @@ zeus update-claude                              # Claude Code ファイル再生
 - `skills/zeus-task-suggest/SKILL.md` - タスク提案
 - `skills/zeus-risk-analysis/SKILL.md` - リスク分析
 
+## 10概念モデル
+
+Task ベースのシステムを拡張し、プロジェクト管理の本質的な概念を表現する 10 概念モデルを導入。
+
+### Phase 1 実装済み（3概念）
+
+| 概念 | 説明 | ファイル |
+|------|------|----------|
+| Vision | プロジェクトの目指す姿（単一） | `.zeus/vision.yaml` |
+| Objective | 達成目標（階層構造可） | `.zeus/objectives/obj-NNN.yaml` |
+| Deliverable | 成果物定義 | `.zeus/deliverables/del-NNN.yaml` |
+
+### 参照整合性
+
+- `zeus doctor` で Deliverable → Objective、Objective → Objective (親) の参照チェック
+- 循環参照検出
+- セキュリティ: ValidatePath, ValidateID, Sanitizer
+
+### Phase 2 以降（予定）
+
+Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality
+
 ## ドキュメント
 
 - `docs/SYSTEM_DESIGN.md` - システム設計書（必読）
 - `docs/IMPLEMENTATION_GUIDE.md` - Go 実装ガイド
 - `docs/OPERATIONS_MANUAL.md` - 運用マニュアル
+- `docs/DETAILED_DESIGN.md` - 10概念モデル詳細設計
+- `docs/API_SPEC.md` - API 仕様（将来実装）
+- `docs/SECURITY.md` - セキュリティ実装ガイド
 
 ## 詳細情報
 

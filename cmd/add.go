@@ -17,6 +17,20 @@ var (
 	addWBSCode   string
 	addPriority  string
 	addAssignee  string
+
+	// 10 概念モデル共通
+	addDescription string
+	addOwner       string
+	addTags        []string
+
+	// Vision 用
+	addStatement       string
+	addSuccessCriteria []string
+
+	// Deliverable 用
+	addObjectiveID         string
+	addFormat              string
+	addAcceptanceCriteria  []string
 )
 
 var addCmd = &cobra.Command{
@@ -24,7 +38,18 @@ var addCmd = &cobra.Command{
 	Short: "エンティティを追加",
 	Long: `エンティティを追加します。
 
-タスク追加時のオプション:
+対応エンティティ:
+  task        タスク（既存）
+  vision      プロジェクトビジョン
+  objective   目標・マイルストーン
+  deliverable 成果物
+
+共通オプション:
+  --description  説明
+  --owner        オーナー
+  --tags         タグ（カンマ区切り）
+
+タスク用オプション:
   --parent    親タスクのID（WBS階層構造用）
   --start     開始日（ISO8601形式: 2026-01-17）
   --due       期限日（ISO8601形式: 2026-01-31）
@@ -33,10 +58,27 @@ var addCmd = &cobra.Command{
   --priority  優先度（high, medium, low）
   --assignee  担当者名
 
+Vision 用オプション:
+  --statement         ビジョンステートメント
+  --success-criteria  成功基準（カンマ区切り）
+
+Objective 用オプション:
+  --parent    親 Objective の ID
+  --start     開始日
+  --due       期限日
+  --progress  進捗率（0-100）
+  --wbs       WBS コード
+
+Deliverable 用オプション:
+  --objective           紐づく Objective の ID
+  --format              フォーマット（document, code, design, presentation, other）
+  --acceptance-criteria 受入基準（カンマ区切り）
+
 例:
   zeus add task "設計ドキュメント作成"
-  zeus add task "子タスク" --parent task-abc12345
-  zeus add task "実装" --start 2026-01-20 --due 2026-01-31 --priority high`,
+  zeus add vision "AI駆動PM" --statement "AIと人間が協調するPM"
+  zeus add objective "認証システム実装" --wbs 1.1 --due 2026-02-28
+  zeus add deliverable "API設計書" --objective obj-001 --format document`,
 	Args: cobra.ExactArgs(2),
 	RunE: runAdd,
 }
@@ -44,14 +86,28 @@ var addCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(addCmd)
 
+	// 共通フラグ（10 概念モデル）
+	addCmd.Flags().StringVarP(&addDescription, "description", "d", "", "説明")
+	addCmd.Flags().StringVar(&addOwner, "owner", "", "オーナー")
+	addCmd.Flags().StringSliceVar(&addTags, "tags", nil, "タグ（カンマ区切り）")
+
 	// Phase 6A: タスク用フラグ
-	addCmd.Flags().StringVarP(&addParentID, "parent", "p", "", "親タスクID")
+	addCmd.Flags().StringVarP(&addParentID, "parent", "p", "", "親タスク/Objective ID")
 	addCmd.Flags().StringVar(&addStartDate, "start", "", "開始日（ISO8601形式）")
 	addCmd.Flags().StringVar(&addDueDate, "due", "", "期限日（ISO8601形式）")
 	addCmd.Flags().IntVar(&addProgress, "progress", 0, "進捗率（0-100）")
 	addCmd.Flags().StringVar(&addWBSCode, "wbs", "", "WBSコード（例: 1.2.3）")
 	addCmd.Flags().StringVar(&addPriority, "priority", "", "優先度（high, medium, low）")
 	addCmd.Flags().StringVar(&addAssignee, "assignee", "", "担当者名")
+
+	// Vision 用フラグ
+	addCmd.Flags().StringVar(&addStatement, "statement", "", "ビジョンステートメント")
+	addCmd.Flags().StringSliceVar(&addSuccessCriteria, "success-criteria", nil, "成功基準（カンマ区切り）")
+
+	// Deliverable 用フラグ
+	addCmd.Flags().StringVar(&addObjectiveID, "objective", "", "紐づく Objective の ID")
+	addCmd.Flags().StringVar(&addFormat, "format", "", "フォーマット（document, code, design, presentation, other）")
+	addCmd.Flags().StringSliceVar(&addAcceptanceCriteria, "acceptance-criteria", nil, "受入基準（カンマ区切り）")
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
@@ -61,8 +117,8 @@ func runAdd(cmd *cobra.Command, args []string) error {
 
 	zeus := getZeus(cmd)
 
-	// オプションを構築
-	opts := buildAddOptions()
+	// オプションを構築（エンティティタイプに応じて）
+	opts := buildAddOptions(entity)
 
 	result, err := zeus.Add(ctx, entity, name, opts...)
 	if err != nil {
@@ -95,7 +151,25 @@ func runAdd(cmd *cobra.Command, args []string) error {
 }
 
 // buildAddOptions はフラグからEntityOptionを構築
-func buildAddOptions() []core.EntityOption {
+func buildAddOptions(entity string) []core.EntityOption {
+	var opts []core.EntityOption
+
+	switch entity {
+	case "task":
+		opts = buildTaskOptions()
+	case "vision":
+		opts = buildVisionOptions()
+	case "objective":
+		opts = buildObjectiveOptions()
+	case "deliverable":
+		opts = buildDeliverableOptions()
+	}
+
+	return opts
+}
+
+// buildTaskOptions は Task 用オプションを構築
+func buildTaskOptions() []core.EntityOption {
 	var opts []core.EntityOption
 
 	if addParentID != "" {
@@ -129,6 +203,100 @@ func buildAddOptions() []core.EntityOption {
 	}
 	if addAssignee != "" {
 		opts = append(opts, core.WithTaskAssignee(addAssignee))
+	}
+
+	return opts
+}
+
+// buildVisionOptions は Vision 用オプションを構築
+func buildVisionOptions() []core.EntityOption {
+	var opts []core.EntityOption
+
+	if addStatement != "" {
+		opts = append(opts, core.WithVisionStatement(addStatement))
+	}
+	if len(addSuccessCriteria) > 0 {
+		opts = append(opts, core.WithVisionSuccessCriteria(addSuccessCriteria))
+	}
+	if addOwner != "" {
+		opts = append(opts, core.WithVisionOwner(addOwner))
+	}
+	if len(addTags) > 0 {
+		opts = append(opts, core.WithVisionTags(addTags))
+	}
+
+	return opts
+}
+
+// buildObjectiveOptions は Objective 用オプションを構築
+func buildObjectiveOptions() []core.EntityOption {
+	var opts []core.EntityOption
+
+	if addDescription != "" {
+		opts = append(opts, core.WithObjectiveDescription(addDescription))
+	}
+	if addParentID != "" {
+		opts = append(opts, core.WithObjectiveParent(addParentID))
+	}
+	if addStartDate != "" {
+		opts = append(opts, core.WithObjectiveStartDate(addStartDate))
+	}
+	if addDueDate != "" {
+		opts = append(opts, core.WithObjectiveDueDate(addDueDate))
+	}
+	if addProgress > 0 {
+		opts = append(opts, core.WithObjectiveProgress(addProgress))
+	}
+	if addWBSCode != "" {
+		opts = append(opts, core.WithObjectiveWBSCode(addWBSCode))
+	}
+	if addOwner != "" {
+		opts = append(opts, core.WithObjectiveOwner(addOwner))
+	}
+	if len(addTags) > 0 {
+		opts = append(opts, core.WithObjectiveTags(addTags))
+	}
+
+	return opts
+}
+
+// buildDeliverableOptions は Deliverable 用オプションを構築
+func buildDeliverableOptions() []core.EntityOption {
+	var opts []core.EntityOption
+
+	if addDescription != "" {
+		opts = append(opts, core.WithDeliverableDescription(addDescription))
+	}
+	if addObjectiveID != "" {
+		opts = append(opts, core.WithDeliverableObjective(addObjectiveID))
+	}
+	if addFormat != "" {
+		var format core.DeliverableFormat
+		switch addFormat {
+		case "document":
+			format = core.DeliverableFormatDocument
+		case "code":
+			format = core.DeliverableFormatCode
+		case "design":
+			format = core.DeliverableFormatDesign
+		case "presentation":
+			format = core.DeliverableFormatPresentation
+		default:
+			format = core.DeliverableFormatOther
+		}
+		opts = append(opts, core.WithDeliverableFormat(format))
+	}
+	if len(addAcceptanceCriteria) > 0 {
+		opts = append(opts, core.WithDeliverableAcceptanceCriteria(addAcceptanceCriteria))
+	}
+	if addProgress > 0 {
+		opts = append(opts, core.WithDeliverableProgress(addProgress))
+	}
+	if addOwner != "" {
+		opts = append(opts, core.WithDeliverableOwner(addOwner))
+	}
+	if len(addTags) > 0 {
+		opts = append(opts, core.WithDeliverableTags(addTags))
 	}
 
 	return opts

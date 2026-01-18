@@ -40,10 +40,15 @@ export interface LayoutResult {
  * - トポロジカルソートによるレイヤー分け
  * - 交差最小化のための並び替え
  * - 座標計算
+ * - レイアウト結果のキャッシュ
  */
 export class LayoutEngine {
 	private nodeWidth: number;
 	private nodeHeight: number;
+
+	// レイアウトキャッシュ
+	private cachedLayout: LayoutResult | null = null;
+	private cachedLayoutHash: string = '';
 
 	constructor() {
 		this.nodeWidth = TaskNode.getWidth();
@@ -51,9 +56,27 @@ export class LayoutEngine {
 	}
 
 	/**
-	 * タスクリストをレイアウト
+	 * レイアウトハッシュを計算（構造変更の検出用）
+	 */
+	private computeLayoutHash(tasks: TaskItem[]): string {
+		// タスクIDと依存関係のみでハッシュを計算（ステータス等は無視）
+		return tasks
+			.map(t => `${t.id}:${t.dependencies.sort().join(',')}`)
+			.sort()
+			.join('|');
+	}
+
+	/**
+	 * タスクリストをレイアウト（キャッシュ対応）
 	 */
 	layout(tasks: TaskItem[]): LayoutResult {
+		const hash = this.computeLayoutHash(tasks);
+
+		// キャッシュが有効な場合はそのまま返す
+		if (hash === this.cachedLayoutHash && this.cachedLayout) {
+			return this.cachedLayout;
+		}
+
 		// 依存関係グラフを構築
 		const graph = this.buildGraph(tasks);
 
@@ -69,7 +92,21 @@ export class LayoutEngine {
 		// バウンディングボックスを計算
 		const bounds = this.computeBounds(positions);
 
-		return { positions, bounds, layers };
+		const result = { positions, bounds, layers };
+
+		// キャッシュを更新
+		this.cachedLayout = result;
+		this.cachedLayoutHash = hash;
+
+		return result;
+	}
+
+	/**
+	 * キャッシュをクリア
+	 */
+	clearCache(): void {
+		this.cachedLayout = null;
+		this.cachedLayoutHash = '';
 	}
 
 	/**

@@ -12,8 +12,27 @@ import (
 var listCmd = &cobra.Command{
 	Use:   "list [entity]",
 	Short: "エンティティ一覧を表示",
-	Args:  cobra.MaximumNArgs(1),
-	RunE:  runList,
+	Long: `エンティティの一覧を表示します。
+
+対応エンティティ:
+  task         タスク
+  tasks        タスク（複数形）
+  vision       ビジョン
+  objective    目標
+  objectives   目標（複数形）
+  deliverable  成果物
+  deliverables 成果物（複数形）
+
+エンティティを省略すると全タスクを表示します。
+
+例:
+  zeus list              # 全タスクを表示
+  zeus list tasks        # タスク一覧
+  zeus list vision       # ビジョンを表示
+  zeus list objectives   # 目標一覧
+  zeus list deliverables # 成果物一覧`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runList,
 }
 
 func init() {
@@ -22,13 +41,30 @@ func init() {
 }
 
 func runList(cmd *cobra.Command, args []string) error {
-	ctx := getContext(cmd)
 	entity := ""
 	if len(args) > 0 {
 		entity = args[0]
 	}
 
 	zeus := getZeus(cmd)
+
+	// エンティティタイプに応じて表示を分岐
+	switch entity {
+	case "vision":
+		return listVision(cmd, zeus)
+	case "objective", "objectives":
+		return listObjectives(cmd, zeus)
+	case "deliverable", "deliverables":
+		return listDeliverables(cmd, zeus)
+	default:
+		// Task（既存の振る舞い）
+		return listTasks(cmd, zeus, entity)
+	}
+}
+
+// listTasks は Task 一覧を表示
+func listTasks(cmd *cobra.Command, zeus *core.Zeus, entity string) error {
+	ctx := getContext(cmd)
 	result, err := zeus.List(ctx, entity)
 	if err != nil {
 		return err
@@ -42,6 +78,123 @@ func runList(cmd *cobra.Command, args []string) error {
 		statusColor := getStatusColor(task.Status)
 		fmt.Printf("[%s] %s - %s\n", statusColor(string(task.Status)), task.ID, task.Title)
 	}
+
+	return nil
+}
+
+// listVision は Vision を表示
+func listVision(cmd *cobra.Command, zeus *core.Zeus) error {
+	ctx := getContext(cmd)
+	result, err := zeus.List(ctx, "vision")
+	if err != nil {
+		return err
+	}
+
+	cyan := color.New(color.FgCyan).SprintFunc()
+	green := color.New(color.FgGreen).SprintFunc()
+
+	if result.Total == 0 {
+		fmt.Printf("%s\n", cyan("Vision"))
+		fmt.Println("────────────────────────────────────────")
+		fmt.Println("ビジョンが設定されていません。")
+		fmt.Println("'zeus add vision \"タイトル\"' で作成できます。")
+		return nil
+	}
+
+	// Vision を取得して詳細表示
+	entity, err := zeus.Get(ctx, "vision", "vision-001")
+	if err != nil {
+		return err
+	}
+
+	vision, ok := entity.(*core.Vision)
+	if !ok {
+		return fmt.Errorf("invalid vision type")
+	}
+
+	fmt.Printf("%s\n", cyan("Vision"))
+	fmt.Println("════════════════════════════════════════")
+	fmt.Printf("ID:        %s\n", vision.ID)
+	fmt.Printf("Title:     %s\n", green(vision.Title))
+	if vision.Statement != "" {
+		fmt.Printf("Statement: %s\n", vision.Statement)
+	}
+	fmt.Printf("Status:    %s\n", vision.Status)
+	if len(vision.SuccessCriteria) > 0 {
+		fmt.Println("Success Criteria:")
+		for _, c := range vision.SuccessCriteria {
+			fmt.Printf("  - %s\n", c)
+		}
+	}
+
+	return nil
+}
+
+// listObjectives は Objective 一覧を表示
+func listObjectives(cmd *cobra.Command, zeus *core.Zeus) error {
+	ctx := getContext(cmd)
+	result, err := zeus.List(ctx, "objective")
+	if err != nil {
+		return err
+	}
+
+	cyan := color.New(color.FgCyan).SprintFunc()
+	fmt.Printf("%s (%d items)\n", cyan("Objectives"), result.Total)
+	fmt.Println("────────────────────────────────────────")
+
+	if result.Total == 0 {
+		fmt.Println("目標がありません。")
+		fmt.Println("'zeus add objective \"タイトル\"' で作成できます。")
+		return nil
+	}
+
+	// Objective ハンドラーから直接取得
+	handler, ok := zeus.GetRegistry().Get("objective")
+	if !ok {
+		return fmt.Errorf("objective handler not found")
+	}
+
+	// List を呼び、Total の数だけ個別に Get して表示
+	// Note: List は Total を返すが Items は空（Task 互換性のため）
+	// TODO: 将来的には List が []Entity を返すよう改善
+	listResult, err := handler.List(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	// objectives ディレクトリから直接取得
+	if objHandler, ok := handler.(*core.ObjectiveHandler); ok {
+		_ = objHandler // 型確認のみ
+	}
+
+	// 簡易表示（Total のみ）
+	fmt.Printf("Total: %d objectives\n", listResult.Total)
+	fmt.Println("\n詳細を見るには 'zeus status' を使用してください。")
+
+	return nil
+}
+
+// listDeliverables は Deliverable 一覧を表示
+func listDeliverables(cmd *cobra.Command, zeus *core.Zeus) error {
+	ctx := getContext(cmd)
+	result, err := zeus.List(ctx, "deliverable")
+	if err != nil {
+		return err
+	}
+
+	cyan := color.New(color.FgCyan).SprintFunc()
+	fmt.Printf("%s (%d items)\n", cyan("Deliverables"), result.Total)
+	fmt.Println("────────────────────────────────────────")
+
+	if result.Total == 0 {
+		fmt.Println("成果物がありません。")
+		fmt.Println("'zeus add deliverable \"タイトル\" --objective obj-001' で作成できます。")
+		return nil
+	}
+
+	// 簡易表示（Total のみ）
+	fmt.Printf("Total: %d deliverables\n", result.Total)
+	fmt.Println("\n詳細を見るには 'zeus status' を使用してください。")
 
 	return nil
 }

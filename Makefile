@@ -1,4 +1,4 @@
-.PHONY: build clean test install dev dashboard-deps dashboard-dev dashboard-build build-all clean-dashboard
+.PHONY: build clean test install dev dashboard-deps dashboard-dev dashboard-build build-all clean-dashboard storybook storybook-build
 
 BINARY_NAME=zeus
 VERSION=1.0.0
@@ -37,6 +37,13 @@ dashboard-clean:
 	rm -rf internal/dashboard/build
 	mkdir -p internal/dashboard/build
 	echo "placeholder" > internal/dashboard/build/.gitkeep
+
+# Storybook
+storybook:
+	cd $(DASHBOARD_DIR) && npm run storybook
+
+storybook-build:
+	cd $(DASHBOARD_DIR) && npm run build-storybook
 
 # 統合ビルド
 build-all: dashboard-build build

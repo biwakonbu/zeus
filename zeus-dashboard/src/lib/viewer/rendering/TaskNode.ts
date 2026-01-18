@@ -368,12 +368,45 @@ export class TaskNode extends Container {
 	}
 
 	/**
-	 * LODレベルを設定
+	 * LODレベルを設定（軽量化: visibility のみ切り替え）
 	 */
 	setLOD(level: LODLevel): void {
-		if (this.currentLOD !== level) {
-			this.currentLOD = level;
-			this.draw();
+		if (this.currentLOD === level) return;
+		this.currentLOD = level;
+		this.updateLODVisibility();
+	}
+
+	/**
+	 * LODに応じた要素の表示/非表示を更新（draw() より軽量）
+	 */
+	private updateLODVisibility(): void {
+		if (this.currentLOD === LODLevel.Macro) {
+			// マクロレベル: テキスト類を全て非表示
+			this.idText.visible = false;
+			this.titleText.visible = false;
+			this.metaText.visible = false;
+			this.progressBar.visible = false;
+			this.slackBadge.visible = false;
+			this.slackText.visible = false;
+		} else if (this.currentLOD === LODLevel.Meso) {
+			// メソレベル: IDのみ表示
+			this.idText.visible = true;
+			this.titleText.visible = false;
+			this.metaText.visible = false;
+			this.progressBar.visible = false;
+			this.slackBadge.visible = false;
+			this.slackText.visible = false;
+		} else {
+			// マイクロレベル: 全情報表示
+			this.idText.visible = true;
+			this.titleText.visible = true;
+			this.metaText.visible = true;
+			this.progressBar.visible = true;
+			// スラックバッジは値がある場合のみ
+			if (this.slack !== null) {
+				this.slackBadge.visible = true;
+				this.slackText.visible = true;
+			}
 		}
 	}
 
