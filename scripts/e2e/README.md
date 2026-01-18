@@ -64,6 +64,18 @@ cat /tmp/zeus-e2e-artifacts/actual-state.json | jq .
 - `screenshot.png` - UI スクリーンショット
 - `zeus-data.tar.gz` - プロジェクトデータ
 
+## ファイル構成
+
+| ファイル | 説明 |
+|---------|------|
+| `run-web-test.sh` | メインテストスクリプト |
+| `run-parallel-tests.sh` | 複数シナリオ並列実行 |
+| `update-golden.sh` | ゴールデンファイル更新 |
+| `lib/common.sh` | ログ、設定、ユーティリティ |
+| `lib/verify.sh` | jq を使った構造比較 |
+| `lib/report.sh` | 複数形式レポート生成 |
+| `golden/` | ゴールデンファイル格納 |
+
 ## 機能
 
 ### 1. 状態ベース検証（座標除外）
@@ -89,6 +101,12 @@ jq -S '.nodes[] | {name, status, progress}' actual.json
 ./scripts/e2e/run-parallel-tests.sh
 ```
 
+**特性:**
+- **最大3ジョブ**を同時実行
+- 各シナリオは**動的ポート割り当て**（衝突回避）
+- シナリオ: `basic`, `complex`, `large`
+- 統合レポートで全結果を集約
+
 ### 3. 複数形式レポート
 
 テスト完了後、自動的に 3 形式のレポートを生成。
@@ -111,6 +129,7 @@ TIMEOUT_APP_READY=40 ./scripts/e2e/run-web-test.sh
 | `TIMEOUT_CAPTURE` | 5秒 | 状態キャプチャタイムアウト |
 | `DASHBOARD_PORT` | 18080 | ダッシュボードポート |
 | `KEEP_ARTIFACTS` | false | アーティファクト保持 |
+| `ARTIFACTS_DIR` | `/tmp/zeus-e2e-artifacts` | アーティファクト保存先 |
 
 ## ゴールデンファイル更新
 
