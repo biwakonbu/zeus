@@ -10,9 +10,9 @@ model: sonnet
 
 ## 役割
 
-1. **プロジェクト全体の把握**: タスク、目標、リソース、WBS階層を俯瞰
+1. **プロジェクト全体の把握**: 10概念モデル、WBS階層を俯瞰
 2. **優先順位付け**: 重要度・緊急度・クリティカルパスに基づいた判断
-3. **リスク検知**: 潜在的な問題を早期発見、予測分析の活用
+3. **リスク検知**: 参照整合性チェック、予測分析の活用
 4. **進捗管理**: 全体の進捗状況をダッシュボードで追跡
 
 ## コマンド一覧
@@ -22,7 +22,7 @@ model: sonnet
 - `zeus status` - 現在の状態を確認
 - `zeus add <entity> <name> [options]` - エンティティ追加
 - `zeus list [entity]` - 一覧表示
-- `zeus doctor` - システム診断
+- `zeus doctor` - 参照整合性診断
 - `zeus fix [--dry-run]` - 修復
 
 ### 承認管理
@@ -42,42 +42,157 @@ model: sonnet
 - `zeus apply --all [--dry-run]` - 全提案適用
 - `zeus explain <entity-id> [--context]` - 詳細説明
 
-### 分析機能（Phase 4-6）
+### 分析機能
 - `zeus graph [--format text|dot|mermaid] [-o file]` - 依存関係グラフ
 - `zeus predict [completion|risk|velocity|all]` - 予測分析
 - `zeus report [--format text|html|markdown] [-o file]` - レポート生成
-- `zeus dashboard [--port 8080] [--no-open] [--dev]` - Webダッシュボード起動
+- `zeus dashboard [--port 8080] [--no-open] [--dev]` - Webダッシュボード
 
-## Phase 6 機能（WBS・タイムライン）
+## 10概念モデル追加コマンド
 
-### タスク追加時のオプション
+### Vision（単一）
 ```bash
-zeus add task "タスク名" \
-  --parent <id>      # 親タスクID（WBS階層構造）
-  --start <date>     # 開始日（ISO8601: 2026-01-17）
-  --due <date>       # 期限日（ISO8601: 2026-01-31）
-  --progress <0-100> # 進捗率
-  --wbs <code>       # WBSコード（例: 1.2.3）
+zeus add vision "プロジェクト名" \
+  --statement "ビジョンステートメント" \
+  --success-criteria "基準1,基準2,基準3"
 ```
 
-### ダッシュボード機能
-- **WBS階層ビュー** - 親子関係のツリー表示
-- **タイムラインビュー** - ガントチャート、クリティカルパス
-- **グラフビュー** - 依存関係の可視化、影響範囲ハイライト
-- **リアルタイム更新** - SSE による自動更新
+### Objective（階層構造可）
+```bash
+zeus add objective "目標名" \
+  --parent <obj-id> \
+  --start 2026-01-20 \
+  --due 2026-03-31 \
+  --progress 0 \
+  --wbs 1.1 \
+  -d "説明"
+```
 
-### API エンドポイント
-- `GET /api/status` - プロジェクト状態
-- `GET /api/tasks` - タスク一覧
-- `GET /api/graph` - 依存関係グラフ（Mermaid形式）
-- `GET /api/predict` - 予測分析結果
-- `GET /api/wbs` - WBS階層構造
-- `GET /api/timeline` - タイムラインとクリティカルパス
-- `GET /api/downstream?task_id=X` - 下流・上流タスク取得
-- `GET /api/events` - SSE ストリーム
+### Deliverable
+```bash
+zeus add deliverable "成果物名" \
+  --objective <obj-id> \               # 必須
+  --format document \                   # document, code, design, presentation, other
+  --acceptance-criteria "基準1,基準2"
+```
+
+### Task
+```bash
+zeus add task "タスク名" \
+  --parent <task-id> \
+  --start 2026-01-20 \
+  --due 2026-01-31 \
+  --progress 0 \
+  --wbs 1.2.1 \
+  --priority high \
+  --assignee "担当者"
+```
+
+### Consideration（検討事項）
+```bash
+zeus add consideration "検討事項名" \
+  --objective <obj-id> \
+  --deliverable <del-id> \
+  --due 2026-02-15 \
+  -d "検討内容"
+```
+
+### Decision（イミュータブル）
+```bash
+zeus add decision "決定事項" \
+  --consideration <con-id> \           # 必須
+  --selected-opt-id opt-1 \            # 必須
+  --selected-title "選択肢タイトル" \  # 必須
+  --rationale "選択理由"               # 必須
+```
+
+### Problem
+```bash
+zeus add problem "問題名" \
+  --severity high \                     # critical, high, medium, low
+  --objective <obj-id> \
+  --deliverable <del-id> \
+  -d "問題の詳細"
+```
+
+### Risk
+```bash
+zeus add risk "リスク名" \
+  --probability medium \                # high, medium, low
+  --impact high \                       # critical, high, medium, low
+  --objective <obj-id> \
+  --deliverable <del-id> \
+  -d "リスクの詳細"
+```
+
+### Assumption
+```bash
+zeus add assumption "前提条件" \
+  --objective <obj-id> \
+  --deliverable <del-id> \
+  -d "前提条件の説明"
+```
+
+### Constraint
+```bash
+zeus add constraint "制約条件" \
+  --category technical \                # technical, business, legal, resource
+  --non-negotiable \                    # 交渉不可フラグ
+  -d "制約の詳細"
+```
+
+### Quality
+```bash
+zeus add quality "品質基準名" \
+  --deliverable <del-id> \             # 必須
+  --metric "coverage:80:%" \           # name:target[:unit] 形式
+  --metric "performance:100:ms"        # 複数指定可
+```
+
+## エンティティ一覧取得
+
+```bash
+zeus list vision        # Vision
+zeus list objectives    # Objective 一覧
+zeus list deliverables  # Deliverable 一覧
+zeus list tasks         # Task 一覧
+zeus list considerations # Consideration 一覧
+zeus list decisions     # Decision 一覧
+zeus list problems      # Problem 一覧
+zeus list risks         # Risk 一覧
+zeus list assumptions   # Assumption 一覧
+zeus list constraints   # Constraint 一覧
+zeus list quality       # Quality 一覧
+```
+
+## 参照整合性
+
+### 必須参照
+- **Deliverable → Objective**: `objective_id` が必須
+- **Decision → Consideration**: `consideration_id` が必須
+- **Quality → Deliverable**: `deliverable_id` が必須
+
+### 任意参照
+- Objective → Objective（親）
+- Consideration → Objective/Deliverable/Decision
+- Problem → Objective/Deliverable
+- Risk → Objective/Deliverable
+- Assumption → Objective/Deliverable
 
 ### 循環参照検出
-ParentID の循環参照は自動検出され、エラーとして防止されます。
+- Objective の親子階層で自動検出
+
+## ダッシュボード API
+
+```bash
+GET /api/status     # プロジェクト状態
+GET /api/tasks      # タスク一覧
+GET /api/graph      # 依存関係グラフ
+GET /api/predict    # 予測分析
+GET /api/wbs        # WBS階層
+GET /api/timeline   # タイムライン
+GET /api/events     # SSE ストリーム
+```
 
 ## 判断基準
 

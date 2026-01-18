@@ -8,7 +8,7 @@ description: プロジェクト全体をスキャンし、現在の状態を分�
 
 ## 概要
 
-Zeus プロジェクトの 10概念モデル全体（Vision, Objectives, Deliverables, Tasks, Problems, Risks, Assumptions, Constraints, Quality, Considerations/Decisions）を分析します。
+Zeus プロジェクト（New Zeus Project）の 10概念モデル全体（Vision, Objective, Deliverable, Task, Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality）を分析します。
 
 ## 入力
 
@@ -32,26 +32,31 @@ project:
     objectives: 7
     deliverables: 4
     tasks: 3
+    considerations: 2
+    decisions: 1
     problems: 3
     risks: 3
     assumptions: 3
     constraints: 3
     quality: 2
-    considerations: 0
-    decisions: 0
 
-  # 従来のタスク管理
-  tasks:
-    total: 10
-    completed: 3
-    in_progress: 2
-    pending: 5
+  # 参照整合性
+  integrity:
+    status: "healthy|warning|error"
+    issues:
+      - type: "missing_reference"
+        source: "del-001"
+        target: "obj-999"
+        message: "referenced objective not found"
+      - type: "circular_reference"
+        entities: ["obj-001", "obj-002", "obj-003", "obj-001"]
+        message: "circular parent reference detected"
 
   # 依存関係グラフ
   graph:
-    cycles: []            # 循環参照リスト
-    isolated: []          # 孤立エンティティリスト
-    max_depth: 3          # 依存関係の最大深度
+    cycles: []
+    isolated: []
+    max_depth: 3
 
   # 予測分析
   prediction:
@@ -71,62 +76,129 @@ project:
     project_end: "2026-03-31"
     critical_path_length: 5
     overdue_tasks: []
-
-  # 参照整合性
-  integrity:
-    status: "healthy|warning|error"
-    issues: []
 ```
 
-## 使用方法
-
-1. `zeus status` コマンドで基本情報取得（Vision, Objectives, Deliverables 含む）
-2. `zeus doctor` で参照整合性チェック
-3. `zeus list <entity>` で各エンティティ一覧
-4. `zeus graph` で依存関係グラフ確認
-5. `zeus predict all` で予測分析実行
-6. `zeus report` でレポート生成
-7. `zeus dashboard` で可視化（推奨）
-
-## コマンド実行例
+## 基本コマンド
 
 ```bash
-# 基本状態の確認（10概念モデル対応）
+# プロジェクト全体の状態確認
 zeus status
 
 # 参照整合性チェック
 zeus doctor
 
-# 各エンティティ一覧
+# 問題の自動修復（ドライラン）
+zeus fix --dry-run
+```
+
+## 10概念モデル一覧取得
+
+```bash
+# Vision（単一ファイル）
+cat .zeus/vision.yaml
+
+# Objective 一覧
 zeus list objectives
+
+# Deliverable 一覧
 zeus list deliverables
-zeus list problems
-zeus list risks
-zeus list assumptions
-zeus list constraints
-zeus list quality
+
+# Task 一覧
+zeus list tasks
+
+# Consideration 一覧（検討事項）
 zeus list considerations
+
+# Decision 一覧（意思決定 - イミュータブル）
 zeus list decisions
 
-# 依存関係グラフ（Mermaid形式）
-zeus graph --format mermaid
+# Problem 一覧
+zeus list problems
 
-# 全予測分析
-zeus predict all
+# Risk 一覧
+zeus list risks
+
+# Assumption 一覧
+zeus list assumptions
+
+# Constraint 一覧（単一ファイル）
+zeus list constraints
+
+# Quality 一覧
+zeus list quality
+```
+
+## 分析・可視化
+
+```bash
+# 依存関係グラフ（複数形式）
+zeus graph --format text
+zeus graph --format mermaid
+zeus graph --format dot -o graph.dot
+
+# 予測分析
+zeus predict completion   # 完了日予測
+zeus predict risk         # リスク分析
+zeus predict velocity     # ベロシティ分析
+zeus predict all          # 全予測
 
 # レポート生成
-zeus report --format markdown
+zeus report --format markdown -o report.md
 
-# Webダッシュボードで可視化
+# Web ダッシュボード
 zeus dashboard
 ```
 
-## ダッシュボードAPI
+## 10概念モデル詳細
 
-スキャン結果をプログラムで取得する場合:
+### Phase 1 概念（コア3概念）
+
+| 概念 | 説明 | ファイル |
+|------|------|----------|
+| Vision | プロジェクトの目指す姿（単一） | `.zeus/vision.yaml` |
+| Objective | 達成目標（階層構造可） | `.zeus/objectives/obj-NNN.yaml` |
+| Deliverable | 成果物定義 | `.zeus/deliverables/del-NNN.yaml` |
+
+### Phase 2 概念（管理5概念）
+
+| 概念 | 説明 | ファイル | 特性 |
+|------|------|----------|------|
+| Consideration | 検討事項 | `.zeus/considerations/con-NNN.yaml` | 複数オプション記録 |
+| Decision | 意思決定 | `.zeus/decisions/dec-NNN.yaml` | **イミュータブル** |
+| Problem | 問題報告 | `.zeus/problems/prob-NNN.yaml` | severity レベル |
+| Risk | リスク管理 | `.zeus/risks/risk-NNN.yaml` | スコア自動計算 |
+| Assumption | 前提条件 | `.zeus/assumptions/assum-NNN.yaml` | 検証ステータス |
+
+### Phase 3 概念（品質2概念）
+
+| 概念 | 説明 | ファイル | 特性 |
+|------|------|----------|------|
+| Constraint | 制約条件 | `.zeus/constraints.yaml` | グローバル単一ファイル |
+| Quality | 品質基準 | `.zeus/quality/qual-NNN.yaml` | メトリクス・ゲート管理 |
+
+## 参照整合性チェック
+
+`zeus doctor` で以下の整合性をチェック:
+
+### 必須参照（エラー）
+- **Deliverable → Objective**: `objective_id` が必須
+- **Decision → Consideration**: `consideration_id` が必須
+- **Quality → Deliverable**: `deliverable_id` が必須
+
+### 任意参照（参照先が存在しない場合はエラー）
+- **Objective → Objective**: 親 `parent_id`（循環参照チェックあり）
+- **Consideration → Objective/Deliverable/Decision**: 任意の紐付け
+- **Problem → Objective/Deliverable**: 関連エンティティ
+- **Risk → Objective/Deliverable**: 関連エンティティ
+- **Assumption → Objective/Deliverable**: 関連エンティティ
+
+### 循環参照検出
+- Objective の親子階層で循環を検出
+
+## ダッシュボード API
 
 ```bash
-# ダッシュボード起動後
+# ダッシュボード起動後（デフォルト: localhost:8080）
 curl http://localhost:8080/api/status
 curl http://localhost:8080/api/tasks
 curl http://localhost:8080/api/graph
@@ -135,23 +207,7 @@ curl http://localhost:8080/api/wbs
 curl http://localhost:8080/api/timeline
 ```
 
-## 10概念モデル
+## 関連スキル
 
-| 概念 | 説明 | ファイル |
-|------|------|----------|
-| Vision | プロジェクトの目指す姿（単一） | `.zeus/vision.yaml` |
-| Objective | 達成目標（階層構造可） | `.zeus/objectives/` |
-| Deliverable | 成果物定義 | `.zeus/deliverables/` |
-| Task | 実行タスク | `.zeus/tasks/` |
-| Consideration | 検討事項 | `.zeus/considerations/` |
-| Decision | 意思決定（イミュータブル） | `.zeus/decisions/` |
-| Problem | 問題報告 | `.zeus/problems/` |
-| Risk | リスク管理 | `.zeus/risks/` |
-| Assumption | 前提条件 | `.zeus/assumptions/` |
-| Constraint | 制約条件 | `.zeus/constraints.yaml` |
-| Quality | 品質基準 | `.zeus/quality/` |
-
-## 関連
-
-- zeus-task-suggest
-- zeus-risk-analysis
+- zeus-task-suggest - 概念間の関連に基づくタスク提案
+- zeus-risk-analysis - Risk/Problem/Assumption の詳細分析
