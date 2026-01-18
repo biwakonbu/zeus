@@ -524,3 +524,608 @@ func (d *DeliverableEntity) GetID() string { return d.ID }
 
 // GetTitle は Entity インターフェースを実装（DeliverableEntity）
 func (d *DeliverableEntity) GetTitle() string { return d.Title }
+
+// ============================================================
+// 10 概念モデル型定義 (Phase 2: Consideration, Decision, Problem, Risk, Assumption)
+// ============================================================
+
+// === Consideration ===
+
+// ConsiderationStatus は Consideration の状態
+type ConsiderationStatus string
+
+const (
+	ConsiderationStatusOpen     ConsiderationStatus = "open"
+	ConsiderationStatusDecided  ConsiderationStatus = "decided"
+	ConsiderationStatusDeferred ConsiderationStatus = "deferred"
+)
+
+// ConsiderationOption は検討事項の選択肢
+type ConsiderationOption struct {
+	ID          string   `yaml:"id"`
+	Title       string   `yaml:"title"`
+	Description string   `yaml:"description,omitempty"`
+	Pros        []string `yaml:"pros,omitempty"`
+	Cons        []string `yaml:"cons,omitempty"`
+}
+
+// ConsiderationEntity は 10 概念モデルの検討事項
+// considerations/con-NNN.yaml で管理
+type ConsiderationEntity struct {
+	ID            string                `yaml:"id"`
+	Title         string                `yaml:"title"`
+	Status        ConsiderationStatus   `yaml:"status"`
+	ObjectiveID   string                `yaml:"objective_id,omitempty"`
+	DeliverableID string                `yaml:"deliverable_id,omitempty"`
+	Context       string                `yaml:"context,omitempty"`
+	Options       []ConsiderationOption `yaml:"options,omitempty"`
+	DecisionID    string                `yaml:"decision_id,omitempty"`
+	RaisedBy      string                `yaml:"raised_by,omitempty"`
+	DueDate       string                `yaml:"due_date,omitempty"`
+	Metadata      Metadata              `yaml:"metadata"`
+}
+
+// Validate は ConsiderationEntity の妥当性を検証
+func (c *ConsiderationEntity) Validate() error {
+	if c.ID == "" {
+		return fmt.Errorf("consideration ID is required")
+	}
+	if err := ValidateID("consideration", c.ID); err != nil {
+		return err
+	}
+	if c.Title == "" {
+		return fmt.Errorf("consideration title is required")
+	}
+	if c.Status == "" {
+		c.Status = ConsiderationStatusOpen
+	}
+	switch c.Status {
+	case ConsiderationStatusOpen, ConsiderationStatusDecided, ConsiderationStatusDeferred:
+		// 有効
+	default:
+		return fmt.Errorf("invalid consideration status: %s", c.Status)
+	}
+	// Option ID のユニーク性チェック
+	optionIDs := make(map[string]bool)
+	for _, opt := range c.Options {
+		if opt.ID == "" {
+			return fmt.Errorf("option ID is required")
+		}
+		if optionIDs[opt.ID] {
+			return fmt.Errorf("duplicate option ID: %s", opt.ID)
+		}
+		optionIDs[opt.ID] = true
+	}
+	return nil
+}
+
+// GetID は Entity インターフェースを実装（ConsiderationEntity）
+func (c *ConsiderationEntity) GetID() string { return c.ID }
+
+// GetTitle は Entity インターフェースを実装（ConsiderationEntity）
+func (c *ConsiderationEntity) GetTitle() string { return c.Title }
+
+// === Decision（イミュータブル）===
+
+// SelectedOption は選択された選択肢
+type SelectedOption struct {
+	OptionID string `yaml:"option_id"`
+	Title    string `yaml:"title"`
+}
+
+// RejectedOption は却下された選択肢
+type RejectedOption struct {
+	OptionID string `yaml:"option_id"`
+	Title    string `yaml:"title"`
+	Reason   string `yaml:"reason,omitempty"`
+}
+
+// DecisionEntity は 10 概念モデルの決定事項（イミュータブル）
+// decisions/dec-NNN.yaml で管理
+// 一度作成されると更新不可
+type DecisionEntity struct {
+	ID              string           `yaml:"id"`
+	Title           string           `yaml:"title"`
+	ConsiderationID string           `yaml:"consideration_id"`
+	Selected        SelectedOption   `yaml:"selected"`
+	Rejected        []RejectedOption `yaml:"rejected,omitempty"`
+	Rationale       string           `yaml:"rationale"`
+	Impact          []string         `yaml:"impact,omitempty"`
+	DecidedAt       string           `yaml:"decided_at"`
+	DecidedBy       string           `yaml:"decided_by,omitempty"`
+}
+
+// Validate は DecisionEntity の妥当性を検証
+func (d *DecisionEntity) Validate() error {
+	if d.ID == "" {
+		return fmt.Errorf("decision ID is required")
+	}
+	if err := ValidateID("decision", d.ID); err != nil {
+		return err
+	}
+	if d.Title == "" {
+		return fmt.Errorf("decision title is required")
+	}
+	if d.ConsiderationID == "" {
+		return fmt.Errorf("decision consideration_id is required")
+	}
+	if d.Selected.OptionID == "" {
+		return fmt.Errorf("decision selected option_id is required")
+	}
+	if d.Rationale == "" {
+		return fmt.Errorf("decision rationale is required")
+	}
+	if d.DecidedAt == "" {
+		return fmt.Errorf("decision decided_at is required")
+	}
+	return nil
+}
+
+// GetID は Entity インターフェースを実装（DecisionEntity）
+func (d *DecisionEntity) GetID() string { return d.ID }
+
+// GetTitle は Entity インターフェースを実装（DecisionEntity）
+func (d *DecisionEntity) GetTitle() string { return d.Title }
+
+// === Problem ===
+
+// ProblemStatus は Problem の状態
+type ProblemStatus string
+
+const (
+	ProblemStatusOpen       ProblemStatus = "open"
+	ProblemStatusInProgress ProblemStatus = "in_progress"
+	ProblemStatusResolved   ProblemStatus = "resolved"
+	ProblemStatusWontFix    ProblemStatus = "wont_fix"
+)
+
+// ProblemSeverity は Problem の重大度
+type ProblemSeverity string
+
+const (
+	ProblemSeverityCritical ProblemSeverity = "critical"
+	ProblemSeverityHigh     ProblemSeverity = "high"
+	ProblemSeverityMedium   ProblemSeverity = "medium"
+	ProblemSeverityLow      ProblemSeverity = "low"
+)
+
+// ProblemEntity は 10 概念モデルの問題
+// problems/prob-NNN.yaml で管理
+type ProblemEntity struct {
+	ID                 string          `yaml:"id"`
+	Title              string          `yaml:"title"`
+	Status             ProblemStatus   `yaml:"status"`
+	Severity           ProblemSeverity `yaml:"severity"`
+	ObjectiveID        string          `yaml:"objective_id,omitempty"`
+	DeliverableID      string          `yaml:"deliverable_id,omitempty"`
+	Description        string          `yaml:"description,omitempty"`
+	Impact             string          `yaml:"impact,omitempty"`
+	RootCause          string          `yaml:"root_cause,omitempty"`
+	PotentialSolutions []string        `yaml:"potential_solutions,omitempty"`
+	ReportedBy         string          `yaml:"reported_by,omitempty"`
+	AssignedTo         string          `yaml:"assigned_to,omitempty"`
+	Metadata           Metadata        `yaml:"metadata"`
+}
+
+// Validate は ProblemEntity の妥当性を検証
+func (p *ProblemEntity) Validate() error {
+	if p.ID == "" {
+		return fmt.Errorf("problem ID is required")
+	}
+	if err := ValidateID("problem", p.ID); err != nil {
+		return err
+	}
+	if p.Title == "" {
+		return fmt.Errorf("problem title is required")
+	}
+	if p.Status == "" {
+		p.Status = ProblemStatusOpen
+	}
+	switch p.Status {
+	case ProblemStatusOpen, ProblemStatusInProgress, ProblemStatusResolved, ProblemStatusWontFix:
+		// 有効
+	default:
+		return fmt.Errorf("invalid problem status: %s", p.Status)
+	}
+	if p.Severity == "" {
+		p.Severity = ProblemSeverityMedium
+	}
+	switch p.Severity {
+	case ProblemSeverityCritical, ProblemSeverityHigh, ProblemSeverityMedium, ProblemSeverityLow:
+		// 有効
+	default:
+		return fmt.Errorf("invalid problem severity: %s", p.Severity)
+	}
+	return nil
+}
+
+// GetID は Entity インターフェースを実装（ProblemEntity）
+func (p *ProblemEntity) GetID() string { return p.ID }
+
+// GetTitle は Entity インターフェースを実装（ProblemEntity）
+func (p *ProblemEntity) GetTitle() string { return p.Title }
+
+// === Risk ===
+
+// RiskStatus は Risk の状態
+type RiskStatus string
+
+const (
+	RiskStatusIdentified RiskStatus = "identified"
+	RiskStatusMitigating RiskStatus = "mitigating"
+	RiskStatusMitigated  RiskStatus = "mitigated"
+	RiskStatusOccurred   RiskStatus = "occurred"
+	RiskStatusClosed     RiskStatus = "closed"
+)
+
+// RiskProbability は Risk の発生確率
+type RiskProbability string
+
+const (
+	RiskProbabilityHigh   RiskProbability = "high"
+	RiskProbabilityMedium RiskProbability = "medium"
+	RiskProbabilityLow    RiskProbability = "low"
+)
+
+// RiskImpact は Risk の影響度
+type RiskImpact string
+
+const (
+	RiskImpactCritical RiskImpact = "critical"
+	RiskImpactHigh     RiskImpact = "high"
+	RiskImpactMedium   RiskImpact = "medium"
+	RiskImpactLow      RiskImpact = "low"
+)
+
+// RiskScore は Risk の総合スコア（自動計算）
+type RiskScore string
+
+const (
+	RiskScoreCritical RiskScore = "critical"
+	RiskScoreHigh     RiskScore = "high"
+	RiskScoreMedium   RiskScore = "medium"
+	RiskScoreLow      RiskScore = "low"
+)
+
+// RiskMitigation は Risk の軽減策
+type RiskMitigation struct {
+	Preventive []string `yaml:"preventive,omitempty"`
+	Contingent []string `yaml:"contingent,omitempty"`
+}
+
+// RiskEntity は 10 概念モデルのリスク
+// risks/risk-NNN.yaml で管理
+type RiskEntity struct {
+	ID            string          `yaml:"id"`
+	Title         string          `yaml:"title"`
+	Status        RiskStatus      `yaml:"status"`
+	Probability   RiskProbability `yaml:"probability"`
+	Impact        RiskImpact      `yaml:"impact"`
+	RiskScore     RiskScore       `yaml:"risk_score"` // 自動計算
+	ObjectiveID   string          `yaml:"objective_id,omitempty"`
+	DeliverableID string          `yaml:"deliverable_id,omitempty"`
+	Description   string          `yaml:"description,omitempty"`
+	Trigger       string          `yaml:"trigger,omitempty"`
+	Mitigation    RiskMitigation  `yaml:"mitigation,omitempty"`
+	Owner         string          `yaml:"owner,omitempty"`
+	ReviewDate    string          `yaml:"review_date,omitempty"`
+	Metadata      Metadata        `yaml:"metadata"`
+}
+
+// CalculateRiskScore は probability × impact から risk_score を計算
+func CalculateRiskScore(probability RiskProbability, impact RiskImpact) RiskScore {
+	matrix := map[RiskProbability]map[RiskImpact]RiskScore{
+		RiskProbabilityHigh: {
+			RiskImpactCritical: RiskScoreCritical,
+			RiskImpactHigh:     RiskScoreCritical,
+			RiskImpactMedium:   RiskScoreHigh,
+			RiskImpactLow:      RiskScoreMedium,
+		},
+		RiskProbabilityMedium: {
+			RiskImpactCritical: RiskScoreCritical,
+			RiskImpactHigh:     RiskScoreHigh,
+			RiskImpactMedium:   RiskScoreMedium,
+			RiskImpactLow:      RiskScoreLow,
+		},
+		RiskProbabilityLow: {
+			RiskImpactCritical: RiskScoreHigh,
+			RiskImpactHigh:     RiskScoreMedium,
+			RiskImpactMedium:   RiskScoreLow,
+			RiskImpactLow:      RiskScoreLow,
+		},
+	}
+	if impactMap, ok := matrix[probability]; ok {
+		if score, ok := impactMap[impact]; ok {
+			return score
+		}
+	}
+	return RiskScoreMedium // デフォルト
+}
+
+// Validate は RiskEntity の妥当性を検証
+func (r *RiskEntity) Validate() error {
+	if r.ID == "" {
+		return fmt.Errorf("risk ID is required")
+	}
+	if err := ValidateID("risk", r.ID); err != nil {
+		return err
+	}
+	if r.Title == "" {
+		return fmt.Errorf("risk title is required")
+	}
+	if r.Status == "" {
+		r.Status = RiskStatusIdentified
+	}
+	switch r.Status {
+	case RiskStatusIdentified, RiskStatusMitigating, RiskStatusMitigated,
+		RiskStatusOccurred, RiskStatusClosed:
+		// 有効
+	default:
+		return fmt.Errorf("invalid risk status: %s", r.Status)
+	}
+	if r.Probability == "" {
+		r.Probability = RiskProbabilityMedium
+	}
+	switch r.Probability {
+	case RiskProbabilityHigh, RiskProbabilityMedium, RiskProbabilityLow:
+		// 有効
+	default:
+		return fmt.Errorf("invalid risk probability: %s", r.Probability)
+	}
+	if r.Impact == "" {
+		r.Impact = RiskImpactMedium
+	}
+	switch r.Impact {
+	case RiskImpactCritical, RiskImpactHigh, RiskImpactMedium, RiskImpactLow:
+		// 有効
+	default:
+		return fmt.Errorf("invalid risk impact: %s", r.Impact)
+	}
+	// RiskScore を自動計算
+	r.RiskScore = CalculateRiskScore(r.Probability, r.Impact)
+	return nil
+}
+
+// GetID は Entity インターフェースを実装（RiskEntity）
+func (r *RiskEntity) GetID() string { return r.ID }
+
+// GetTitle は Entity インターフェースを実装（RiskEntity）
+func (r *RiskEntity) GetTitle() string { return r.Title }
+
+// === Assumption ===
+
+// AssumptionStatus は Assumption の状態
+type AssumptionStatus string
+
+const (
+	AssumptionStatusAssumed     AssumptionStatus = "assumed"
+	AssumptionStatusValidated   AssumptionStatus = "validated"
+	AssumptionStatusInvalidated AssumptionStatus = "invalidated"
+)
+
+// AssumptionValidation は Assumption の検証情報
+type AssumptionValidation struct {
+	Method      string `yaml:"method,omitempty"`
+	Result      string `yaml:"result,omitempty"`
+	ValidatedAt string `yaml:"validated_at,omitempty"`
+}
+
+// AssumptionEntity は 10 概念モデルの前提条件
+// assumptions/assum-NNN.yaml で管理
+type AssumptionEntity struct {
+	ID            string               `yaml:"id"`
+	Title         string               `yaml:"title"`
+	Status        AssumptionStatus     `yaml:"status"`
+	ObjectiveID   string               `yaml:"objective_id,omitempty"`
+	DeliverableID string               `yaml:"deliverable_id,omitempty"`
+	Description   string               `yaml:"description,omitempty"`
+	IfInvalid     string               `yaml:"if_invalid,omitempty"`
+	Validation    AssumptionValidation `yaml:"validation,omitempty"`
+	Metadata      Metadata             `yaml:"metadata"`
+}
+
+// Validate は AssumptionEntity の妥当性を検証
+func (a *AssumptionEntity) Validate() error {
+	if a.ID == "" {
+		return fmt.Errorf("assumption ID is required")
+	}
+	if err := ValidateID("assumption", a.ID); err != nil {
+		return err
+	}
+	if a.Title == "" {
+		return fmt.Errorf("assumption title is required")
+	}
+	if a.Status == "" {
+		a.Status = AssumptionStatusAssumed
+	}
+	switch a.Status {
+	case AssumptionStatusAssumed, AssumptionStatusValidated, AssumptionStatusInvalidated:
+		// 有効
+	default:
+		return fmt.Errorf("invalid assumption status: %s", a.Status)
+	}
+	return nil
+}
+
+// GetID は Entity インターフェースを実装（AssumptionEntity）
+func (a *AssumptionEntity) GetID() string { return a.ID }
+
+// GetTitle は Entity インターフェースを実装（AssumptionEntity）
+func (a *AssumptionEntity) GetTitle() string { return a.Title }
+
+// ============================================================
+// 10 概念モデル型定義 (Phase 3: Constraint, Quality)
+// ============================================================
+
+// === Constraint（単一ファイル）===
+
+// ConstraintCategory は Constraint のカテゴリ
+type ConstraintCategory string
+
+const (
+	ConstraintCategoryTechnical ConstraintCategory = "technical"
+	ConstraintCategoryBusiness  ConstraintCategory = "business"
+	ConstraintCategoryLegal     ConstraintCategory = "legal"
+	ConstraintCategoryResource  ConstraintCategory = "resource"
+)
+
+// ConstraintEntity は 10 概念モデルの制約条件
+type ConstraintEntity struct {
+	ID            string             `yaml:"id"`
+	Title         string             `yaml:"title"`
+	Category      ConstraintCategory `yaml:"category"`
+	Description   string             `yaml:"description,omitempty"`
+	Source        string             `yaml:"source,omitempty"`
+	Impact        []string           `yaml:"impact,omitempty"`
+	NonNegotiable bool               `yaml:"non_negotiable"`
+}
+
+// Validate は ConstraintEntity の妥当性を検証
+func (c *ConstraintEntity) Validate() error {
+	if c.ID == "" {
+		return fmt.Errorf("constraint ID is required")
+	}
+	if err := ValidateID("constraint", c.ID); err != nil {
+		return err
+	}
+	if c.Title == "" {
+		return fmt.Errorf("constraint title is required")
+	}
+	if c.Category == "" {
+		c.Category = ConstraintCategoryTechnical
+	}
+	switch c.Category {
+	case ConstraintCategoryTechnical, ConstraintCategoryBusiness,
+		ConstraintCategoryLegal, ConstraintCategoryResource:
+		// 有効
+	default:
+		return fmt.Errorf("invalid constraint category: %s", c.Category)
+	}
+	return nil
+}
+
+// GetID は Entity インターフェースを実装（ConstraintEntity）
+func (c *ConstraintEntity) GetID() string { return c.ID }
+
+// GetTitle は Entity インターフェースを実装（ConstraintEntity）
+func (c *ConstraintEntity) GetTitle() string { return c.Title }
+
+// ConstraintsFile は制約条件ファイルの構造
+// constraints.yaml で管理（単一ファイル）
+type ConstraintsFile struct {
+	Constraints []ConstraintEntity `yaml:"constraints"`
+	Metadata    Metadata           `yaml:"metadata"`
+}
+
+// === Quality ===
+
+// MetricStatus は QualityMetric の状態
+type MetricStatus string
+
+const (
+	MetricStatusMet        MetricStatus = "met"
+	MetricStatusNotMet     MetricStatus = "not_met"
+	MetricStatusInProgress MetricStatus = "in_progress"
+)
+
+// GateStatus は QualityGate の状態
+type GateStatus string
+
+const (
+	GateStatusPassed  GateStatus = "passed"
+	GateStatusFailed  GateStatus = "failed"
+	GateStatusPending GateStatus = "pending"
+)
+
+// QualityMetric は品質メトリクス
+type QualityMetric struct {
+	ID      string       `yaml:"id"`
+	Name    string       `yaml:"name"`
+	Target  float64      `yaml:"target"`
+	Unit    string       `yaml:"unit,omitempty"`
+	Current float64      `yaml:"current,omitempty"`
+	Status  MetricStatus `yaml:"status"`
+}
+
+// QualityGate は品質ゲート
+type QualityGate struct {
+	Name     string     `yaml:"name"`
+	Criteria []string   `yaml:"criteria"`
+	Status   GateStatus `yaml:"status"`
+}
+
+// QualityEntity は 10 概念モデルの品質基準
+// quality/qual-NNN.yaml で管理
+type QualityEntity struct {
+	ID            string          `yaml:"id"`
+	Title         string          `yaml:"title"`
+	DeliverableID string          `yaml:"deliverable_id"`
+	Metrics       []QualityMetric `yaml:"metrics"`
+	Gates         []QualityGate   `yaml:"gates,omitempty"`
+	Reviewer      string          `yaml:"reviewer,omitempty"`
+	Metadata      Metadata        `yaml:"metadata"`
+}
+
+// Validate は QualityEntity の妥当性を検証
+func (q *QualityEntity) Validate() error {
+	if q.ID == "" {
+		return fmt.Errorf("quality ID is required")
+	}
+	if err := ValidateID("quality", q.ID); err != nil {
+		return err
+	}
+	if q.Title == "" {
+		return fmt.Errorf("quality title is required")
+	}
+	if q.DeliverableID == "" {
+		return fmt.Errorf("quality deliverable_id is required")
+	}
+	if len(q.Metrics) == 0 {
+		return fmt.Errorf("quality must have at least one metric")
+	}
+	// Metric バリデーション
+	metricIDs := make(map[string]bool)
+	for _, m := range q.Metrics {
+		if m.ID == "" {
+			return fmt.Errorf("metric ID is required")
+		}
+		if metricIDs[m.ID] {
+			return fmt.Errorf("duplicate metric ID: %s", m.ID)
+		}
+		metricIDs[m.ID] = true
+		if m.Name == "" {
+			return fmt.Errorf("metric name is required")
+		}
+		if m.Status == "" {
+			m.Status = MetricStatusInProgress
+		}
+		switch m.Status {
+		case MetricStatusMet, MetricStatusNotMet, MetricStatusInProgress:
+			// 有効
+		default:
+			return fmt.Errorf("invalid metric status: %s", m.Status)
+		}
+	}
+	// Gate バリデーション
+	for _, g := range q.Gates {
+		if g.Name == "" {
+			return fmt.Errorf("gate name is required")
+		}
+		if g.Status == "" {
+			g.Status = GateStatusPending
+		}
+		switch g.Status {
+		case GateStatusPassed, GateStatusFailed, GateStatusPending:
+			// 有効
+		default:
+			return fmt.Errorf("invalid gate status: %s", g.Status)
+		}
+	}
+	return nil
+}
+
+// GetID は Entity インターフェースを実装（QualityEntity）
+func (q *QualityEntity) GetID() string { return q.ID }
+
+// GetTitle は Entity インターフェースを実装（QualityEntity）
+func (q *QualityEntity) GetTitle() string { return q.Title }

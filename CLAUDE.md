@@ -49,6 +49,7 @@ make build-all          # 統合ビルド
 | Phase 5 (ダッシュボード) | Factorio風ビューワー、SSE | 完了 |
 | Phase 6 (WBS・タイムライン) | WBS階層、クリティカルパス、影響範囲可視化 | 完了 |
 | 10概念モデル Phase 1 | Vision, Objective, Deliverable, 参照整合性 | 完了 |
+| 10概念モデル Phase 2+3 | Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality | 完了 (M1-M3対応推奨) |
 
 ## 実装済みコマンド
 
@@ -57,11 +58,13 @@ make build-all          # 統合ビルド
 zeus init                                       # プロジェクト初期化
 zeus status                                     # 状態表示
 zeus add <entity> <name> [options]              # エンティティ追加
-  # entity: task, vision, objective, deliverable
+  # entity: task, vision, objective, deliverable, consideration, decision,
+  #         problem, risk, assumption, constraint, quality
   # --parent <id>  --start <date>  --due <date>  --progress <0-100>  --wbs <code>
   # --statement <text>  --objective <id>  --format <type>
 zeus list [entity]                              # 一覧表示
-  # entity: tasks, vision, objectives, deliverables
+  # entity: tasks, vision, objectives, deliverables, considerations, decisions,
+  #         problems, risks, assumptions, constraints, quality
 zeus doctor                                     # 診断（参照整合性・循環参照チェック含む）
 zeus fix [--dry-run]                            # 修復
 
@@ -122,15 +125,53 @@ Task ベースのシステムを拡張し、プロジェクト管理の本質的
 | Objective | 達成目標（階層構造可） | `.zeus/objectives/obj-NNN.yaml` |
 | Deliverable | 成果物定義 | `.zeus/deliverables/del-NNN.yaml` |
 
+### Phase 2 実装済み（5概念）
+
+| 概念 | 説明 | ファイル | 特性 |
+|------|------|----------|------|
+| Consideration | 検討事項（複数オプション） | `.zeus/considerations/con-NNN.yaml` | 検討プロセス記録 |
+| Decision | 意思決定（イミュータブル） | `.zeus/decisions/dec-NNN.yaml` | 一度決定後は変更不可 |
+| Problem | 問題報告 | `.zeus/problems/prob-NNN.yaml` | 重大度レベル記録 |
+| Risk | リスク管理 | `.zeus/risks/risk-NNN.yaml` | スコア自動計算 |
+| Assumption | 前提条件 | `.zeus/assumptions/assum-NNN.yaml` | 検証ステータス記録 |
+
+### Phase 3 実装済み（2概念）
+
+| 概念 | 説明 | ファイル | 特性 |
+|------|------|----------|------|
+| Constraint | 制約条件 | `.zeus/constraints.yaml` | グローバル単一ファイル |
+| Quality | 品質基準 | `.zeus/quality/qual-NNN.yaml` | メトリクス・ゲート管理 |
+
 ### 参照整合性
 
-- `zeus doctor` で Deliverable → Objective、Objective → Objective (親) の参照チェック
-- 循環参照検出
+- `zeus doctor` で全参照をチェック：
+  - Deliverable → Objective（必須）
+  - Objective → Objective (親)（任意、循環参照チェック）
+  - Decision → Consideration（必須）
+  - Quality → Deliverable（必須）
+  - Problem/Risk/Assumption → Objective/Deliverable（任意）
+- 循環参照検出実装済み
 - セキュリティ: ValidatePath, ValidateID, Sanitizer
 
-### Phase 2 以降（予定）
+### コードレビュー結果（Phase 2+3）
 
-Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality
+**実装完了度:** 95% | **コード品質:** 85-90%
+
+**指摘事項 (優先度順):**
+1. M1: Decision の Delete も禁止化すべき（イミュータブル制約）- 1時間
+2. M3: Decision/Consideration の逆参照整合性チェック追加 - 2時間
+3. M2: Quality メトリクス CLI 実装完了 - 2時間（中期）
+4. M5: ID 生成パフォーマンス改善（O(N)→O(1)）- 3時間（中期）
+
+**強み:**
+- EntityHandler パターンの一貫性が高い
+- セキュリティ検証（パストラバーサル、インジェクション対策）堅牢
+- 参照整合性チェックが網羅的
+- テスト成功率 100%
+
+**推奨対応:** Priority 1 の 2 タスク（計 5時間）対応後、本番展開可能
+
+詳細: REVIEW_PHASE_2_3.md / REVIEW_SUMMARY.json 参照
 
 ## ドキュメント
 

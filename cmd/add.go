@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/biwakonbu/zeus/internal/core"
 	"github.com/fatih/color"
@@ -28,9 +29,32 @@ var (
 	addSuccessCriteria []string
 
 	// Deliverable 用
-	addObjectiveID         string
-	addFormat              string
-	addAcceptanceCriteria  []string
+	addObjectiveID        string
+	addFormat             string
+	addAcceptanceCriteria []string
+
+	// Consideration 用
+	addDeliverableID string
+
+	// Decision 用
+	addConsiderationID string
+	addSelectedOptID   string
+	addSelectedTitle   string
+	addRationale       string
+
+	// Problem 用
+	addSeverity string
+
+	// Risk 用
+	addProbability string
+	addImpact      string
+
+	// Constraint 用
+	addCategory      string
+	addNonNegotiable bool
+
+	// Quality 用
+	addMetrics []string
 )
 
 var addCmd = &cobra.Command{
@@ -39,10 +63,17 @@ var addCmd = &cobra.Command{
 	Long: `エンティティを追加します。
 
 対応エンティティ:
-  task        タスク（既存）
-  vision      プロジェクトビジョン
-  objective   目標・マイルストーン
-  deliverable 成果物
+  task          タスク（既存）
+  vision        プロジェクトビジョン
+  objective     目標・マイルストーン
+  deliverable   成果物
+  consideration 検討事項
+  decision      意思決定（イミュータブル）
+  problem       問題
+  risk          リスク（スコア自動計算）
+  assumption    前提条件
+  constraint    制約条件
+  quality       品質基準
 
 共通オプション:
   --description  説明
@@ -74,11 +105,52 @@ Deliverable 用オプション:
   --format              フォーマット（document, code, design, presentation, other）
   --acceptance-criteria 受入基準（カンマ区切り）
 
+Consideration 用オプション:
+  --objective     紐づく Objective の ID
+  --deliverable   紐づく Deliverable の ID
+  --due           期限日
+
+Decision 用オプション:
+  --consideration     紐づく Consideration の ID（必須）
+  --selected-opt-id   選択した Option の ID（必須）
+  --selected-title    選択した Option のタイトル（必須）
+  --rationale         選択理由（必須）
+
+Problem 用オプション:
+  --severity      深刻度（critical, high, medium, low）
+  --objective     紐づく Objective の ID
+  --deliverable   紐づく Deliverable の ID
+
+Risk 用オプション:
+  --probability   発生確率（high, medium, low）
+  --impact        影響度（critical, high, medium, low）
+  --objective     紐づく Objective の ID
+  --deliverable   紐づく Deliverable の ID
+
+Assumption 用オプション:
+  --objective     紐づく Objective の ID
+  --deliverable   紐づく Deliverable の ID
+
+Constraint 用オプション:
+  --category        カテゴリ（technical, business, legal, resource）
+  --non-negotiable  交渉不可フラグ
+
+Quality 用オプション:
+  --deliverable   紐づく Deliverable の ID（必須）
+  --metric        メトリクス（name:target[:unit] 形式、複数回指定可）
+
 例:
   zeus add task "設計ドキュメント作成"
   zeus add vision "AI駆動PM" --statement "AIと人間が協調するPM"
   zeus add objective "認証システム実装" --wbs 1.1 --due 2026-02-28
-  zeus add deliverable "API設計書" --objective obj-001 --format document`,
+  zeus add deliverable "API設計書" --objective obj-001 --format document
+  zeus add consideration "認証方式の選択" --objective obj-001
+  zeus add decision "JWT認証を採用" --consideration con-001 --selected-opt-id opt-1 --selected-title "JWT" --rationale "セキュリティと拡張性"
+  zeus add problem "パフォーマンス問題" --severity high --objective obj-001
+  zeus add risk "外部API依存" --probability medium --impact high
+  zeus add assumption "ユーザー数1000人以下" --objective obj-001
+  zeus add constraint "外部DB不使用" --category technical --non-negotiable
+  zeus add quality "コードカバレッジ" --deliverable del-001 --metric "coverage:80:%" --metric "performance:100:ms"`,
 	Args: cobra.ExactArgs(2),
 	RunE: runAdd,
 }
@@ -108,6 +180,29 @@ func init() {
 	addCmd.Flags().StringVar(&addObjectiveID, "objective", "", "紐づく Objective の ID")
 	addCmd.Flags().StringVar(&addFormat, "format", "", "フォーマット（document, code, design, presentation, other）")
 	addCmd.Flags().StringSliceVar(&addAcceptanceCriteria, "acceptance-criteria", nil, "受入基準（カンマ区切り）")
+
+	// Consideration 用フラグ
+	addCmd.Flags().StringVar(&addDeliverableID, "deliverable", "", "紐づく Deliverable の ID")
+
+	// Decision 用フラグ
+	addCmd.Flags().StringVar(&addConsiderationID, "consideration", "", "紐づく Consideration の ID")
+	addCmd.Flags().StringVar(&addSelectedOptID, "selected-opt-id", "", "選択した Option の ID")
+	addCmd.Flags().StringVar(&addSelectedTitle, "selected-title", "", "選択した Option のタイトル")
+	addCmd.Flags().StringVar(&addRationale, "rationale", "", "選択理由")
+
+	// Problem 用フラグ
+	addCmd.Flags().StringVar(&addSeverity, "severity", "", "深刻度（critical, high, medium, low）")
+
+	// Risk 用フラグ
+	addCmd.Flags().StringVar(&addProbability, "probability", "", "発生確率（high, medium, low）")
+	addCmd.Flags().StringVar(&addImpact, "impact", "", "影響度（critical, high, medium, low）")
+
+	// Constraint 用フラグ
+	addCmd.Flags().StringVar(&addCategory, "category", "", "カテゴリ（technical, business, legal, resource）")
+	addCmd.Flags().BoolVar(&addNonNegotiable, "non-negotiable", false, "交渉不可フラグ")
+
+	// Quality 用フラグ
+	addCmd.Flags().StringArrayVar(&addMetrics, "metric", nil, "メトリクス（name:target[:unit] 形式、複数回指定可）")
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
@@ -163,6 +258,20 @@ func buildAddOptions(entity string) []core.EntityOption {
 		opts = buildObjectiveOptions()
 	case "deliverable":
 		opts = buildDeliverableOptions()
+	case "consideration":
+		opts = buildConsiderationOptions()
+	case "decision":
+		opts = buildDecisionOptions()
+	case "problem":
+		opts = buildProblemOptions()
+	case "risk":
+		opts = buildRiskOptions()
+	case "assumption":
+		opts = buildAssumptionOptions()
+	case "constraint":
+		opts = buildConstraintOptions()
+	case "quality":
+		opts = buildQualityOptions()
 	}
 
 	return opts
@@ -300,4 +409,240 @@ func buildDeliverableOptions() []core.EntityOption {
 	}
 
 	return opts
+}
+
+// buildConsiderationOptions は Consideration 用オプションを構築
+func buildConsiderationOptions() []core.EntityOption {
+	var opts []core.EntityOption
+
+	if addObjectiveID != "" {
+		opts = append(opts, core.WithConsiderationObjective(addObjectiveID))
+	}
+	if addDeliverableID != "" {
+		opts = append(opts, core.WithConsiderationDeliverable(addDeliverableID))
+	}
+	if addDueDate != "" {
+		opts = append(opts, core.WithConsiderationDueDate(addDueDate))
+	}
+	if addDescription != "" {
+		opts = append(opts, core.WithConsiderationContext(addDescription))
+	}
+
+	return opts
+}
+
+// buildDecisionOptions は Decision 用オプションを構築
+func buildDecisionOptions() []core.EntityOption {
+	var opts []core.EntityOption
+
+	if addConsiderationID != "" {
+		opts = append(opts, core.WithDecisionConsideration(addConsiderationID))
+	}
+	if addSelectedOptID != "" && addSelectedTitle != "" {
+		selected := core.SelectedOption{
+			OptionID: addSelectedOptID,
+			Title:    addSelectedTitle,
+		}
+		opts = append(opts, core.WithDecisionSelected(selected))
+	}
+	if addRationale != "" {
+		opts = append(opts, core.WithDecisionRationale(addRationale))
+	}
+	if addOwner != "" {
+		opts = append(opts, core.WithDecisionDecidedBy(addOwner))
+	}
+
+	return opts
+}
+
+// buildProblemOptions は Problem 用オプションを構築
+func buildProblemOptions() []core.EntityOption {
+	var opts []core.EntityOption
+
+	if addSeverity != "" {
+		var severity core.ProblemSeverity
+		switch addSeverity {
+		case "critical":
+			severity = core.ProblemSeverityCritical
+		case "high":
+			severity = core.ProblemSeverityHigh
+		case "medium":
+			severity = core.ProblemSeverityMedium
+		case "low":
+			severity = core.ProblemSeverityLow
+		default:
+			severity = core.ProblemSeverityMedium
+		}
+		opts = append(opts, core.WithProblemSeverity(severity))
+	}
+	if addObjectiveID != "" {
+		opts = append(opts, core.WithProblemObjective(addObjectiveID))
+	}
+	if addDeliverableID != "" {
+		opts = append(opts, core.WithProblemDeliverable(addDeliverableID))
+	}
+	if addDescription != "" {
+		opts = append(opts, core.WithProblemDescription(addDescription))
+	}
+	if addOwner != "" {
+		opts = append(opts, core.WithProblemAssignedTo(addOwner))
+	}
+
+	return opts
+}
+
+// buildRiskOptions は Risk 用オプションを構築
+func buildRiskOptions() []core.EntityOption {
+	var opts []core.EntityOption
+
+	if addProbability != "" {
+		var probability core.RiskProbability
+		switch addProbability {
+		case "high":
+			probability = core.RiskProbabilityHigh
+		case "medium":
+			probability = core.RiskProbabilityMedium
+		case "low":
+			probability = core.RiskProbabilityLow
+		default:
+			probability = core.RiskProbabilityMedium
+		}
+		opts = append(opts, core.WithRiskProbability(probability))
+	}
+	if addImpact != "" {
+		var impact core.RiskImpact
+		switch addImpact {
+		case "critical":
+			impact = core.RiskImpactCritical
+		case "high":
+			impact = core.RiskImpactHigh
+		case "medium":
+			impact = core.RiskImpactMedium
+		case "low":
+			impact = core.RiskImpactLow
+		default:
+			impact = core.RiskImpactMedium
+		}
+		opts = append(opts, core.WithRiskImpact(impact))
+	}
+	if addObjectiveID != "" {
+		opts = append(opts, core.WithRiskObjective(addObjectiveID))
+	}
+	if addDeliverableID != "" {
+		opts = append(opts, core.WithRiskDeliverable(addDeliverableID))
+	}
+	if addDescription != "" {
+		opts = append(opts, core.WithRiskDescription(addDescription))
+	}
+	if addOwner != "" {
+		opts = append(opts, core.WithRiskOwner(addOwner))
+	}
+
+	return opts
+}
+
+// buildAssumptionOptions は Assumption 用オプションを構築
+func buildAssumptionOptions() []core.EntityOption {
+	var opts []core.EntityOption
+
+	if addObjectiveID != "" {
+		opts = append(opts, core.WithAssumptionObjective(addObjectiveID))
+	}
+	if addDeliverableID != "" {
+		opts = append(opts, core.WithAssumptionDeliverable(addDeliverableID))
+	}
+	if addDescription != "" {
+		opts = append(opts, core.WithAssumptionDescription(addDescription))
+	}
+
+	return opts
+}
+
+// buildConstraintOptions は Constraint 用オプションを構築
+func buildConstraintOptions() []core.EntityOption {
+	var opts []core.EntityOption
+
+	if addCategory != "" {
+		var category core.ConstraintCategory
+		switch addCategory {
+		case "technical":
+			category = core.ConstraintCategoryTechnical
+		case "business":
+			category = core.ConstraintCategoryBusiness
+		case "legal":
+			category = core.ConstraintCategoryLegal
+		case "resource":
+			category = core.ConstraintCategoryResource
+		default:
+			category = core.ConstraintCategoryTechnical
+		}
+		opts = append(opts, core.WithConstraintCategory(category))
+	}
+	if addDescription != "" {
+		opts = append(opts, core.WithConstraintDescription(addDescription))
+	}
+	if addNonNegotiable {
+		opts = append(opts, core.WithConstraintNonNegotiable(true))
+	}
+
+	return opts
+}
+
+// buildQualityOptions は Quality 用オプションを構築
+func buildQualityOptions() []core.EntityOption {
+	var opts []core.EntityOption
+
+	if addDeliverableID != "" {
+		opts = append(opts, core.WithQualityDeliverable(addDeliverableID))
+	}
+
+	// メトリクスは name:target[:unit] 形式でパース
+	// 例: "coverage:80:%" → Name: "coverage", Target: 80, Unit: "%"
+	if len(addMetrics) > 0 {
+		metrics := parseMetrics(addMetrics)
+		if len(metrics) > 0 {
+			opts = append(opts, core.WithQualityMetrics(metrics))
+		}
+	}
+
+	if addOwner != "" {
+		opts = append(opts, core.WithQualityReviewer(addOwner))
+	}
+
+	return opts
+}
+
+// parseMetrics はメトリクス文字列を QualityMetric 配列にパース
+// フォーマット: name:target[:unit]
+func parseMetrics(metricStrs []string) []core.QualityMetric {
+	var metrics []core.QualityMetric
+
+	for i, metricStr := range metricStrs {
+		parts := strings.Split(metricStr, ":")
+		if len(parts) < 2 {
+			continue // 不正な形式はスキップ
+		}
+
+		name := parts[0]
+		var target float64
+		if _, err := fmt.Sscanf(parts[1], "%f", &target); err != nil {
+			continue // パース失敗はスキップ
+		}
+
+		metric := core.QualityMetric{
+			ID:     fmt.Sprintf("metric-%d", i+1),
+			Name:   name,
+			Target: target,
+			Status: core.MetricStatusInProgress,
+		}
+
+		// オプショナルな unit
+		if len(parts) >= 3 {
+			metric.Unit = parts[2]
+		}
+
+		metrics = append(metrics, metric)
+	}
+
+	return metrics
 }

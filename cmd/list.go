@@ -15,13 +15,18 @@ var listCmd = &cobra.Command{
 	Long: `エンティティの一覧を表示します。
 
 対応エンティティ:
-  task         タスク
-  tasks        タスク（複数形）
-  vision       ビジョン
-  objective    目標
-  objectives   目標（複数形）
-  deliverable  成果物
-  deliverables 成果物（複数形）
+  task           タスク
+  tasks          タスク（複数形）
+  vision         ビジョン
+  objective(s)   目標
+  deliverable(s) 成果物
+  consideration(s) 検討事項
+  decision(s)    意思決定
+  problem(s)     問題
+  risk(s)        リスク
+  assumption(s)  前提条件
+  constraint(s)  制約条件
+  quality        品質基準
 
 エンティティを省略すると全タスクを表示します。
 
@@ -30,7 +35,14 @@ var listCmd = &cobra.Command{
   zeus list tasks        # タスク一覧
   zeus list vision       # ビジョンを表示
   zeus list objectives   # 目標一覧
-  zeus list deliverables # 成果物一覧`,
+  zeus list deliverables # 成果物一覧
+  zeus list considerations # 検討事項一覧
+  zeus list decisions    # 意思決定一覧
+  zeus list problems     # 問題一覧
+  zeus list risks        # リスク一覧
+  zeus list assumptions  # 前提条件一覧
+  zeus list constraints  # 制約条件一覧
+  zeus list quality      # 品質基準一覧`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runList,
 }
@@ -56,6 +68,20 @@ func runList(cmd *cobra.Command, args []string) error {
 		return listObjectives(cmd, zeus)
 	case "deliverable", "deliverables":
 		return listDeliverables(cmd, zeus)
+	case "consideration", "considerations":
+		return listConsiderations(cmd, zeus)
+	case "decision", "decisions":
+		return listDecisions(cmd, zeus)
+	case "problem", "problems":
+		return listProblems(cmd, zeus)
+	case "risk", "risks":
+		return listRisks(cmd, zeus)
+	case "assumption", "assumptions":
+		return listAssumptions(cmd, zeus)
+	case "constraint", "constraints":
+		return listConstraints(cmd, zeus)
+	case "quality", "qualities":
+		return listQualities(cmd, zeus)
 	default:
 		// Task（既存の振る舞い）
 		return listTasks(cmd, zeus, entity)
@@ -210,4 +236,172 @@ func getStatusColor(status core.TaskStatus) func(a ...interface{}) string {
 	default:
 		return color.New(color.FgWhite).SprintFunc()
 	}
+}
+
+// listConsiderations は Consideration 一覧を表示
+func listConsiderations(cmd *cobra.Command, zeus *core.Zeus) error {
+	ctx := getContext(cmd)
+	result, err := zeus.List(ctx, "consideration")
+	if err != nil {
+		return err
+	}
+
+	cyan := color.New(color.FgCyan).SprintFunc()
+	fmt.Printf("%s (%d items)\n", cyan("Considerations"), result.Total)
+	fmt.Println("────────────────────────────────────────")
+
+	if result.Total == 0 {
+		fmt.Println("検討事項がありません。")
+		fmt.Println("'zeus add consideration \"タイトル\"' で作成できます。")
+		return nil
+	}
+
+	fmt.Printf("Total: %d considerations\n", result.Total)
+	fmt.Println("\n詳細を見るには 'zeus status' を使用してください。")
+
+	return nil
+}
+
+// listDecisions は Decision 一覧を表示
+func listDecisions(cmd *cobra.Command, zeus *core.Zeus) error {
+	ctx := getContext(cmd)
+	result, err := zeus.List(ctx, "decision")
+	if err != nil {
+		return err
+	}
+
+	cyan := color.New(color.FgCyan).SprintFunc()
+	fmt.Printf("%s (%d items)\n", cyan("Decisions"), result.Total)
+	fmt.Println("────────────────────────────────────────")
+
+	if result.Total == 0 {
+		fmt.Println("意思決定がありません。")
+		fmt.Println("'zeus add decision \"タイトル\" --consideration con-001 ...' で作成できます。")
+		return nil
+	}
+
+	fmt.Printf("Total: %d decisions\n", result.Total)
+	fmt.Println("\n詳細を見るには 'zeus status' を使用してください。")
+
+	return nil
+}
+
+// listProblems は Problem 一覧を表示
+func listProblems(cmd *cobra.Command, zeus *core.Zeus) error {
+	ctx := getContext(cmd)
+	result, err := zeus.List(ctx, "problem")
+	if err != nil {
+		return err
+	}
+
+	cyan := color.New(color.FgCyan).SprintFunc()
+	fmt.Printf("%s (%d items)\n", cyan("Problems"), result.Total)
+	fmt.Println("────────────────────────────────────────")
+
+	if result.Total == 0 {
+		fmt.Println("問題がありません。")
+		fmt.Println("'zeus add problem \"タイトル\" --severity high' で作成できます。")
+		return nil
+	}
+
+	fmt.Printf("Total: %d problems\n", result.Total)
+	fmt.Println("\n詳細を見るには 'zeus status' を使用してください。")
+
+	return nil
+}
+
+// listRisks は Risk 一覧を表示
+func listRisks(cmd *cobra.Command, zeus *core.Zeus) error {
+	ctx := getContext(cmd)
+	result, err := zeus.List(ctx, "risk")
+	if err != nil {
+		return err
+	}
+
+	cyan := color.New(color.FgCyan).SprintFunc()
+	fmt.Printf("%s (%d items)\n", cyan("Risks"), result.Total)
+	fmt.Println("────────────────────────────────────────")
+
+	if result.Total == 0 {
+		fmt.Println("リスクがありません。")
+		fmt.Println("'zeus add risk \"タイトル\" --probability medium --impact high' で作成できます。")
+		return nil
+	}
+
+	fmt.Printf("Total: %d risks\n", result.Total)
+	fmt.Println("\n詳細を見るには 'zeus status' を使用してください。")
+
+	return nil
+}
+
+// listAssumptions は Assumption 一覧を表示
+func listAssumptions(cmd *cobra.Command, zeus *core.Zeus) error {
+	ctx := getContext(cmd)
+	result, err := zeus.List(ctx, "assumption")
+	if err != nil {
+		return err
+	}
+
+	cyan := color.New(color.FgCyan).SprintFunc()
+	fmt.Printf("%s (%d items)\n", cyan("Assumptions"), result.Total)
+	fmt.Println("────────────────────────────────────────")
+
+	if result.Total == 0 {
+		fmt.Println("前提条件がありません。")
+		fmt.Println("'zeus add assumption \"タイトル\"' で作成できます。")
+		return nil
+	}
+
+	fmt.Printf("Total: %d assumptions\n", result.Total)
+	fmt.Println("\n詳細を見るには 'zeus status' を使用してください。")
+
+	return nil
+}
+
+// listConstraints は Constraint 一覧を表示
+func listConstraints(cmd *cobra.Command, zeus *core.Zeus) error {
+	ctx := getContext(cmd)
+	result, err := zeus.List(ctx, "constraint")
+	if err != nil {
+		return err
+	}
+
+	cyan := color.New(color.FgCyan).SprintFunc()
+	fmt.Printf("%s (%d items)\n", cyan("Constraints"), result.Total)
+	fmt.Println("────────────────────────────────────────")
+
+	if result.Total == 0 {
+		fmt.Println("制約条件がありません。")
+		fmt.Println("'zeus add constraint \"タイトル\" --category technical' で作成できます。")
+		return nil
+	}
+
+	fmt.Printf("Total: %d constraints\n", result.Total)
+	fmt.Println("\n詳細を見るには 'zeus status' を使用してください。")
+
+	return nil
+}
+
+// listQualities は Quality 一覧を表示
+func listQualities(cmd *cobra.Command, zeus *core.Zeus) error {
+	ctx := getContext(cmd)
+	result, err := zeus.List(ctx, "quality")
+	if err != nil {
+		return err
+	}
+
+	cyan := color.New(color.FgCyan).SprintFunc()
+	fmt.Printf("%s (%d items)\n", cyan("Quality Criteria"), result.Total)
+	fmt.Println("────────────────────────────────────────")
+
+	if result.Total == 0 {
+		fmt.Println("品質基準がありません。")
+		fmt.Println("'zeus add quality \"タイトル\" --deliverable del-001' で作成できます。")
+		return nil
+	}
+
+	fmt.Printf("Total: %d quality criteria\n", result.Total)
+	fmt.Println("\n詳細を見るには 'zeus status' を使用してください。")
+
+	return nil
 }

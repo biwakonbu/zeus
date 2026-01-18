@@ -86,11 +86,25 @@ func New(projectPath string, opts ...Option) *Zeus {
 		z.entityRegistry = NewEntityRegistry()
 		z.entityRegistry.Register(NewTaskHandler(z.fileStore))
 
-		// 10 概念モデルのハンドラー登録
+		// 10 概念モデルのハンドラー登録（Phase 1）
 		z.entityRegistry.Register(NewVisionHandler(z.fileStore))
 		objHandler := NewObjectiveHandler(z.fileStore)
 		z.entityRegistry.Register(objHandler)
-		z.entityRegistry.Register(NewDeliverableHandler(z.fileStore, objHandler))
+		delHandler := NewDeliverableHandler(z.fileStore, objHandler)
+		z.entityRegistry.Register(delHandler)
+
+		// 10 概念モデルのハンドラー登録（Phase 2）
+		conHandler := NewConsiderationHandler(z.fileStore, objHandler, delHandler)
+		z.entityRegistry.Register(conHandler)
+		decHandler := NewDecisionHandler(z.fileStore, conHandler)
+		z.entityRegistry.Register(decHandler)
+		z.entityRegistry.Register(NewProblemHandler(z.fileStore, objHandler, delHandler))
+		z.entityRegistry.Register(NewRiskHandler(z.fileStore, objHandler, delHandler))
+		z.entityRegistry.Register(NewAssumptionHandler(z.fileStore, objHandler, delHandler))
+
+		// 10 概念モデルのハンドラー登録（Phase 3）
+		z.entityRegistry.Register(NewConstraintHandler(z.fileStore))
+		z.entityRegistry.Register(NewQualityHandler(z.fileStore, delHandler))
 	}
 
 	return z
