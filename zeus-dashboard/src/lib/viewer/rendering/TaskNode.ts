@@ -3,11 +3,17 @@ import { Container, Graphics, Text, FederatedPointerEvent } from 'pixi.js';
 import type { TaskItem, TaskStatus, Priority } from '$lib/types/api';
 
 // ノードサイズ定数
-const NODE_WIDTH = 180;
-const NODE_HEIGHT = 70;
-const CORNER_RADIUS = 4;
-const PROGRESS_BAR_HEIGHT = 8;
+const NODE_WIDTH = 200;
+const NODE_HEIGHT = 80;
+const CORNER_RADIUS = 6;
+const PROGRESS_BAR_HEIGHT = 6;
 const PADDING = 10;
+const CONTENT_LEFT = 20;  // 左ステータスバー分のオフセット
+
+// テキスト解像度（Retina対応）
+const TEXT_RESOLUTION = typeof window !== 'undefined'
+	? Math.min(window.devicePixelRatio * 2, 4)  // 最大4xに制限
+	: 2;
 
 // 色定義（Factorioテーマに準拠）
 const COLORS = {
@@ -102,12 +108,28 @@ export class TaskNode extends Container {
 		// コンポーネント初期化
 		this.background = new Graphics();
 		this.statusIndicator = new Graphics();
-		this.idText = new Text({ text: '', style: { fontSize: 12, fill: COLORS.text, fontFamily: 'IBM Plex Mono, monospace' } });
-		this.titleText = new Text({ text: '', style: { fontSize: 11, fill: COLORS.textSecondary, fontFamily: 'IBM Plex Mono, monospace' } });
+		this.idText = new Text({
+			text: '',
+			style: { fontSize: 12, fill: COLORS.text, fontFamily: 'IBM Plex Mono, monospace' },
+			resolution: TEXT_RESOLUTION
+		});
+		this.titleText = new Text({
+			text: '',
+			style: { fontSize: 11, fill: COLORS.textSecondary, fontFamily: 'IBM Plex Mono, monospace' },
+			resolution: TEXT_RESOLUTION
+		});
 		this.progressBar = new Graphics();
-		this.metaText = new Text({ text: '', style: { fontSize: 10, fill: COLORS.textMuted, fontFamily: 'IBM Plex Mono, monospace' } });
+		this.metaText = new Text({
+			text: '',
+			style: { fontSize: 10, fill: COLORS.textMuted, fontFamily: 'IBM Plex Mono, monospace' },
+			resolution: TEXT_RESOLUTION
+		});
 		this.slackBadge = new Graphics();
-		this.slackText = new Text({ text: '', style: { fontSize: 9, fill: COLORS.text, fontFamily: 'IBM Plex Mono, monospace' } });
+		this.slackText = new Text({
+			text: '',
+			style: { fontSize: 9, fill: COLORS.text, fontFamily: 'IBM Plex Mono, monospace' },
+			resolution: TEXT_RESOLUTION
+		});
 
 		this.addChild(this.background);
 		this.addChild(this.statusIndicator);
@@ -217,12 +239,8 @@ export class TaskNode extends Container {
 
 		const statusColor = COLORS.status[this.task.status] || COLORS.status.pending;
 
-		// 左側のステータスバー
-		this.statusIndicator.rect(0, 0, 4, NODE_HEIGHT);
-		this.statusIndicator.fill(statusColor);
-
-		// ステータスドット
-		this.statusIndicator.circle(PADDING + 6, PADDING + 6, 4);
+		// 左側のステータスバー（角丸に合わせて調整）
+		this.statusIndicator.roundRect(0, 0, 6, NODE_HEIGHT, { topLeft: CORNER_RADIUS, bottomLeft: CORNER_RADIUS, topRight: 0, bottomRight: 0 });
 		this.statusIndicator.fill(statusColor);
 	}
 
@@ -230,6 +248,8 @@ export class TaskNode extends Container {
 	 * テキストを描画
 	 */
 	private drawTexts(): void {
+		const contentWidth = NODE_WIDTH - CONTENT_LEFT - PADDING;
+
 		if (this.currentLOD === LODLevel.Macro) {
 			// マクロレベルでは非表示
 			this.idText.visible = false;
@@ -240,10 +260,13 @@ export class TaskNode extends Container {
 
 		this.idText.visible = true;
 
-		// ID テキスト
-		const shortId = this.task.id.length > 10 ? this.task.id.substring(0, 10) + '...' : this.task.id;
+		// ID テキスト（上部）
+		const maxIdChars = Math.floor(contentWidth / 7);  // 等幅フォントで概算
+		const shortId = this.task.id.length > maxIdChars
+			? this.task.id.substring(0, maxIdChars - 2) + '..'
+			: this.task.id;
 		this.idText.text = shortId;
-		this.idText.x = PADDING + 14;
+		this.idText.x = CONTENT_LEFT;
 		this.idText.y = PADDING;
 
 		if (this.currentLOD === LODLevel.Meso) {
@@ -257,20 +280,24 @@ export class TaskNode extends Container {
 		this.titleText.visible = true;
 		this.metaText.visible = true;
 
-		// タイトル（省略）
-		const maxTitleLength = 18;
-		const title = this.task.title.length > maxTitleLength
-			? this.task.title.substring(0, maxTitleLength) + '...'
+		// タイトル（中央）
+		const maxTitleChars = Math.floor(contentWidth / 6.5);
+		const title = this.task.title.length > maxTitleChars
+			? this.task.title.substring(0, maxTitleChars - 2) + '..'
 			: this.task.title;
 		this.titleText.text = title;
-		this.titleText.x = PADDING;
-		this.titleText.y = PADDING + 20;
+		this.titleText.x = CONTENT_LEFT;
+		this.titleText.y = PADDING + 16;
 
-		// メタ情報（担当者）
+		// メタ情報（担当者 - 下部）
 		const assignee = this.task.assignee || 'unassigned';
-		this.metaText.text = `@${assignee}`;
-		this.metaText.x = PADDING;
-		this.metaText.y = NODE_HEIGHT - PADDING - 10;
+		const maxAssigneeChars = Math.floor(contentWidth / 7);
+		const displayAssignee = assignee.length > maxAssigneeChars
+			? assignee.substring(0, maxAssigneeChars - 2) + '..'
+			: assignee;
+		this.metaText.text = `@${displayAssignee}`;
+		this.metaText.x = CONTENT_LEFT;
+		this.metaText.y = NODE_HEIGHT - PADDING - 12;
 	}
 
 	/**
@@ -286,11 +313,11 @@ export class TaskNode extends Container {
 
 		this.progressBar.visible = true;
 
-		const barWidth = NODE_WIDTH - PADDING * 2;
-		const barY = PADDING + 38;
+		const barWidth = NODE_WIDTH - CONTENT_LEFT - PADDING;
+		const barY = PADDING + 34;  // タイトルとメタの間
 
 		// 背景
-		this.progressBar.roundRect(PADDING, barY, barWidth, PROGRESS_BAR_HEIGHT, 2);
+		this.progressBar.roundRect(CONTENT_LEFT, barY, barWidth, PROGRESS_BAR_HEIGHT, 3);
 		this.progressBar.fill(COLORS.progressBg);
 
 		// 進捗
@@ -298,7 +325,7 @@ export class TaskNode extends Container {
 			const progressWidth = (barWidth * this.progress) / 100;
 			const progressColor = COLORS.status[this.task.status] || COLORS.status.pending;
 
-			this.progressBar.roundRect(PADDING, barY, progressWidth, PROGRESS_BAR_HEIGHT, 2);
+			this.progressBar.roundRect(CONTENT_LEFT, barY, progressWidth, PROGRESS_BAR_HEIGHT, 3);
 			this.progressBar.fill(progressColor);
 		}
 	}
