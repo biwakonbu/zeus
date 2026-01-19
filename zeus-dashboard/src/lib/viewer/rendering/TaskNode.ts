@@ -1,6 +1,6 @@
-// タスクノードの描画クラス
+// タスクノードの描画クラス（WBS 全ノードタイプ対応）
 import { Container, Graphics, Text, FederatedPointerEvent } from 'pixi.js';
-import type { TaskItem, TaskStatus, Priority } from '$lib/types/api';
+import type { TaskItem, TaskStatus, Priority, GraphNode, GraphNodeType } from '$lib/types/api';
 
 // ノードサイズ定数
 const NODE_WIDTH = 200;
@@ -23,13 +23,36 @@ const COLORS = {
 		in_progress: 0x4488ff,
 		pending: 0x888888,
 		blocked: 0xee4444
-	},
+	} as Record<string, number>,
 	// 優先度色
 	priority: {
 		high: 0xee4444,
 		medium: 0xffcc00,
 		low: 0x44cc44
 	},
+	// ノードタイプ別の色（左側インジケーター・背景グラデーション）
+	nodeType: {
+		vision: {
+			indicator: 0xffd700,    // ゴールド - 最上位の目標
+			background: 0x3d3520,  // 暗めの金色
+			border: 0xffd700
+		},
+		objective: {
+			indicator: 0x6699ff,    // ブルー - 目標
+			background: 0x2d3550,  // 暗めの青
+			border: 0x6699ff
+		},
+		deliverable: {
+			indicator: 0x66cc99,    // グリーン - 成果物
+			background: 0x2d4035,  // 暗めの緑
+			border: 0x66cc99
+		},
+		task: {
+			indicator: 0x888888,    // グレー - タスク（既存の動作）
+			background: 0x2d2d2d,  // 標準背景
+			border: 0x4a4a4a
+		}
+	} as Record<GraphNodeType, { indicator: number; background: number; border: number }>,
 	// 基本色
 	background: 0x2d2d2d,
 	backgroundHover: 0x3a3a3a,
@@ -41,6 +64,14 @@ const COLORS = {
 	textSecondary: 0xb8b8b8,
 	textMuted: 0x888888,
 	progressBg: 0x1a1a1a,
+	progressFrame: 0x555555,
+	progressSegment: 0x333333,
+	// 進捗グラデーション（0% → 100%）
+	progressGradient: {
+		low: 0xff6644,      // 0-33%: オレンジ/赤
+		mid: 0xffcc00,      // 34-66%: 黄色
+		high: 0x44dd44      // 67-100%: 緑
+	},
 	// クリティカルパス用
 	criticalGlow: 0xff9533,
 	slackBadge: 0x2d5a2d,
@@ -62,18 +93,37 @@ export enum LODLevel {
 	Micro = 2
 }
 
+// TaskItem を GraphNode 形式に変換するヘルパー
+function taskItemToGraphNode(task: TaskItem): GraphNode {
+	return {
+		id: task.id,
+		title: task.title,
+		node_type: 'task',
+		status: task.status,
+		progress: task.progress ?? 0,
+		priority: task.priority,
+		assignee: task.assignee,
+		wbs_code: task.wbs_code,
+		dependencies: task.dependencies
+	};
+}
+
 /**
- * TaskNode - タスクの視覚的表現
+ * TaskNode - WBS ノード（Vision, Objective, Deliverable, Task）の視覚的表現
  *
  * 責務:
- * - タスクのグラフィカル表示
+ * - ノードのグラフィカル表示
+ * - ノードタイプに応じたスタイル変更
  * - インタラクション（クリック、ホバー）
  * - LOD（詳細度）に応じた表示切り替え
  */
 export class TaskNode extends Container {
-	private task: TaskItem;
+	private graphNode: GraphNode;
+	private nodeType: GraphNodeType;
 	private background: Graphics;
 	private statusIndicator: Graphics;
+	private typeIndicator: Graphics;  // ノードタイプバッジ
+	private typeText: Text;           // タイプバッジのラベル文字
 	private idText: Text;
 	private titleText: Text;
 	private progressBar: Graphics;
@@ -88,8 +138,9 @@ export class TaskNode extends Container {
 	// イベントコールバック
 	private onClickCallback?: (node: TaskNode, event?: FederatedPointerEvent) => void;
 	private onHoverCallback?: (node: TaskNode, isHovered: boolean) => void;
+	private onContextMenuCallback?: (node: TaskNode, event: FederatedPointerEvent) => void;
 
-	// 進捗率（0-100）- タスク自体には進捗がないので、ステータスから推定
+	// 進捗率（0-100）
 	private progress: number;
 
 	// クリティカルパス・スラック情報
@@ -99,15 +150,28 @@ export class TaskNode extends Container {
 	// 影響範囲ハイライト
 	private highlightType: HighlightType = null;
 
-	constructor(task: TaskItem) {
+	// 後方互換性: TaskItem または GraphNode を受け取る
+	constructor(data: TaskItem | GraphNode) {
 		super();
 
-		this.task = task;
-		this.progress = this.estimateProgress(task.status);
+		// TaskItem の場合は GraphNode に変換
+		if ('dependencies' in data && !('node_type' in data)) {
+			this.graphNode = taskItemToGraphNode(data as TaskItem);
+		} else {
+			this.graphNode = data as GraphNode;
+		}
+		this.nodeType = this.graphNode.node_type;
+		this.progress = this.graphNode.progress ?? this.estimateProgressFromStatus(this.graphNode.status);
 
 		// コンポーネント初期化
 		this.background = new Graphics();
 		this.statusIndicator = new Graphics();
+		this.typeIndicator = new Graphics();
+		this.typeText = new Text({
+			text: '',
+			style: { fontSize: 11, fill: 0x1a1a1a, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 'bold' },
+			resolution: TEXT_RESOLUTION
+		});
 		this.idText = new Text({
 			text: '',
 			style: { fontSize: 12, fill: COLORS.text, fontFamily: 'IBM Plex Mono, monospace' },
@@ -133,6 +197,8 @@ export class TaskNode extends Container {
 
 		this.addChild(this.background);
 		this.addChild(this.statusIndicator);
+		this.addChild(this.typeIndicator);
+		this.addChild(this.typeText);
 		this.addChild(this.idText);
 		this.addChild(this.titleText);
 		this.addChild(this.progressBar);
@@ -147,22 +213,40 @@ export class TaskNode extends Container {
 		this.on('pointerover', () => this.handleHover(true));
 		this.on('pointerout', () => this.handleHover(false));
 		this.on('pointertap', (e: FederatedPointerEvent) => this.handleClick(e));
+		this.on('pointerdown', (e: FederatedPointerEvent) => {
+			console.log('[TaskNode] pointerdown event, button:', e.button);
+			// 右クリック（button === 2）を検出
+			if (e.button === 2) {
+				console.log('[TaskNode] Right-click detected!');
+				this.handleContextMenu(e);
+			}
+		});
 
 		// 初回描画
 		this.draw();
 	}
 
 	/**
-	 * ステータスから進捗率を推定
+	 * ステータスから進捗率を推定（汎用ステータス対応）
 	 */
-	private estimateProgress(status: TaskStatus): number {
-		switch (status) {
-			case 'completed': return 100;
-			case 'in_progress': return 50;
-			case 'pending': return 0;
-			case 'blocked': return 0;
-			default: return 0;
+	private estimateProgressFromStatus(status: string): number {
+		// 完了系
+		if (['completed', 'approved', 'delivered', 'mitigated', 'verified', 'resolved', 'passing'].includes(status)) {
+			return 100;
 		}
+		// 進行中系
+		if (['in_progress', 'in_review', 'investigating', 'mitigating', 'decided'].includes(status)) {
+			return 50;
+		}
+		// 未着手系
+		if (['pending', 'not_started', 'draft', 'open', 'identified', 'unverified', 'not_checked'].includes(status)) {
+			return 0;
+		}
+		// ブロック系
+		if (['blocked', 'on_hold', 'deferred', 'wont_fix', 'invalid', 'accepted', 'failing'].includes(status)) {
+			return 0;
+		}
+		return 0;
 	}
 
 	/**
@@ -171,19 +255,22 @@ export class TaskNode extends Container {
 	draw(): void {
 		this.drawBackground();
 		this.drawStatusIndicator();
+		this.drawTypeIndicator();
 		this.drawTexts();
 		this.drawProgressBar();
 		this.drawSlackBadge();
 	}
 
 	/**
-	 * 背景を描画
+	 * 背景を描画（ノードタイプ別の色対応）
 	 */
 	private drawBackground(): void {
 		this.background.clear();
 
-		let bgColor = COLORS.background;
-		let borderColor = COLORS.border;
+		// ノードタイプ別の基本色を取得
+		const typeColors = COLORS.nodeType[this.nodeType] || COLORS.nodeType.task;
+		let bgColor = typeColors.background;
+		let borderColor = typeColors.border;
 		let borderWidth = 2;
 
 		if (this.isSelected) {
@@ -237,11 +324,52 @@ export class TaskNode extends Container {
 	private drawStatusIndicator(): void {
 		this.statusIndicator.clear();
 
-		const statusColor = COLORS.status[this.task.status] || COLORS.status.pending;
+		const statusColor = COLORS.status[this.graphNode.status] || COLORS.status.pending;
 
 		// 左側のステータスバー（角丸に合わせて調整）
 		this.statusIndicator.roundRect(0, 0, 6, NODE_HEIGHT, { topLeft: CORNER_RADIUS, bottomLeft: CORNER_RADIUS, topRight: 0, bottomRight: 0 });
 		this.statusIndicator.fill(statusColor);
+	}
+
+	/**
+	 * ノードタイプインジケーターを描画（右上バッジ）
+	 */
+	private drawTypeIndicator(): void {
+		this.typeIndicator.clear();
+
+		// Task 以外のノードタイプのみバッジ表示
+		if (this.nodeType === 'task') {
+			this.typeIndicator.visible = false;
+			this.typeText.visible = false;
+			return;
+		}
+
+		this.typeIndicator.visible = true;
+		this.typeText.visible = true;
+
+		const typeColors = COLORS.nodeType[this.nodeType];
+		const typeLabels: Record<GraphNodeType, string> = {
+			vision: 'V',
+			objective: 'O',
+			deliverable: 'D',
+			task: 'T'
+		};
+
+		const badgeSize = 20;
+		const badgeX = NODE_WIDTH - badgeSize - 4;
+		const badgeY = 4;
+
+		// バッジ背景（円形）
+		this.typeIndicator.circle(badgeX + badgeSize / 2, badgeY + badgeSize / 2, badgeSize / 2);
+		this.typeIndicator.fill(typeColors.indicator);
+		this.typeIndicator.stroke({ width: 1, color: 0x1a1a1a });
+
+		// ラベル文字（V/O/D/T）を円の中央に配置
+		const label = typeLabels[this.nodeType];
+		this.typeText.text = label;
+		// テキストを円の中央に配置（テキストの幅・高さを考慮）
+		this.typeText.x = badgeX + badgeSize / 2 - this.typeText.width / 2;
+		this.typeText.y = badgeY + badgeSize / 2 - this.typeText.height / 2;
 	}
 
 	/**
@@ -260,11 +388,12 @@ export class TaskNode extends Container {
 
 		this.idText.visible = true;
 
-		// ID テキスト（上部）
+		// ID テキスト（上部）- WBS コードがあれば優先表示
+		const displayId = this.graphNode.wbs_code || this.graphNode.id;
 		const maxIdChars = Math.floor(contentWidth / 7);  // 等幅フォントで概算
-		const shortId = this.task.id.length > maxIdChars
-			? this.task.id.substring(0, maxIdChars - 2) + '..'
-			: this.task.id;
+		const shortId = displayId.length > maxIdChars
+			? displayId.substring(0, maxIdChars - 2) + '..'
+			: displayId;
 		this.idText.text = shortId;
 		this.idText.x = CONTENT_LEFT;
 		this.idText.y = PADDING;
@@ -282,26 +411,69 @@ export class TaskNode extends Container {
 
 		// タイトル（中央）
 		const maxTitleChars = Math.floor(contentWidth / 6.5);
-		const title = this.task.title.length > maxTitleChars
-			? this.task.title.substring(0, maxTitleChars - 2) + '..'
-			: this.task.title;
+		const title = this.graphNode.title.length > maxTitleChars
+			? this.graphNode.title.substring(0, maxTitleChars - 2) + '..'
+			: this.graphNode.title;
 		this.titleText.text = title;
 		this.titleText.x = CONTENT_LEFT;
 		this.titleText.y = PADDING + 16;
 
-		// メタ情報（担当者 - 下部）
-		const assignee = this.task.assignee || 'unassigned';
-		const maxAssigneeChars = Math.floor(contentWidth / 7);
-		const displayAssignee = assignee.length > maxAssigneeChars
-			? assignee.substring(0, maxAssigneeChars - 2) + '..'
-			: assignee;
-		this.metaText.text = `@${displayAssignee}`;
+		// メタ情報（担当者または進捗 - 下部）
+		const assignee = this.graphNode.assignee || '';
+		const progressPct = `${Math.round(this.progress)}%`;
+		const metaInfo = assignee ? `@${assignee}` : progressPct;
+		const maxMetaChars = Math.floor(contentWidth / 7);
+		const displayMeta = metaInfo.length > maxMetaChars
+			? metaInfo.substring(0, maxMetaChars - 2) + '..'
+			: metaInfo;
+		this.metaText.text = displayMeta;
 		this.metaText.x = CONTENT_LEFT;
 		this.metaText.y = NODE_HEIGHT - PADDING - 12;
 	}
 
 	/**
-	 * プログレスバーを描画
+	 * 進捗率に応じた色を計算（グラデーション）
+	 * 0-33%: オレンジ/赤 → 34-66%: 黄色 → 67-100%: 緑
+	 */
+	private getProgressColor(progress: number): number {
+		const { low, mid, high } = COLORS.progressGradient;
+
+		if (progress <= 33) {
+			// 0-33%: low から mid へ補間
+			const t = progress / 33;
+			return this.lerpColor(low, mid, t);
+		} else if (progress <= 66) {
+			// 34-66%: mid のまま（黄色ゾーン）
+			const t = (progress - 33) / 33;
+			return this.lerpColor(mid, mid, t);
+		} else {
+			// 67-100%: mid から high へ補間
+			const t = (progress - 66) / 34;
+			return this.lerpColor(mid, high, t);
+		}
+	}
+
+	/**
+	 * 2色間の線形補間
+	 */
+	private lerpColor(color1: number, color2: number, t: number): number {
+		const r1 = (color1 >> 16) & 0xff;
+		const g1 = (color1 >> 8) & 0xff;
+		const b1 = color1 & 0xff;
+
+		const r2 = (color2 >> 16) & 0xff;
+		const g2 = (color2 >> 8) & 0xff;
+		const b2 = color2 & 0xff;
+
+		const r = Math.round(r1 + (r2 - r1) * t);
+		const g = Math.round(g1 + (g2 - g1) * t);
+		const b = Math.round(b1 + (b2 - b1) * t);
+
+		return (r << 16) | (g << 8) | b;
+	}
+
+	/**
+	 * プログレスバーを描画（Factorio 風インダストリアルデザイン）
 	 */
 	private drawProgressBar(): void {
 		this.progressBar.clear();
@@ -314,19 +486,58 @@ export class TaskNode extends Container {
 		this.progressBar.visible = true;
 
 		const barWidth = NODE_WIDTH - CONTENT_LEFT - PADDING;
-		const barY = PADDING + 34;  // タイトルとメタの間
+		const barY = PADDING + 34;
+		const segmentCount = 10;
+		const segmentWidth = barWidth / segmentCount;
+		const segmentGap = 1;  // セグメント間の隙間
 
-		// 背景
-		this.progressBar.roundRect(CONTENT_LEFT, barY, barWidth, PROGRESS_BAR_HEIGHT, 3);
+		// 外枠フレーム（金属感・立体感）
+		// 外側の暗い枠
+		this.progressBar.roundRect(CONTENT_LEFT - 2, barY - 2, barWidth + 4, PROGRESS_BAR_HEIGHT + 4, 3);
+		this.progressBar.fill(0x222222);
+		// 内側の明るい枠（溝の表現）
+		this.progressBar.roundRect(CONTENT_LEFT - 1, barY - 1, barWidth + 2, PROGRESS_BAR_HEIGHT + 2, 2);
+		this.progressBar.stroke({ width: 1, color: COLORS.progressFrame });
+
+		// 背景（暗いベース）
+		this.progressBar.rect(CONTENT_LEFT, barY, barWidth, PROGRESS_BAR_HEIGHT);
 		this.progressBar.fill(COLORS.progressBg);
 
-		// 進捗
-		if (this.progress > 0) {
-			const progressWidth = (barWidth * this.progress) / 100;
-			const progressColor = COLORS.status[this.task.status] || COLORS.status.pending;
+		// セグメント単位で描画（デジタルゲージ風）
+		const filledSegments = Math.ceil((this.progress / 100) * segmentCount);
 
-			this.progressBar.roundRect(CONTENT_LEFT, barY, progressWidth, PROGRESS_BAR_HEIGHT, 3);
-			this.progressBar.fill(progressColor);
+		for (let i = 0; i < segmentCount; i++) {
+			const segX = CONTENT_LEFT + i * segmentWidth + segmentGap / 2;
+			const segW = segmentWidth - segmentGap;
+
+			if (i < filledSegments && this.progress > 0) {
+				// 塗りつぶしセグメント
+				// セグメント位置に応じた進捗色を計算
+				const segmentProgress = ((i + 1) / segmentCount) * 100;
+				const progressColor = this.getProgressColor(Math.min(segmentProgress, this.progress));
+
+				// メインセグメント
+				this.progressBar.rect(segX, barY, segW, PROGRESS_BAR_HEIGHT);
+				this.progressBar.fill(progressColor);
+
+				// 上部ハイライト（光沢）
+				this.progressBar.rect(segX, barY, segW, 2);
+				this.progressBar.fill({ color: 0xffffff, alpha: 0.3 });
+
+				// 下部シャドウ（立体感）
+				this.progressBar.rect(segX, barY + PROGRESS_BAR_HEIGHT - 1, segW, 1);
+				this.progressBar.fill({ color: 0x000000, alpha: 0.3 });
+			} else {
+				// 未塗りつぶしセグメント（暗いマーカー）
+				this.progressBar.rect(segX, barY, segW, PROGRESS_BAR_HEIGHT);
+				this.progressBar.fill(0x252525);
+			}
+		}
+
+		// 100% 完了時のグロー効果
+		if (this.progress >= 100) {
+			this.progressBar.roundRect(CONTENT_LEFT - 1, barY - 1, barWidth + 2, PROGRESS_BAR_HEIGHT + 2, 2);
+			this.progressBar.stroke({ width: 1, color: COLORS.progressGradient.high, alpha: 0.5 });
 		}
 	}
 
@@ -428,6 +639,14 @@ export class TaskNode extends Container {
 	}
 
 	/**
+	 * 右クリック処理
+	 */
+	private handleContextMenu(e: FederatedPointerEvent): void {
+		e.stopPropagation();
+		this.onContextMenuCallback?.(this, e);
+	}
+
+	/**
 	 * 選択状態を設定
 	 */
 	setSelected(selected: boolean): void {
@@ -436,12 +655,25 @@ export class TaskNode extends Container {
 	}
 
 	/**
-	 * タスクデータを更新
+	 * ノードデータを更新（TaskItem または GraphNode を受け取る）
+	 */
+	updateData(data: TaskItem | GraphNode): void {
+		if ('dependencies' in data && !('node_type' in data)) {
+			this.graphNode = taskItemToGraphNode(data as TaskItem);
+		} else {
+			this.graphNode = data as GraphNode;
+		}
+		this.nodeType = this.graphNode.node_type;
+		this.progress = this.graphNode.progress ?? this.estimateProgressFromStatus(this.graphNode.status);
+		this.draw();
+	}
+
+	/**
+	 * 後方互換: タスクデータを更新
+	 * @deprecated updateData を使用してください
 	 */
 	updateTask(task: TaskItem): void {
-		this.task = task;
-		this.progress = this.estimateProgress(task.status);
-		this.draw();
+		this.updateData(task);
 	}
 
 	/**
@@ -470,7 +702,7 @@ export class TaskNode extends Container {
 
 		// 無効な値（負数、Infinity, NaN）は無視してログ出力
 		if (!Number.isFinite(slack) || slack < 0) {
-			console.warn(`Invalid slack value for task ${this.task.id}: ${slack}`);
+			console.warn(`Invalid slack value for node ${this.graphNode.id}: ${slack}`);
 			return;
 		}
 
@@ -515,17 +747,49 @@ export class TaskNode extends Container {
 	}
 
 	/**
-	 * タスクIDを取得
+	 * ノードIDを取得
 	 */
-	getTaskId(): string {
-		return this.task.id;
+	getNodeId(): string {
+		return this.graphNode.id;
 	}
 
 	/**
-	 * タスクデータを取得
+	 * 後方互換: タスクIDを取得
+	 * @deprecated getNodeId を使用してください
+	 */
+	getTaskId(): string {
+		return this.graphNode.id;
+	}
+
+	/**
+	 * GraphNode データを取得
+	 */
+	getGraphNode(): GraphNode {
+		return this.graphNode;
+	}
+
+	/**
+	 * ノードタイプを取得
+	 */
+	getNodeType(): GraphNodeType {
+		return this.nodeType;
+	}
+
+	/**
+	 * 後方互換: タスクデータを取得（TaskItem 形式）
+	 * @deprecated getGraphNode を使用してください
 	 */
 	getTask(): TaskItem {
-		return this.task;
+		return {
+			id: this.graphNode.id,
+			title: this.graphNode.title,
+			status: this.graphNode.status as TaskStatus,
+			priority: (this.graphNode.priority || 'medium') as Priority,
+			assignee: this.graphNode.assignee || '',
+			dependencies: this.graphNode.dependencies,
+			progress: this.graphNode.progress,
+			wbs_code: this.graphNode.wbs_code
+		};
 	}
 
 	/**
@@ -551,5 +815,9 @@ export class TaskNode extends Container {
 
 	onHover(callback: (node: TaskNode, isHovered: boolean) => void): void {
 		this.onHoverCallback = callback;
+	}
+
+	onContextMenu(callback: (node: TaskNode, event: FederatedPointerEvent) => void): void {
+		this.onContextMenuCallback = callback;
 	}
 }
