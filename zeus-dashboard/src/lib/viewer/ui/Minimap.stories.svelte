@@ -1,4 +1,4 @@
-<script context="module" lang="ts">
+<script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import Minimap from './Minimap.svelte';
 	import type { TaskItem } from '$lib/types/api';
