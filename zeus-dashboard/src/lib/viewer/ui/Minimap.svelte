@@ -1,18 +1,36 @@
 <script lang="ts">
-	import type { TaskItem } from '$lib/types/api';
+	import type { TaskItem, GraphNode, GraphNodeType } from '$lib/types/api';
 	import type { NodePosition, LayoutResult } from '../engine/LayoutEngine';
 	import type { Viewport } from '../engine/ViewerEngine';
 
-	// Props
+	// Props（後方互換性: tasks または nodes を受け付ける）
 	interface Props {
-		tasks: TaskItem[];
+		tasks?: TaskItem[];
+		nodes?: GraphNode[];
+		isWBSMode?: boolean;
 		positions: Map<string, NodePosition>;
 		bounds: LayoutResult['bounds'];
 		viewport: Viewport;
 		onNavigate?: (x: number, y: number) => void;
 	}
 
-	let { tasks, positions, bounds, viewport, onNavigate }: Props = $props();
+	let { tasks = [], nodes = [], isWBSMode = false, positions, bounds, viewport, onNavigate }: Props = $props();
+
+	// 内部で使用するノードリスト（nodes 優先、なければ tasks から変換）
+	let internalNodes = $derived.by(() => {
+		if (nodes.length > 0) return nodes;
+		return tasks.map(t => ({
+			id: t.id,
+			title: t.title,
+			node_type: 'task' as GraphNodeType,
+			status: t.status,
+			progress: t.progress ?? 0,
+			priority: t.priority,
+			assignee: t.assignee,
+			wbs_code: t.wbs_code,
+			dependencies: t.dependencies
+		}));
+	});
 
 	// ミニマップサイズ
 	const MINIMAP_WIDTH = 180;
@@ -38,14 +56,15 @@
 
 	// ノードを描画用に変換
 	let nodeRects = $derived.by(() => {
-		const rects: { x: number; y: number; status: string }[] = [];
-		for (const task of tasks) {
-			const pos = positions.get(task.id);
+		const rects: { x: number; y: number; status: string; nodeType: GraphNodeType }[] = [];
+		for (const node of internalNodes) {
+			const pos = positions.get(node.id);
 			if (!pos) continue;
 			rects.push({
 				x: (pos.x - bounds.minX) * scale + PADDING,
 				y: (pos.y - bounds.minY) * scale + PADDING,
-				status: task.status
+				status: node.status,
+				nodeType: node.node_type
 			});
 		}
 		return rects;
@@ -103,6 +122,26 @@
 				return 'var(--text-muted)';
 		}
 	}
+
+	// ノードタイプ色マッピング（TaskNode.ts と同期）
+	function getNodeTypeColor(nodeType: GraphNodeType): string {
+		switch (nodeType) {
+			case 'vision':
+				return '#ffd700';  // ゴールド
+			case 'objective':
+				return '#6699ff';  // ブルー
+			case 'deliverable':
+				return '#66cc99';  // グリーン
+			case 'task':
+			default:
+				return '#888888';  // グレー
+		}
+	}
+
+	// モードに応じた色を取得
+	function getNodeColor(node: { status: string; nodeType: GraphNodeType }): string {
+		return isWBSMode ? getNodeTypeColor(node.nodeType) : getStatusColor(node.status);
+	}
 </script>
 
 <div
@@ -121,7 +160,7 @@
 
 		<!-- ノード -->
 		{#each nodeRects as node}
-			<circle cx={node.x} cy={node.y} r="3" fill={getStatusColor(node.status)} opacity="0.8" />
+			<circle cx={node.x} cy={node.y} r="3" fill={getNodeColor(node)} opacity="0.8" />
 		{/each}
 
 		<!-- ビューポート領域 -->

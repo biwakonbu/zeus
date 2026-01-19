@@ -134,13 +134,16 @@ export interface WBSResponse {
 	stats: WBSStats;
 }
 
+export type WBSNodeType = 'vision' | 'objective' | 'deliverable' | 'task';
+
 export interface WBSNode {
 	id: string;
 	title: string;
+	node_type: WBSNodeType;
 	wbs_code: string;
-	status: TaskStatus;
+	status: string;  // 各ノードタイプで異なるステータス
 	progress: number;
-	priority: Priority;
+	priority: string;
 	assignee: string;
 	children?: WBSNode[];
 	depth: number;
@@ -418,3 +421,224 @@ export interface QualityGate {
 }
 
 export type QualityStatus = 'not_checked' | 'passing' | 'failing';
+
+// =============================================================================
+// グラフビュー用統一ノード型
+// =============================================================================
+
+// グラフノードの種別（WBS 階層 + Task）
+export type GraphNodeType = 'vision' | 'objective' | 'deliverable' | 'task';
+
+// グラフビュー用の統一ノードデータ
+export interface GraphNode {
+	id: string;
+	title: string;
+	node_type: GraphNodeType;
+	status: string;
+	progress: number;
+	priority?: string;
+	assignee?: string;
+	wbs_code?: string;
+	dependencies: string[];  // 親ノードへの依存（エッジ用）
+}
+
+// グラフビュー用のエッジデータ
+export interface GraphEdge {
+	from: string;
+	to: string;
+}
+
+// WBS 階層からグラフデータへの変換結果
+export interface WBSGraphData {
+	nodes: GraphNode[];
+	edges: GraphEdge[];
+}
+
+// =============================================================================
+// WBS Analysis API レスポンス
+// =============================================================================
+
+// WBS 分析 API レスポンス
+export interface WBSAnalysisResponse {
+	coverage: CoverageAnalysisResult | null;
+	stale: StaleAnalysisResult | null;
+	summary: AnalysisSummary;
+}
+
+// カバレッジ分析結果
+export interface CoverageAnalysisResult {
+	issues: CoverageIssue[];
+	coverage_score: number;
+	objectives_covered: number;
+	objectives_total: number;
+	deliverables_ok: number;
+	deliverables_err: number;
+}
+
+// カバレッジ問題
+export interface CoverageIssue {
+	type: CoverageIssueType;
+	entity_id: string;
+	entity_title: string;
+	entity_type: string;
+	severity: IssueSeverity;
+	message: string;
+}
+
+export type CoverageIssueType = 'no_deliverables' | 'no_tasks' | 'unlinked_tasks' | 'orphaned';
+export type IssueSeverity = 'warning' | 'error';
+
+// 陳腐化分析結果
+export interface StaleAnalysisResult {
+	stale_entities: StaleEntity[];
+	total_stale: number;
+	archive_count: number;
+	review_count: number;
+	delete_count: number;
+}
+
+// 陳腐化エンティティ
+export interface StaleEntity {
+	type: StaleType;
+	entity_id: string;
+	entity_title: string;
+	entity_type: string;
+	recommendation: StaleRecommendation;
+	message: string;
+	days_stale: number;
+}
+
+export type StaleType = 'completed_old' | 'orphaned' | 'blocked_long' | 'no_progress';
+export type StaleRecommendation = 'archive' | 'review' | 'delete';
+
+// 分析サマリー
+export interface AnalysisSummary {
+	total_objectives: number;
+	covered_objectives: number;
+	orphaned_count: number;
+	stale_count: number;
+	overall_health: HealthStatus;
+	health_score: number;
+}
+
+// =============================================================================
+// ボトルネック分析 API レスポンス
+// =============================================================================
+
+// ボトルネック API レスポンス
+export interface BottleneckResponse {
+	bottlenecks: BottleneckItem[];
+	summary: BottleneckSummary;
+}
+
+// ボトルネック種別
+export type BottleneckType =
+	| 'block_chain'      // ブロックチェーン（連鎖的にブロック）
+	| 'overdue'          // 期限超過
+	| 'long_stagnation'  // 長期停滞
+	| 'isolated_entity'  // 孤立エンティティ
+	| 'high_risk';       // 高リスク未対応
+
+// ボトルネック深刻度
+export type BottleneckSeverity = 'critical' | 'high' | 'medium' | 'warning';
+
+// ボトルネック項目
+export interface BottleneckItem {
+	type: BottleneckType;
+	severity: BottleneckSeverity;
+	entities: string[];     // 関連エンティティ ID リスト
+	message: string;        // 日本語メッセージ
+	impact: string;         // 影響説明
+	suggestion: string;     // 解決策の提案
+}
+
+// ボトルネックサマリー
+export interface BottleneckSummary {
+	critical: number;
+	high: number;
+	medium: number;
+	warning: number;
+}
+
+// =============================================================================
+// WBS Aggregated API レスポンス（4視点用）
+// =============================================================================
+
+// WBS 集約 API レスポンス
+export interface WBSAggregatedResponse {
+	progress: ProgressAggregation | null;
+	issues: IssueAggregation | null;
+	coverage: CoverageAggregation | null;
+	resources: ResourceAggregation | null;
+}
+
+// 進捗集約データ（ツリーマップ用）
+export interface ProgressAggregation {
+	vision: ProgressNode | null;
+	objectives: ProgressNode[];
+	total_progress: number;
+}
+
+// 進捗ツリーのノード
+export interface ProgressNode {
+	id: string;
+	title: string;
+	node_type: string;
+	progress: number;
+	status: string;
+	children_count: number;
+	children?: ProgressNode[];
+}
+
+// 問題集中データ（バブルチャート用）
+export interface IssueAggregation {
+	items: IssueBubble[];
+	total_issues: number;
+	max_severity: string;
+}
+
+// バブルチャート用のデータ
+export interface IssueBubble {
+	id: string;
+	title: string;
+	node_type: string;
+	problem_count: number;
+	risk_count: number;
+	total_issues: number;
+	max_severity: string;
+	risk_score: number;
+	progress: number;
+}
+
+// カバレッジデータ（サンバースト用）
+export interface CoverageAggregation {
+	root: CoverageNode | null;
+	coverage_score: number;
+	orphaned_tasks: string[];
+	missing_links: string[];
+}
+
+// サンバースト用のノード
+export interface CoverageNode {
+	id: string;
+	title: string;
+	node_type: string;
+	has_issue: boolean;
+	issue_type?: string;
+	value: number;
+	children?: CoverageNode[];
+}
+
+// リソース配分データ（ヒートマップ用）
+export interface ResourceAggregation {
+	assignees: string[];
+	objectives: string[];
+	matrix: ResourceCell[][];
+}
+
+// ヒートマップのセル
+export interface ResourceCell {
+	task_count: number;
+	progress: number;
+	blocked_count: number;
+}

@@ -11,7 +11,7 @@
 	import { FilterManager, type FilterCriteria } from './interaction/FilterManager';
 	import Minimap from './ui/Minimap.svelte';
 	import FilterPanel from './ui/FilterPanel.svelte';
-	import { Graphics, FederatedPointerEvent } from 'pixi.js';
+	import { Container, Graphics, FederatedPointerEvent } from 'pixi.js';
 
 	// Props
 	interface Props {
@@ -590,12 +590,13 @@
 			// PixiJS でヒットテストを実行
 			if (engine) {
 				const app = engine.getApp();
+				if (!app) return;
 				const hitObject = app.renderer.events.rootBoundary.hitTest(x, y);
 
 				// TaskNode を検索（親をたどる）
-				let target = hitObject;
+				let target: Container | null = hitObject;
 				while (target && !(target instanceof TaskNode)) {
-					target = target.parent;
+					target = target.parent as Container | null;
 				}
 
 				if (target instanceof TaskNode) {

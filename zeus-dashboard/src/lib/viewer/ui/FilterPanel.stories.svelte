@@ -109,59 +109,62 @@
 </script>
 
 <!-- フィルターなし -->
-<Story name="NoFilter" args={{
-	criteria: {},
-	onStatusToggle: handleStatusToggle,
-	onPriorityToggle: handlePriorityToggle,
-	onAssigneeToggle: handleAssigneeToggle,
-	onSearchChange: handleSearchChange,
-	onClear: handleClear
-}} let:args>
+<Story name="NoFilter">
 	<div class="filter-story-wrapper">
-		<FilterPanel {...args} />
+		<FilterPanel
+			criteria={{}}
+			availableAssignees={['alice', 'bob', 'charlie']}
+			onStatusToggle={handleStatusToggle}
+			onPriorityToggle={handlePriorityToggle}
+			onAssigneeToggle={handleAssigneeToggle}
+			onSearchChange={handleSearchChange}
+			onClear={handleClear}
+		/>
 	</div>
 </Story>
 
 <!-- ステータスフィルターあり -->
-<Story name="WithStatusFilter" args={{
-	criteria: withStatusFilter,
-	onStatusToggle: handleStatusToggle,
-	onPriorityToggle: handlePriorityToggle,
-	onAssigneeToggle: handleAssigneeToggle,
-	onSearchChange: handleSearchChange,
-	onClear: handleClear
-}} let:args>
+<Story name="WithStatusFilter">
 	<div class="filter-story-wrapper">
-		<FilterPanel {...args} />
+		<FilterPanel
+			criteria={withStatusFilter}
+			availableAssignees={['alice', 'bob', 'charlie']}
+			onStatusToggle={handleStatusToggle}
+			onPriorityToggle={handlePriorityToggle}
+			onAssigneeToggle={handleAssigneeToggle}
+			onSearchChange={handleSearchChange}
+			onClear={handleClear}
+		/>
 	</div>
 </Story>
 
 <!-- フルフィルター -->
-<Story name="FullFilter" args={{
-	criteria: fullFilter,
-	onStatusToggle: handleStatusToggle,
-	onPriorityToggle: handlePriorityToggle,
-	onAssigneeToggle: handleAssigneeToggle,
-	onSearchChange: handleSearchChange,
-	onClear: handleClear
-}} let:args>
+<Story name="FullFilter">
 	<div class="filter-story-wrapper">
-		<FilterPanel {...args} />
+		<FilterPanel
+			criteria={fullFilter}
+			availableAssignees={['alice', 'bob', 'charlie']}
+			onStatusToggle={handleStatusToggle}
+			onPriorityToggle={handlePriorityToggle}
+			onAssigneeToggle={handleAssigneeToggle}
+			onSearchChange={handleSearchChange}
+			onClear={handleClear}
+		/>
 	</div>
 </Story>
 
 <!-- 担当者なし -->
-<Story name="NoAssignees" args={{
-	criteria: {},
-	availableAssignees: [],
-	onStatusToggle: handleStatusToggle,
-	onPriorityToggle: handlePriorityToggle,
-	onAssigneeToggle: handleAssigneeToggle,
-	onSearchChange: handleSearchChange,
-	onClear: handleClear
-}} let:args>
+<Story name="NoAssignees">
 	<div class="filter-story-wrapper">
-		<FilterPanel {...args} />
+		<FilterPanel
+			criteria={{}}
+			availableAssignees={[]}
+			onStatusToggle={handleStatusToggle}
+			onPriorityToggle={handlePriorityToggle}
+			onAssigneeToggle={handleAssigneeToggle}
+			onSearchChange={handleSearchChange}
+			onClear={handleClear}
+		/>
 	</div>
 </Story>
 

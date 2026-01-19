@@ -159,14 +159,15 @@ export function assertPerformanceOnce(duration: number, threshold: number, label
 
 /**
  * テスト用のタスクデータを生成
+ * TaskItem と互換性を持つ型
  */
 export interface MockTaskItem {
 	id: string;
 	title: string;
 	status: 'pending' | 'in_progress' | 'completed' | 'blocked';
-	progress?: number;
-	priority?: 'critical' | 'high' | 'medium' | 'low';
-	assignee?: string;
+	progress: number;
+	priority: 'high' | 'medium' | 'low';
+	assignee: string;
 	dependencies: string[];
 }
 
@@ -178,12 +179,7 @@ export interface MockTaskItem {
  */
 export function generateMockTasks(count: number, maxDependencies = 3): MockTaskItem[] {
 	const statuses: MockTaskItem['status'][] = ['pending', 'in_progress', 'completed', 'blocked'];
-	const priorities: NonNullable<MockTaskItem['priority']>[] = [
-		'critical',
-		'high',
-		'medium',
-		'low'
-	];
+	const priorities: MockTaskItem['priority'][] = ['high', 'medium', 'low'];
 
 	const tasks: MockTaskItem[] = [];
 

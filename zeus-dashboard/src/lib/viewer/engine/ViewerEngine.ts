@@ -352,6 +352,14 @@ export class ViewerEngine {
 	}
 
 	/**
+	 * PixiJS Application インスタンスを取得
+	 * ヒットテスト等の低レベル操作に使用
+	 */
+	getApp(): Application | null {
+		return this.app;
+	}
+
+	/**
 	 * 現在のビューポートを取得
 	 */
 	getViewport(): Viewport {

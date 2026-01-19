@@ -22,15 +22,14 @@
 
 <script lang="ts">
 	import { fn } from '@storybook/test';
-	import type { ViewType } from './ViewSwitcher.svelte';
 
 	// Action ハンドラー
 	const handleViewChange = fn();
 
 	// 状態付きのラッパー
-	let currentView: ViewType = $state('graph');
+	let currentView: 'graph' | 'wbs' | 'timeline' = $state('graph');
 
-	function createHandler(view: ViewType) {
+	function createHandler(view: 'graph' | 'wbs' | 'timeline') {
 		currentView = view;
 		handleViewChange(view);
 	}

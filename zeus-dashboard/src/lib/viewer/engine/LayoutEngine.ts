@@ -110,6 +110,30 @@ export class LayoutEngine {
 	}
 
 	/**
+	 * 部分レイアウト（フィルター時用）
+	 * 指定されたノードのみをレイアウトする（キャッシュを使わない）
+	 */
+	layoutSubset(tasks: TaskItem[], visibleIds: Set<string>): LayoutResult {
+		// フィルター対象のタスクのみ抽出
+		const filteredTasks = tasks.filter(t => visibleIds.has(t.id));
+
+		// 依存関係も可視ノード内のみに制限
+		const adjustedTasks = filteredTasks.map(t => ({
+			...t,
+			dependencies: t.dependencies.filter(d => visibleIds.has(d))
+		}));
+
+		// キャッシュを使わず新しいレイアウトを計算
+		const graph = this.buildGraph(adjustedTasks);
+		const layers = this.computeLayers(adjustedTasks, graph);
+		this.minimizeCrossings(layers, graph);
+		const positions = this.computePositions(layers);
+		const bounds = this.computeBounds(positions);
+
+		return { positions, bounds, layers };
+	}
+
+	/**
 	 * 依存関係グラフを構築
 	 */
 	private buildGraph(tasks: TaskItem[]): {

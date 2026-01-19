@@ -38,8 +38,8 @@
 <style>
 	.footer {
 		background-color: var(--bg-secondary);
-		border-top: 2px solid var(--border-metal);
-		padding: var(--spacing-sm) var(--spacing-xl);
+		border-top: 1px solid var(--border-metal);
+		padding: var(--spacing-xs) var(--spacing-md);
 		margin-top: auto;
 	}
 

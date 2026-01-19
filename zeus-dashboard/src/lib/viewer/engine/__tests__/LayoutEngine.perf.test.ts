@@ -181,9 +181,9 @@ describe('LayoutEngine パフォーマンステスト', () => {
 		it('依存関係のあるノードは異なるレイヤーに配置される', () => {
 			// 明示的な依存チェーン: task-0 -> task-1 -> task-2
 			const tasks = [
-				{ id: 'task-0', title: 'Task 0', status: 'pending' as const, dependencies: [] },
-				{ id: 'task-1', title: 'Task 1', status: 'pending' as const, dependencies: ['task-0'] },
-				{ id: 'task-2', title: 'Task 2', status: 'pending' as const, dependencies: ['task-1'] }
+				{ id: 'task-0', title: 'Task 0', status: 'pending' as const, progress: 0, priority: 'medium' as const, assignee: 'user-0', dependencies: [] },
+				{ id: 'task-1', title: 'Task 1', status: 'pending' as const, progress: 0, priority: 'medium' as const, assignee: 'user-0', dependencies: ['task-0'] },
+				{ id: 'task-2', title: 'Task 2', status: 'pending' as const, progress: 0, priority: 'medium' as const, assignee: 'user-0', dependencies: ['task-1'] }
 			];
 
 			const result = engine.layout(tasks);

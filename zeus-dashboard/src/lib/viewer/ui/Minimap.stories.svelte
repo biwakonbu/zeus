@@ -56,11 +56,11 @@
 
 	// モック位置情報
 	const mockPositions: Map<string, NodePosition> = new Map([
-		['task-1', { x: 100, y: 100 }],
-		['task-2', { x: 300, y: 100 }],
-		['task-3', { x: 500, y: 50 }],
-		['task-4', { x: 500, y: 150 }],
-		['task-5', { x: 700, y: 100 }]
+		['task-1', { id: 'task-1', x: 100, y: 100, layer: 0 }],
+		['task-2', { id: 'task-2', x: 300, y: 100, layer: 1 }],
+		['task-3', { id: 'task-3', x: 500, y: 50, layer: 2 }],
+		['task-4', { id: 'task-4', x: 500, y: 150, layer: 2 }],
+		['task-5', { id: 'task-5', x: 700, y: 100, layer: 3 }]
 	]);
 
 	// モック境界
@@ -137,35 +137,54 @@
 </script>
 
 <!-- デフォルト -->
-<Story name="Default" args={{ onNavigate: handleNavigate }} let:args>
+<Story name="Default">
 	<div class="minimap-story-wrapper">
-		<Minimap {...args} />
+		<Minimap
+			tasks={mockTasks}
+			positions={mockPositions}
+			bounds={mockBounds}
+			viewport={normalViewport}
+			onNavigate={handleNavigate}
+		/>
 	</div>
 </Story>
 
 <!-- ズームアウト時 -->
-<Story name="ZoomedOut" args={{ viewport: zoomedOutViewport, onNavigate: handleNavigate }} let:args>
+<Story name="ZoomedOut">
 	<div class="minimap-story-wrapper">
-		<Minimap {...args} />
+		<Minimap
+			tasks={mockTasks}
+			positions={mockPositions}
+			bounds={mockBounds}
+			viewport={zoomedOutViewport}
+			onNavigate={handleNavigate}
+		/>
 	</div>
 </Story>
 
 <!-- ズームイン時 -->
-<Story name="ZoomedIn" args={{ viewport: zoomedInViewport, onNavigate: handleNavigate }} let:args>
+<Story name="ZoomedIn">
 	<div class="minimap-story-wrapper">
-		<Minimap {...args} />
+		<Minimap
+			tasks={mockTasks}
+			positions={mockPositions}
+			bounds={mockBounds}
+			viewport={zoomedInViewport}
+			onNavigate={handleNavigate}
+		/>
 	</div>
 </Story>
 
 <!-- 空のマップ -->
-<Story name="Empty" args={{
-	tasks: [],
-	positions: new Map(),
-	bounds: { minX: 0, minY: 0, maxX: 100, maxY: 100, width: 100, height: 100 },
-	onNavigate: handleNavigate
-}} let:args>
+<Story name="Empty">
 	<div class="minimap-story-wrapper">
-		<Minimap {...args} />
+		<Minimap
+			tasks={[]}
+			positions={new Map()}
+			bounds={{ minX: 0, minY: 0, maxX: 100, maxY: 100, width: 100, height: 100 }}
+			viewport={normalViewport}
+			onNavigate={handleNavigate}
+		/>
 	</div>
 </Story>
 
@@ -191,10 +210,16 @@ x: {Math.round(interactiveViewport.x)}, y: {Math.round(interactiveViewport.y)}
 </Story>
 
 <!-- 状態色の凡例 -->
-<Story name="StatusLegend" args={{ onNavigate: handleNavigate }} let:args>
+<Story name="StatusLegend">
 	<div style="display: flex; gap: 24px; align-items: flex-start;">
 		<div class="minimap-story-wrapper">
-			<Minimap {...args} />
+			<Minimap
+				tasks={mockTasks}
+				positions={mockPositions}
+				bounds={mockBounds}
+				viewport={normalViewport}
+				onNavigate={handleNavigate}
+			/>
 		</div>
 		<div style="padding: 12px; background: #2d2d2d; border-radius: 4px;">
 			<p

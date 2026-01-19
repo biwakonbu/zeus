@@ -7,16 +7,27 @@ import (
 	"strings"
 )
 
+// WBSNodeType はノードの種類
+type WBSNodeType string
+
+const (
+	WBSNodeTypeVision      WBSNodeType = "vision"
+	WBSNodeTypeObjective   WBSNodeType = "objective"
+	WBSNodeTypeDeliverable WBSNodeType = "deliverable"
+	WBSNodeTypeTask        WBSNodeType = "task"
+)
+
 // WBSNode はWBS階層のノード
 type WBSNode struct {
-	ID       string     `json:"id"`
-	Title    string     `json:"title"`
-	WBSCode  string     `json:"wbs_code"`
-	Status   string     `json:"status"`
-	Progress int        `json:"progress"`
-	Priority string     `json:"priority"`
-	Assignee string     `json:"assignee"`
-	Children []*WBSNode `json:"children,omitempty"`
+	ID       string      `json:"id"`
+	Title    string      `json:"title"`
+	Type     WBSNodeType `json:"type"`
+	WBSCode  string      `json:"wbs_code"`
+	Status   string      `json:"status"`
+	Progress int         `json:"progress"`
+	Priority string      `json:"priority,omitempty"`
+	Assignee string      `json:"assignee,omitempty"`
+	Children []*WBSNode  `json:"children,omitempty"`
 
 	// 内部用
 	Depth int `json:"depth"`
@@ -425,4 +436,321 @@ func (w *WBSBuilder) detectParentCycles() [][]string {
 // WBS構築前に検証したい場合に使用
 func (w *WBSBuilder) DetectParentCycles() [][]string {
 	return w.detectParentCycles()
+}
+
+// MultiEntityWBSBuilder は 10概念モデル対応の WBS ビルダー
+// Vision → Objective → Deliverable → Task の階層構造を構築
+type MultiEntityWBSBuilder struct {
+	vision       *VisionInfo
+	objectives   map[string]*ObjectiveInfo
+	deliverables map[string]*DeliverableInfo
+	tasks        map[string]*TaskInfo
+}
+
+// NewMultiEntityWBSBuilder は新しい MultiEntityWBSBuilder を作成
+func NewMultiEntityWBSBuilder(
+	vision *VisionInfo,
+	objectives []ObjectiveInfo,
+	deliverables []DeliverableInfo,
+	tasks []TaskInfo,
+) *MultiEntityWBSBuilder {
+	objMap := make(map[string]*ObjectiveInfo)
+	for i := range objectives {
+		objMap[objectives[i].ID] = &objectives[i]
+	}
+
+	delMap := make(map[string]*DeliverableInfo)
+	for i := range deliverables {
+		delMap[deliverables[i].ID] = &deliverables[i]
+	}
+
+	taskMap := make(map[string]*TaskInfo)
+	for i := range tasks {
+		taskMap[tasks[i].ID] = &tasks[i]
+	}
+
+	return &MultiEntityWBSBuilder{
+		vision:       vision,
+		objectives:   objMap,
+		deliverables: delMap,
+		tasks:        taskMap,
+	}
+}
+
+// Build は 10概念モデルの WBS 階層を構築
+func (m *MultiEntityWBSBuilder) Build(ctx context.Context) (*WBSTree, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// Vision ノード（L1）を作成
+	var visionNode *WBSNode
+	if m.vision != nil {
+		visionNode = &WBSNode{
+			ID:       m.vision.ID,
+			Title:    m.vision.Title,
+			Type:     WBSNodeTypeVision,
+			Status:   m.vision.Status,
+			Progress: 0, // Vision は進捗率なし
+			Children: []*WBSNode{},
+			Depth:    0,
+		}
+	}
+
+	// Objective ノード（L2/L3）を作成
+	objNodes := make(map[string]*WBSNode)
+	for id, obj := range m.objectives {
+		objNodes[id] = &WBSNode{
+			ID:       obj.ID,
+			Title:    obj.Title,
+			Type:     WBSNodeTypeObjective,
+			WBSCode:  obj.WBSCode,
+			Status:   obj.Status,
+			Progress: obj.Progress,
+			Children: []*WBSNode{},
+			Depth:    0,
+		}
+	}
+
+	// Deliverable ノード（L4）を作成
+	delNodes := make(map[string]*WBSNode)
+	for id, del := range m.deliverables {
+		delNodes[id] = &WBSNode{
+			ID:       del.ID,
+			Title:    del.Title,
+			Type:     WBSNodeTypeDeliverable,
+			Status:   del.Status,
+			Progress: del.Progress,
+			Children: []*WBSNode{},
+			Depth:    0,
+		}
+	}
+
+	// Task ノード（L5）を作成
+	taskNodes := make(map[string]*WBSNode)
+	for id, task := range m.tasks {
+		taskNodes[id] = &WBSNode{
+			ID:       task.ID,
+			Title:    task.Title,
+			Type:     WBSNodeTypeTask,
+			WBSCode:  task.WBSCode,
+			Status:   task.Status,
+			Progress: task.Progress,
+			Priority: task.Priority,
+			Assignee: task.Assignee,
+			Children: []*WBSNode{},
+			Depth:    0,
+		}
+	}
+
+	// 親子関係を構築
+	// 1. Objective の親子関係（L2 → L3）
+	l2Objectives := []*WBSNode{}
+	for id, obj := range m.objectives {
+		node := objNodes[id]
+		if obj.ParentID == "" {
+			// L2 (ルート Objective)
+			l2Objectives = append(l2Objectives, node)
+		} else if parent, exists := objNodes[obj.ParentID]; exists {
+			// L3 (子 Objective)
+			parent.Children = append(parent.Children, node)
+		} else {
+			// 親が見つからない場合は L2 として扱う
+			l2Objectives = append(l2Objectives, node)
+		}
+	}
+
+	// 2. Deliverable → Objective（L4 → L3/L2）
+	orphanDeliverables := []*WBSNode{}
+	for id, del := range m.deliverables {
+		node := delNodes[id]
+		if parent, exists := objNodes[del.ObjectiveID]; exists {
+			parent.Children = append(parent.Children, node)
+		} else {
+			orphanDeliverables = append(orphanDeliverables, node)
+		}
+	}
+
+	// 3. Task → Deliverable または Objective（L5 → L4/L3）
+	// Note: 現在の実装では Task の親参照は ParentID（タスク間）のみ
+	// Deliverable/Objective への参照は別途対応が必要
+	orphanTasks := []*WBSNode{}
+	for id := range m.tasks {
+		node := taskNodes[id]
+		orphanTasks = append(orphanTasks, node)
+	}
+
+	// 4. Vision → L2 Objectives
+	if visionNode != nil {
+		visionNode.Children = l2Objectives
+	}
+
+	// ルートノードを決定
+	roots := []*WBSNode{}
+	if visionNode != nil {
+		roots = append(roots, visionNode)
+	} else {
+		roots = l2Objectives
+	}
+
+	// 孤立した Deliverables と Tasks を追加
+	roots = append(roots, orphanDeliverables...)
+	roots = append(roots, orphanTasks...)
+
+	// WBS コードでソート
+	sortNodesByWBSCode(roots)
+
+	// 深さを計算
+	maxDepth := 0
+	for _, root := range roots {
+		depth := calculateDepth(root, 0)
+		if depth > maxDepth {
+			maxDepth = depth
+		}
+	}
+
+	// 統計を計算
+	stats := m.calculateMultiEntityStats(roots)
+
+	return &WBSTree{
+		Roots:    roots,
+		MaxDepth: maxDepth,
+		Stats:    stats,
+	}, nil
+}
+
+// calculateMultiEntityStats は 10概念モデルの WBS 統計を計算
+func (m *MultiEntityWBSBuilder) calculateMultiEntityStats(roots []*WBSNode) WBSStats {
+	stats := WBSStats{
+		RootCount: len(roots),
+	}
+
+	totalProgress := 0
+	progressCount := 0
+	completedCount := 0
+
+	var countNodes func(node *WBSNode) int
+	countNodes = func(node *WBSNode) int {
+		count := 1
+		isLeaf := len(node.Children) == 0
+		if isLeaf {
+			stats.LeafCount++
+		}
+
+		// Vision 以外は進捗を計算
+		if node.Type != WBSNodeTypeVision {
+			totalProgress += node.Progress
+			progressCount++
+		}
+
+		if node.Status == TaskStatusCompleted || node.Progress == 100 {
+			completedCount++
+		}
+
+		if node.Depth > stats.MaxDepth {
+			stats.MaxDepth = node.Depth
+		}
+
+		for _, child := range node.Children {
+			count += countNodes(child)
+		}
+		return count
+	}
+
+	for _, root := range roots {
+		stats.TotalNodes += countNodes(root)
+	}
+
+	if progressCount > 0 {
+		stats.AvgProgress = totalProgress / progressCount
+	}
+	if stats.TotalNodes > 0 {
+		stats.CompletedPct = (completedCount * 100) / stats.TotalNodes
+	}
+
+	return stats
+}
+
+// ToMermaid は WBS ツリーを Mermaid 形式で出力
+func (tree *WBSTree) ToMermaid() string {
+	var sb strings.Builder
+
+	sb.WriteString("```mermaid\n")
+	sb.WriteString("graph TD\n")
+
+	// ノードとエッジを出力
+	for _, root := range tree.Roots {
+		printMermaidNode(&sb, root, nil)
+	}
+
+	// スタイル定義
+	sb.WriteString("\n")
+	for _, root := range tree.Roots {
+		printMermaidStyles(&sb, root)
+	}
+
+	sb.WriteString("```\n")
+
+	return sb.String()
+}
+
+// printMermaidNode は再帰的に Mermaid ノードを出力
+func printMermaidNode(sb *strings.Builder, node *WBSNode, parent *WBSNode) {
+	// ノード ID をサニタイズ
+	safeID := strings.ReplaceAll(node.ID, "-", "_")
+	label := strings.ReplaceAll(node.Title, "\"", "'")
+
+	// ノードの形状を種類に応じて変更
+	var nodeShape string
+	switch node.Type {
+	case WBSNodeTypeVision:
+		nodeShape = "((" + label + "))" // 円形
+	case WBSNodeTypeObjective:
+		nodeShape = "[" + label + "]" // 四角
+	case WBSNodeTypeDeliverable:
+		nodeShape = "([" + label + "])" // 角丸四角
+	case WBSNodeTypeTask:
+		nodeShape = "{{" + label + "}}" // 六角形
+	default:
+		nodeShape = "[" + label + "]"
+	}
+
+	sb.WriteString("    " + safeID + nodeShape + "\n")
+
+	// 親へのエッジ
+	if parent != nil {
+		parentID := strings.ReplaceAll(parent.ID, "-", "_")
+		sb.WriteString("    " + parentID + " --> " + safeID + "\n")
+	}
+
+	// 子ノードを再帰処理
+	for _, child := range node.Children {
+		printMermaidNode(sb, child, node)
+	}
+}
+
+// printMermaidStyles は Mermaid スタイルを出力
+func printMermaidStyles(sb *strings.Builder, node *WBSNode) {
+	safeID := strings.ReplaceAll(node.ID, "-", "_")
+
+	// 進捗に応じた色
+	var color string
+	if node.Progress >= 100 || node.Status == TaskStatusCompleted {
+		color = "#90EE90" // 完了: 緑
+	} else if node.Progress > 0 {
+		color = "#FFFFE0" // 進行中: 黄
+	} else {
+		color = "#F5F5F5" // 未着手: グレー
+	}
+
+	// Vision は特別な色
+	if node.Type == WBSNodeTypeVision {
+		color = "#87CEEB" // 青
+	}
+
+	sb.WriteString("    style " + safeID + " fill:" + color + "\n")
+
+	for _, child := range node.Children {
+		printMermaidStyles(sb, child)
+	}
 }

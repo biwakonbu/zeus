@@ -53,95 +53,95 @@
 </script>
 
 <!-- 空（0%） -->
-<Story name="Empty" args={{ value: 0 }} let:args>
+<Story name="Empty" args={{ value: 0 }}>
 	<div style="width: 300px;">
-		<ProgressBar {...args} />
+		<ProgressBar value={0} />
 	</div>
 </Story>
 
 <!-- 半分（50%） -->
-<Story name="Half" args={{ value: 50 }} let:args>
+<Story name="Half" args={{ value: 50 }}>
 	<div style="width: 300px;">
-		<ProgressBar {...args} />
+		<ProgressBar value={50} />
 	</div>
 </Story>
 
 <!-- 完了（100%） -->
-<Story name="Complete" args={{ value: 100 }} let:args>
+<Story name="Complete" args={{ value: 100 }}>
 	<div style="width: 300px;">
-		<ProgressBar {...args} />
+		<ProgressBar value={100} />
 	</div>
 </Story>
 
 <!-- ラベルなし -->
-<Story name="NoLabel" args={{ value: 75, showLabel: false }} let:args>
+<Story name="NoLabel" args={{ value: 75, showLabel: false }}>
 	<div style="width: 300px;">
-		<ProgressBar {...args} />
+		<ProgressBar value={75} showLabel={false} />
 	</div>
 </Story>
 
 <!-- 小サイズ -->
-<Story name="SizeSmall" args={{ value: 60, size: 'sm' }} let:args>
+<Story name="SizeSmall" args={{ value: 60, size: 'sm' }}>
 	<div style="width: 300px;">
 		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">Small (sm)</span>
-		<ProgressBar {...args} />
+		<ProgressBar value={60} size="sm" />
 	</div>
 </Story>
 
 <!-- 中サイズ -->
-<Story name="SizeMedium" args={{ value: 60, size: 'md' }} let:args>
+<Story name="SizeMedium" args={{ value: 60, size: 'md' }}>
 	<div style="width: 300px;">
 		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">Medium (md)</span>
-		<ProgressBar {...args} />
+		<ProgressBar value={60} size="md" />
 	</div>
 </Story>
 
 <!-- 大サイズ -->
-<Story name="SizeLarge" args={{ value: 60, size: 'lg' }} let:args>
+<Story name="SizeLarge" args={{ value: 60, size: 'lg' }}>
 	<div style="width: 300px;">
 		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">Large (lg)</span>
-		<ProgressBar {...args} />
+		<ProgressBar value={60} size="lg" />
 	</div>
 </Story>
 
 <!-- 低い進捗（赤） -->
-<Story name="ColorPoor" args={{ value: 30 }} let:args>
+<Story name="ColorPoor" args={{ value: 30 }}>
 	<div style="width: 300px;">
 		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">0-49%: 赤（Poor）</span>
-		<ProgressBar {...args} />
+		<ProgressBar value={30} />
 	</div>
 </Story>
 
 <!-- 中程度の進捗（黄） -->
-<Story name="ColorFair" args={{ value: 65 }} let:args>
+<Story name="ColorFair" args={{ value: 65 }}>
 	<div style="width: 300px;">
 		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">50-79%: 黄（Fair）</span>
-		<ProgressBar {...args} />
+		<ProgressBar value={65} />
 	</div>
 </Story>
 
 <!-- 高い進捗（緑） -->
-<Story name="ColorGood" args={{ value: 90 }} let:args>
+<Story name="ColorGood" args={{ value: 90 }}>
 	<div style="width: 300px;">
 		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">80-100%: 緑（Good）</span>
-		<ProgressBar {...args} />
+		<ProgressBar value={90} />
 	</div>
 </Story>
 
 <!-- カスタム max 値 -->
-<Story name="CustomMax" args={{ value: 3, max: 5 }} let:args>
+<Story name="CustomMax" args={{ value: 3, max: 5 }}>
 	<div style="width: 300px;">
 		<p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">
 			タスク進捗: 3/5 完了
 		</p>
-		<ProgressBar {...args} />
+		<ProgressBar value={3} max={5} />
 	</div>
 </Story>
 
 <!-- インタラクティブ -->
-<Story name="Interactive" let:args>
+<Story name="Interactive">
 	<div style="width: 300px;">
-		<ProgressBar {...args} />
+		<ProgressBar value={50} />
 	</div>
 </Story>
 

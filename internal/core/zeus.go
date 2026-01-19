@@ -1181,6 +1181,87 @@ func (z *Zeus) BuildTimeline(ctx context.Context) (*analysis.Timeline, error) {
 	return builder.Build(ctx)
 }
 
+// BuildWBSGraph は 10概念モデル対応の WBS 階層ツリーを構築
+// Vision → Objective → Deliverable → Task の完全な階層構造を返す
+func (z *Zeus) BuildWBSGraph(ctx context.Context) (*analysis.WBSTree, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// 1. Vision を取得
+	var vision *analysis.VisionInfo
+	var visionData Vision
+	if z.fileStore.Exists(ctx, "vision.yaml") {
+		if err := z.fileStore.ReadYaml(ctx, "vision.yaml", &visionData); err == nil {
+			vision = &analysis.VisionInfo{
+				ID:        visionData.ID,
+				Title:     visionData.Title,
+				Statement: visionData.Statement,
+				Status:    string(visionData.Status),
+			}
+		}
+	}
+
+	// 2. 全 Objective を取得（ディレクトリから直接読み込み）
+	objectives := []analysis.ObjectiveInfo{}
+	objFiles, err := z.fileStore.ListDir(ctx, "objectives")
+	if err == nil {
+		for _, file := range objFiles {
+			if !hasYamlSuffix(file) {
+				continue
+			}
+			var obj ObjectiveEntity
+			if err := z.fileStore.ReadYaml(ctx, filepath.Join("objectives", file), &obj); err == nil {
+				objectives = append(objectives, analysis.ObjectiveInfo{
+					ID:       obj.ID,
+					Title:    obj.Title,
+					WBSCode:  obj.WBSCode,
+					Progress: obj.Progress,
+					Status:   string(obj.Status),
+					ParentID: obj.ParentID,
+				})
+			}
+		}
+	}
+
+	// 3. 全 Deliverable を取得（ディレクトリから直接読み込み）
+	deliverables := []analysis.DeliverableInfo{}
+	delFiles, err := z.fileStore.ListDir(ctx, "deliverables")
+	if err == nil {
+		for _, file := range delFiles {
+			if !hasYamlSuffix(file) {
+				continue
+			}
+			var del DeliverableEntity
+			if err := z.fileStore.ReadYaml(ctx, filepath.Join("deliverables", file), &del); err == nil {
+				deliverables = append(deliverables, analysis.DeliverableInfo{
+					ID:          del.ID,
+					Title:       del.Title,
+					ObjectiveID: del.ObjectiveID,
+					Progress:    del.Progress,
+					Status:      string(del.Status),
+				})
+			}
+		}
+	}
+
+	// 4. 全 Task を取得
+	var taskStore TaskStore
+	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
+		taskStore = TaskStore{Tasks: []Task{}}
+	}
+	taskInfos := toAnalysisTaskInfo(taskStore.Tasks)
+
+	// 5. MultiEntityWBSBuilder で階層構造を構築
+	builder := analysis.NewMultiEntityWBSBuilder(vision, objectives, deliverables, taskInfos)
+	return builder.Build(ctx)
+}
+
+// hasYamlSuffix は .yaml または .yml 拡張子を持つかチェック
+func hasYamlSuffix(filename string) bool {
+	return len(filename) > 5 && (filename[len(filename)-5:] == ".yaml" || filename[len(filename)-4:] == ".yml")
+}
+
 // ===== Claude Code 連携ファイル更新 =====
 
 // UpdateClaudeFiles は Claude Code 連携ファイルを最新テンプレートで再生成

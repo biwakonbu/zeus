@@ -5,9 +5,16 @@ import type {
 	GraphResponse,
 	PredictResponse,
 	WBSResponse,
+	WBSNode,
 	TimelineResponse,
 	DownstreamResponse,
-	ErrorResponse
+	ErrorResponse,
+	GraphNode,
+	GraphEdge,
+	WBSGraphData,
+	WBSAnalysisResponse,
+	BottleneckResponse,
+	WBSAggregatedResponse
 } from '$lib/types/api';
 
 // API ベース URL（開発時は Vite Proxy 経由、本番時は同一オリジン）
@@ -83,6 +90,85 @@ export async function fetchTimeline(): Promise<TimelineResponse> {
 // 下流タスク取得（影響範囲の可視化用）
 export async function fetchDownstream(taskId: string): Promise<DownstreamResponse> {
 	return fetchJSON<DownstreamResponse>(`/downstream?task_id=${encodeURIComponent(taskId)}`);
+}
+
+// WBS 分析取得
+export async function fetchWBSAnalysis(): Promise<WBSAnalysisResponse> {
+	return fetchJSON<WBSAnalysisResponse>('/wbs/analysis');
+}
+
+// ボトルネック分析取得
+export async function fetchBottlenecks(): Promise<BottleneckResponse> {
+	return fetchJSON<BottleneckResponse>('/bottlenecks');
+}
+
+// WBS 集約データ取得（4視点ビュー用）
+export async function fetchWBSAggregated(): Promise<WBSAggregatedResponse> {
+	return fetchJSON<WBSAggregatedResponse>('/wbs/aggregated');
+}
+
+// =============================================================================
+// WBS → GraphData 変換ユーティリティ
+// =============================================================================
+
+/**
+ * WBS 階層データをフラットな GraphNode/GraphEdge に変換
+ * @param wbs WBSResponse (階層構造)
+ * @returns WBSGraphData (フラットなノード・エッジ)
+ */
+export function convertWBSToGraphData(wbs: WBSResponse): WBSGraphData {
+	const nodes: GraphNode[] = [];
+	const edges: GraphEdge[] = [];
+
+	/**
+	 * 再帰的にノードを抽出し、親子関係をエッジとして記録
+	 */
+	function traverse(node: WBSNode, parentId: string | null): void {
+		// GraphNode に変換
+		const graphNode: GraphNode = {
+			id: node.id,
+			title: node.title,
+			node_type: node.node_type,
+			status: node.status,
+			progress: node.progress,
+			priority: node.priority || undefined,
+			assignee: node.assignee || undefined,
+			wbs_code: node.wbs_code || undefined,
+			dependencies: parentId ? [parentId] : []
+		};
+		nodes.push(graphNode);
+
+		// 親子関係をエッジとして記録（親 → 子）
+		if (parentId) {
+			edges.push({
+				from: parentId,
+				to: node.id
+			});
+		}
+
+		// 子ノードを再帰処理
+		if (node.children && node.children.length > 0) {
+			for (const child of node.children) {
+				traverse(child, node.id);
+			}
+		}
+	}
+
+	// ルートノードから開始
+	for (const root of wbs.roots) {
+		traverse(root, null);
+	}
+
+	return { nodes, edges };
+}
+
+/**
+ * WBS データを取得して GraphData に変換
+ * @returns WBSGraphData
+ */
+export async function fetchWBSAsGraphData(): Promise<WBSGraphData> {
+	const wbs = await fetchWBS();
+	return convertWBSToGraphData(wbs);
 }
 
 // 全データ取得（並列実行）

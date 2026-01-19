@@ -4,8 +4,9 @@
 	import { refreshAllData } from '$lib/stores';
 	import { setConnected, setDisconnected, setConnecting } from '$lib/stores/connection';
 	import { connectSSE, disconnectSSE } from '$lib/api/sse';
+	import { fetchWBSAsGraphData } from '$lib/api/client';
 	import { tasks } from '$lib/stores/tasks';
-	import type { WBSNode, TimelineItem } from '$lib/types/api';
+	import type { TimelineItem, WBSGraphData } from '$lib/types/api';
 
 	let useSSE = $state(true);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
@@ -13,11 +14,14 @@
 	// 現在のビュー
 	let currentView: ViewType = $state('graph');
 
+	// WBS グラフデータ（Graph View 用）
+	let wbsGraphData: WBSGraphData | undefined = $state(undefined);
+
 	// 選択中のタスク
 	let selectedTaskId: string | null = $state(null);
 
-	// WBS で選択されたノード
-	let selectedWBSNode: WBSNode | null = $state(null);
+	// WBS で選択されたノード（WBSViewer 内で EntityDetailPanel が処理するため参照のみ）
+	// Note: selectedTaskId のみ同期
 
 	// Timeline で選択されたアイテム
 	let selectedTimelineItem: TimelineItem | null = $state(null);
@@ -39,6 +43,15 @@
 		refreshAllData()
 			.then(() => {
 				setConnected();
+
+				// WBS データを取得（Graph View 用）
+				fetchWBSAsGraphData()
+					.then(data => {
+						wbsGraphData = data;
+					})
+					.catch(err => {
+						console.warn('WBS data fetch failed:', err);
+					});
 
 				// SSE 接続を試行（ポーリングとは排他的に実行）
 				if (useSSE) {
@@ -102,11 +115,11 @@
 		// 必要に応じてツールチップ表示などを追加
 	}
 
-	// WBS ノード選択ハンドラ
-	function handleWBSNodeSelect(node: WBSNode | null) {
-		selectedWBSNode = node;
-		// タスク ID も同期
-		selectedTaskId = node?.id ?? null;
+	// WBS ノード選択ハンドラ（WBSViewer の onNodeSelect に合わせた型）
+	function handleWBSNodeSelect(nodeId: string, nodeType: string) {
+		// WBS詳細パネルは WBSViewer 内の EntityDetailPanel で表示されるため、
+		// ここでは selectedTaskId のみ同期
+		selectedTaskId = nodeId;
 	}
 
 	// Timeline アイテム選択ハンドラ
@@ -121,7 +134,6 @@
 		currentView = view;
 		// ビュー切り替え時に選択をクリア
 		selectedTaskId = null;
-		selectedWBSNode = null;
 		selectedTimelineItem = null;
 	}
 </script>
@@ -139,6 +151,7 @@
 	{#if currentView === 'graph'}
 		<FactorioViewer
 			tasks={$tasks}
+			graphData={wbsGraphData}
 			selectedTaskId={selectedTaskId}
 			onTaskSelect={handleTaskSelect}
 			onTaskHover={handleTaskHover}
@@ -191,73 +204,22 @@
 	{/if}
 {/if}
 
-<!-- 選択ノード詳細パネル（WBS View） -->
-{#if currentView === 'wbs' && selectedWBSNode}
-	<div class="task-detail-panel">
-		<div class="panel-header">
-			<h3 class="panel-title">WBS NODE DETAIL</h3>
-			<button class="close-btn" onclick={() => { selectedWBSNode = null; selectedTaskId = null; }}>x</button>
-		</div>
-		<div class="task-detail-content">
-			{#if selectedWBSNode.wbs_code}
-				<div class="detail-row">
-					<span class="detail-label">WBS Code</span>
-					<span class="detail-value wbs-code">{selectedWBSNode.wbs_code}</span>
-				</div>
-			{/if}
-			<div class="detail-row">
-				<span class="detail-label">Title</span>
-				<span class="detail-value">{selectedWBSNode.title}</span>
-			</div>
-			<div class="detail-row">
-				<span class="detail-label">Status</span>
-				<span class="detail-value status-{selectedWBSNode.status}">{selectedWBSNode.status}</span>
-			</div>
-			<div class="detail-row">
-				<span class="detail-label">Progress</span>
-				<div class="progress-detail">
-					<div class="progress-bar-detail">
-						<div class="progress-fill" style="width: {selectedWBSNode.progress}%"></div>
-					</div>
-					<span class="progress-value">{selectedWBSNode.progress}%</span>
-				</div>
-			</div>
-			<div class="detail-row">
-				<span class="detail-label">Priority</span>
-				<span class="detail-value priority-{selectedWBSNode.priority}">{selectedWBSNode.priority}</span>
-			</div>
-			<div class="detail-row">
-				<span class="detail-label">Assignee</span>
-				<span class="detail-value">{selectedWBSNode.assignee || 'Unassigned'}</span>
-			</div>
-			<div class="detail-row">
-				<span class="detail-label">Depth</span>
-				<span class="detail-value">{selectedWBSNode.depth}</span>
-			</div>
-			{#if selectedWBSNode.children && selectedWBSNode.children.length > 0}
-				<div class="detail-row">
-					<span class="detail-label">Children</span>
-					<span class="detail-value">{selectedWBSNode.children.length} subtasks</span>
-				</div>
-			{/if}
-		</div>
-	</div>
-{/if}
+<!-- WBS View のノード詳細パネルは WBSViewer 内の EntityDetailPanel で表示 -->
 
 <style>
 	/* ビュー切り替えヘッダー */
 	.view-header {
 		display: flex;
 		justify-content: center;
-		padding: var(--spacing-sm) var(--spacing-md);
+		padding: var(--spacing-xs) var(--spacing-md);
 		background-color: var(--bg-secondary);
 		border-bottom: 1px solid var(--border-dark);
 	}
 
-	/* ビューワーコンテナ */
+	/* ビューワーコンテナ - 画面最大化 */
 	.viewer-container {
-		height: calc(100vh - 180px);
-		min-height: 600px;
+		height: calc(100vh - 85px);
+		min-height: 400px;
 	}
 
 	/* タスク詳細パネル */

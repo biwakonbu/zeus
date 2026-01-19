@@ -26,18 +26,18 @@
 </script>
 
 <!-- 接続済み -->
-<Story name="Connected" args={{ connectionState: 'connected' }} let:args>
-	<Header {...args} />
+<Story name="Connected" args={{ connectionState: 'connected' }}>
+	<Header connectionState="connected" />
 </Story>
 
 <!-- 接続中 -->
-<Story name="Connecting" args={{ connectionState: 'connecting' }} let:args>
-	<Header {...args} />
+<Story name="Connecting" args={{ connectionState: 'connecting' }}>
+	<Header connectionState="connecting" />
 </Story>
 
 <!-- 切断済み -->
-<Story name="Disconnected" args={{ connectionState: 'disconnected' }} let:args>
-	<Header {...args} />
+<Story name="Disconnected" args={{ connectionState: 'disconnected' }}>
+	<Header connectionState="disconnected" />
 </Story>
 
 <!-- 全状態比較 -->
@@ -59,6 +59,6 @@
 </Story>
 
 <!-- インタラクティブ -->
-<Story name="Interactive" let:args>
-	<Header {...args} />
+<Story name="Interactive">
+	<Header connectionState="connected" />
 </Story>

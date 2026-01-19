@@ -1,61 +1,50 @@
 <script lang="ts">
+	// WBS ビューワー（改善版）
+	// 3 つの新ビュー（Health, Timeline, Density）を提供
 	import { onMount } from 'svelte';
-	import { fetchWBS } from '$lib/api/client';
-	import type { WBSResponse, WBSNode, WBSStats, TaskStatus, Priority } from '$lib/types/api';
+	import { fetchWBSAggregated } from '$lib/api/client';
+	import type { WBSAggregatedResponse } from '$lib/types/api';
+	import HealthView from './wbs/health/HealthView.svelte';
+	import TimelineView from './wbs/timeline/TimelineView.svelte';
+	import DensityView from './wbs/density/DensityView.svelte';
+	import WBSSummaryBar from './wbs/WBSSummaryBar.svelte';
+	import EntityDetailPanel from './wbs/EntityDetailPanel.svelte';
+	import {
+		selectedEntityId,
+		selectedEntityType,
+		selectEntity,
+		clearSelection
+	} from './wbs/stores/wbsStore';
 
 	// Props
 	interface Props {
-		onNodeSelect?: (node: WBSNode | null) => void;
+		onNodeSelect?: (nodeId: string, nodeType: string) => void;
 	}
 	let { onNodeSelect }: Props = $props();
 
+	// ビュータブ（3視点）
+	type ViewTab = 'health' | 'timeline' | 'density';
+	let activeView: ViewTab = $state('health');
+
 	// 状態
-	let wbsData: WBSResponse | null = $state(null);
+	let aggregatedData: WBSAggregatedResponse | null = $state(null);
 	let loading = $state(true);
 	let error: string | null = $state(null);
-	let expandedNodes: Set<string> = $state(new Set());
-	let selectedNodeId: string | null = $state(null);
-	let searchQuery = $state('');
-	let statusFilter: TaskStatus | 'all' = $state('all');
-	let priorityFilter: Priority | 'all' = $state('all');
 
-	// フィルターされたルートノード
-	let filteredRoots = $derived.by(() => {
-		if (!wbsData) return [];
-		return filterNodes(wbsData.roots);
+	// 詳細パネル表示
+	let showDetailPanel = $state(false);
+
+	// Store からの選択状態を購読して詳細パネルを制御
+	$effect(() => {
+		showDetailPanel = $selectedEntityId !== null;
 	});
-
-	// ノードのフィルタリング（再帰的）
-	function filterNodes(nodes: WBSNode[]): WBSNode[] {
-		const result: WBSNode[] = [];
-		for (const node of nodes) {
-			const filteredChildren = node.children ? filterNodes(node.children) : undefined;
-			const matchesSearch =
-				!searchQuery ||
-				node.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				node.wbs_code.toLowerCase().includes(searchQuery.toLowerCase());
-			const matchesStatus = statusFilter === 'all' || node.status === statusFilter;
-			const matchesPriority = priorityFilter === 'all' || node.priority === priorityFilter;
-
-			// 子がマッチするか、自身がマッチする場合は含める
-			const hasMatchingChildren = filteredChildren && filteredChildren.length > 0;
-			if (hasMatchingChildren || (matchesSearch && matchesStatus && matchesPriority)) {
-				result.push({ ...node, children: filteredChildren });
-			}
-		}
-		return result;
-	}
 
 	// データ読み込み
 	async function loadData() {
 		loading = true;
 		error = null;
 		try {
-			wbsData = await fetchWBS();
-			// デフォルトで最初のレベルを展開
-			if (wbsData.roots) {
-				wbsData.roots.forEach((root) => expandedNodes.add(root.id));
-			}
+			aggregatedData = await fetchWBSAggregated();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'WBS データの読み込みに失敗しました';
 		} finally {
@@ -63,63 +52,28 @@
 		}
 	}
 
-	// 展開/折りたたみの切り替え
-	function toggleExpand(nodeId: string) {
-		if (expandedNodes.has(nodeId)) {
-			expandedNodes.delete(nodeId);
-		} else {
-			expandedNodes.add(nodeId);
-		}
-		expandedNodes = new Set(expandedNodes);
+	// ノード選択ハンドラ（各ビューから呼ばれる）
+	function handleNodeSelect(nodeId: string, nodeType: string) {
+		selectEntity(nodeId, nodeType);
+		onNodeSelect?.(nodeId, nodeType);
 	}
 
-	// ノード選択
-	function selectNode(node: WBSNode) {
-		selectedNodeId = node.id;
-		onNodeSelect?.(node);
+	// エンティティ選択ハンドラ（詳細パネルから呼ばれる）
+	function handleEntitySelect(entityId: string) {
+		selectEntity(entityId, null);
 	}
 
-	// すべて展開
-	function expandAll() {
-		if (!wbsData) return;
-		const collectIds = (nodes: WBSNode[]): string[] => {
-			return nodes.flatMap((n) => [n.id, ...(n.children ? collectIds(n.children) : [])]);
-		};
-		expandedNodes = new Set(collectIds(wbsData.roots));
+	// 詳細パネルを閉じる
+	function closeDetailPanel() {
+		clearSelection();
 	}
 
-	// すべて折りたたむ
-	function collapseAll() {
-		expandedNodes = new Set();
-	}
-
-	// ステータスに応じたアイコンとカラー
-	function getStatusInfo(status: TaskStatus): { icon: string; color: string; label: string } {
-		switch (status) {
-			case 'completed':
-				return { icon: '✓', color: '#22c55e', label: '完了' };
-			case 'in_progress':
-				return { icon: '●', color: '#f59e0b', label: '進行中' };
-			case 'blocked':
-				return { icon: '✗', color: '#ef4444', label: 'ブロック' };
-			case 'pending':
-			default:
-				return { icon: '○', color: '#6b7280', label: '未着手' };
-		}
-	}
-
-	// 優先度に応じたカラー
-	function getPriorityColor(priority: Priority): string {
-		switch (priority) {
-			case 'high':
-				return '#ef4444';
-			case 'medium':
-				return '#f59e0b';
-			case 'low':
-			default:
-				return '#22c55e';
-		}
-	}
+	// タブ情報（改善版: 3視点）
+	const tabs: Array<{ id: ViewTab; label: string; icon: string }> = [
+		{ id: 'health', label: 'Health', icon: '💚' },
+		{ id: 'timeline', label: 'Timeline', icon: '📅' },
+		{ id: 'density', label: 'Density', icon: '🔥' }
+	];
 
 	onMount(() => {
 		loadData();
@@ -127,300 +81,218 @@
 </script>
 
 <div class="wbs-viewer">
-	<!-- ヘッダー -->
+	<!-- ヘッダー & ビュー切り替え -->
 	<div class="wbs-header">
-		<div class="wbs-title">
-			<h2>WBS Structure</h2>
-			{#if wbsData}
-				<span class="wbs-stats">
-					{wbsData.stats.total_nodes} tasks | Depth: {wbsData.stats.max_depth} | {wbsData.stats
-						.completed_pct}% complete
-				</span>
+		<div class="view-tabs">
+			{#each tabs as tab}
+				<button
+					class="view-tab"
+					class:active={activeView === tab.id}
+					onclick={() => (activeView = tab.id)}
+					aria-pressed={activeView === tab.id}
+				>
+					<span class="tab-icon">{tab.icon}</span>
+					<span class="tab-label">{tab.label}</span>
+				</button>
+			{/each}
+		</div>
+
+		<div class="header-actions">
+			<button class="refresh-btn" onclick={() => loadData()} title="更新" disabled={loading}>
+				<span class="icon" class:spinning={loading}>↻</span>
+			</button>
+		</div>
+	</div>
+
+	<!-- メインコンテンツ（ビュー + 詳細パネル） -->
+	<div class="main-content">
+		<!-- ビューコンテンツ -->
+		<div class="view-content" class:with-panel={showDetailPanel}>
+			{#if loading && !aggregatedData}
+				<div class="loading-state">
+					<div class="spinner"></div>
+					<span>読み込み中...</span>
+				</div>
+			{:else if error}
+				<div class="error-state">
+					<span class="error-icon">⚠</span>
+					<span>{error}</span>
+					<button class="retry-btn" onclick={() => loadData()}>再試行</button>
+				</div>
+			{:else}
+				<!-- 3視点ビュー（改善版） -->
+				<div class="view-container">
+					{#if activeView === 'health'}
+						<HealthView data={aggregatedData} onNodeSelect={handleNodeSelect} />
+					{:else if activeView === 'timeline'}
+						<TimelineView data={aggregatedData} onNodeSelect={handleNodeSelect} />
+					{:else if activeView === 'density'}
+						<DensityView data={aggregatedData} onNodeSelect={handleNodeSelect} />
+					{/if}
+				</div>
 			{/if}
 		</div>
-		<div class="wbs-controls">
-			<button class="wbs-btn" onclick={() => expandAll()} title="すべて展開">
-				<span class="icon">⊞</span>
-			</button>
-			<button class="wbs-btn" onclick={() => collapseAll()} title="すべて折りたたむ">
-				<span class="icon">⊟</span>
-			</button>
-			<button class="wbs-btn" onclick={() => loadData()} title="更新">
-				<span class="icon">↻</span>
-			</button>
-		</div>
-	</div>
 
-	<!-- フィルター -->
-	<div class="wbs-filters">
-		<input
-			type="text"
-			class="wbs-search"
-			placeholder="検索..."
-			bind:value={searchQuery}
-		/>
-		<select class="wbs-select" bind:value={statusFilter}>
-			<option value="all">全ステータス</option>
-			<option value="pending">未着手</option>
-			<option value="in_progress">進行中</option>
-			<option value="completed">完了</option>
-			<option value="blocked">ブロック</option>
-		</select>
-		<select class="wbs-select" bind:value={priorityFilter}>
-			<option value="all">全優先度</option>
-			<option value="high">高</option>
-			<option value="medium">中</option>
-			<option value="low">低</option>
-		</select>
-	</div>
-
-	<!-- ツリー表示 -->
-	<div class="wbs-tree-container">
-		{#if loading}
-			<div class="wbs-loading">
-				<div class="spinner"></div>
-				<span>読み込み中...</span>
-			</div>
-		{:else if error}
-			<div class="wbs-error">
-				<span class="error-icon">⚠</span>
-				<span>{error}</span>
-				<button class="wbs-btn retry-btn" onclick={() => loadData()}>再試行</button>
-			</div>
-		{:else if filteredRoots.length === 0}
-			<div class="wbs-empty">
-				<span>表示するタスクがありません</span>
-			</div>
-		{:else}
-			<div class="wbs-tree">
-				{#each filteredRoots as node}
-					{@render treeNode(node, 0)}
-				{/each}
+		<!-- エンティティ詳細パネル -->
+		{#if showDetailPanel}
+			<div class="detail-panel">
+				<EntityDetailPanel
+					entityId={$selectedEntityId}
+					onClose={closeDetailPanel}
+					onEntitySelect={handleEntitySelect}
+				/>
 			</div>
 		{/if}
 	</div>
 
-	<!-- 統計パネル -->
-	{#if wbsData && !loading}
-		<div class="wbs-stats-panel">
-			<div class="stat-item">
-				<span class="stat-label">ルート</span>
-				<span class="stat-value">{wbsData.stats.root_count}</span>
-			</div>
-			<div class="stat-item">
-				<span class="stat-label">リーフ</span>
-				<span class="stat-value">{wbsData.stats.leaf_count}</span>
-			</div>
-			<div class="stat-item">
-				<span class="stat-label">平均進捗</span>
-				<span class="stat-value">{wbsData.stats.avg_progress}%</span>
-			</div>
-		</div>
-	{/if}
+	<!-- サマリーバー -->
+	<WBSSummaryBar data={aggregatedData} />
 </div>
-
-<!-- ツリーノードの再帰的レンダリング -->
-{#snippet treeNode(node: WBSNode, depth: number)}
-	{@const hasChildren = node.children && node.children.length > 0}
-	{@const isExpanded = expandedNodes.has(node.id)}
-	{@const isSelected = selectedNodeId === node.id}
-	{@const statusInfo = getStatusInfo(node.status)}
-	{@const priorityColor = getPriorityColor(node.priority)}
-
-	<div class="tree-node" style="--depth: {depth}">
-		<div
-			class="node-row"
-			class:selected={isSelected}
-			class:has-children={hasChildren}
-			onclick={() => selectNode(node)}
-			onkeydown={(e) => e.key === 'Enter' && selectNode(node)}
-			role="treeitem"
-			tabindex="0"
-			aria-selected={isSelected}
-			aria-expanded={hasChildren ? isExpanded : undefined}
-		>
-			<!-- 展開ボタン -->
-			<button
-				class="expand-btn"
-				class:invisible={!hasChildren}
-				onclick={(e) => {
-					e.stopPropagation();
-					toggleExpand(node.id);
-				}}
-				aria-label={isExpanded ? '折りたたむ' : '展開'}
-			>
-				{#if hasChildren}
-					<span class="expand-icon" class:expanded={isExpanded}>▶</span>
-				{/if}
-			</button>
-
-			<!-- WBS コード -->
-			{#if node.wbs_code}
-				<span class="wbs-code">{node.wbs_code}</span>
-			{/if}
-
-			<!-- タイトル -->
-			<span class="node-title">{node.title}</span>
-
-			<!-- プログレスバー -->
-			<div class="progress-bar-container">
-				<div class="progress-bar" style="width: {node.progress}%"></div>
-				<span class="progress-text">{node.progress}%</span>
-			</div>
-
-			<!-- ステータス -->
-			<span class="status-badge" style="color: {statusInfo.color}" title={statusInfo.label}>
-				{statusInfo.icon}
-			</span>
-
-			<!-- 優先度インジケーター -->
-			<span class="priority-indicator" style="background-color: {priorityColor}" title={node.priority}></span>
-
-			<!-- 担当者 -->
-			{#if node.assignee}
-				<span class="assignee" title={node.assignee}>
-					{node.assignee.slice(0, 2).toUpperCase()}
-				</span>
-			{/if}
-		</div>
-
-		<!-- 子ノード -->
-		{#if hasChildren && isExpanded}
-			<div class="children">
-				{#each node.children as child}
-					{@render treeNode(child, depth + 1)}
-				{/each}
-			</div>
-		{/if}
-	</div>
-{/snippet}
 
 <style>
 	.wbs-viewer {
 		display: flex;
 		flex-direction: column;
 		height: 100%;
-		background: #1a1a1a;
-		color: #e0e0e0;
-		font-family: 'JetBrains Mono', 'Fira Code', monospace;
+		background: var(--bg-primary, #1a1a1a);
+		color: var(--text-primary, #e0e0e0);
+		font-family: var(--font-family, 'IBM Plex Mono', 'JetBrains Mono', monospace);
 	}
 
+	/* ヘッダー */
 	.wbs-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 12px 16px;
-		background: #252525;
-		border-bottom: 1px solid #3a3a3a;
+		padding: 0 16px;
+		background: var(--bg-secondary, #252525);
+		border-bottom: 1px solid var(--border-metal, #3a3a3a);
+		min-height: 48px;
 	}
 
-	.wbs-title {
+	.view-tabs {
 		display: flex;
-		align-items: baseline;
+		gap: 4px;
+	}
+
+	.view-tab {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 10px 16px;
+		background: transparent;
+		border: none;
+		border-bottom: 2px solid transparent;
+		color: var(--text-muted, #888);
+		font-size: 13px;
+		font-family: inherit;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.view-tab:hover {
+		color: var(--text-secondary, #ccc);
+		background: var(--bg-hover, #2a2a2a);
+	}
+
+	.view-tab.active {
+		color: var(--accent-primary, #f59e0b);
+		border-bottom-color: var(--accent-primary, #f59e0b);
+	}
+
+	.tab-icon {
+		font-size: 14px;
+	}
+
+	.header-actions {
+		display: flex;
+		align-items: center;
 		gap: 12px;
 	}
 
-	.wbs-title h2 {
-		margin: 0;
-		font-size: 16px;
-		font-weight: 600;
-		color: #f59e0b;
-	}
-
-	.wbs-stats {
-		font-size: 12px;
-		color: #888;
-	}
-
-	.wbs-controls {
-		display: flex;
-		gap: 8px;
-	}
-
-	.wbs-btn {
+	.refresh-btn {
 		padding: 6px 10px;
-		background: #333;
-		border: 1px solid #444;
-		color: #ccc;
+		background: var(--bg-panel, #333);
+		border: 1px solid var(--border-metal, #444);
+		color: var(--text-secondary, #ccc);
 		border-radius: 4px;
 		cursor: pointer;
 		font-size: 14px;
 		transition: all 0.2s;
 	}
 
-	.wbs-btn:hover {
-		background: #444;
-		border-color: #f59e0b;
-		color: #f59e0b;
+	.refresh-btn:hover:not(:disabled) {
+		background: var(--bg-hover, #444);
+		border-color: var(--accent-primary, #f59e0b);
+		color: var(--accent-primary, #f59e0b);
 	}
 
-	.wbs-btn .icon {
-		font-size: 14px;
+	.refresh-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
-	.wbs-filters {
+	.refresh-btn .icon {
+		display: inline-block;
+	}
+
+	.refresh-btn .icon.spinning {
+		animation: spin 1s linear infinite;
+	}
+
+	/* メインコンテンツ */
+	.main-content {
+		flex: 1;
 		display: flex;
-		gap: 8px;
-		padding: 8px 16px;
-		background: #222;
-		border-bottom: 1px solid #333;
+		overflow: hidden;
 	}
 
-	.wbs-search {
+	/* ビューコンテンツ */
+	.view-content {
 		flex: 1;
-		padding: 6px 12px;
-		background: #1a1a1a;
-		border: 1px solid #333;
-		color: #e0e0e0;
-		border-radius: 4px;
-		font-size: 13px;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		transition: width 0.3s ease;
 	}
 
-	.wbs-search:focus {
-		outline: none;
-		border-color: #f59e0b;
+	.view-content.with-panel {
+		flex: 2;
 	}
 
-	.wbs-select {
-		padding: 6px 12px;
-		background: #1a1a1a;
-		border: 1px solid #333;
-		color: #e0e0e0;
-		border-radius: 4px;
-		font-size: 13px;
-		cursor: pointer;
-	}
-
-	.wbs-select:focus {
-		outline: none;
-		border-color: #f59e0b;
-	}
-
-	.wbs-tree-container {
+	.view-container {
 		flex: 1;
-		overflow: auto;
-		padding: 8px;
+		overflow: hidden;
 	}
 
-	.wbs-loading,
-	.wbs-error,
-	.wbs-empty {
+	/* 詳細パネル */
+	.detail-panel {
+		flex: 1;
+		min-width: 320px;
+		max-width: 400px;
+		border-left: 1px solid var(--border-dark, #333);
+		overflow: hidden;
+	}
+
+	/* ローディング・エラー状態 */
+	.loading-state,
+	.error-state {
+		flex: 1;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		height: 200px;
-		gap: 12px;
-		color: #888;
+		gap: 16px;
+		color: var(--text-muted, #888);
 	}
 
 	.spinner {
-		width: 24px;
-		height: 24px;
-		border: 2px solid #333;
-		border-top-color: #f59e0b;
+		width: 32px;
+		height: 32px;
+		border: 3px solid var(--bg-panel, #333);
+		border-top-color: var(--accent-primary, #f59e0b);
 		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
+		animation: spin 1s linear infinite;
 	}
 
 	@keyframes spin {
@@ -429,172 +301,24 @@
 		}
 	}
 
-	.wbs-error {
-		color: #ef4444;
-	}
-
 	.error-icon {
-		font-size: 24px;
+		font-size: 32px;
+		color: var(--status-poor, #ef4444);
 	}
 
 	.retry-btn {
-		margin-top: 8px;
-	}
-
-	.wbs-tree {
-		padding: 4px 0;
-	}
-
-	.tree-node {
-		margin-left: calc(var(--depth) * 20px);
-	}
-
-	.node-row {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 6px 8px;
+		padding: 8px 16px;
+		background: var(--bg-secondary, #252525);
+		border: 1px solid var(--accent-primary, #f59e0b);
+		color: var(--accent-primary, #f59e0b);
 		border-radius: 4px;
 		cursor: pointer;
-		transition: background 0.15s;
+		font-family: inherit;
+		transition: all 0.2s;
 	}
 
-	.node-row:hover {
-		background: #2a2a2a;
-	}
-
-	.node-row.selected {
-		background: #3a3a3a;
-		border-left: 3px solid #f59e0b;
-		padding-left: 5px;
-	}
-
-	.expand-btn {
-		width: 20px;
-		height: 20px;
-		padding: 0;
-		background: none;
-		border: none;
-		color: #888;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.expand-btn.invisible {
-		visibility: hidden;
-	}
-
-	.expand-btn:hover {
-		color: #f59e0b;
-	}
-
-	.expand-icon {
-		font-size: 10px;
-		transition: transform 0.2s;
-	}
-
-	.expand-icon.expanded {
-		transform: rotate(90deg);
-	}
-
-	.wbs-code {
-		font-size: 11px;
-		color: #f59e0b;
-		background: #2a2a2a;
-		padding: 2px 6px;
-		border-radius: 3px;
-		font-weight: 600;
-		min-width: 50px;
-		text-align: center;
-	}
-
-	.node-title {
-		flex: 1;
-		font-size: 13px;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.progress-bar-container {
-		width: 80px;
-		height: 16px;
-		background: #2a2a2a;
-		border-radius: 3px;
-		position: relative;
-		overflow: hidden;
-	}
-
-	.progress-bar {
-		height: 100%;
-		background: linear-gradient(90deg, #f59e0b, #d97706);
-		transition: width 0.3s;
-	}
-
-	.progress-text {
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		font-size: 10px;
-		font-weight: 600;
-		color: #fff;
-		text-shadow: 0 0 2px #000;
-	}
-
-	.status-badge {
-		font-size: 14px;
-		width: 20px;
-		text-align: center;
-	}
-
-	.priority-indicator {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-	}
-
-	.assignee {
-		font-size: 11px;
-		background: #3a3a3a;
-		color: #ccc;
-		padding: 2px 6px;
-		border-radius: 3px;
-		font-weight: 500;
-	}
-
-	.children {
-		border-left: 1px dashed #444;
-		margin-left: 10px;
-	}
-
-	.wbs-stats-panel {
-		display: flex;
-		justify-content: center;
-		gap: 24px;
-		padding: 12px 16px;
-		background: #222;
-		border-top: 1px solid #333;
-	}
-
-	.stat-item {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 4px;
-	}
-
-	.stat-label {
-		font-size: 11px;
-		color: #888;
-		text-transform: uppercase;
-	}
-
-	.stat-value {
-		font-size: 16px;
-		font-weight: 600;
-		color: #f59e0b;
+	.retry-btn:hover {
+		background: var(--accent-primary, #f59e0b);
+		color: var(--bg-primary, #1a1a1a);
 	}
 </style>

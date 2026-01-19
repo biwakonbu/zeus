@@ -19,6 +19,11 @@ type TaskInfo struct {
 	Priority      string  // 優先度 ("high", "medium", "low")
 	Assignee      string  // 担当者
 	EstimateHours float64 // 見積もり時間
+
+	// 陳腐化分析用フィールド
+	CreatedAt   string // 作成日時（ISO8601）
+	UpdatedAt   string // 更新日時（ISO8601）
+	CompletedAt string // 完了日時（ISO8601）
 }
 
 // ProjectState は分析に必要なプロジェクト状態
@@ -169,3 +174,34 @@ const (
 	TaskStatusCompleted  = "completed"
 	TaskStatusBlocked    = "blocked"
 )
+
+// ObjectiveInfo は分析に必要な Objective 情報
+type ObjectiveInfo struct {
+	ID        string // Objective ID
+	Title     string // タイトル
+	WBSCode   string // WBS コード
+	Progress  int    // 進捗率
+	Status    string // ステータス
+	ParentID  string // 親 Objective ID（L3 の場合）
+	CreatedAt string // 作成日時（ISO8601）
+	UpdatedAt string // 更新日時（ISO8601）
+}
+
+// DeliverableInfo は分析に必要な Deliverable 情報
+type DeliverableInfo struct {
+	ID          string // Deliverable ID
+	Title       string // タイトル
+	ObjectiveID string // 紐づく Objective ID
+	Progress    int    // 進捗率
+	Status      string // ステータス
+	CreatedAt   string // 作成日時（ISO8601）
+	UpdatedAt   string // 更新日時（ISO8601）
+}
+
+// VisionInfo は分析に必要な Vision 情報
+type VisionInfo struct {
+	ID        string // Vision ID
+	Title     string // タイトル
+	Statement string // ステートメント
+	Status    string // ステータス
+}

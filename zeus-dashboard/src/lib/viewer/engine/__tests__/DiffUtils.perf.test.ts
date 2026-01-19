@@ -144,6 +144,9 @@ describe('DiffUtils パフォーマンステスト', () => {
 				id: 'new-task',
 				title: 'New Task',
 				status: 'pending',
+				progress: 0,
+				priority: 'medium',
+				assignee: 'user-0',
 				dependencies: []
 			});
 
@@ -195,6 +198,9 @@ describe('DiffUtils パフォーマンステスト', () => {
 					id: 'task-5',
 					title: 'Task 5',
 					status: 'pending',
+					progress: 0,
+					priority: 'medium',
+					assignee: 'user-0',
 					dependencies: []
 				}
 			];

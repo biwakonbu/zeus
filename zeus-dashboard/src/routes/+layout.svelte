@@ -32,15 +32,8 @@
 
 	.main-content {
 		flex: 1;
-		padding: var(--spacing-xl);
-		max-width: 1600px;
+		padding: 0;
 		width: 100%;
-		margin: 0 auto;
-	}
-
-	@media (max-width: 640px) {
-		.main-content {
-			padding: var(--spacing-md);
-		}
+		overflow: hidden;
 	}
 </style>

@@ -42,8 +42,8 @@
 <style>
 	.header {
 		background-color: var(--bg-secondary);
-		border-bottom: 2px solid var(--border-metal);
-		padding: var(--spacing-md) var(--spacing-xl);
+		border-bottom: 1px solid var(--border-metal);
+		padding: var(--spacing-xs) var(--spacing-md);
 		position: sticky;
 		top: 0;
 		z-index: 100;

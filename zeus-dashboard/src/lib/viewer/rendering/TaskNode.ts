@@ -327,8 +327,20 @@ export class TaskNode extends Container {
 		const statusColor = COLORS.status[this.graphNode.status] || COLORS.status.pending;
 
 		// 左側のステータスバー（角丸に合わせて調整）
-		this.statusIndicator.roundRect(0, 0, 6, NODE_HEIGHT, { topLeft: CORNER_RADIUS, bottomLeft: CORNER_RADIUS, topRight: 0, bottomRight: 0 });
-		this.statusIndicator.fill(statusColor);
+		// PixiJS v8 では roundRect に個別角丸指定はできないため、パスで描画
+		const g = this.statusIndicator;
+		const w = 6;
+		const h = NODE_HEIGHT;
+		const r = CORNER_RADIUS;
+		g.moveTo(r, 0);
+		g.lineTo(w, 0);
+		g.lineTo(w, h);
+		g.lineTo(r, h);
+		g.arcTo(0, h, 0, h - r, r);
+		g.lineTo(0, r);
+		g.arcTo(0, 0, r, 0, r);
+		g.closePath();
+		g.fill(statusColor);
 	}
 
 	/**
