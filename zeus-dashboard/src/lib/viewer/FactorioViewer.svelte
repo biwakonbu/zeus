@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import type { TaskItem, TaskStatus, Priority, TimelineItem, TimelineResponse } from '$lib/types/api';
-	import { fetchTimeline, fetchDownstream } from '$lib/api/client';
+	import type { TaskItem, TaskStatus, Priority, TimelineItem, TimelineResponse, GraphNode, WBSGraphData } from '$lib/types/api';
+	import { fetchTimeline } from '$lib/api/client';
 	import { ViewerEngine, type Viewport } from './engine/ViewerEngine';
 	import { LayoutEngine, type NodePosition } from './engine/LayoutEngine';
 	import { SpatialIndex, type SpatialItem } from './engine/SpatialIndex';
@@ -11,11 +11,12 @@
 	import { FilterManager, type FilterCriteria } from './interaction/FilterManager';
 	import Minimap from './ui/Minimap.svelte';
 	import FilterPanel from './ui/FilterPanel.svelte';
-	import { Graphics } from 'pixi.js';
+	import { Graphics, FederatedPointerEvent } from 'pixi.js';
 
 	// Props
 	interface Props {
-		tasks: TaskItem[];
+		tasks?: TaskItem[];
+		graphData?: WBSGraphData;  // WBS モード用の GraphNode/Edge データ
 		selectedTaskId?: string | null;
 		onTaskSelect?: (taskId: string | null) => void;
 		onTaskHover?: (taskId: string | null) => void;
@@ -23,10 +24,41 @@
 
 	let {
 		tasks = [],
+		graphData,
 		selectedTaskId = null,
 		onTaskSelect,
 		onTaskHover
 	}: Props = $props();
+
+	// WBS モード判定: graphData が提供されていれば WBS モード
+	let isWBSMode = $derived(!!graphData && graphData.nodes.length > 0);
+
+	/**
+	 * TaskItem[] から GraphNode[] への変換（後方互換性用）
+	 */
+	function tasksToGraphNodes(taskList: TaskItem[]): GraphNode[] {
+		return taskList.map(t => ({
+			id: t.id,
+			title: t.title,
+			node_type: 'task' as const,
+			status: t.status,
+			progress: t.progress ?? 0,
+			priority: t.priority,
+			assignee: t.assignee || undefined,
+			wbs_code: t.wbs_code,
+			dependencies: t.dependencies
+		}));
+	}
+
+	// 内部で使用する統一された GraphNode リスト
+	let graphNodes = $derived(
+		isWBSMode ? graphData!.nodes : tasksToGraphNodes(tasks)
+	);
+
+	// 内部で使用するエッジリスト
+	let graphEdges = $derived(
+		isWBSMode ? graphData!.edges : []
+	);
 
 	// 内部状態
 	let containerElement: HTMLDivElement;
@@ -53,29 +85,29 @@
 	let previousLODLevel: LODLevel | null = null;
 
 	/**
-	 * タスクリストのハッシュを計算（浅い比較用）
+	 * ノードリストのハッシュを計算（浅い比較用）
 	 */
-	function computeTasksHash(taskList: TaskItem[]): string {
-		return taskList.map(t =>
-			`${t.id}:${t.status}:${t.progress ?? 0}:${t.priority ?? ''}:${t.assignee ?? ''}`
+	function computeNodesHash(nodeList: GraphNode[]): string {
+		return nodeList.map(n =>
+			`${n.id}:${n.status}:${n.progress ?? 0}:${n.priority ?? ''}:${n.assignee ?? ''}:${n.node_type}`
 		).join('|');
 	}
 
 	/**
 	 * 依存関係のハッシュを計算（構造変更の検出用）
 	 */
-	function computeDependencyHash(taskList: TaskItem[]): string {
-		return taskList.map(t => `${t.id}:${t.dependencies.join(',')}`).sort().join('|');
+	function computeDependencyHash(nodeList: GraphNode[]): string {
+		return nodeList.map(n => `${n.id}:${n.dependencies.join(',')}`).sort().join('|');
 	}
 
 	/**
-	 * タスクが変更されたかチェック
+	 * ノードが変更されたかチェック
 	 * @returns 変更タイプ: 'none' | 'data' | 'structure'
 	 */
-	function detectTaskChanges(newTasks: TaskItem[]): 'none' | 'data' | 'structure' {
-		const newHash = computeTasksHash(newTasks);
-		const newDepHash = computeDependencyHash(newTasks);
-		const newIds = new Set(newTasks.map(t => t.id));
+	function detectNodeChanges(newNodes: GraphNode[]): 'none' | 'data' | 'structure' {
+		const newHash = computeNodesHash(newNodes);
+		const newDepHash = computeDependencyHash(newNodes);
+		const newIds = new Set(newNodes.map(n => n.id));
 
 		// 構造変更（追加/削除/依存関係変更）をチェック
 		if (newDepHash !== previousDependencyHash ||
@@ -115,6 +147,14 @@
 	let filterCriteria: FilterCriteria = $state({});
 	let availableAssignees: string[] = $state([]);
 	let visibleTaskIds: Set<string> = $state(new Set());
+
+	// 依存関係フィルター状態
+	let dependencyFilterNodeId: string | null = $state(null);  // フィルター対象ノードID
+	let dependencyFilterIds: Set<string> = $state(new Set());  // 表示対象のノードID
+	let originalPositions: Map<string, NodePosition> | null = $state(null);  // フィルター前の元の位置
+
+	// キー状態追跡（Chrome MCP ツール対応）
+	let isAltKeyPressed = $state(false);
 
 	// 選択中のID一覧
 	let selectedIds: string[] = $state([]);
@@ -412,12 +452,13 @@
 				// グラフの論理構造を返す
 				getGraphState: () => ({
 					nodes: Array.from(nodeMap.values()).map((n) => ({
-						id: n.getTaskId(),
-						name: n.getTask().title,
+						id: n.getNodeId(),
+						name: n.getGraphNode().title,
 						x: Math.round(n.x),
 						y: Math.round(n.y),
-						status: n.getTask().status,
-						progress: n.getTask().progress ?? 0
+						status: n.getGraphNode().status,
+						progress: n.getGraphNode().progress ?? 0,
+						nodeType: n.getNodeType()
 					})),
 					edges: edgeFactory.getAll().map((e) => ({
 						from: e.getFromId(),
@@ -428,8 +469,9 @@
 						panX: Math.round(currentViewport.x),
 						panY: Math.round(currentViewport.y)
 					},
-					taskCount: nodeMap.size,
-					edgeCount: edgeFactory.getAll().length
+					nodeCount: nodeMap.size,
+					edgeCount: edgeFactory.getAll().length,
+					mode: isWBSMode ? 'wbs' : 'task'
 				}),
 
 				// 選択状態を返す
@@ -443,7 +485,7 @@
 				getFilterState: () => ({
 					criteria: filterCriteria,
 					visibleCount: visibleTaskIds.size,
-					totalCount: tasks.length
+					totalCount: graphNodes.length
 				}),
 
 				// クリティカルパス状態を返す
@@ -527,6 +569,7 @@
 
 		// キーボードイベント
 		window.addEventListener('keydown', handleKeyDown);
+		window.addEventListener('keyup', handleKeyUp);
 
 		// リサイズ監視
 		resizeObserver = new ResizeObserver(() => {
@@ -534,12 +577,41 @@
 		});
 		resizeObserver.observe(containerElement);
 
+		// ブラウザのデフォルトコンテキストメニューを抑制し、右クリック処理
+		containerElement.addEventListener('contextmenu', (e) => {
+			console.log('[ContextMenu] contextmenu event fired at:', e.clientX, e.clientY);
+			e.preventDefault();
+
+			// キャンバス上の座標を取得
+			const rect = containerElement.getBoundingClientRect();
+			const x = e.clientX - rect.left;
+			const y = e.clientY - rect.top;
+
+			// PixiJS でヒットテストを実行
+			if (engine) {
+				const app = engine.getApp();
+				const hitObject = app.renderer.events.rootBoundary.hitTest(x, y);
+
+				// TaskNode を検索（親をたどる）
+				let target = hitObject;
+				while (target && !(target instanceof TaskNode)) {
+					target = target.parent;
+				}
+
+				if (target instanceof TaskNode) {
+					console.log('[ContextMenu] Right-click on node:', target.getNodeId());
+					handleNodeContextMenu(target, null as unknown as FederatedPointerEvent);
+				}
+			}
+		});
+
 		// エンジン準備完了を通知（$effect をトリガー）
 		engineReady = true;
 	}
 
 	onDestroy(() => {
 		window.removeEventListener('keydown', handleKeyDown);
+		window.removeEventListener('keyup', handleKeyUp);
 		resizeObserver?.disconnect();
 
 		// タイマーをクリア
@@ -567,14 +639,14 @@
 	// タイムライン読み込みのデバウンス用タイマー
 	let timelineLoadTimer: ReturnType<typeof setTimeout> | null = null;
 
-	// タスクが変更されたら再レンダリング
+	// ノードが変更されたら再レンダリング
 	// NOTE: Svelte 5 の $effect は条件分岐内でのみ読み取られた変数を追跡しない
-	// そのため tasks と engineReady を条件の外で明示的に読み取り、依存関係として登録する
+	// そのため graphNodes と engineReady を条件の外で明示的に読み取り、依存関係として登録する
 	$effect(() => {
-		const currentTasks = tasks; // 依存関係を明示的に登録
+		const currentNodes = graphNodes; // 依存関係を明示的に登録
 		const ready = engineReady; // エンジン初期化完了を依存関係に追加
 		if (ready && engine && layoutEngine) {
-			const changeType = detectTaskChanges(currentTasks);
+			const changeType = detectNodeChanges(currentNodes);
 
 			if (changeType === 'none') {
 				// 変更なし - 何もしない
@@ -583,20 +655,22 @@
 
 			if (changeType === 'data') {
 				// データのみ変更 - ノードの表示を更新
-				updateTaskNodes(currentTasks);
+				updateGraphNodes(currentNodes);
 			} else {
 				// 構造変更 - フルレンダリング
-				renderTasks(currentTasks);
+				renderGraphNodes(currentNodes);
 			}
 
-			// タイムラインデータの読み込みをデバウンス（500ms）
-			if (timelineLoadTimer) {
-				clearTimeout(timelineLoadTimer);
+			// タイムラインデータの読み込みをデバウンス（500ms）- Task モードのみ
+			if (!isWBSMode) {
+				if (timelineLoadTimer) {
+					clearTimeout(timelineLoadTimer);
+				}
+				timelineLoadTimer = setTimeout(() => {
+					loadTimelineData();
+					timelineLoadTimer = null;
+				}, 500);
 			}
-			timelineLoadTimer = setTimeout(() => {
-				loadTimelineData();
-				timelineLoadTimer = null;
-			}, 500);
 		}
 	});
 
@@ -772,24 +846,25 @@
 	/**
 	 * 既存ノードのデータを更新（差分更新 - レイアウト再計算なし）
 	 */
-	function updateTaskNodes(taskList: TaskItem[]): void {
+	function updateGraphNodes(nodeList: GraphNode[]): void {
 		if (!filterManager || !selectionManager) return;
 
 		const updateStart = nowMs();
 		let updatedCount = 0;
 
-		// タスクマップを作成
-		const taskMap = new Map(taskList.map(t => [t.id, t]));
+		// ノードマップを作成
+		const graphNodeMap = new Map(nodeList.map(n => [n.id, n]));
 
-		// フィルターマネージャーを更新
-		filterManager.setTasks(taskList);
+		// フィルターマネージャーを更新（TaskItem 互換形式で）
+		const taskItems = graphNodesToTaskItems(nodeList);
+		filterManager.setTasks(taskItems);
 		availableAssignees = filterManager.getAvailableAssignees();
 
 		// 既存ノードのデータを更新
 		for (const [id, node] of nodeMap) {
-			const task = taskMap.get(id);
-			if (task) {
-				node.updateTask(task);
+			const graphNode = graphNodeMap.get(id);
+			if (graphNode) {
+				node.updateData(graphNode);
 				updatedCount++;
 			}
 		}
@@ -798,10 +873,30 @@
 		visibleTaskIds = new Set(filterManager.getVisibleIds());
 		updateVisibility();
 
-		logMetrics('updateTaskNodes', updateStart, {
+		logMetrics('updateGraphNodes', updateStart, {
 			totalNodes: nodeMap.size,
 			updatedNodes: updatedCount
 		}, true);
+	}
+
+	/**
+	 * GraphNode[] から TaskItem[] 互換形式に変換（フィルター・選択マネージャー用）
+	 */
+	function graphNodesToTaskItems(nodeList: GraphNode[]): TaskItem[] {
+		return nodeList.map(n => ({
+			id: n.id,
+			title: n.title,
+			status: (n.status === 'completed' || n.status === 'in_progress' || n.status === 'pending' || n.status === 'blocked')
+				? n.status as TaskStatus
+				: 'pending' as TaskStatus,
+			priority: (n.priority === 'high' || n.priority === 'medium' || n.priority === 'low')
+				? n.priority as Priority
+				: 'medium' as Priority,
+			assignee: n.assignee || '',
+			dependencies: n.dependencies,
+			progress: n.progress,
+			wbs_code: n.wbs_code
+		}));
 	}
 
 	// 外部からの選択状態変更を反映
@@ -818,30 +913,38 @@
 	});
 
 	/**
-	 * タスクをレンダリング
+	 * グラフノードをレンダリング
 	 */
-	function renderTasks(taskList: TaskItem[]): void {
+	function renderGraphNodes(nodeList: GraphNode[]): void {
 		if (!engine || !layoutEngine || !spatialIndex || !filterManager || !selectionManager) return;
 
 		const renderStart = nowMs();
 		const renderSeq = ++renderSequence;
 		let dependencyCount = 0;
-		for (const task of taskList) {
-			dependencyCount += task.dependencies.length;
+		for (const gn of nodeList) {
+			dependencyCount += gn.dependencies.length;
 		}
 
 		const nodeContainer = engine.getNodeContainer();
 		const edgeContainer = engine.getEdgeContainer();
 		if (!nodeContainer || !edgeContainer) return;
 
-		// マネージャーにタスクを設定
-		filterManager.setTasks(taskList);
-		selectionManager.setTasks(taskList);
+		// 構造変更時は依存関係フィルター状態をリセット
+		if (dependencyFilterNodeId !== null) {
+			dependencyFilterNodeId = null;
+			dependencyFilterIds = new Set();
+			originalPositions = null;
+		}
+
+		// TaskItem 互換形式に変換してマネージャーに設定
+		const taskItems = graphNodesToTaskItems(nodeList);
+		filterManager.setTasks(taskItems);
+		selectionManager.setTasks(taskItems);
 		availableAssignees = filterManager.getAvailableAssignees();
 
-		// レイアウト計算
+		// レイアウト計算（TaskItem 互換形式で）
 		const layoutStart = nowMs();
-		const layout = layoutEngine.layout(taskList);
+		const layout = layoutEngine.layout(taskItems);
 		const layoutMs = nowMs() - layoutStart;
 		positions = layout.positions;
 		layoutBounds = layout.bounds;
@@ -863,32 +966,33 @@
 		edgeFactory.clear();
 		edgeContainer.removeChildren();
 
-		// タスクIDのセットを作成
-		const taskIds = new Set(taskList.map((t) => t.id));
+		// ノードIDのセットを作成
+		const nodeIds = new Set(nodeList.map((n) => n.id));
 		nodeMap.clear();
 
-		// ノードを作成
-		for (const task of taskList) {
-			const pos = positions.get(task.id);
+		// ノードを作成（GraphNode を直接渡す）
+		for (const gn of nodeList) {
+			const pos = positions.get(gn.id);
 			if (!pos) continue;
 
-			const node = new TaskNode(task);
+			const node = new TaskNode(gn);  // GraphNode を渡す
 			node.x = pos.x - TaskNode.getWidth() / 2;
 			node.y = pos.y - TaskNode.getHeight() / 2;
 
 			// イベントハンドラ
 			node.onClick((n, e) => handleNodeClick(n, e));
 			node.onHover((n, isHovered) => handleNodeHover(n, isHovered));
+			node.onContextMenu((n, e) => handleNodeContextMenu(n, e));
 
 			// 選択状態を反映
-			node.setSelected(selectionManager!.isSelected(task.id));
+			node.setSelected(selectionManager!.isSelected(gn.id));
 
 			nodeContainer.addChild(node);
-			nodeMap.set(task.id, node);
+			nodeMap.set(gn.id, node);
 
 			// 空間インデックスに追加
 			spatialIndex.insert({
-				id: task.id,
+				id: gn.id,
 				x: node.x,
 				y: node.y,
 				width: TaskNode.getWidth(),
@@ -896,35 +1000,51 @@
 			});
 		}
 
-		// エッジを作成
-		for (const task of taskList) {
-			const toPos = positions.get(task.id);
-			if (!toPos) continue;
+		// エッジを作成（WBS モードの場合は graphEdges を使用）
+		if (isWBSMode && graphEdges.length > 0) {
+			// WBS モード: graphEdges から直接エッジを作成
+			for (const edge of graphEdges) {
+				if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) continue;
 
-			for (const depId of task.dependencies) {
-				// 依存先がタスクリストに存在する場合のみエッジを作成
-				if (!taskIds.has(depId)) continue;
+				const fromPos = positions.get(edge.from);
+				const toPos = positions.get(edge.to);
+				if (!fromPos || !toPos) continue;
 
-				const fromPos = positions.get(depId);
-				if (!fromPos) continue;
-
-				const edge = edgeFactory.getOrCreate(depId, task.id);
-
-				// エッジの端点を計算
+				const taskEdge = edgeFactory.getOrCreate(edge.from, edge.to);
 				const endpoints = layoutEngine!.computeEdgeEndpoints(fromPos, toPos);
-				edge.setEndpoints(endpoints.fromX, endpoints.fromY, endpoints.toX, endpoints.toY);
+				taskEdge.setEndpoints(endpoints.fromX, endpoints.fromY, endpoints.toX, endpoints.toY);
+				taskEdge.setType(EdgeType.Normal);
 
-				// エッジタイプを設定
-				const depTask = taskList.find((t) => t.id === depId);
-				if (depTask) {
-					if (depTask.status !== 'completed' && task.status === 'blocked') {
-						edge.setType(EdgeType.Blocked);
-					} else {
-						edge.setType(EdgeType.Normal);
+				edgeContainer.addChild(taskEdge);
+			}
+		} else {
+			// Task モード: dependencies からエッジを作成
+			for (const gn of nodeList) {
+				const toPos = positions.get(gn.id);
+				if (!toPos) continue;
+
+				for (const depId of gn.dependencies) {
+					if (!nodeIds.has(depId)) continue;
+
+					const fromPos = positions.get(depId);
+					if (!fromPos) continue;
+
+					const edge = edgeFactory.getOrCreate(depId, gn.id);
+					const endpoints = layoutEngine!.computeEdgeEndpoints(fromPos, toPos);
+					edge.setEndpoints(endpoints.fromX, endpoints.fromY, endpoints.toX, endpoints.toY);
+
+					// エッジタイプを設定
+					const depNode = nodeList.find((n) => n.id === depId);
+					if (depNode) {
+						if (depNode.status !== 'completed' && gn.status === 'blocked') {
+							edge.setType(EdgeType.Blocked);
+						} else {
+							edge.setType(EdgeType.Normal);
+						}
 					}
-				}
 
-				edgeContainer.addChild(edge);
+					edgeContainer.addChild(edge);
+				}
 			}
 		}
 
@@ -933,24 +1053,25 @@
 		updateVisibility();
 
 		// ビューを中央に
-		if (taskList.length > 0) {
+		if (nodeList.length > 0) {
 			const centerX = (layout.bounds.minX + layout.bounds.maxX) / 2;
 			const centerY = (layout.bounds.minY + layout.bounds.maxY) / 2;
 			engine.panTo(centerX, centerY, false);
 		}
 
-		logMetrics('renderTasks', renderStart, {
+		logMetrics('renderGraphNodes', renderStart, {
 			seq: renderSeq,
-			tasks: taskList.length,
+			nodes: nodeList.length,
 			dependencies: dependencyCount,
-			nodes: nodeMap.size,
+			renderedNodes: nodeMap.size,
 			edges: edgeFactory.getAll().length,
 			layoutMs: Math.round(layoutMs),
 			boundsW: Math.round(layout.bounds.width),
 			boundsH: Math.round(layout.bounds.height),
 			layers: layout.layers.length,
 			visibleFilterCount: visibleTaskIds.size,
-			viewportScale: Number(currentViewport.scale.toFixed(2))
+			viewportScale: Number(currentViewport.scale.toFixed(2)),
+			mode: isWBSMode ? 'wbs' : 'task'
 		}, true);
 	}
 
@@ -1002,11 +1123,23 @@
 		// キャッシュを更新
 		previousVisibleNodeIds = currentVisibleIds;
 
-		// エッジの表示/非表示を更新（可視ノードに接続されているもののみ）
+		// エッジの表示/非表示を更新
 		for (const edge of edgeFactory.getAll()) {
-			const fromVisible = currentVisibleIds.has(edge.getFromId());
-			const toVisible = currentVisibleIds.has(edge.getToId());
-			edge.visible = fromVisible || toVisible;
+			const fromId = edge.getFromId();
+			const toId = edge.getToId();
+
+			// 依存関係フィルターがアクティブな場合は両端がフィルター対象内であることを確認
+			if (dependencyFilterIds.size > 0) {
+				const fromInFilter = dependencyFilterIds.has(fromId);
+				const toInFilter = dependencyFilterIds.has(toId);
+				const fromVisible = currentVisibleIds.has(fromId);
+				const toVisible = currentVisibleIds.has(toId);
+				edge.visible = fromInFilter && toInFilter && (fromVisible || toVisible);
+			} else {
+				const fromVisible = currentVisibleIds.has(fromId);
+				const toVisible = currentVisibleIds.has(toId);
+				edge.visible = fromVisible || toVisible;
+			}
 		}
 	}
 
@@ -1045,13 +1178,22 @@
 	/**
 	 * ノードクリック処理
 	 */
-	function handleNodeClick(node: TaskNode, event?: PointerEvent): void {
+	function handleNodeClick(node: TaskNode, event?: FederatedPointerEvent): void {
 		if (!selectionManager) return;
 
 		const taskId = node.getTaskId();
-		const isMulti = event?.ctrlKey || event?.metaKey || event?.shiftKey;
+		// FederatedPointerEvent から nativeEvent 経由でキー情報を取得
+		const nativeEvent = event?.nativeEvent as PointerEvent | undefined;
+		const isMulti = nativeEvent?.ctrlKey || nativeEvent?.metaKey || nativeEvent?.shiftKey;
 
-		if (event?.shiftKey && selectedIds.length > 0) {
+		// Alt+クリック: 依存関係フィルター（グローバルキー状態を使用）
+		if (isAltKeyPressed || nativeEvent?.altKey) {
+			console.log('[NodeClick] Alt+click detected, triggering filter');
+			handleNodeContextMenu(node, event!);
+			return;
+		}
+
+		if (nativeEvent?.shiftKey && selectedIds.length > 0) {
 			// Shift+クリック: 依存チェーン選択
 			selectionManager.selectDependencyChain(taskId, 'both');
 		} else {
@@ -1077,8 +1219,8 @@
 		}
 
 		if (showImpactHighlight && taskId) {
-			hoverDebounceTimer = setTimeout(async () => {
-				await highlightImpactedTasks(taskId);
+			hoverDebounceTimer = setTimeout(() => {
+				highlightImpactedTasks(taskId);
 				hoverDebounceTimer = null;
 			}, 300);
 		} else {
@@ -1088,27 +1230,25 @@
 
 	/**
 	 * 影響を受けるタスクをハイライト
+	 * フロントエンドの edges データを使用して依存関係を計算
 	 */
-	async function highlightImpactedTasks(taskId: string): Promise<void> {
-		try {
-			const response = await fetchDownstream(taskId);
+	function highlightImpactedTasks(taskId: string): void {
+		// フロントエンドで依存関係を計算
+		const downstream = getDownstreamNodes(taskId);
+		const upstream = getUpstreamNodes(taskId);
 
-			highlightedDownstream = new Set(response.downstream);
-			highlightedUpstream = new Set(response.upstream);
+		highlightedDownstream = new Set(downstream);
+		highlightedUpstream = new Set(upstream);
 
-			// ノードにハイライト状態を設定
-			for (const [id, node] of nodeMap) {
-				if (highlightedDownstream.has(id)) {
-					node.setHighlighted(true, 'downstream');
-				} else if (highlightedUpstream.has(id)) {
-					node.setHighlighted(true, 'upstream');
-				} else if (id !== taskId) {
-					node.setHighlighted(false);
-				}
+		// ノードにハイライト状態を設定
+		for (const [id, node] of nodeMap) {
+			if (highlightedDownstream.has(id)) {
+				node.setHighlighted(true, 'downstream');
+			} else if (highlightedUpstream.has(id)) {
+				node.setHighlighted(true, 'upstream');
+			} else if (id !== taskId) {
+				node.setHighlighted(false);
 			}
-		} catch (error) {
-			console.debug('Failed to fetch downstream tasks:', error);
-			clearImpactHighlight();
 		}
 	}
 
@@ -1122,6 +1262,237 @@
 		for (const node of nodeMap.values()) {
 			node.setHighlighted(false);
 		}
+	}
+
+	/**
+	 * ノード右クリック処理 - 依存関係フィルター
+	 * フロントエンドの edges データを使用して依存関係を計算
+	 */
+	function handleNodeContextMenu(node: TaskNode, _event: FederatedPointerEvent | null): void {
+		console.log('[ContextMenu] Right-click detected on node:', node.getNodeId());
+		const nodeId = node.getNodeId();
+
+		// 同じノードを再度右クリックしたらフィルターを解除
+		if (dependencyFilterNodeId === nodeId) {
+			clearDependencyFilter();
+			return;
+		}
+
+		// フロントエンドで依存関係を計算
+		const upstream = getUpstreamNodes(nodeId);
+		const downstream = getDownstreamNodes(nodeId);
+
+		console.log('[DependencyFilter] Node:', nodeId, 'Upstream:', upstream.length, 'Downstream:', downstream.length);
+
+		// 表示対象: 選択ノード + 上流 + 下流
+		const filterIds = new Set<string>([
+			nodeId,
+			...upstream,
+			...downstream
+		]);
+
+		dependencyFilterNodeId = nodeId;
+		dependencyFilterIds = filterIds;
+
+		// visibleTaskIds を更新してフィルターを適用
+		applyDependencyFilter();
+	}
+
+	/**
+	 * 上流ノードを取得（このノードが依存しているノード）
+	 * BFS で間接的な依存関係も含める
+	 */
+	function getUpstreamNodes(nodeId: string): string[] {
+		const visited = new Set<string>();
+		const queue = [nodeId];
+
+		while (queue.length > 0) {
+			const current = queue.shift()!;
+			if (visited.has(current)) continue;
+			visited.add(current);
+
+			// このノードが依存しているエッジを探す（edge.to === current）
+			for (const edge of edgeFactory.getAll()) {
+				if (edge.getToId() === current && !visited.has(edge.getFromId())) {
+					queue.push(edge.getFromId());
+				}
+			}
+		}
+
+		visited.delete(nodeId); // 自分自身は除外
+		return Array.from(visited);
+	}
+
+	/**
+	 * 下流ノードを取得（このノードに依存しているノード）
+	 * BFS で間接的な依存関係も含める
+	 */
+	function getDownstreamNodes(nodeId: string): string[] {
+		const visited = new Set<string>();
+		const queue = [nodeId];
+
+		while (queue.length > 0) {
+			const current = queue.shift()!;
+			if (visited.has(current)) continue;
+			visited.add(current);
+
+			// このノードに依存しているエッジを探す（edge.from === current）
+			for (const edge of edgeFactory.getAll()) {
+				if (edge.getFromId() === current && !visited.has(edge.getToId())) {
+					queue.push(edge.getToId());
+				}
+			}
+		}
+
+		visited.delete(nodeId); // 自分自身は除外
+		return Array.from(visited);
+	}
+
+	/**
+	 * ノード位置を更新し、空間インデックスを再構築
+	 */
+	function updateNodePositions(newPositions: Map<string, NodePosition>): void {
+		positions = newPositions;
+
+		// 各ノードの位置を更新
+		for (const [nodeId, pos] of newPositions) {
+			const node = nodeMap.get(nodeId);
+			if (node) {
+				node.x = pos.x - TaskNode.getWidth() / 2;
+				node.y = pos.y - TaskNode.getHeight() / 2;
+			}
+		}
+
+		// エッジの端点を再計算
+		updateEdgeEndpoints(newPositions);
+
+		// 空間インデックスを再構築
+		rebuildSpatialIndex(newPositions);
+	}
+
+	/**
+	 * エッジの端点を位置に基づいて更新
+	 */
+	function updateEdgeEndpoints(posMap: Map<string, NodePosition>): void {
+		for (const edge of edgeFactory.getAll()) {
+			const fromPos = posMap.get(edge.getFromId());
+			const toPos = posMap.get(edge.getToId());
+			if (fromPos && toPos && layoutEngine) {
+				const endpoints = layoutEngine.computeEdgeEndpoints(fromPos, toPos);
+				edge.setEndpoints(endpoints.fromX, endpoints.fromY, endpoints.toX, endpoints.toY);
+			}
+		}
+	}
+
+	/**
+	 * 空間インデックスを再構築
+	 */
+	function rebuildSpatialIndex(posMap: Map<string, NodePosition>): void {
+		if (!spatialIndex) return;
+
+		spatialIndex.clear();
+
+		// バウンディングボックスを計算
+		let minX = Infinity, maxX = -Infinity;
+		let minY = Infinity, maxY = -Infinity;
+
+		for (const pos of posMap.values()) {
+			minX = Math.min(minX, pos.x - TaskNode.getWidth() / 2);
+			maxX = Math.max(maxX, pos.x + TaskNode.getWidth() / 2);
+			minY = Math.min(minY, pos.y - TaskNode.getHeight() / 2);
+			maxY = Math.max(maxY, pos.y + TaskNode.getHeight() / 2);
+		}
+
+		if (posMap.size > 0) {
+			spatialIndex.rebuild({
+				x: minX - 500,
+				y: minY - 500,
+				width: (maxX - minX) + 1000,
+				height: (maxY - minY) + 1000
+			});
+
+			// ノードを空間インデックスに追加
+			for (const [nodeId, pos] of posMap) {
+				spatialIndex.insert({
+					id: nodeId,
+					x: pos.x - TaskNode.getWidth() / 2,
+					y: pos.y - TaskNode.getHeight() / 2,
+					width: TaskNode.getWidth(),
+					height: TaskNode.getHeight()
+				});
+			}
+		}
+	}
+
+	/**
+	 * 現在のレイアウトに合わせてビューをフィット
+	 */
+	function fitToView(): void {
+		if (!engine || layoutBounds.width === 0) return;
+
+		const centerX = (layoutBounds.minX + layoutBounds.maxX) / 2;
+		const centerY = (layoutBounds.minY + layoutBounds.maxY) / 2;
+		engine.panTo(centerX, centerY, false);
+	}
+
+	/**
+	 * 依存関係フィルターを適用（再レイアウト付き）
+	 */
+	function applyDependencyFilter(): void {
+		if (dependencyFilterIds.size === 0 || !layoutEngine) return;
+
+		// 元の位置を保存（初回のみ）
+		if (!originalPositions) {
+			originalPositions = new Map(positions);
+		}
+
+		// フィルター対象のみで再レイアウト
+		const taskItems = graphNodesToTaskItems(graphNodes);
+		const filteredLayout = layoutEngine.layoutSubset(taskItems, dependencyFilterIds);
+
+		// 可視性を更新
+		visibleTaskIds = dependencyFilterIds;
+		updateVisibility();
+
+		// 位置を更新
+		updateNodePositions(filteredLayout.positions);
+		layoutBounds = filteredLayout.bounds;
+
+		// ビューをフィルター結果に合わせてフィット
+		fitToView();
+	}
+
+	/**
+	 * 依存関係フィルターを解除（元のレイアウトに戻す）
+	 */
+	function clearDependencyFilter(): void {
+		dependencyFilterNodeId = null;
+		dependencyFilterIds = new Set();
+
+		// フィルターマネージャーの状態に戻す
+		if (filterManager) {
+			visibleTaskIds = new Set(filterManager.getVisibleIds());
+		} else {
+			visibleTaskIds = new Set();
+		}
+		updateVisibility();
+
+		// 元の位置に戻す
+		if (originalPositions) {
+			updateNodePositions(originalPositions);
+
+			// layoutBounds も再計算
+			if (layoutEngine) {
+				const taskItems = graphNodesToTaskItems(graphNodes);
+				const fullLayout = layoutEngine.layout(taskItems);
+				layoutBounds = fullLayout.bounds;
+			}
+
+			originalPositions = null;
+		}
+
+		// ビューをリセット
+		fitToView();
 	}
 
 	// 前回ハイライトしたエッジを追跡（差分更新用）
@@ -1173,6 +1544,11 @@
 	 * キーボードイベント処理
 	 */
 	function handleKeyDown(e: KeyboardEvent): void {
+		// Alt キー状態を追跡
+		if (e.key === 'Alt') {
+			isAltKeyPressed = true;
+		}
+
 		if (!selectionManager) return;
 
 		// Escape: 選択クリア
@@ -1184,6 +1560,15 @@
 		if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
 			e.preventDefault();
 			selectionManager.selectAll();
+		}
+	}
+
+	/**
+	 * キーアップイベント処理
+	 */
+	function handleKeyUp(e: KeyboardEvent): void {
+		if (e.key === 'Alt') {
+			isAltKeyPressed = false;
 		}
 	}
 
@@ -1291,6 +1676,15 @@
 		>
 			<span class="icon">⚡</span>
 		</button>
+		{#if dependencyFilterNodeId}
+			<button
+				class="control-btn filter-reset-btn"
+				onclick={clearDependencyFilter}
+				title="Reset Dependency Filter"
+			>
+				<span class="icon">✕</span>
+			</button>
+		{/if}
 		{#if METRICS_ENABLED}
 			<button class="control-btn metrics-btn" onclick={downloadMetrics} title="Download metrics log">
 				<span class="icon">DL</span>
@@ -1311,7 +1705,8 @@
 
 	<!-- ミニマップ -->
 	<Minimap
-		{tasks}
+		nodes={graphNodes}
+		{isWBSMode}
 		{positions}
 		bounds={layoutBounds}
 		viewport={currentViewport}
@@ -1320,15 +1715,24 @@
 
 	<!-- ステータスバー -->
 	<div class="status-bar">
+		<span class="status-item mode-indicator" class:wbs-mode={isWBSMode}>
+			{isWBSMode ? 'WBS' : 'TASK'}
+		</span>
 		<span class="status-item">
 			Zoom: {(currentViewport.scale * 100).toFixed(0)}%
 		</span>
-		<span class="status-item"> Tasks: {visibleCount}/{tasks.length} </span>
+		<span class="status-item"> Nodes: {visibleCount}/{graphNodes.length} </span>
 		{#if METRICS_ENABLED}
 			<span class="status-item metrics-info"> Logs: {metricsEntries.length} </span>
 		{/if}
 		{#if selectedIds.length > 0}
 			<span class="status-item selection-info"> Selected: {selectedIds.length} </span>
+		{/if}
+		{#if dependencyFilterNodeId}
+			<span class="status-item dependency-filter-info">
+				Filtered: {dependencyFilterNodeId}
+				<button class="inline-reset-btn" onclick={clearDependencyFilter}>×</button>
+			</span>
 		{/if}
 		{#if hoveredTaskId}
 			<span class="status-item hover-info">
@@ -1339,6 +1743,27 @@
 
 	<!-- 凡例 -->
 	<div class="legend">
+		{#if isWBSMode}
+			<!-- WBS モード: ノードタイプ凡例 -->
+			<div class="legend-title">NODE TYPE</div>
+			<div class="legend-item">
+				<span class="legend-dot vision"></span>
+				<span>Vision</span>
+			</div>
+			<div class="legend-item">
+				<span class="legend-dot objective"></span>
+				<span>Objective</span>
+			</div>
+			<div class="legend-item">
+				<span class="legend-dot deliverable"></span>
+				<span>Deliverable</span>
+			</div>
+			<div class="legend-item">
+				<span class="legend-dot task"></span>
+				<span>Task</span>
+			</div>
+			<div class="legend-divider"></div>
+		{/if}
 		<div class="legend-title">STATUS</div>
 		<div class="legend-item">
 			<span class="legend-dot completed"></span>
@@ -1379,6 +1804,7 @@
 		<div class="hint-item">Scroll: Zoom</div>
 		<div class="hint-item">Shift+Drag: Pan</div>
 		<div class="hint-item">Shift+Click: Chain Select</div>
+		<div class="hint-item">Alt+Click / Right-Click: Filter Dependencies</div>
 	</div>
 </div>
 
@@ -1387,10 +1813,8 @@
 		position: relative;
 		width: 100%;
 		height: 100%;
-		min-height: 600px;
+		min-height: 400px;
 		background-color: var(--bg-primary);
-		border: 2px solid var(--border-metal);
-		border-radius: var(--border-radius-md);
 		overflow: hidden;
 	}
 
@@ -1466,6 +1890,22 @@
 		color: var(--status-info);
 	}
 
+	/* モードインジケーター */
+	.mode-indicator {
+		font-weight: 600;
+		padding: 2px 8px;
+		border-radius: 4px;
+		background-color: rgba(136, 136, 136, 0.3);
+		color: var(--text-secondary);
+		letter-spacing: 0.05em;
+	}
+
+	.mode-indicator.wbs-mode {
+		background-color: rgba(255, 215, 0, 0.2);
+		color: #ffd700;
+		border: 1px solid rgba(255, 215, 0, 0.4);
+	}
+
 	/* 凡例 */
 	.legend {
 		position: absolute;
@@ -1516,6 +1956,23 @@
 		background-color: var(--status-poor);
 	}
 
+	/* WBS ノードタイプ別の色（TaskNode.ts と同期） */
+	.legend-dot.vision {
+		background-color: #ffd700;  /* ゴールド - 最上位の目標 */
+	}
+
+	.legend-dot.objective {
+		background-color: #6699ff;  /* ブルー - 目標 */
+	}
+
+	.legend-dot.deliverable {
+		background-color: #66cc99;  /* グリーン - 成果物 */
+	}
+
+	.legend-dot.task {
+		background-color: #888888;  /* グレー - タスク */
+	}
+
 	.legend-divider {
 		height: 1px;
 		background-color: var(--border-dark);
@@ -1558,6 +2015,39 @@
 
 	.critical-path-toggle.active:hover {
 		background-color: var(--accent-secondary);
+	}
+
+	/* フィルターリセットボタン */
+	.filter-reset-btn {
+		background-color: rgba(238, 68, 68, 0.3);
+		border-color: #ee4444;
+	}
+
+	.filter-reset-btn:hover {
+		background-color: rgba(238, 68, 68, 0.5);
+	}
+
+	/* インラインリセットボタン */
+	.inline-reset-btn {
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		cursor: pointer;
+		margin-left: 4px;
+		padding: 0 4px;
+		font-size: 12px;
+	}
+
+	.inline-reset-btn:hover {
+		color: var(--text-primary);
+	}
+
+	/* 依存関係フィルター状態表示 */
+	.dependency-filter-info {
+		color: var(--accent-primary);
+		background-color: rgba(255, 149, 51, 0.2);
+		padding: 2px 8px;
+		border-radius: 4px;
 	}
 
 	.metrics-btn {
