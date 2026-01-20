@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { FactorioViewer, WBSViewer, TimelineViewer, ViewSwitcher, type ViewType } from '$lib/viewer';
+	import { FactorioViewer, WBSViewer, ViewSwitcher, type ViewType } from '$lib/viewer';
 	import { refreshAllData } from '$lib/stores';
 	import { setConnected, setDisconnected, setConnecting } from '$lib/stores/connection';
 	import { connectSSE, disconnectSSE } from '$lib/api/sse';
 	import { fetchWBSAsGraphData } from '$lib/api/client';
 	import { tasks } from '$lib/stores/tasks';
-	import type { TimelineItem, WBSGraphData } from '$lib/types/api';
+	import type { WBSGraphData } from '$lib/types/api';
 
 	let useSSE = $state(true);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
@@ -22,9 +22,6 @@
 
 	// WBS で選択されたノード（WBSViewer 内で EntityDetailPanel が処理するため参照のみ）
 	// Note: selectedTaskId のみ同期
-
-	// Timeline で選択されたアイテム（将来機能用）
-	let _selectedTimelineItem: TimelineItem | null = $state(null);
 
 	onMount(() => {
 		// SSE 失敗時のフォールバックハンドラー
@@ -122,19 +119,11 @@
 		selectedTaskId = nodeId;
 	}
 
-	// Timeline アイテム選択ハンドラ
-	function handleTimelineItemSelect(item: TimelineItem | null) {
-		_selectedTimelineItem = item;
-		// タスク ID も同期
-		selectedTaskId = item?.task_id ?? null;
-	}
-
 	// ビュー切り替えハンドラ
 	function handleViewChange(view: ViewType) {
 		currentView = view;
 		// ビュー切り替え時に選択をクリア
 		selectedTaskId = null;
-		_selectedTimelineItem = null;
 	}
 </script>
 
@@ -158,8 +147,6 @@
 		/>
 	{:else if currentView === 'wbs'}
 		<WBSViewer onNodeSelect={handleWBSNodeSelect} />
-	{:else if currentView === 'timeline'}
-		<TimelineViewer onTaskSelect={handleTimelineItemSelect} />
 	{/if}
 </div>
 

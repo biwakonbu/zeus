@@ -1,6 +1,6 @@
 <script lang="ts">
 	// ビュータイプの定義
-	export type ViewType = 'graph' | 'wbs' | 'timeline';
+	export type ViewType = 'graph' | 'wbs';
 
 	interface Props {
 		currentView: ViewType;
@@ -22,12 +22,6 @@
 			label: 'WBS',
 			icon: '▤',
 			description: '階層構造'
-		},
-		{
-			type: 'timeline',
-			label: 'Timeline',
-			icon: '▬',
-			description: 'ガントチャート'
 		}
 	];
 

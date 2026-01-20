@@ -9,11 +9,11 @@
 		argTypes: {
 			currentView: {
 				control: 'select',
-				options: ['graph', 'wbs', 'timeline']
+				options: ['graph', 'wbs']
 			},
 			disabledViews: {
 				control: 'multi-select',
-				options: ['graph', 'wbs', 'timeline']
+				options: ['graph', 'wbs']
 			}
 		}
 	});
@@ -26,9 +26,9 @@
 	const handleViewChange = fn();
 
 	// 状態付きのラッパー
-	let currentView: 'graph' | 'wbs' | 'timeline' = $state('graph');
+	let currentView: 'graph' | 'wbs' = $state('graph');
 
-	function createHandler(view: 'graph' | 'wbs' | 'timeline') {
+	function createHandler(view: 'graph' | 'wbs') {
 		currentView = view;
 		handleViewChange(view);
 	}
@@ -44,23 +44,9 @@
 	<ViewSwitcher currentView="wbs" onViewChange={handleViewChange} />
 </Story>
 
-<!-- Timeline 選択中 -->
-<Story name="TimelineSelected">
-	<ViewSwitcher currentView="timeline" onViewChange={handleViewChange} />
-</Story>
-
-<!-- Timeline 無効化 -->
-<Story name="TimelineDisabled">
-	<ViewSwitcher currentView="graph" onViewChange={handleViewChange} disabledViews={['timeline']} />
-</Story>
-
-<!-- 複数無効化 -->
-<Story name="MultipleDisabled">
-	<ViewSwitcher
-		currentView="graph"
-		onViewChange={handleViewChange}
-		disabledViews={['wbs', 'timeline']}
-	/>
+<!-- WBS 無効化 -->
+<Story name="WBSDisabled">
+	<ViewSwitcher currentView="graph" onViewChange={handleViewChange} disabledViews={['wbs']} />
 </Story>
 
 <!-- インタラクティブ -->
