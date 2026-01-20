@@ -300,9 +300,6 @@ export class LayoutEngine {
 	private computePositions(layers: string[][]): Map<string, NodePosition> {
 		const positions = new Map<string, NodePosition>();
 
-		// 全体の幅を計算（最大レイヤー幅）
-		const maxLayerWidth = Math.max(...layers.map(l => l.length));
-
 		for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
 			const layer = layers[layerIndex];
 			const layerWidth = layer.length * HORIZONTAL_SPACING;

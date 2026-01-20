@@ -294,3 +294,131 @@ h3 {
 	background-color: var(--status-fair);
 	animation: pulse-glow 1s ease-in-out infinite;
 }
+
+/* ======================================
+   フォーカスリング（Factorio 風）
+   ====================================== */
+:focus-visible {
+	outline: var(--focus-ring-width) solid var(--focus-ring-color);
+	outline-offset: var(--focus-ring-offset);
+	box-shadow: var(--focus-ring-glow);
+}
+
+/* ======================================
+   prefers-reduced-motion 対応
+   ====================================== */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}
+
+/* ======================================
+   インタラクティブ要素の共通スタイル
+   ====================================== */
+.interactive {
+	transition:
+		background-color var(--transition-hover),
+		border-color var(--transition-hover),
+		box-shadow var(--transition-select);
+}
+
+.interactive:hover {
+	background-color: var(--bg-hover);
+	border-color: var(--border-highlight);
+}
+
+.interactive:active {
+	transform: scale(0.98);
+}
+
+/* ======================================
+   選択時パルスアニメーション
+   ====================================== */
+@keyframes pulse-select {
+	0% {
+		box-shadow: 0 0 0 0 rgba(255, 149, 51, 0.4);
+	}
+	70% {
+		box-shadow: 0 0 0 8px rgba(255, 149, 51, 0);
+	}
+	100% {
+		box-shadow: 0 0 0 0 rgba(255, 149, 51, 0);
+	}
+}
+
+.pulse-on-select {
+	animation: pulse-select 0.3s ease-out;
+}
+
+/* ======================================
+   サイドペイン
+   ====================================== */
+.side-panel {
+	width: var(--side-panel-width);
+	background-color: var(--bg-panel);
+	border-left: 2px solid var(--border-metal);
+	overflow-y: auto;
+	contain: layout;
+}
+
+.side-panel-enter {
+	transform: translateX(100%);
+}
+
+.side-panel-enter-active {
+	transform: translateX(0);
+	transition: transform var(--transition-panel) ease-out;
+}
+
+.side-panel-exit {
+	transform: translateX(0);
+}
+
+.side-panel-exit-active {
+	transform: translateX(100%);
+	transition: transform var(--transition-panel) ease-out;
+}
+
+/* ======================================
+   モバイル対応（768px 以下）
+   ====================================== */
+@media (max-width: 768px) {
+	.side-panel {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		width: 100%;
+		max-height: 70vh;
+		border-left: none;
+		border-top: 2px solid var(--border-metal);
+		border-radius: 16px 16px 0 0;
+	}
+
+	.side-panel-enter {
+		transform: translateY(100%);
+	}
+
+	.side-panel-enter-active {
+		transform: translateY(0);
+	}
+
+	.side-panel-exit-active {
+		transform: translateY(100%);
+	}
+
+	/* タッチターゲット最小 44px 確保 */
+	.btn,
+	button,
+	a,
+	[role="button"] {
+		min-height: 44px;
+		min-width: 44px;
+	}
+}

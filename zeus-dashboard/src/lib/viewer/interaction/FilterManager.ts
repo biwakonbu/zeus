@@ -211,7 +211,6 @@ export class FilterManager {
 	 * フィルターを適用
 	 */
 	private applyFilter(): void {
-		const oldVisibleIds = new Set(this.visibleIds);
 		this.visibleIds.clear();
 
 		for (const task of this.tasks) {

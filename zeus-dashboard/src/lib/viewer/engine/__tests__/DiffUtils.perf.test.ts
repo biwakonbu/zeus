@@ -5,21 +5,19 @@
  * - タスクハッシュ計算（1000タスク）: 10ms 以内
  * - 変更検出: 5ms 以内
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
 	createInitialState,
 	computeTasksHash,
 	computeDependencyHash,
 	detectTaskChanges,
 	identifyTaskDiff,
-	computeVisibilityDiff,
-	type DiffDetectorState
+	computeVisibilityDiff
 } from '../DiffUtils';
 import {
 	measurePerformance,
 	measureOnce,
 	assertPerformance,
-	assertPerformanceOnce,
 	generateMockTasks,
 	PERFORMANCE_THRESHOLDS,
 	formatPerformanceResult,

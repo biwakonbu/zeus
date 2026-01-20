@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fetchTimeline } from '$lib/api/client';
-	import type { TimelineResponse, TimelineItem, TimelineStats, TaskStatus, Priority } from '$lib/types/api';
+	import { Icon } from '$lib/components/ui';
+	import type { TimelineResponse, TimelineItem, TaskStatus, Priority } from '$lib/types/api';
 
 	// Props
 	interface Props {
@@ -22,7 +23,7 @@
 
 	// タイムスケール設定
 	let dayWidth = $derived(zoomLevel === 1 ? 30 : 5);
-	let timeUnit = $derived(zoomLevel === 1 ? 'day' : 'week');
+	let _timeUnit = $derived(zoomLevel === 1 ? 'day' : 'week');
 
 	// フィルターされたアイテム
 	let filteredItems = $derived.by(() => {
@@ -176,7 +177,7 @@
 				onclick={() => (showCriticalPathOnly = !showCriticalPathOnly)}
 				title="クリティカルパスのみ表示"
 			>
-				<span class="icon">🔥</span>
+				<span class="icon"><Icon name="Flame" size={14} /></span>
 				<span class="btn-label">Critical</span>
 			</button>
 			<button
@@ -184,11 +185,11 @@
 				onclick={() => (zoomLevel = zoomLevel === 1 ? 2 : 1)}
 				title="ズーム切り替え"
 			>
-				<span class="icon">{zoomLevel === 1 ? '🔍-' : '🔍+'}</span>
+				<span class="icon"><Icon name={zoomLevel === 1 ? 'ZoomOut' : 'ZoomIn'} size={14} /></span>
 				<span class="btn-label">{zoomLevel === 1 ? 'Week' : 'Day'}</span>
 			</button>
 			<button class="timeline-btn" onclick={() => loadData()} title="更新">
-				<span class="icon">↻</span>
+				<span class="icon"><Icon name="RefreshCw" size={14} /></span>
 			</button>
 		</div>
 	</div>
@@ -219,13 +220,13 @@
 			</div>
 		{:else if error}
 			<div class="timeline-error">
-				<span class="error-icon">⚠</span>
+				<span class="error-icon"><Icon name="AlertTriangle" size={24} /></span>
 				<span>{error}</span>
 				<button class="timeline-btn retry-btn" onclick={() => loadData()}>再試行</button>
 			</div>
 		{:else if filteredItems.length === 0}
 			<div class="timeline-empty">
-				<div class="empty-icon">📅</div>
+				<div class="empty-icon"><Icon name="Calendar" size={64} /></div>
 				<h3 class="empty-title">タイムラインに表示するタスクがありません</h3>
 				<p class="empty-description">
 					タスクをタイムラインに表示するには、開始日と期限日を設定してください
@@ -264,7 +265,7 @@
 							<span class="task-status" style="color: {getStatusColor(item.status)}">●</span>
 							<span class="task-title">{item.title}</span>
 							{#if item.is_on_critical_path}
-								<span class="critical-badge" title="クリティカルパス">🔥</span>
+								<span class="critical-badge" title="クリティカルパス"><Icon name="Flame" size={12} /></span>
 							{/if}
 						</div>
 					{/each}
@@ -386,7 +387,9 @@
 			<div class="task-detail-card">
 				<div class="detail-header">
 					<h3>{selectedTask.title}</h3>
-					<button class="close-btn" onclick={() => { selectedTaskId = null; onTaskSelect?.(null); }}>×</button>
+					<button class="close-btn" onclick={() => { selectedTaskId = null; onTaskSelect?.(null); }} aria-label="閉じる">
+						<Icon name="X" size={18} />
+					</button>
 				</div>
 				<div class="detail-body">
 					<div class="detail-row">
@@ -418,7 +421,7 @@
 					</div>
 					{#if selectedTask.is_on_critical_path}
 						<div class="critical-warning">
-							<span class="icon">🔥</span>
+							<span class="icon"><Icon name="Flame" size={14} /></span>
 							<span>クリティカルパス上のタスク</span>
 						</div>
 					{/if}
@@ -503,6 +506,7 @@
 	}
 
 	.timeline-btn .icon {
+		display: flex;
 		font-size: 14px;
 	}
 
@@ -568,8 +572,9 @@
 	}
 
 	.timeline-empty .empty-icon {
-		font-size: 64px;
+		display: flex;
 		margin-bottom: var(--spacing-md);
+		opacity: 0.5;
 	}
 
 	.timeline-empty .empty-title {
@@ -648,7 +653,7 @@
 	}
 
 	.error-icon {
-		font-size: 24px;
+		display: flex;
 	}
 
 	.retry-btn {
@@ -726,7 +731,8 @@
 	}
 
 	.critical-badge {
-		font-size: 12px;
+		display: flex;
+		color: #ef4444;
 	}
 
 	/* タイムライングリッド */
@@ -912,12 +918,14 @@
 	}
 
 	.close-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		width: 24px;
 		height: 24px;
 		background: none;
 		border: none;
 		color: #888;
-		font-size: 18px;
 		cursor: pointer;
 		transition: color 0.15s;
 	}
@@ -990,5 +998,9 @@
 		border-radius: 4px;
 		color: #ef4444;
 		font-size: 12px;
+	}
+
+	.critical-warning .icon {
+		display: flex;
 	}
 </style>

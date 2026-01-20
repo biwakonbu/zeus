@@ -3,6 +3,7 @@
 	// 計画 vs 実績の時間的乖離を可視化するビュー
 	import TimelineScale from './TimelineScale.svelte';
 	import TimelineBar from './TimelineBar.svelte';
+	import { Icon } from '$lib/components/ui';
 	import { selectedEntityId } from '../stores/wbsStore';
 	import type { WBSAggregatedResponse, ProgressNode } from '$lib/types/api';
 
@@ -19,7 +20,7 @@
 	const objectives = $derived(data?.progress?.objectives ?? []);
 	const timelineRange = $derived(calculateTimelineRange(objectives));
 
-	function calculateTimelineRange(objs: ProgressNode[]): { start: Date; end: Date } {
+	function calculateTimelineRange(_objs: ProgressNode[]): { start: Date; end: Date } {
 		const now = new Date();
 		// デフォルト: 現在から前後 3 ヶ月
 		const defaultStart = new Date(now);
@@ -93,7 +94,7 @@
 
 		{#if objectives.length === 0}
 			<div class="empty-state">
-				<span class="empty-icon">📅</span>
+				<span class="empty-icon"><Icon name="Calendar" size={32} /></span>
 				<span class="empty-text">タイムラインデータがありません</span>
 			</div>
 		{/if}
@@ -123,7 +124,7 @@
 	}
 
 	.empty-icon {
-		font-size: 32px;
+		display: flex;
 		opacity: 0.5;
 		margin-bottom: 8px;
 	}

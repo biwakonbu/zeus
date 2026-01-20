@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { Icon } from '$lib/components/ui';
 
 	interface Props {
 		title: string;
@@ -17,7 +18,9 @@
 	<div class="panel-header">
 		<div class="panel-title-wrapper">
 			{#if icon}
-				<span class="panel-icon">{icon}</span>
+				<span class="panel-icon">
+					<Icon name={icon} size={18} />
+				</span>
 			{/if}
 			<h2 class="panel-title">{title}</h2>
 		</div>
@@ -36,7 +39,7 @@
 			</div>
 		{:else if error}
 			<div class="panel-error">
-				<span class="error-icon">&#9888;</span>
+				<span class="error-icon"><Icon name="AlertTriangle" size={18} /></span>
 				<span class="error-message">{error}</span>
 			</div>
 		{:else}
@@ -70,7 +73,8 @@
 	}
 
 	.panel-icon {
-		font-size: var(--font-size-lg);
+		display: flex;
+		align-items: center;
 		color: var(--accent-primary);
 	}
 
@@ -129,7 +133,8 @@
 	}
 
 	.error-icon {
-		font-size: var(--font-size-lg);
+		display: flex;
+		align-items: center;
 	}
 
 	.error-message {

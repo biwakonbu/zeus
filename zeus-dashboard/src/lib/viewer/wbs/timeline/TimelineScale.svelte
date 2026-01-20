@@ -24,7 +24,6 @@
 
 		if (scaleType === 'month') {
 			while (current <= end) {
-				const monthStart = new Date(current.getFullYear(), current.getMonth(), 1);
 				const monthEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
 				const daysInMonth = monthEnd.getDate();
 				const label = current.toLocaleDateString('ja-JP', { month: 'short' });

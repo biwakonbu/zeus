@@ -3,6 +3,7 @@
 	// 折りたたみ可能な Objective → Deliverable のリスト表示
 	import ProgressBar from '../shared/ProgressBar.svelte';
 	import type { ProgressNode } from '$lib/types/api';
+	import { Icon } from '$lib/components/ui';
 
 	interface Props {
 		objectives: ProgressNode[];
@@ -79,7 +80,7 @@
 
 	{#if objectives.length === 0}
 		<div class="empty-state">
-			<span class="empty-icon">📋</span>
+			<span class="empty-icon"><Icon name="ClipboardList" size={32} /></span>
 			<span class="empty-text">Objective がありません</span>
 		</div>
 	{/if}

@@ -23,8 +23,8 @@
 	// WBS で選択されたノード（WBSViewer 内で EntityDetailPanel が処理するため参照のみ）
 	// Note: selectedTaskId のみ同期
 
-	// Timeline で選択されたアイテム
-	let selectedTimelineItem: TimelineItem | null = $state(null);
+	// Timeline で選択されたアイテム（将来機能用）
+	let _selectedTimelineItem: TimelineItem | null = $state(null);
 
 	onMount(() => {
 		// SSE 失敗時のフォールバックハンドラー
@@ -111,12 +111,12 @@
 	}
 
 	// タスクホバーハンドラ
-	function handleTaskHover(taskId: string | null) {
+	function handleTaskHover(_taskId: string | null) {
 		// 必要に応じてツールチップ表示などを追加
 	}
 
 	// WBS ノード選択ハンドラ（WBSViewer の onNodeSelect に合わせた型）
-	function handleWBSNodeSelect(nodeId: string, nodeType: string) {
+	function handleWBSNodeSelect(nodeId: string, _nodeType: string) {
 		// WBS詳細パネルは WBSViewer 内の EntityDetailPanel で表示されるため、
 		// ここでは selectedTaskId のみ同期
 		selectedTaskId = nodeId;
@@ -124,7 +124,7 @@
 
 	// Timeline アイテム選択ハンドラ
 	function handleTimelineItemSelect(item: TimelineItem | null) {
-		selectedTimelineItem = item;
+		_selectedTimelineItem = item;
 		// タスク ID も同期
 		selectedTaskId = item?.task_id ?? null;
 	}
@@ -134,7 +134,7 @@
 		currentView = view;
 		// ビュー切り替え時に選択をクリア
 		selectedTaskId = null;
-		selectedTimelineItem = null;
+		_selectedTimelineItem = null;
 	}
 </script>
 

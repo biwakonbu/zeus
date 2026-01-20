@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import * as d3 from 'd3';
-	import type { ProgressAggregation, ProgressNode } from '$lib/types/api';
+	import type { ProgressAggregation } from '$lib/types/api';
 
 	// Props
 	interface Props {
@@ -131,10 +131,10 @@
 				event.stopPropagation();
 				onNodeSelect?.(d.data.id, d.depth === 1 ? 'objective' : 'deliverable');
 			})
-			.on('mouseenter', function (event, d) {
+			.on('mouseenter', function () {
 				d3.select(this).attr('stroke-width', 3).attr('stroke', '#fff');
 			})
-			.on('mouseleave', function (event, d) {
+			.on('mouseleave', function (_event, d) {
 				d3.select(this).attr('stroke-width', 2).attr('stroke', getStatusBorderColor(d.data.status));
 			});
 

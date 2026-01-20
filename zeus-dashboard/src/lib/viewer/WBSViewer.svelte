@@ -9,9 +9,9 @@
 	import DensityView from './wbs/density/DensityView.svelte';
 	import WBSSummaryBar from './wbs/WBSSummaryBar.svelte';
 	import EntityDetailPanel from './wbs/EntityDetailPanel.svelte';
+	import { Icon } from '$lib/components/ui';
 	import {
 		selectedEntityId,
-		selectedEntityType,
 		selectEntity,
 		clearSelection
 	} from './wbs/stores/wbsStore';
@@ -68,11 +68,11 @@
 		clearSelection();
 	}
 
-	// タブ情報（改善版: 3視点）
+	// タブ情報（改善版: Lucide Icons 使用）
 	const tabs: Array<{ id: ViewTab; label: string; icon: string }> = [
-		{ id: 'health', label: 'Health', icon: '💚' },
-		{ id: 'timeline', label: 'Timeline', icon: '📅' },
-		{ id: 'density', label: 'Density', icon: '🔥' }
+		{ id: 'health', label: 'Health', icon: 'Heart' },
+		{ id: 'timeline', label: 'Timeline', icon: 'Calendar' },
+		{ id: 'density', label: 'Density', icon: 'Flame' }
 	];
 
 	onMount(() => {
@@ -91,7 +91,7 @@
 					onclick={() => (activeView = tab.id)}
 					aria-pressed={activeView === tab.id}
 				>
-					<span class="tab-icon">{tab.icon}</span>
+					<span class="tab-icon"><Icon name={tab.icon} size={14} /></span>
 					<span class="tab-label">{tab.label}</span>
 				</button>
 			{/each}
@@ -99,7 +99,7 @@
 
 		<div class="header-actions">
 			<button class="refresh-btn" onclick={() => loadData()} title="更新" disabled={loading}>
-				<span class="icon" class:spinning={loading}>↻</span>
+				<span class="icon" class:spinning={loading}><Icon name="RefreshCw" size={14} /></span>
 			</button>
 		</div>
 	</div>
@@ -115,7 +115,7 @@
 				</div>
 			{:else if error}
 				<div class="error-state">
-					<span class="error-icon">⚠</span>
+					<span class="error-icon"><Icon name="AlertTriangle" size={32} /></span>
 					<span>{error}</span>
 					<button class="retry-btn" onclick={() => loadData()}>再試行</button>
 				</div>
@@ -201,6 +201,8 @@
 	}
 
 	.tab-icon {
+		display: flex;
+		align-items: center;
 		font-size: 14px;
 	}
 
@@ -211,6 +213,9 @@
 	}
 
 	.refresh-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		padding: 6px 10px;
 		background: var(--bg-panel, #333);
 		border: 1px solid var(--border-metal, #444);
@@ -233,7 +238,7 @@
 	}
 
 	.refresh-btn .icon {
-		display: inline-block;
+		display: inline-flex;
 	}
 
 	.refresh-btn .icon.spinning {
@@ -302,7 +307,7 @@
 	}
 
 	.error-icon {
-		font-size: 32px;
+		display: flex;
 		color: var(--status-poor, #ef4444);
 	}
 

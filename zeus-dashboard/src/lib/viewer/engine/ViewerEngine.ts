@@ -1,6 +1,5 @@
 // PixiJS ベースのビューワーエンジン
 import { Application, Container, Graphics, FederatedPointerEvent } from 'pixi.js';
-import type { TaskItem } from '$lib/types/api';
 
 // 型定義
 export interface ViewerConfig {
@@ -311,7 +310,7 @@ export class ViewerEngine {
 	/**
 	 * ズームレベルを設定
 	 */
-	setZoom(scale: number, animate = true): void {
+	setZoom(scale: number, _animate = true): void {
 		if (!this.worldContainer || !this.app) return;
 
 		const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import type { TaskItem, TaskStatus, Priority, TimelineItem, TimelineResponse, GraphNode, WBSGraphData } from '$lib/types/api';
+	import type { TaskItem, TaskStatus, Priority, GraphNode, WBSGraphData, TimelineItem } from '$lib/types/api';
 	import { fetchTimeline } from '$lib/api/client';
 	import { ViewerEngine, type Viewport } from './engine/ViewerEngine';
 	import { LayoutEngine, type NodePosition } from './engine/LayoutEngine';
-	import { SpatialIndex, type SpatialItem } from './engine/SpatialIndex';
+	import { SpatialIndex } from './engine/SpatialIndex';
 	import { TaskNode, LODLevel } from './rendering/TaskNode';
-	import { TaskEdge, EdgeFactory, EdgeType } from './rendering/TaskEdge';
+	import { EdgeFactory, EdgeType } from './rendering/TaskEdge';
 	import { SelectionManager } from './interaction/SelectionManager';
 	import { FilterManager, type FilterCriteria } from './interaction/FilterManager';
 	import Minimap from './ui/Minimap.svelte';
@@ -73,7 +73,6 @@
 	let engineReady = $state(false); // エンジン初期化完了フラグ（$effect の依存関係用）
 	let positions: Map<string, NodePosition> = $state(new Map());
 	let layoutBounds = $state({ minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 });
-	let layers: string[][] = [];
 
 	// 差分更新用のキャッシュ
 	let previousTasksHash: string = '';
@@ -159,9 +158,9 @@
 	// 選択中のID一覧
 	let selectedIds: string[] = $state([]);
 
-	// 矩形選択用
-	let isRectSelecting = $state(false);
-	let rectSelectStart: { x: number; y: number } | null = null;
+	// 矩形選択用（将来機能用）
+	let _isRectSelecting = $state(false);
+	let _rectSelectStart: { x: number; y: number } | null = null;
 	let rectSelectGraphics: Graphics | null = null;
 
 	let resizeObserver: ResizeObserver | null = null;
@@ -949,7 +948,7 @@
 		const layoutMs = nowMs() - layoutStart;
 		positions = layout.positions;
 		layoutBounds = layout.bounds;
-		layers = layout.layers;
+		// layers は将来のグループ化機能用に保持可能だが、現在は不使用
 
 		// 空間インデックスをクリアして再構築
 		spatialIndex.clear();
@@ -1116,7 +1115,6 @@
 		for (const [id, node] of nodeMap) {
 			if (!currentVisibleIds.has(id) && !previousVisibleNodeIds.has(id)) {
 				// 初回または空間インデックス外のノード
-				const passesFilter = visibleTaskIds.size === 0 || visibleTaskIds.has(id);
 				node.visible = false; // ビューポート外
 			}
 		}
@@ -1638,9 +1636,9 @@
 	}
 
 	/**
-	 * 特定タスクにフォーカス
+	 * 特定タスクにフォーカス（将来機能用）
 	 */
-	function focusTask(taskId: string): void {
+	function _focusTask(taskId: string): void {
 		const pos = positions.get(taskId);
 		if (pos && engine) {
 			engine.panTo(pos.x, pos.y);

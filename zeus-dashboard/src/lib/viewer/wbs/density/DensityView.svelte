@@ -4,6 +4,7 @@
 	import HeatmapGrid from './HeatmapGrid.svelte';
 	import { selectedEntityId } from '../stores/wbsStore';
 	import type { WBSAggregatedResponse, ProgressNode } from '$lib/types/api';
+	import { Icon } from '$lib/components/ui';
 
 	interface Props {
 		data: WBSAggregatedResponse | null;
@@ -64,7 +65,7 @@
 
 		{#if items.length === 0}
 			<div class="empty-state">
-				<span class="empty-icon">🔥</span>
+				<span class="empty-icon"><Icon name="Flame" size={32} /></span>
 				<span class="empty-text">Density データがありません</span>
 			</div>
 		{/if}

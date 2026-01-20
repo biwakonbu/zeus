@@ -67,4 +67,30 @@
 	/* トランジション */
 	--transition-fast: 0.15s ease;
 	--transition-normal: 0.25s ease;
+
+	/* アニメーション統一（議論結果準拠） */
+	--transition-instant: 0ms;
+	--transition-hover: 0ms;
+	--transition-tooltip: 300ms;
+	--transition-select: 150ms;
+	--transition-panel: 200ms;
+
+	/* フォーカスリング */
+	--focus-ring-color: var(--accent-primary);
+	--focus-ring-width: 2px;
+	--focus-ring-offset: 2px;
+	--focus-ring-glow: 0 0 4px var(--accent-primary);
+
+	/* トースト */
+	--toast-success-bg: rgba(34, 197, 94, 0.15);
+	--toast-success-border: #22c55e;
+	--toast-warning-bg: rgba(234, 179, 8, 0.15);
+	--toast-warning-border: #eab308;
+	--toast-error-bg: rgba(239, 68, 68, 0.15);
+	--toast-error-border: #ef4444;
+	--toast-info-bg: rgba(59, 130, 246, 0.15);
+	--toast-info-border: #3b82f6;
+
+	/* サイドペイン */
+	--side-panel-width: 360px;
 }

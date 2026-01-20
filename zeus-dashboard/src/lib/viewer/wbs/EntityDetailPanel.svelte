@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { fetchWBS, fetchDownstream } from '$lib/api/client';
+	import { Icon } from '$lib/components/ui';
 	import type {
 		WBSNode,
 		WBSResponse,
-		DownstreamResponse,
 		WBSNodeType
 	} from '$lib/types/api';
 
@@ -58,12 +58,12 @@
 		return null;
 	}
 
-	// 親エンティティを検索
-	function findParent(nodes: WBSNode[], childId: string, parent: WBSNode | null = null): WBSNode | null {
+	// 親エンティティを検索（将来機能用）
+	function _findParent(nodes: WBSNode[], childId: string, parent: WBSNode | null = null): WBSNode | null {
 		for (const node of nodes) {
 			if (node.id === childId) return parent;
 			if (node.children) {
-				const found = findParent(node.children, childId, node);
+				const found = _findParent(node.children, childId, node);
 				if (found !== null) return found;
 			}
 		}
@@ -144,7 +144,7 @@
 <div class="entity-detail-panel">
 	{#if !entityId}
 		<div class="empty-state">
-			<span class="empty-icon">📋</span>
+			<span class="empty-icon"><Icon name="ClipboardList" size={48} /></span>
 			<span class="empty-text">エンティティを選択してください</span>
 		</div>
 	{:else if loading}
@@ -154,7 +154,7 @@
 		</div>
 	{:else if error}
 		<div class="error-state">
-			<span class="error-icon">⚠</span>
+			<span class="error-icon"><Icon name="AlertTriangle" size={48} /></span>
 			<span>{error}</span>
 		</div>
 	{:else if entity}
@@ -164,7 +164,9 @@
 				<span class="entity-type-badge">{nodeTypeLabels[entity.node_type]}</span>
 				<h2 class="entity-title">{entity.title}</h2>
 				{#if onClose}
-					<button class="close-button" onclick={onClose}>✕</button>
+					<button class="close-button" onclick={onClose} aria-label="閉じる">
+						<Icon name="X" size={16} />
+					</button>
 				{/if}
 			</div>
 			<div class="header-meta">
@@ -323,7 +325,7 @@
 
 	.empty-icon,
 	.error-icon {
-		font-size: 48px;
+		display: flex;
 		opacity: 0.5;
 	}
 
@@ -379,11 +381,13 @@
 	}
 
 	.close-button {
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		padding: 4px 8px;
 		background: transparent;
 		border: none;
 		color: #888;
-		font-size: 16px;
 		cursor: pointer;
 	}
 

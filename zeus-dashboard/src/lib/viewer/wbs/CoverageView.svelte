@@ -90,8 +90,7 @@
 		const g = svg.append('g').attr('transform', `translate(${width / 2},${height / 2})`);
 
 		// アークパス
-		const paths = g
-			.selectAll('path')
+		g.selectAll('path')
 			.data(root.descendants().filter((d) => d.depth > 0))
 			.join('path')
 			.attr('d', arc)

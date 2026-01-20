@@ -117,7 +117,7 @@ describe('LayoutEngine パフォーマンステスト', () => {
 			const tasks = generateMockTasks(500);
 
 			// 初回実行
-			const firstLayout = engine.layout(tasks);
+			engine.layout(tasks);
 
 			// 依存関係を変更（構造変更）
 			tasks[100].dependencies = ['task-50'];

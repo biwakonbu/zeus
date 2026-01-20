@@ -51,6 +51,7 @@
     "vitest": "^4.0.17"
   },
   "dependencies": {
+    "lucide-svelte": "^0.562.0",
     "mermaid": "^11.4.0",
     "pixi.js": "^8.6.6"
   },

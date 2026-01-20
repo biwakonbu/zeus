@@ -90,3 +90,165 @@ paths:
 - 画面右上の `DL` ボタンで `zeus-viewer-metrics-*.json` をダウンロード
 - 自動保存先: `.zeus/metrics/dashboard-metrics-<session>.jsonl`
 - 収集ログは `window.__VIEWER_METRICS__` にも格納され、ステータスバーに件数が表示される
+
+## デザインガイドライン
+
+### 禁止事項
+
+- **Unicode Emoji の使用禁止** - Lucide Icons を使用すること
+- **派手な色使い禁止** - Factorio 風の抑えた工業的配色を維持
+- **過度なアニメーション禁止** - 200ms 以下に統一
+
+### アイコンシステム
+
+| 項目 | 仕様 |
+|------|------|
+| ライブラリ | Lucide Icons (lucide-svelte) |
+| コンポーネント | `$lib/components/ui/Icon.svelte` |
+| stroke-width | 2.5（デフォルト、太線化） |
+| stroke-linecap | square（角ばったエッジ） |
+| 効果 | `glow` prop で `filter: drop-shadow()` グロー効果 |
+
+**Icon コンポーネント使用例:**
+```svelte
+<script>
+  import { Icon } from '$lib/components/ui';
+</script>
+
+<Icon name="Heart" size={16} />
+<Icon name="AlertTriangle" size={24} glow />
+<Icon name="Settings" size={20} label="設定" />
+```
+
+**利用可能なアイコン一覧:**
+- ナビゲーション: Heart, Calendar, Flame, RefreshCw, X
+- 状態: AlertTriangle, CheckCircle, Info, XCircle
+- アクション: ClipboardList, Target, BarChart, Ruler, ZoomIn, ZoomOut
+- UI: Keyboard, Inbox, Settings
+
+### UI コンポーネント
+
+| コンポーネント | 用途 | パス |
+|---------------|------|------|
+| Icon | Lucide Icons ラッパー | `$lib/components/ui/Icon.svelte` |
+| Panel | パネルコンテナ | `$lib/components/ui/Panel.svelte` |
+| Badge | ステータスバッジ | `$lib/components/ui/Badge.svelte` |
+| ProgressBar | 進捗バー | `$lib/components/ui/ProgressBar.svelte` |
+| EmptyState | データなし状態 | `$lib/components/ui/EmptyState.svelte` |
+| Toast | トースト通知 | `$lib/components/ui/Toast.svelte` |
+| ToastContainer | トーストコンテナ | `$lib/components/ui/ToastContainer.svelte` |
+| ContextMenu | コンテキストメニュー | `$lib/components/ui/ContextMenu.svelte` |
+| KeyboardHelp | ショートカットヘルプ | `$lib/components/ui/KeyboardHelp.svelte` |
+
+### Store システム
+
+| Store | 用途 | パス |
+|-------|------|------|
+| toastStore | トースト通知管理 | `$lib/stores/toast.ts` |
+| keyboardStore | キーボードショートカット | `$lib/stores/keyboard.ts` |
+| connectionState | SSE 接続状態 | `$lib/stores/connection.ts` |
+
+**Toast 使用例:**
+```typescript
+import { toastStore } from '$lib/stores/toast';
+
+toastStore.success('保存しました');
+toastStore.error('エラーが発生しました', { duration: 8000 });
+toastStore.warning('注意してください');
+toastStore.info('情報メッセージ');
+```
+
+**Keyboard Shortcut 使用例:**
+```typescript
+import { keyboardStore } from '$lib/stores/keyboard';
+
+const unregister = keyboardStore.register({
+  key: 'k',
+  modifiers: ['cmd'],
+  description: 'コマンドパレットを開く',
+  category: 'ナビゲーション',
+  action: () => openCommandPalette()
+});
+
+// 登録解除
+unregister();
+```
+
+### アニメーション・トランジション
+
+| 操作 | duration | easing |
+|------|----------|--------|
+| hover（即時反応） | 0ms | - |
+| tooltip 表示 | 300ms | ease-out |
+| select アニメーション | 150ms | ease-out |
+| panel 開閉 | 200ms | ease-out |
+
+**実装規則:**
+- GPU アクセラレート必須（transform, opacity のみ使用）
+- `prefers-reduced-motion` 対応必須
+- CSS transform ベースで実装
+
+### レイアウト
+
+| 項目 | 仕様 |
+|------|------|
+| サイドペイン幅 | 固定 360px |
+| レイアウト方式 | CSS Grid |
+| リフロー制御 | `contain: layout` |
+
+### サイドペイン
+
+- **閉じる操作**: Escape キー、外部クリック、×ボタン
+- **アニメーション**: 200ms ease-out、GPU アクセラレート
+- **スクロール**: ヘッダー/フッター固定、位置記憶
+
+### インタラクション
+
+| 操作 | 挙動 |
+|------|------|
+| Click | 選択を置換 |
+| Cmd+Click | 選択に追加 |
+| Shift+Click | チェーン選択 |
+| ダブルクリック | 詳細パネルを開く |
+| 右クリック | コンテキストメニュー（最大8項目） |
+
+### キーボードナビゲーション
+
+- **Tab/Shift+Tab**: フォーカス移動
+- **Enter**: 選択/実行
+- **Escape**: パネル閉じる/選択解除
+- **/ キー**: 検索フォーカス
+- **? キー**: ショートカットヘルプ
+
+**ビュー別移動ロジック:**
+- Graph View: 依存関係順
+- WBS View: リスト順
+- Timeline View: 時系列順
+
+### モバイル対応
+
+| 項目 | 仕様 |
+|------|------|
+| breakpoint | 768px |
+| サイドペイン | ボトムシート方式 |
+| タッチターゲット | 最小 44px |
+
+### パフォーマンス目標
+
+| メトリクス | 必須目標 | 理想目標 |
+|-----------|---------|---------|
+| LCP | < 2.5s | < 1.5s |
+| FID | < 100ms | < 50ms |
+| CLS | < 0.1 | < 0.05 |
+| グラフレンダリング (100 nodes) | < 1000ms | < 400ms |
+| サイドペイン開閉 | < 200ms | < 100ms |
+| アニメーション | 60fps | 60fps |
+
+### Factorio 風デザイン要素（ミディアム）
+
+| 要素 | 仕様 |
+|------|------|
+| ボーダー | 2px（上部明るく、下部暗く） |
+| テクスチャ | 微細グラデーション（ノイズなし） |
+| 効果 | インナーシャドウで凹み感 |
+| 角丸 | 最小限（2-4px） |

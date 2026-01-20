@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { IssueSeverity, StaleRecommendation } from '$lib/types/api';
+	import { Icon } from '$lib/components/ui';
+	import type { IconName } from '$lib/components/ui/Icon.svelte';
 
 	// Props
 	interface Props {
@@ -12,28 +14,28 @@
 	let { type, severity, recommendation, count, compact = false }: Props = $props();
 
 	// Issue の色とアイコン
-	function getIssueStyle(s: IssueSeverity): { color: string; bgColor: string; icon: string } {
+	function getIssueStyle(s: IssueSeverity): { color: string; bgColor: string; icon: IconName } {
 		switch (s) {
 			case 'error':
-				return { color: '#ef4444', bgColor: '#3b1515', icon: '⚠' };
+				return { color: '#ef4444', bgColor: '#3b1515', icon: 'AlertTriangle' };
 			case 'warning':
-				return { color: '#f59e0b', bgColor: '#3b2f15', icon: '⚡' };
+				return { color: '#f59e0b', bgColor: '#3b2f15', icon: 'Zap' };
 			default:
-				return { color: '#888', bgColor: '#2a2a2a', icon: '○' };
+				return { color: '#888', bgColor: '#2a2a2a', icon: 'Circle' };
 		}
 	}
 
 	// Stale の色とアイコン
-	function getStaleStyle(r: StaleRecommendation): { color: string; bgColor: string; icon: string } {
+	function getStaleStyle(r: StaleRecommendation): { color: string; bgColor: string; icon: IconName } {
 		switch (r) {
 			case 'archive':
-				return { color: '#8b5cf6', bgColor: '#2d1f4e', icon: '📦' };
+				return { color: '#8b5cf6', bgColor: '#2d1f4e', icon: 'Package' };
 			case 'review':
-				return { color: '#3b82f6', bgColor: '#1e2d4d', icon: '🔍' };
+				return { color: '#3b82f6', bgColor: '#1e2d4d', icon: 'Search' };
 			case 'delete':
-				return { color: '#ef4444', bgColor: '#3b1515', icon: '🗑' };
+				return { color: '#ef4444', bgColor: '#3b1515', icon: 'Trash2' };
 			default:
-				return { color: '#888', bgColor: '#2a2a2a', icon: '○' };
+				return { color: '#888', bgColor: '#2a2a2a', icon: 'Circle' };
 		}
 	}
 
@@ -67,14 +69,14 @@
 
 {#if compact}
 	<span class="badge compact" style="background: {style.bgColor}; color: {style.color};">
-		<span class="badge-icon">{style.icon}</span>
+		<span class="badge-icon"><Icon name={style.icon} size={14} /></span>
 		{#if count !== undefined}
 			<span class="badge-count">{count}</span>
 		{/if}
 	</span>
 {:else}
 	<div class="badge full" style="background: {style.bgColor}; border-color: {style.color};">
-		<span class="badge-icon">{style.icon}</span>
+		<span class="badge-icon"><Icon name={style.icon} size={14} /></span>
 		<span class="badge-label" style="color: {style.color};">{getLabel()}</span>
 		{#if count !== undefined}
 			<span class="badge-count" style="background: {style.color};">{count}</span>

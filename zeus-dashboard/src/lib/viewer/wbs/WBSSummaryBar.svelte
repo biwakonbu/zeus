@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from '$lib/components/ui';
 	import type { WBSAggregatedResponse } from '$lib/types/api';
 
 	// Props
@@ -37,7 +38,7 @@
 	{#if data}
 		<!-- Vision 進捗 -->
 		<div class="summary-item">
-			<span class="item-icon">🎯</span>
+			<span class="item-icon"><Icon name="Target" size={14} /></span>
 			<span class="item-label">Vision進捗</span>
 			<span class="item-value" style="color: {getProgressColor(visionProgress)}">
 				{visionProgress.toFixed(0)}%
@@ -52,7 +53,7 @@
 
 		<!-- Objectives 完了率 -->
 		<div class="summary-item">
-			<span class="item-icon">📊</span>
+			<span class="item-icon"><Icon name="BarChart" size={14} /></span>
 			<span class="item-label">Objectives</span>
 			<span class="item-value">
 				{objectivesCompleted}/{objectivesTotal}
@@ -62,7 +63,13 @@
 
 		<!-- Issues 件数 -->
 		<div class="summary-item" class:has-issues={totalIssues > 0}>
-			<span class="item-icon">{totalIssues > 0 ? '⚠' : '✅'}</span>
+			<span class="item-icon">
+				{#if totalIssues > 0}
+					<Icon name="AlertTriangle" size={14} />
+				{:else}
+					<Icon name="CheckCircle" size={14} />
+				{/if}
+			</span>
 			<span class="item-label">未解決Issues</span>
 			<span class="item-value" class:warning={totalIssues > 0}>
 				{totalIssues}件
@@ -71,7 +78,7 @@
 
 		<!-- カバレッジスコア -->
 		<div class="summary-item">
-			<span class="item-icon">📐</span>
+			<span class="item-icon"><Icon name="Ruler" size={14} /></span>
 			<span class="item-label">カバレッジ</span>
 			<span class="item-value" style="color: {getHealthColor(coverageScore)}">
 				{coverageScore.toFixed(0)}%
@@ -102,7 +109,9 @@
 	}
 
 	.item-icon {
-		font-size: 14px;
+		display: flex;
+		align-items: center;
+		color: var(--text-muted, #888);
 	}
 
 	.item-label {

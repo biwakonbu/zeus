@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import * as d3 from 'd3';
 	import type { IssueAggregation, IssueBubble } from '$lib/types/api';
+	import { Icon } from '$lib/components/ui';
 
 	// Props
 	interface Props {
@@ -31,17 +32,17 @@
 		}
 	}
 
-	// ノードタイプアイコン
-	function getNodeTypeIcon(nodeType: string): string {
+	// ノードタイプラベル（絵文字ではなくテキスト）
+	function getNodeTypeLabel(nodeType: string): string {
 		switch (nodeType) {
 			case 'vision':
-				return '🎯';
+				return '[Vision]';
 			case 'objective':
-				return '📊';
+				return '[Objective]';
 			case 'deliverable':
-				return '📦';
+				return '[Deliverable]';
 			default:
-				return '📄';
+				return '[Unknown]';
 		}
 	}
 
@@ -66,6 +67,7 @@
 		// 階層データに変換（D3 pack用）
 		const hierarchy = d3
 			.hierarchy({ children: bubbleData } as { children: IssueBubble[] })
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			.sum((d: any) => d.value || 0);
 
 		// パックレイアウト
@@ -124,7 +126,7 @@
 					.style('top', `${d.y + 10}px`)
 					.html(
 						`
-						<div class="tooltip-title">${getNodeTypeIcon(item.node_type)} ${item.title}</div>
+						<div class="tooltip-title">${getNodeTypeLabel(item.node_type)} ${item.title}</div>
 						<div class="tooltip-row">
 							<span class="label">Problem:</span>
 							<span class="value">${item.problem_count}件</span>
@@ -218,12 +220,12 @@
 
 	{#if !data}
 		<div class="empty-state">
-			<span class="empty-icon">🔍</span>
+			<span class="empty-icon"><Icon name="Search" size={48} /></span>
 			<span class="empty-text">データがありません</span>
 		</div>
 	{:else if noIssues}
 		<div class="empty-state success">
-			<span class="empty-icon">✅</span>
+			<span class="empty-icon"><Icon name="CheckCircle" size={48} /></span>
 			<span class="empty-text">問題は見つかりませんでした</span>
 			<span class="empty-subtext">すべてのエンティティが正常です</span>
 		</div>
