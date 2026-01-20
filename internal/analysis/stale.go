@@ -202,7 +202,7 @@ func (s *StaleAnalyzer) checkTaskStale(task TaskInfo, referenced map[string]bool
 }
 
 // checkObjectiveStale は Objective の陳腐化をチェック
-func (s *StaleAnalyzer) checkObjectiveStale(obj ObjectiveInfo, referenced map[string]bool) *StaleEntity {
+func (s *StaleAnalyzer) checkObjectiveStale(obj ObjectiveInfo, _ map[string]bool) *StaleEntity {
 	// 完了した Objective で、更新から 30 日以上経過
 	if obj.Status == "completed" {
 		updatedAt := s.parseDate(obj.UpdatedAt)
@@ -226,7 +226,7 @@ func (s *StaleAnalyzer) checkObjectiveStale(obj ObjectiveInfo, referenced map[st
 }
 
 // checkDeliverableStale は Deliverable の陳腐化をチェック
-func (s *StaleAnalyzer) checkDeliverableStale(del DeliverableInfo, referenced map[string]bool) *StaleEntity {
+func (s *StaleAnalyzer) checkDeliverableStale(del DeliverableInfo, _ map[string]bool) *StaleEntity {
 	// 完了した Deliverable で、更新から 30 日以上経過
 	if del.Status == "delivered" || del.Status == "approved" {
 		updatedAt := s.parseDate(del.UpdatedAt)

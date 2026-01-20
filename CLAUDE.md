@@ -13,6 +13,8 @@ Zeus は「神の視点」でプロジェクト管理を支援する AI 駆動�
 
 **バックエンド:** Go 1.21+, Cobra, gopkg.in/yaml.v3, fatih/color, github.com/google/uuid
 
+> **Note:** Go 1.21+ は `min()`, `max()` 組み込み関数のため必須。`slices` パッケージも使用。
+
 **フロントエンド:** SvelteKit + TypeScript, PixiJS (WebGL), SSE, Factorio 風デザイン
 
 ## コーディング規約
@@ -48,6 +50,7 @@ make build-all          # 統合ビルド
 | Phase 4 (分析) | graph, predict, report | 完了 |
 | Phase 5 (ダッシュボード) | Factorio風ビューワー、SSE | 完了 |
 | Phase 6 (WBS・タイムライン) | WBS階層、クリティカルパス、影響範囲可視化 | 完了 |
+| Phase 7 (Affinity Canvas) | 機能間関連性可視化、フォースダイレクテッド | 完了 |
 | 10概念モデル Phase 1 | Vision, Objective, Deliverable, 参照整合性 | 完了 |
 | 10概念モデル Phase 2+3 | Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality | 完了 (M1-M3対応推奨) |
 
@@ -179,6 +182,7 @@ Task ベースのシステムを拡張し、プロジェクト管理の本質的
 - `docs/implementation-guide.md` - Go 実装ガイド
 - `docs/operations-manual.md` - 運用マニュアル
 - `docs/detailed-design.md` - 10概念モデル詳細設計
+- `docs/design/affinity-canvas.md` - Affinity Canvas 設計書（Phase 7）
 - `docs/api-spec.md` - API 仕様（将来実装）
 - `docs/security.md` - セキュリティ実装ガイド
 

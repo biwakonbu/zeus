@@ -159,12 +159,9 @@ func compareWBSCodes(a, b string) int {
 	partsA := strings.Split(a, ".")
 	partsB := strings.Split(b, ".")
 
-	minLen := len(partsA)
-	if len(partsB) < minLen {
-		minLen = len(partsB)
-	}
+	minLen := min(len(partsA), len(partsB))
 
-	for i := 0; i < minLen; i++ {
+	for i := range minLen {
 		numA := parseWBSPart(partsA[i])
 		numB := parseWBSPart(partsB[i])
 		if numA != numB {
@@ -331,29 +328,6 @@ func getStatusIcon(status string) string {
 	default:
 		return "○"
 	}
-}
-
-// itoa はintをstringに変換（シンプル実装）
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-
-	negative := n < 0
-	if negative {
-		n = -n
-	}
-
-	var digits []byte
-	for n > 0 {
-		digits = append([]byte{byte('0' + n%10)}, digits...)
-		n /= 10
-	}
-
-	if negative {
-		return "-" + string(digits)
-	}
-	return string(digits)
 }
 
 // GenerateWBSCodes は階層構造に基づいてWBSコードを自動生成

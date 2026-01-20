@@ -1,12 +1,13 @@
 <script lang="ts">
 	// WBS ビューワー（改善版）
-	// 3 つの新ビュー（Health, Timeline, Density）を提供
+	// 4 つのビュー（Health, Timeline, Density, Affinity）を提供
 	import { onMount } from 'svelte';
-	import { fetchWBSAggregated } from '$lib/api/client';
-	import type { WBSAggregatedResponse } from '$lib/types/api';
+	import { fetchWBSAggregated, fetchAffinity } from '$lib/api/client';
+	import type { WBSAggregatedResponse, AffinityResponse } from '$lib/types/api';
 	import HealthView from './wbs/health/HealthView.svelte';
 	import TimelineView from './wbs/timeline/TimelineView.svelte';
 	import DensityView from './wbs/density/DensityView.svelte';
+	import AffinityView from './wbs/affinity/AffinityView.svelte';
 	import WBSSummaryBar from './wbs/WBSSummaryBar.svelte';
 	import EntityDetailPanel from './wbs/EntityDetailPanel.svelte';
 	import { Icon } from '$lib/components/ui';
@@ -22,12 +23,13 @@
 	}
 	let { onNodeSelect }: Props = $props();
 
-	// ビュータブ（3視点）
-	type ViewTab = 'health' | 'timeline' | 'density';
+	// ビュータブ（4視点）
+	type ViewTab = 'health' | 'timeline' | 'density' | 'affinity';
 	let activeView: ViewTab = $state('health');
 
 	// 状態
 	let aggregatedData: WBSAggregatedResponse | null = $state(null);
+	let affinityData: AffinityResponse | null = $state(null);
 	let loading = $state(true);
 	let error: string | null = $state(null);
 
@@ -44,7 +46,13 @@
 		loading = true;
 		error = null;
 		try {
-			aggregatedData = await fetchWBSAggregated();
+			// 並列読み込み
+			const [agg, aff] = await Promise.all([
+				fetchWBSAggregated(),
+				fetchAffinity().catch(() => null)  // Affinity はオプショナル
+			]);
+			aggregatedData = agg;
+			affinityData = aff;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'WBS データの読み込みに失敗しました';
 		} finally {
@@ -68,11 +76,12 @@
 		clearSelection();
 	}
 
-	// タブ情報（改善版: Lucide Icons 使用）
+	// タブ情報（Phase 7: Affinity タブ追加）
 	const tabs: Array<{ id: ViewTab; label: string; icon: string }> = [
 		{ id: 'health', label: 'Health', icon: 'Heart' },
 		{ id: 'timeline', label: 'Timeline', icon: 'Calendar' },
-		{ id: 'density', label: 'Density', icon: 'Flame' }
+		{ id: 'density', label: 'Density', icon: 'Flame' },
+		{ id: 'affinity', label: 'Affinity', icon: 'GitBranch' }
 	];
 
 	onMount(() => {
@@ -120,7 +129,7 @@
 					<button class="retry-btn" onclick={() => loadData()}>再試行</button>
 				</div>
 			{:else}
-				<!-- 3視点ビュー（改善版） -->
+				<!-- 4視点ビュー（Phase 7: Affinity 追加） -->
 				<div class="view-container">
 					{#if activeView === 'health'}
 						<HealthView data={aggregatedData} onNodeSelect={handleNodeSelect} />
@@ -128,6 +137,8 @@
 						<TimelineView data={aggregatedData} onNodeSelect={handleNodeSelect} />
 					{:else if activeView === 'density'}
 						<DensityView data={aggregatedData} onNodeSelect={handleNodeSelect} />
+					{:else if activeView === 'affinity'}
+						<AffinityView data={affinityData} onNodeSelect={handleNodeSelect} />
 					{/if}
 				</div>
 			{/if}

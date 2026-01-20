@@ -14,7 +14,8 @@ import type {
 	WBSGraphData,
 	WBSAnalysisResponse,
 	BottleneckResponse,
-	WBSAggregatedResponse
+	WBSAggregatedResponse,
+	AffinityResponse
 } from '$lib/types/api';
 
 // API ベース URL（開発時は Vite Proxy 経由、本番時は同一オリジン）
@@ -105,6 +106,11 @@ export async function fetchBottlenecks(): Promise<BottleneckResponse> {
 // WBS 集約データ取得（4視点ビュー用）
 export async function fetchWBSAggregated(): Promise<WBSAggregatedResponse> {
 	return fetchJSON<WBSAggregatedResponse>('/wbs/aggregated');
+}
+
+// Phase 7: Affinity データ取得
+export async function fetchAffinity(): Promise<AffinityResponse> {
+	return fetchJSON<AffinityResponse>('/affinity');
 }
 
 // =============================================================================

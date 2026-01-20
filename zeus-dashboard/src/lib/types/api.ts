@@ -642,3 +642,68 @@ export interface ResourceCell {
 	progress: number;
 	blocked_count: number;
 }
+
+// =============================================================================
+// Phase 7: Affinity Canvas API レスポンス
+// =============================================================================
+
+// Affinity API レスポンス
+export interface AffinityResponse {
+	nodes: AffinityNode[];
+	edges: AffinityEdge[];
+	clusters: AffinityCluster[];
+	weights: AffinityWeights;
+	stats: AffinityStats;
+}
+
+// Affinity ノード
+export interface AffinityNode {
+	id: string;
+	title: string;
+	type: AffinityNodeType;
+	wbs_code: string;
+	progress: number;
+	status: string;
+}
+
+export type AffinityNodeType = 'vision' | 'objective' | 'deliverable' | 'task';
+
+// Affinity エッジ（関連）
+export interface AffinityEdge {
+	source: string;
+	target: string;
+	score: number;
+	types: AffinityEdgeType[];
+	reason: string;
+}
+
+export type AffinityEdgeType =
+	| 'parent-child'   // 親子関係
+	| 'sibling'        // 兄弟関係
+	| 'wbs-adjacent'   // WBS 隣接
+	| 'reference'      // 参照関係
+	| 'category';      // カテゴリ類似
+
+// Affinity クラスタ
+export interface AffinityCluster {
+	id: string;
+	name: string;
+	members: string[];
+}
+
+// Affinity 重み
+export interface AffinityWeights {
+	parent_child: number;
+	sibling: number;
+	wbs_adjacent: number;
+	reference: number;
+	category: number;
+}
+
+// Affinity 統計
+export interface AffinityStats {
+	total_nodes: number;
+	total_edges: number;
+	cluster_count: number;
+	avg_connections: number;
+}

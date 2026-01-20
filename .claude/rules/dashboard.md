@@ -48,6 +48,7 @@ paths:
 - `GET /api/timeline` - タイムラインとクリティカルパス
 - `GET /api/downstream?task_id=X` - 下流・上流タスク取得
 - `GET /api/events` - SSE ストリーム（リアルタイム更新）
+- `GET /api/affinity` - 機能間類似度マトリクス（Phase 7 で追加予定）
 - `POST /api/metrics` - メトリクス保存（Graph View 計測ログ）
 
 ## ダッシュボード機能
@@ -71,6 +72,7 @@ paths:
 - Graph View: 依存関係グラフ（Factorio 風）
 - WBS View: 階層構造ツリー
 - Timeline View: ガントチャート風表示
+- Affinity Canvas: 機能間関連性可視化（Phase 7 で追加予定、設計書: `docs/design/affinity-canvas.md`）
 
 ## 影響範囲可視化
 

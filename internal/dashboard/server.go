@@ -140,7 +140,8 @@ func (s *Server) handler() http.Handler {
 	mux.HandleFunc("/api/downstream", s.corsMiddleware(s.handleAPIDownstream))
 	mux.HandleFunc("/api/metrics", s.corsMiddleware(s.handleAPIMetrics))
 	mux.HandleFunc("/api/bottlenecks", s.corsMiddleware(s.handleAPIBottlenecks))
-	mux.HandleFunc("/api/events", s.handleSSE) // SSE エンドポイント
+	mux.HandleFunc("/api/affinity", s.corsMiddleware(s.handleAPIAffinity)) // Phase 7: Affinity Canvas
+	mux.HandleFunc("/api/events", s.handleSSE)                             // SSE エンドポイント
 
 	// 静的ファイルを提供（本番モード）
 	if !s.devMode {

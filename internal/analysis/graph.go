@@ -197,6 +197,9 @@ func (g *GraphBuilder) calculateStats(graph *DependencyGraph) GraphStats {
 
 // ToText は TEXT 形式（ASCII アート）で出力
 func (graph *DependencyGraph) ToText() string {
+	if graph == nil || graph.Nodes == nil {
+		return "Zeus Dependency Graph\n" + strings.Repeat("=", 60) + "\n\nNo data available.\n"
+	}
 	var sb strings.Builder
 
 	sb.WriteString("Zeus Dependency Graph\n")
@@ -221,7 +224,7 @@ func (graph *DependencyGraph) ToText() string {
 		sb.WriteString("\nIsolated Tasks (no dependencies):\n")
 		for _, id := range graph.Isolated {
 			if node, exists := graph.Nodes[id]; exists {
-				sb.WriteString(fmt.Sprintf("  %s: %s\n", id, node.Task.Title))
+				fmt.Fprintf(&sb, "  %s: %s\n", id, node.Task.Title)
 			}
 		}
 	}
@@ -230,17 +233,17 @@ func (graph *DependencyGraph) ToText() string {
 	if len(graph.Cycles) > 0 {
 		sb.WriteString("\nWarnings:\n")
 		for _, cycle := range graph.Cycles {
-			sb.WriteString(fmt.Sprintf("  - Circular dependency: %s\n", strings.Join(cycle, " -> ")))
+			fmt.Fprintf(&sb, "  - Circular dependency: %s\n", strings.Join(cycle, " -> "))
 		}
 	}
 
 	// 統計
-	sb.WriteString(fmt.Sprintf("\nStats:\n"))
-	sb.WriteString(fmt.Sprintf("  Total tasks: %d\n", graph.Stats.TotalNodes))
-	sb.WriteString(fmt.Sprintf("  With dependencies: %d\n", graph.Stats.WithDependencies))
-	sb.WriteString(fmt.Sprintf("  Isolated: %d\n", graph.Stats.IsolatedCount))
+	sb.WriteString("\nStats:\n")
+	fmt.Fprintf(&sb, "  Total tasks: %d\n", graph.Stats.TotalNodes)
+	fmt.Fprintf(&sb, "  With dependencies: %d\n", graph.Stats.WithDependencies)
+	fmt.Fprintf(&sb, "  Isolated: %d\n", graph.Stats.IsolatedCount)
 	if graph.Stats.CycleCount > 0 {
-		sb.WriteString(fmt.Sprintf("  Circular dependencies: %d\n", graph.Stats.CycleCount))
+		fmt.Fprintf(&sb, "  Circular dependencies: %d\n", graph.Stats.CycleCount)
 	}
 
 	sb.WriteString(strings.Repeat("=", 60) + "\n")
@@ -268,7 +271,7 @@ func (graph *DependencyGraph) printTree(sb *strings.Builder, nodeID, prefix stri
 		connector = ""
 	}
 
-	sb.WriteString(fmt.Sprintf("%s%s%s: %s\n", prefix, connector, nodeID, node.Task.Title))
+	fmt.Fprintf(sb, "%s%s%s: %s\n", prefix, connector, nodeID, node.Task.Title)
 
 	newPrefix := prefix
 	if prefix != "" {
@@ -289,6 +292,9 @@ func (graph *DependencyGraph) printTree(sb *strings.Builder, nodeID, prefix stri
 
 // ToDot は DOT 形式（Graphviz）で出力
 func (graph *DependencyGraph) ToDot() string {
+	if graph == nil || graph.Nodes == nil {
+		return "digraph ZeusDependencies {\n  // No data available\n}\n"
+	}
 	var sb strings.Builder
 
 	sb.WriteString("digraph ZeusDependencies {\n")
@@ -315,15 +321,15 @@ func (graph *DependencyGraph) ToDot() string {
 			color = "lightcoral"
 		}
 		label := strings.ReplaceAll(node.Task.Title, "\"", "\\\"")
-		sb.WriteString(fmt.Sprintf("  \"%s\" [label=\"%s\\n(%s)\", fillcolor=%s, style=filled];\n",
-			id, label, node.Task.Status, color))
+		fmt.Fprintf(&sb, "  \"%s\" [label=\"%s\\n(%s)\", fillcolor=%s, style=filled];\n",
+			id, label, node.Task.Status, color)
 	}
 
 	sb.WriteString("\n")
 
 	// エッジ定義
 	for _, edge := range graph.Edges {
-		sb.WriteString(fmt.Sprintf("  \"%s\" -> \"%s\";\n", edge.From, edge.To))
+		fmt.Fprintf(&sb, "  \"%s\" -> \"%s\";\n", edge.From, edge.To)
 	}
 
 	sb.WriteString("}\n")
@@ -334,6 +340,9 @@ func (graph *DependencyGraph) ToDot() string {
 // GetDownstreamTasks は指定タスクの下流タスク（依存しているタスク）を取得
 // taskID から始めて、そのタスクに依存している全てのタスクを再帰的に収集
 func (graph *DependencyGraph) GetDownstreamTasks(taskID string) []string {
+	if graph == nil || graph.Nodes == nil {
+		return []string{}
+	}
 	downstream := []string{}
 	visited := make(map[string]bool)
 
@@ -362,6 +371,9 @@ func (graph *DependencyGraph) GetDownstreamTasks(taskID string) []string {
 // GetUpstreamTasks は指定タスクの上流タスク（依存先）を取得
 // taskID から始めて、そのタスクが依存している全てのタスクを再帰的に収集
 func (graph *DependencyGraph) GetUpstreamTasks(taskID string) []string {
+	if graph == nil || graph.Nodes == nil {
+		return []string{}
+	}
 	upstream := []string{}
 	visited := make(map[string]bool)
 
@@ -389,6 +401,9 @@ func (graph *DependencyGraph) GetUpstreamTasks(taskID string) []string {
 
 // ToMermaid は Mermaid 形式で出力
 func (graph *DependencyGraph) ToMermaid() string {
+	if graph == nil || graph.Nodes == nil {
+		return "```mermaid\ngraph TD\n    NoData[\"No data available\"]\n```\n"
+	}
 	var sb strings.Builder
 
 	sb.WriteString("```mermaid\n")
@@ -406,7 +421,7 @@ func (graph *DependencyGraph) ToMermaid() string {
 		// Mermaid用にIDをサニタイズ（ハイフンをアンダースコアに）
 		safeID := strings.ReplaceAll(id, "-", "_")
 		label := strings.ReplaceAll(node.Task.Title, "\"", "'")
-		sb.WriteString(fmt.Sprintf("    %s[\"%s\"]\n", safeID, label))
+		fmt.Fprintf(&sb, "    %s[\"%s\"]\n", safeID, label)
 	}
 
 	sb.WriteString("\n")
@@ -415,7 +430,7 @@ func (graph *DependencyGraph) ToMermaid() string {
 	for _, edge := range graph.Edges {
 		safeFrom := strings.ReplaceAll(edge.From, "-", "_")
 		safeTo := strings.ReplaceAll(edge.To, "-", "_")
-		sb.WriteString(fmt.Sprintf("    %s --> %s\n", safeFrom, safeTo))
+		fmt.Fprintf(&sb, "    %s --> %s\n", safeFrom, safeTo)
 	}
 
 	// スタイル定義
@@ -425,11 +440,11 @@ func (graph *DependencyGraph) ToMermaid() string {
 		safeID := strings.ReplaceAll(id, "-", "_")
 		switch node.Task.Status {
 		case TaskStatusCompleted:
-			sb.WriteString(fmt.Sprintf("    style %s fill:#90EE90\n", safeID))
+			fmt.Fprintf(&sb, "    style %s fill:#90EE90\n", safeID)
 		case TaskStatusInProgress:
-			sb.WriteString(fmt.Sprintf("    style %s fill:#FFFFE0\n", safeID))
+			fmt.Fprintf(&sb, "    style %s fill:#FFFFE0\n", safeID)
 		case TaskStatusBlocked:
-			sb.WriteString(fmt.Sprintf("    style %s fill:#F08080\n", safeID))
+			fmt.Fprintf(&sb, "    style %s fill:#F08080\n", safeID)
 		}
 	}
 
