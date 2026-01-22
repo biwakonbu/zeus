@@ -8,7 +8,7 @@ description: プロジェクト全体をスキャンし、現在の状態を分�
 
 ## 概要
 
-Zeus プロジェクト（New Zeus Project）の 10概念モデル全体（Vision, Objective, Deliverable, Task, Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality）を分析します。
+Zeus プロジェクト（New Zeus Project）の 10概念モデル全体（Vision, Objective, Deliverable, Task, Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality）および Actor/UseCase を分析します。
 
 ## 入力
 
@@ -27,7 +27,7 @@ project:
     statement: "ビジョンステートメント"
     success_criteria: ["基準1", "基準2"]
 
-  # 10概念モデル件数
+  # 10概念モデル件数 + Actor/UseCase
   entities:
     objectives: 7
     deliverables: 4
@@ -39,6 +39,8 @@ project:
     assumptions: 3
     constraints: 3
     quality: 2
+    actors: 5
+    usecases: 8
 
   # 参照整合性
   integrity:
@@ -126,6 +128,12 @@ zeus list constraints
 
 # Quality 一覧
 zeus list quality
+
+# Actor 一覧
+zeus list actors
+
+# UseCase 一覧
+zeus list usecases
 ```
 
 ## 分析・可視化
@@ -147,6 +155,11 @@ zeus report --format markdown -o report.md
 
 # Web ダッシュボード
 zeus dashboard
+
+# UML ユースケース図
+zeus uml show usecase
+zeus uml show usecase --format mermaid
+zeus uml show usecase --boundary "システム名"
 ```
 
 ## 10概念モデル詳細
@@ -176,6 +189,13 @@ zeus dashboard
 | Constraint | 制約条件 | `.zeus/constraints.yaml` | グローバル単一ファイル |
 | Quality | 品質基準 | `.zeus/quality/qual-NNN.yaml` | メトリクス・ゲート管理 |
 
+### UML 拡張（Actor/UseCase）
+
+| 概念 | 説明 | ファイル | 特性 |
+|------|------|----------|------|
+| Actor | アクター定義 | `.zeus/actors.yaml` | 単一ファイル |
+| UseCase | ユースケース定義 | `.zeus/usecases/uc-NNN.yaml` | Objective 参照必須 |
+
 ## 参照整合性チェック
 
 `zeus doctor` で以下の整合性をチェック:
@@ -184,6 +204,7 @@ zeus dashboard
 - **Deliverable → Objective**: `objective_id` が必須
 - **Decision → Consideration**: `consideration_id` が必須
 - **Quality → Deliverable**: `deliverable_id` が必須
+- **UseCase → Objective**: `objective_id` が必須
 
 ### 任意参照（参照先が存在しない場合はエラー）
 - **Objective → Objective**: 親 `parent_id`（循環参照チェックあり）
@@ -191,9 +212,12 @@ zeus dashboard
 - **Problem → Objective/Deliverable**: 関連エンティティ
 - **Risk → Objective/Deliverable**: 関連エンティティ
 - **Assumption → Objective/Deliverable**: 関連エンティティ
+- **UseCase → Actor**: `actors[].actor_id` の参照先確認
+- **UseCase → UseCase**: `relations[].target_id` の参照先確認
 
 ### 循環参照検出
 - Objective の親子階層で循環を検出
+- UseCase の relations で循環を検出
 
 ## ダッシュボード API
 
@@ -205,6 +229,9 @@ curl http://localhost:8080/api/graph
 curl http://localhost:8080/api/predict
 curl http://localhost:8080/api/wbs
 curl http://localhost:8080/api/timeline
+curl http://localhost:8080/api/actors
+curl http://localhost:8080/api/usecases
+curl http://localhost:8080/api/uml/usecase
 ```
 
 ## 関連スキル

@@ -253,3 +253,283 @@ func TestHandleSPAFallback(t *testing.T) {
 		t.Errorf("Content-Type が正しくありません: got %s, want text/html; charset=utf-8", contentType)
 	}
 }
+
+// TestHandleAPIActors は /api/actors エンドポイントをテストします
+func TestHandleAPIActors(t *testing.T) {
+	zeus := setupTestZeus(t)
+	ctx := context.Background()
+
+	// Actor を追加
+	handler, ok := zeus.GetRegistry().Get("actor")
+	if !ok {
+		t.Fatal("actor ハンドラーが見つかりません")
+	}
+	actorHandler := handler.(*core.ActorHandler)
+
+	_, err := actorHandler.Add(ctx, "テストアクター",
+		core.WithActorType(core.ActorTypeHuman),
+		core.WithActorDescription("テスト用アクター"),
+	)
+	if err != nil {
+		t.Fatalf("Actor 追加に失敗: %v", err)
+	}
+
+	server := NewServer(zeus, 0)
+	ts := httptest.NewServer(server.handler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/actors")
+	if err != nil {
+		t.Fatalf("リクエストに失敗: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result struct {
+		Actors []struct {
+			ID          string `json:"id"`
+			Title       string `json:"title"`
+			Type        string `json:"type"`
+			Description string `json:"description"`
+		} `json:"actors"`
+		Total int `json:"total"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("JSON デコードに失敗: %v", err)
+	}
+
+	if result.Total != 1 {
+		t.Errorf("Total が正しくありません: got %d, want 1", result.Total)
+	}
+
+	if len(result.Actors) != 1 {
+		t.Errorf("Actors の数が正しくありません: got %d, want 1", len(result.Actors))
+	}
+
+	if result.Actors[0].Title != "テストアクター" {
+		t.Errorf("Actor Title が正しくありません: got %s, want テストアクター", result.Actors[0].Title)
+	}
+}
+
+// TestHandleAPIUseCases は /api/usecases エンドポイントをテストします
+func TestHandleAPIUseCases(t *testing.T) {
+	zeus := setupTestZeus(t)
+	ctx := context.Background()
+
+	// Objective を追加（UseCase の参照先として必要）
+	objHandler, ok := zeus.GetRegistry().Get("objective")
+	if !ok {
+		t.Fatal("objective ハンドラーが見つかりません")
+	}
+	oh := objHandler.(*core.ObjectiveHandler)
+	obj, err := oh.Add(ctx, "テスト目標")
+	if err != nil {
+		t.Fatalf("Objective 追加に失敗: %v", err)
+	}
+
+	// UseCase を追加
+	handler, ok := zeus.GetRegistry().Get("usecase")
+	if !ok {
+		t.Fatal("usecase ハンドラーが見つかりません")
+	}
+	usecaseHandler := handler.(*core.UseCaseHandler)
+
+	_, err = usecaseHandler.Add(ctx, "テストユースケース",
+		core.WithUseCaseObjective(obj.ID),
+		core.WithUseCaseDescription("テスト用ユースケース"),
+	)
+	if err != nil {
+		t.Fatalf("UseCase 追加に失敗: %v", err)
+	}
+
+	server := NewServer(zeus, 0)
+	ts := httptest.NewServer(server.handler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/usecases")
+	if err != nil {
+		t.Fatalf("リクエストに失敗: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result struct {
+		Usecases []struct {
+			ID          string `json:"id"`
+			Title       string `json:"title"`
+			Status      string `json:"status"`
+			Description string `json:"description"`
+		} `json:"usecases"`
+		Total int `json:"total"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("JSON デコードに失敗: %v", err)
+	}
+
+	if result.Total != 1 {
+		t.Errorf("Total が正しくありません: got %d, want 1", result.Total)
+	}
+
+	if len(result.Usecases) != 1 {
+		t.Errorf("Usecases の数が正しくありません: got %d, want 1", len(result.Usecases))
+	}
+
+	if result.Usecases[0].Title != "テストユースケース" {
+		t.Errorf("UseCase Title が正しくありません: got %s, want テストユースケース", result.Usecases[0].Title)
+	}
+}
+
+// TestHandleAPIUseCaseDiagram は /api/uml/usecase エンドポイントをテストします
+func TestHandleAPIUseCaseDiagram(t *testing.T) {
+	zeus := setupTestZeus(t)
+	ctx := context.Background()
+
+	// Objective を追加（UseCase の参照先として必要）
+	objHandler, ok := zeus.GetRegistry().Get("objective")
+	if !ok {
+		t.Fatal("objective ハンドラーが見つかりません")
+	}
+	oh := objHandler.(*core.ObjectiveHandler)
+	obj, err := oh.Add(ctx, "テスト目標")
+	if err != nil {
+		t.Fatalf("Objective 追加に失敗: %v", err)
+	}
+
+	// Actor を追加
+	actorHandler, ok := zeus.GetRegistry().Get("actor")
+	if !ok {
+		t.Fatal("actor ハンドラーが見つかりません")
+	}
+	ah := actorHandler.(*core.ActorHandler)
+
+	actor, err := ah.Add(ctx, "管理者",
+		core.WithActorType(core.ActorTypeHuman),
+	)
+	if err != nil {
+		t.Fatalf("Actor 追加に失敗: %v", err)
+	}
+
+	// UseCase を追加
+	usecaseHandler, ok := zeus.GetRegistry().Get("usecase")
+	if !ok {
+		t.Fatal("usecase ハンドラーが見つかりません")
+	}
+	uh := usecaseHandler.(*core.UseCaseHandler)
+
+	_, err = uh.Add(ctx, "ユーザー登録",
+		core.WithUseCaseObjective(obj.ID),
+		core.WithUseCaseActor(actor.ID, core.ActorRolePrimary),
+	)
+	if err != nil {
+		t.Fatalf("UseCase 追加に失敗: %v", err)
+	}
+
+	server := NewServer(zeus, 0)
+	ts := httptest.NewServer(server.handler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/uml/usecase")
+	if err != nil {
+		t.Fatalf("リクエストに失敗: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result struct {
+		Actors   []interface{} `json:"actors"`
+		Usecases []interface{} `json:"usecases"`
+		Boundary string        `json:"boundary"`
+		Mermaid  string        `json:"mermaid"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("JSON デコードに失敗: %v", err)
+	}
+
+	if len(result.Actors) != 1 {
+		t.Errorf("Actors の数が正しくありません: got %d, want 1", len(result.Actors))
+	}
+
+	if len(result.Usecases) != 1 {
+		t.Errorf("Usecases の数が正しくありません: got %d, want 1", len(result.Usecases))
+	}
+
+	if result.Mermaid == "" {
+		t.Error("Mermaid が空です")
+	}
+}
+
+// TestHandleAPIActorsEmpty は Actor がない場合の /api/actors をテストします
+func TestHandleAPIActorsEmpty(t *testing.T) {
+	zeus := setupTestZeus(t)
+	server := NewServer(zeus, 0)
+
+	ts := httptest.NewServer(server.handler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/actors")
+	if err != nil {
+		t.Fatalf("リクエストに失敗: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result struct {
+		Actors []interface{} `json:"actors"`
+		Total  int           `json:"total"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("JSON デコードに失敗: %v", err)
+	}
+
+	if result.Total != 0 {
+		t.Errorf("Total が正しくありません: got %d, want 0", result.Total)
+	}
+}
+
+// TestHandleAPIUseCasesEmpty は UseCase がない場合の /api/usecases をテストします
+func TestHandleAPIUseCasesEmpty(t *testing.T) {
+	zeus := setupTestZeus(t)
+	server := NewServer(zeus, 0)
+
+	ts := httptest.NewServer(server.handler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/usecases")
+	if err != nil {
+		t.Fatalf("リクエストに失敗: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result struct {
+		Usecases []interface{} `json:"usecases"`
+		Total    int           `json:"total"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("JSON デコードに失敗: %v", err)
+	}
+
+	if result.Total != 0 {
+		t.Errorf("Total が正しくありません: got %d, want 0", result.Total)
+	}
+}

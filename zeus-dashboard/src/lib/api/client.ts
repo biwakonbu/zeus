@@ -12,10 +12,9 @@ import type {
 	GraphNode,
 	GraphEdge,
 	WBSGraphData,
-	WBSAnalysisResponse,
-	BottleneckResponse,
-	WBSAggregatedResponse,
-	AffinityResponse
+	ActorsResponse,
+	UseCasesResponse,
+	UseCaseDiagramResponse
 } from '$lib/types/api';
 
 // API ベース URL（開発時は Vite Proxy 経由、本番時は同一オリジン）
@@ -93,24 +92,25 @@ export async function fetchDownstream(taskId: string): Promise<DownstreamRespons
 	return fetchJSON<DownstreamResponse>(`/downstream?task_id=${encodeURIComponent(taskId)}`);
 }
 
-// WBS 分析取得
-export async function fetchWBSAnalysis(): Promise<WBSAnalysisResponse> {
-	return fetchJSON<WBSAnalysisResponse>('/wbs/analysis');
+
+// =============================================================================
+// UML UseCase API
+// =============================================================================
+
+// アクター一覧取得
+export async function fetchActors(): Promise<ActorsResponse> {
+	return fetchJSON<ActorsResponse>('/actors');
 }
 
-// ボトルネック分析取得
-export async function fetchBottlenecks(): Promise<BottleneckResponse> {
-	return fetchJSON<BottleneckResponse>('/bottlenecks');
+// ユースケース一覧取得
+export async function fetchUseCases(): Promise<UseCasesResponse> {
+	return fetchJSON<UseCasesResponse>('/usecases');
 }
 
-// WBS 集約データ取得（4視点ビュー用）
-export async function fetchWBSAggregated(): Promise<WBSAggregatedResponse> {
-	return fetchJSON<WBSAggregatedResponse>('/wbs/aggregated');
-}
-
-// Phase 7: Affinity データ取得
-export async function fetchAffinity(): Promise<AffinityResponse> {
-	return fetchJSON<AffinityResponse>('/affinity');
+// ユースケース図取得
+export async function fetchUseCaseDiagram(boundary?: string): Promise<UseCaseDiagramResponse> {
+	const params = boundary ? `?boundary=${encodeURIComponent(boundary)}` : '';
+	return fetchJSON<UseCaseDiagramResponse>(`/uml/usecase${params}`);
 }
 
 // =============================================================================

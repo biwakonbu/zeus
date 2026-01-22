@@ -388,12 +388,12 @@ const (
 type DeliverableFormat string
 
 const (
-	DeliverableFormatDocument    DeliverableFormat = "document"
-	DeliverableFormatCode        DeliverableFormat = "code"
-	DeliverableFormatData        DeliverableFormat = "data"
-	DeliverableFormatDesign      DeliverableFormat = "design"
+	DeliverableFormatDocument     DeliverableFormat = "document"
+	DeliverableFormatCode         DeliverableFormat = "code"
+	DeliverableFormatData         DeliverableFormat = "data"
+	DeliverableFormatDesign       DeliverableFormat = "design"
 	DeliverableFormatPresentation DeliverableFormat = "presentation"
-	DeliverableFormatOther       DeliverableFormat = "other"
+	DeliverableFormatOther        DeliverableFormat = "other"
 )
 
 // DeliverableEntity は 10 概念モデルの成果物
@@ -1129,3 +1129,189 @@ func (q *QualityEntity) GetID() string { return q.ID }
 
 // GetTitle は Entity インターフェースを実装（QualityEntity）
 func (q *QualityEntity) GetTitle() string { return q.Title }
+
+// ============================================================
+// UML ユースケース図型定義 (Actor, UseCase)
+// ============================================================
+
+// === Actor ===
+
+// ActorType はアクターの種類
+type ActorType string
+
+const (
+	ActorTypeHuman    ActorType = "human"
+	ActorTypeSystem   ActorType = "system"
+	ActorTypeTime     ActorType = "time"
+	ActorTypeDevice   ActorType = "device"
+	ActorTypeExternal ActorType = "external"
+)
+
+// ActorEntity はアクターエンティティ
+type ActorEntity struct {
+	ID          string    `yaml:"id"`
+	Title       string    `yaml:"title"`
+	Type        ActorType `yaml:"type"`
+	Description string    `yaml:"description,omitempty"`
+	Metadata    Metadata  `yaml:"metadata"`
+}
+
+// ActorsFile はアクターファイルの構造（単一ファイル管理）
+type ActorsFile struct {
+	Actors []ActorEntity `yaml:"actors"`
+}
+
+// Validate は ActorEntity の妥当性を検証
+func (a *ActorEntity) Validate() error {
+	if a.ID == "" {
+		return fmt.Errorf("actor ID is required")
+	}
+	if err := ValidateID("actor", a.ID); err != nil {
+		return err
+	}
+	if a.Title == "" {
+		return fmt.Errorf("actor title is required")
+	}
+	if a.Type == "" {
+		a.Type = ActorTypeHuman
+	}
+	switch a.Type {
+	case ActorTypeHuman, ActorTypeSystem, ActorTypeTime, ActorTypeDevice, ActorTypeExternal:
+		// 有効
+	default:
+		return fmt.Errorf("invalid actor type: %s", a.Type)
+	}
+	return nil
+}
+
+// GetID は Entity インターフェースを実装（ActorEntity）
+func (a *ActorEntity) GetID() string { return a.ID }
+
+// GetTitle は Entity インターフェースを実装（ActorEntity）
+func (a *ActorEntity) GetTitle() string { return a.Title }
+
+// === UseCase ===
+
+// UseCaseStatus はユースケースの状態
+type UseCaseStatus string
+
+const (
+	UseCaseStatusDraft      UseCaseStatus = "draft"
+	UseCaseStatusActive     UseCaseStatus = "active"
+	UseCaseStatusDeprecated UseCaseStatus = "deprecated"
+)
+
+// ActorRole はアクターの役割
+type ActorRole string
+
+const (
+	ActorRolePrimary   ActorRole = "primary"
+	ActorRoleSecondary ActorRole = "secondary"
+)
+
+// UseCaseActorRef はユースケースとアクターの関連
+type UseCaseActorRef struct {
+	ActorID string    `yaml:"actor_id"`
+	Role    ActorRole `yaml:"role"`
+}
+
+// RelationType は関係の種類
+type RelationType string
+
+const (
+	RelationTypeInclude    RelationType = "include"
+	RelationTypeExtend     RelationType = "extend"
+	RelationTypeGeneralize RelationType = "generalize"
+)
+
+// UseCaseRelation はユースケース間の関係
+type UseCaseRelation struct {
+	Type           RelationType `yaml:"type"`
+	TargetID       string       `yaml:"target_id"`
+	ExtensionPoint string       `yaml:"extension_point,omitempty"`
+	Condition      string       `yaml:"condition,omitempty"`
+}
+
+// UseCaseScenario はシナリオ
+type UseCaseScenario struct {
+	MainFlow []string `yaml:"main_flow,omitempty"`
+}
+
+// UseCaseEntity はユースケースエンティティ
+// usecases/uc-NNN.yaml で管理（個別ファイル）
+type UseCaseEntity struct {
+	ID          string            `yaml:"id"`
+	Title       string            `yaml:"title"`
+	ObjectiveID string            `yaml:"objective_id"` // 必須
+	Description string            `yaml:"description,omitempty"`
+	Actors      []UseCaseActorRef `yaml:"actors,omitempty"`
+	Relations   []UseCaseRelation `yaml:"relations,omitempty"`
+	Scenario    UseCaseScenario   `yaml:"scenario,omitempty"`
+	Status      UseCaseStatus     `yaml:"status"`
+	Metadata    Metadata          `yaml:"metadata"`
+}
+
+// Validate は UseCaseEntity の妥当性を検証
+func (u *UseCaseEntity) Validate() error {
+	if u.ID == "" {
+		return fmt.Errorf("usecase ID is required")
+	}
+	if err := ValidateID("usecase", u.ID); err != nil {
+		return err
+	}
+	if u.Title == "" {
+		return fmt.Errorf("usecase title is required")
+	}
+	// ObjectiveID は必須（参照整合性のため）
+	if u.ObjectiveID == "" {
+		return fmt.Errorf("usecase objective_id is required")
+	}
+	if u.Status == "" {
+		u.Status = UseCaseStatusDraft
+	}
+	switch u.Status {
+	case UseCaseStatusDraft, UseCaseStatusActive, UseCaseStatusDeprecated:
+		// 有効
+	default:
+		return fmt.Errorf("invalid usecase status: %s", u.Status)
+	}
+	// Actor 参照の検証
+	for _, ar := range u.Actors {
+		if ar.ActorID == "" {
+			return fmt.Errorf("actor_id is required in actor reference")
+		}
+		if ar.Role == "" {
+			ar.Role = ActorRolePrimary
+		}
+		switch ar.Role {
+		case ActorRolePrimary, ActorRoleSecondary:
+			// 有効
+		default:
+			return fmt.Errorf("invalid actor role: %s", ar.Role)
+		}
+	}
+	// Relation の検証
+	for _, rel := range u.Relations {
+		if rel.TargetID == "" {
+			return fmt.Errorf("target_id is required in relation")
+		}
+		if rel.Type == "" {
+			return fmt.Errorf("relation type is required")
+		}
+		switch rel.Type {
+		case RelationTypeInclude, RelationTypeExtend, RelationTypeGeneralize:
+			// 有効
+		default:
+			return fmt.Errorf("invalid relation type: %s", rel.Type)
+		}
+		// extend の場合は extension_point が推奨
+		// （必須ではない、condition も任意）
+	}
+	return nil
+}
+
+// GetID は Entity インターフェースを実装（UseCaseEntity）
+func (u *UseCaseEntity) GetID() string { return u.ID }
+
+// GetTitle は Entity インターフェースを実装（UseCaseEntity）
+func (u *UseCaseEntity) GetTitle() string { return u.Title }

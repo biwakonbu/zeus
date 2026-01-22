@@ -109,6 +109,11 @@ func New(projectPath string, opts ...Option) *Zeus {
 		// 10 概念モデルのハンドラー登録（Phase 3）
 		z.entityRegistry.Register(NewConstraintHandler(z.fileStore))
 		z.entityRegistry.Register(NewQualityHandler(z.fileStore, delHandler, z.idCounterManager))
+
+		// UML ユースケース図のハンドラー登録
+		actorHandler := NewActorHandler(z.fileStore)
+		z.entityRegistry.Register(actorHandler)
+		z.entityRegistry.Register(NewUseCaseHandler(z.fileStore, objHandler, actorHandler, z.idCounterManager))
 	}
 
 	return z

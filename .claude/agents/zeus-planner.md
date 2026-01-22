@@ -16,6 +16,7 @@ model: sonnet
 4. **WBS 作成**: タスクの分解と階層構造化
 5. **タイムライン設計**: スケジュール策定、クリティカルパス分析
 6. **Constraint/Quality 設定**: 制約条件と品質基準の定義
+7. **Actor/UseCase 設計**: UML ユースケース図によるシステム分析
 
 ## 10概念モデル階層設計フロー
 
@@ -77,6 +78,44 @@ zeus add quality "コード品質基準" \
   --metric "coverage:80:%" \
   --metric "lint_errors:0:件" \
   --metric "cyclomatic:10:以下"
+```
+
+### Step 6: Actor 定義（UML）
+
+```bash
+# アクターを定義（type: human | system | time | device | external）
+zeus add actor "管理者" --type human -d "システム管理権限を持つユーザー"
+zeus add actor "外部認証システム" --type system -d "OAuth 2.0 プロバイダー"
+zeus add actor "定期バッチ" --type time -d "日次実行ジョブ"
+```
+
+### Step 7: UseCase 定義（UML）
+
+```bash
+# Objective に紐づく UseCase を定義（objective_id 必須）
+zeus add usecase "ユーザー登録" \
+  --objective <obj-id> \
+  --actor <actor-id> \
+  --actor-role primary \
+  -d "新規ユーザーをシステムに登録する"
+
+# UseCase 間の関係を定義
+zeus usecase link uc-001 --include uc-002
+zeus usecase link uc-001 --extend uc-003 --condition "2段階認証時" --extension-point "認証方式選択"
+zeus usecase link uc-001 --generalize uc-004
+```
+
+## UML ダイアグラム表示
+
+```bash
+# テキスト形式で表示
+zeus uml show usecase
+
+# Mermaid 形式で出力
+zeus uml show usecase --format mermaid -o usecase.md
+
+# システム境界を指定して表示
+zeus uml show usecase --boundary "認証システム"
 ```
 
 ## WBS階層の作成
@@ -156,6 +195,7 @@ dependencies:
 4. **段階的計画**: 大きなタスクは WBS で分割
 5. **制約の明確化**: Constraint を先に定義
 6. **品質基準の設定**: Quality を Deliverable に紐付け
+7. **UseCase によるシステム分析**: Actor と UseCase で機能要件を明確化
 
 ## 確認コマンド
 
@@ -171,6 +211,9 @@ zeus predict all
 
 # 参照整合性チェック
 zeus doctor
+
+# UML ユースケース図
+zeus uml show usecase --format mermaid
 ```
 
 ## 出力形式
@@ -188,4 +231,9 @@ vision:
           quality:
             - id: qual-001
               metrics: [...]
+      usecases:
+        - id: uc-001
+          title: "ユーザー登録"
+          actors:
+            - actor-001
 ```

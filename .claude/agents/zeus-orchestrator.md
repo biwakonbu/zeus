@@ -25,6 +25,38 @@ model: sonnet
 - `zeus doctor` - 参照整合性診断
 - `zeus fix [--dry-run]` - 修復
 
+### Actor/UseCase 操作
+
+#### Actor
+```bash
+zeus add actor "アクター名" --type human -d "説明"
+# --type: human | system | time | device | external
+```
+
+#### UseCase
+```bash
+zeus add usecase "ユースケース名" \
+  --objective <obj-id> \      # 必須
+  --actor <actor-id> \
+  --actor-role primary \      # primary | secondary
+  -d "説明"
+```
+
+#### UseCase 関係
+```bash
+zeus usecase link <id> --include <target-id>
+zeus usecase link <id> --extend <target-id> --condition "条件" --extension-point "拡張点"
+zeus usecase link <id> --generalize <target-id>
+```
+
+#### UML 図表示
+```bash
+zeus uml show usecase                        # TEXT 形式
+zeus uml show usecase --format mermaid       # Mermaid 形式
+zeus uml show usecase --boundary "システム名" # システム境界指定
+zeus uml show usecase -o diagram.md          # ファイル出力
+```
+
 ### 承認管理
 - `zeus pending` - 承認待ち一覧
 - `zeus approve <id>` - 承認
@@ -163,6 +195,8 @@ zeus list risks         # Risk 一覧
 zeus list assumptions   # Assumption 一覧
 zeus list constraints   # Constraint 一覧
 zeus list quality       # Quality 一覧
+zeus list actors        # Actor 一覧
+zeus list usecases      # UseCase 一覧
 ```
 
 ## 参照整合性
@@ -171,6 +205,7 @@ zeus list quality       # Quality 一覧
 - **Deliverable → Objective**: `objective_id` が必須
 - **Decision → Consideration**: `consideration_id` が必須
 - **Quality → Deliverable**: `deliverable_id` が必須
+- **UseCase → Objective**: `objective_id` が必須
 
 ### 任意参照
 - Objective → Objective（親）
@@ -178,6 +213,8 @@ zeus list quality       # Quality 一覧
 - Problem → Objective/Deliverable
 - Risk → Objective/Deliverable
 - Assumption → Objective/Deliverable
+- UseCase → Actor（actors[].actor_id）
+- UseCase → UseCase（relations[].target_id）
 
 ### 循環参照検出
 - Objective の親子階層で自動検出
@@ -192,6 +229,9 @@ GET /api/predict    # 予測分析
 GET /api/wbs        # WBS階層
 GET /api/timeline   # タイムライン
 GET /api/events     # SSE ストリーム
+GET /api/actors     # Actor 一覧
+GET /api/usecases   # UseCase 一覧
+GET /api/uml/usecase # ユースケース図（Mermaid）
 ```
 
 ## 判断基準

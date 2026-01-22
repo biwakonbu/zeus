@@ -455,255 +455,70 @@ export interface WBSGraphData {
 }
 
 // =============================================================================
-// WBS Analysis API レスポンス
+// UML UseCase API レスポンス
 // =============================================================================
 
-// WBS 分析 API レスポンス
-export interface WBSAnalysisResponse {
-	coverage: CoverageAnalysisResult | null;
-	stale: StaleAnalysisResult | null;
-	summary: AnalysisSummary;
-}
+// アクタータイプ
+export type ActorType = 'human' | 'system' | 'time' | 'device' | 'external';
 
-// カバレッジ分析結果
-export interface CoverageAnalysisResult {
-	issues: CoverageIssue[];
-	coverage_score: number;
-	objectives_covered: number;
-	objectives_total: number;
-	deliverables_ok: number;
-	deliverables_err: number;
-}
-
-// カバレッジ問題
-export interface CoverageIssue {
-	type: CoverageIssueType;
-	entity_id: string;
-	entity_title: string;
-	entity_type: string;
-	severity: IssueSeverity;
-	message: string;
-}
-
-export type CoverageIssueType = 'no_deliverables' | 'no_tasks' | 'unlinked_tasks' | 'orphaned';
-export type IssueSeverity = 'warning' | 'error';
-
-// 陳腐化分析結果
-export interface StaleAnalysisResult {
-	stale_entities: StaleEntity[];
-	total_stale: number;
-	archive_count: number;
-	review_count: number;
-	delete_count: number;
-}
-
-// 陳腐化エンティティ
-export interface StaleEntity {
-	type: StaleType;
-	entity_id: string;
-	entity_title: string;
-	entity_type: string;
-	recommendation: StaleRecommendation;
-	message: string;
-	days_stale: number;
-}
-
-export type StaleType = 'completed_old' | 'orphaned' | 'blocked_long' | 'no_progress';
-export type StaleRecommendation = 'archive' | 'review' | 'delete';
-
-// 分析サマリー
-export interface AnalysisSummary {
-	total_objectives: number;
-	covered_objectives: number;
-	orphaned_count: number;
-	stale_count: number;
-	overall_health: HealthStatus;
-	health_score: number;
-}
-
-// =============================================================================
-// ボトルネック分析 API レスポンス
-// =============================================================================
-
-// ボトルネック API レスポンス
-export interface BottleneckResponse {
-	bottlenecks: BottleneckItem[];
-	summary: BottleneckSummary;
-}
-
-// ボトルネック種別
-export type BottleneckType =
-	| 'block_chain'      // ブロックチェーン（連鎖的にブロック）
-	| 'overdue'          // 期限超過
-	| 'long_stagnation'  // 長期停滞
-	| 'isolated_entity'  // 孤立エンティティ
-	| 'high_risk';       // 高リスク未対応
-
-// ボトルネック深刻度
-export type BottleneckSeverity = 'critical' | 'high' | 'medium' | 'warning';
-
-// ボトルネック項目
-export interface BottleneckItem {
-	type: BottleneckType;
-	severity: BottleneckSeverity;
-	entities: string[];     // 関連エンティティ ID リスト
-	message: string;        // 日本語メッセージ
-	impact: string;         // 影響説明
-	suggestion: string;     // 解決策の提案
-}
-
-// ボトルネックサマリー
-export interface BottleneckSummary {
-	critical: number;
-	high: number;
-	medium: number;
-	warning: number;
-}
-
-// =============================================================================
-// WBS Aggregated API レスポンス（4視点用）
-// =============================================================================
-
-// WBS 集約 API レスポンス
-export interface WBSAggregatedResponse {
-	progress: ProgressAggregation | null;
-	issues: IssueAggregation | null;
-	coverage: CoverageAggregation | null;
-	resources: ResourceAggregation | null;
-}
-
-// 進捗集約データ（ツリーマップ用）
-export interface ProgressAggregation {
-	vision: ProgressNode | null;
-	objectives: ProgressNode[];
-	total_progress: number;
-}
-
-// 進捗ツリーのノード
-export interface ProgressNode {
+// アクター
+export interface ActorItem {
 	id: string;
 	title: string;
-	node_type: string;
-	progress: number;
-	status: string;
-	children_count: number;
-	children?: ProgressNode[];
+	type: ActorType;
+	description?: string;
 }
 
-// 問題集中データ（バブルチャート用）
-export interface IssueAggregation {
-	items: IssueBubble[];
-	total_issues: number;
-	max_severity: string;
+// アクター一覧 API レスポンス
+export interface ActorsResponse {
+	actors: ActorItem[];
+	total: number;
 }
 
-// バブルチャート用のデータ
-export interface IssueBubble {
+// アクターロール
+export type ActorRole = 'primary' | 'secondary';
+
+// ユースケース - アクター参照
+export interface UseCaseActorRef {
+	actor_id: string;
+	role: ActorRole;
+}
+
+// リレーションタイプ
+export type RelationType = 'include' | 'extend' | 'generalize';
+
+// ユースケースリレーション
+export interface UseCaseRelation {
+	type: RelationType;
+	target_id: string;
+	condition?: string;
+	extension_point?: string;
+}
+
+// ユースケースステータス
+export type UseCaseStatus = 'draft' | 'active' | 'deprecated';
+
+// ユースケース
+export interface UseCaseItem {
 	id: string;
 	title: string;
-	node_type: string;
-	problem_count: number;
-	risk_count: number;
-	total_issues: number;
-	max_severity: string;
-	risk_score: number;
-	progress: number;
+	description?: string;
+	status: UseCaseStatus;
+	objective_id?: string;
+	actors: UseCaseActorRef[];
+	relations: UseCaseRelation[];
 }
 
-// カバレッジデータ（サンバースト用）
-export interface CoverageAggregation {
-	root: CoverageNode | null;
-	coverage_score: number;
-	orphaned_tasks: string[];
-	missing_links: string[];
+// ユースケース一覧 API レスポンス
+export interface UseCasesResponse {
+	usecases: UseCaseItem[];
+	total: number;
 }
 
-// サンバースト用のノード
-export interface CoverageNode {
-	id: string;
-	title: string;
-	node_type: string;
-	has_issue: boolean;
-	issue_type?: string;
-	value: number;
-	children?: CoverageNode[];
-}
-
-// リソース配分データ（ヒートマップ用）
-export interface ResourceAggregation {
-	assignees: string[];
-	objectives: string[];
-	matrix: ResourceCell[][];
-}
-
-// ヒートマップのセル
-export interface ResourceCell {
-	task_count: number;
-	progress: number;
-	blocked_count: number;
-}
-
-// =============================================================================
-// Phase 7: Affinity Canvas API レスポンス
-// =============================================================================
-
-// Affinity API レスポンス
-export interface AffinityResponse {
-	nodes: AffinityNode[];
-	edges: AffinityEdge[];
-	clusters: AffinityCluster[];
-	weights: AffinityWeights;
-	stats: AffinityStats;
-}
-
-// Affinity ノード
-export interface AffinityNode {
-	id: string;
-	title: string;
-	type: AffinityNodeType;
-	wbs_code: string;
-	progress: number;
-	status: string;
-}
-
-export type AffinityNodeType = 'vision' | 'objective' | 'deliverable' | 'task';
-
-// Affinity エッジ（関連）
-export interface AffinityEdge {
-	source: string;
-	target: string;
-	score: number;
-	types: AffinityEdgeType[];
-	reason: string;
-}
-
-export type AffinityEdgeType =
-	| 'parent-child'   // 親子関係
-	| 'sibling'        // 兄弟関係
-	| 'wbs-adjacent'   // WBS 隣接
-	| 'reference'      // 参照関係
-	| 'category';      // カテゴリ類似
-
-// Affinity クラスタ
-export interface AffinityCluster {
-	id: string;
-	name: string;
-	members: string[];
-}
-
-// Affinity 重み
-export interface AffinityWeights {
-	parent_child: number;
-	sibling: number;
-	wbs_adjacent: number;
-	reference: number;
-	category: number;
-}
-
-// Affinity 統計
-export interface AffinityStats {
-	total_nodes: number;
-	total_edges: number;
-	cluster_count: number;
-	avg_connections: number;
+// ユースケース図 API レスポンス
+export interface UseCaseDiagramResponse {
+	actors: ActorItem[];
+	usecases: UseCaseItem[];
+	boundary: string;
+	mermaid: string;
 }

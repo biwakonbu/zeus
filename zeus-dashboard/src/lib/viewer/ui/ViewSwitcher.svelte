@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { Icon } from '$lib/components/ui';
+
 	// ビュータイプの定義
-	export type ViewType = 'graph' | 'wbs';
+	export type ViewType = 'graph' | 'usecase';
 
 	interface Props {
 		currentView: ViewType;
@@ -10,18 +12,19 @@
 
 	let { currentView, onViewChange, disabledViews = [] }: Props = $props();
 
-	const views: { type: ViewType; label: string; icon: string; description: string }[] = [
+	// Lucide Icon 名を使用
+	const views: { type: ViewType; label: string; iconName: string; description: string }[] = [
 		{
 			type: 'graph',
 			label: 'Graph',
-			icon: '⬡',
+			iconName: 'Network',
 			description: '依存関係グラフ'
 		},
 		{
-			type: 'wbs',
-			label: 'WBS',
-			icon: '▤',
-			description: '階層構造'
+			type: 'usecase',
+			label: 'UseCase',
+			iconName: 'Users',
+			description: 'UML ユースケース図'
 		}
 	];
 
@@ -44,7 +47,9 @@
 			title={view.description}
 			disabled={isDisabled}
 		>
-			<span class="view-icon">{view.icon}</span>
+			<span class="view-icon">
+				<Icon name={view.iconName} size={14} />
+			</span>
 			<span class="view-label">{view.label}</span>
 		</button>
 	{/each}
@@ -91,7 +96,9 @@
 	}
 
 	.view-icon {
-		font-size: 14px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.view-label {

@@ -22,7 +22,7 @@ dev:
 
 # ダッシュボード関連
 dashboard-deps:
-	cd $(DASHBOARD_DIR) && npm install
+	cd $(DASHBOARD_DIR) && npm install --legacy-peer-deps
 
 dashboard-dev:
 	cd $(DASHBOARD_DIR) && npm run dev

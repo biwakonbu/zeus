@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { FactorioViewer, WBSViewer, ViewSwitcher, type ViewType } from '$lib/viewer';
+	import { FactorioViewer, ViewSwitcher, type ViewType } from '$lib/viewer';
+	import { UseCaseView } from '$lib/viewer/usecase';
 	import { refreshAllData } from '$lib/stores';
 	import { setConnected, setDisconnected, setConnecting } from '$lib/stores/connection';
 	import { connectSSE, disconnectSSE } from '$lib/api/sse';
@@ -19,9 +20,6 @@
 
 	// 選択中のタスク
 	let selectedTaskId: string | null = $state(null);
-
-	// WBS で選択されたノード（WBSViewer 内で EntityDetailPanel が処理するため参照のみ）
-	// Note: selectedTaskId のみ同期
 
 	onMount(() => {
 		// SSE 失敗時のフォールバックハンドラー
@@ -112,13 +110,6 @@
 		// 必要に応じてツールチップ表示などを追加
 	}
 
-	// WBS ノード選択ハンドラ（WBSViewer の onNodeSelect に合わせた型）
-	function handleWBSNodeSelect(nodeId: string, _nodeType: string) {
-		// WBS詳細パネルは WBSViewer 内の EntityDetailPanel で表示されるため、
-		// ここでは selectedTaskId のみ同期
-		selectedTaskId = nodeId;
-	}
-
 	// ビュー切り替えハンドラ
 	function handleViewChange(view: ViewType) {
 		currentView = view;
@@ -145,8 +136,8 @@
 			onTaskSelect={handleTaskSelect}
 			onTaskHover={handleTaskHover}
 		/>
-	{:else if currentView === 'wbs'}
-		<WBSViewer onNodeSelect={handleWBSNodeSelect} />
+	{:else if currentView === 'usecase'}
+		<UseCaseView />
 	{/if}
 </div>
 
@@ -191,7 +182,7 @@
 	{/if}
 {/if}
 
-<!-- WBS View のノード詳細パネルは WBSViewer 内の EntityDetailPanel で表示 -->
+<!-- UseCase View は内部で詳細パネルを管理 -->
 
 <style>
 	/* ビュー切り替えヘッダー */
@@ -312,45 +303,6 @@
 
 	.priority-low {
 		color: var(--priority-low);
-	}
-
-	/* WBS コード */
-	.wbs-code {
-		font-family: 'JetBrains Mono', 'Fira Code', monospace;
-		background: var(--bg-secondary);
-		padding: 2px 8px;
-		border-radius: var(--border-radius-sm);
-		color: var(--accent-primary);
-	}
-
-	/* プログレスバー詳細 */
-	.progress-detail {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-sm);
-		flex: 1;
-	}
-
-	.progress-bar-detail {
-		flex: 1;
-		height: 8px;
-		background: var(--bg-secondary);
-		border-radius: 4px;
-		overflow: hidden;
-	}
-
-	.progress-fill {
-		height: 100%;
-		background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
-		transition: width 0.3s;
-	}
-
-	.progress-value {
-		font-size: var(--font-size-sm);
-		color: var(--accent-primary);
-		font-weight: 600;
-		min-width: 40px;
-		text-align: right;
 	}
 
 	@media (max-width: 1024px) {

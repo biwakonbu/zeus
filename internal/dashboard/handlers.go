@@ -2032,3 +2032,346 @@ func (s *Server) loadAffinityDataParallel(ctx context.Context) (
 	wg.Wait()
 	return
 }
+
+// =============================================================================
+// UML UseCase API
+// =============================================================================
+
+// ActorItem はアクター API のアイテム
+type ActorItem struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Type        string `json:"type"`
+	Description string `json:"description,omitempty"`
+}
+
+// ActorsResponse はアクター一覧 API のレスポンス
+type ActorsResponse struct {
+	Actors []ActorItem `json:"actors"`
+	Total  int         `json:"total"`
+}
+
+// UseCaseActorRefItem はユースケースアクター参照 API のアイテム
+type UseCaseActorRefItem struct {
+	ActorID string `json:"actor_id"`
+	Role    string `json:"role"`
+}
+
+// UseCaseRelationItem はユースケースリレーション API のアイテム
+type UseCaseRelationItem struct {
+	Type           string `json:"type"`
+	TargetID       string `json:"target_id"`
+	Condition      string `json:"condition,omitempty"`
+	ExtensionPoint string `json:"extension_point,omitempty"`
+}
+
+// UseCaseItem はユースケース API のアイテム
+type UseCaseItem struct {
+	ID          string                `json:"id"`
+	Title       string                `json:"title"`
+	Description string                `json:"description,omitempty"`
+	Status      string                `json:"status"`
+	ObjectiveID string                `json:"objective_id,omitempty"`
+	Actors      []UseCaseActorRefItem `json:"actors"`
+	Relations   []UseCaseRelationItem `json:"relations"`
+}
+
+// UseCasesResponse はユースケース一覧 API のレスポンス
+type UseCasesResponse struct {
+	UseCases []UseCaseItem `json:"usecases"`
+	Total    int           `json:"total"`
+}
+
+// UseCaseDiagramResponse はユースケース図 API のレスポンス
+type UseCaseDiagramResponse struct {
+	Actors   []ActorItem   `json:"actors"`
+	UseCases []UseCaseItem `json:"usecases"`
+	Boundary string        `json:"boundary"`
+	Mermaid  string        `json:"mermaid"`
+}
+
+// handleAPIActors はアクター一覧 API を処理
+func (s *Server) handleAPIActors(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "GET メソッドのみ許可されています")
+		return
+	}
+
+	ctx := r.Context()
+	fileStore := s.zeus.FileStore()
+
+	var actorsFile core.ActorsFile
+	if err := fileStore.ReadYaml(ctx, "actors.yaml", &actorsFile); err != nil {
+		actorsFile = core.ActorsFile{Actors: []core.ActorEntity{}}
+	}
+
+	actors := make([]ActorItem, len(actorsFile.Actors))
+	for i, a := range actorsFile.Actors {
+		actors[i] = ActorItem{
+			ID:          a.ID,
+			Title:       a.Title,
+			Type:        string(a.Type),
+			Description: a.Description,
+		}
+	}
+
+	response := ActorsResponse{
+		Actors: actors,
+		Total:  len(actors),
+	}
+
+	writeJSON(w, http.StatusOK, response)
+}
+
+// handleAPIUseCases はユースケース一覧 API を処理
+func (s *Server) handleAPIUseCases(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "GET メソッドのみ許可されています")
+		return
+	}
+
+	ctx := r.Context()
+	fileStore := s.zeus.FileStore()
+
+	// usecases ディレクトリからファイル一覧を取得
+	files, err := fileStore.ListDir(ctx, "usecases")
+	if err != nil {
+		// ディレクトリが存在しない場合は空リストを返す
+		response := UseCasesResponse{
+			UseCases: []UseCaseItem{},
+			Total:    0,
+		}
+		writeJSON(w, http.StatusOK, response)
+		return
+	}
+
+	usecases := make([]UseCaseItem, 0)
+	for _, file := range files {
+		if !hasYamlSuffix(file) {
+			continue
+		}
+		var uc core.UseCaseEntity
+		if err := fileStore.ReadYaml(ctx, "usecases/"+file, &uc); err != nil {
+			continue
+		}
+
+		// アクター参照の変換
+		actors := make([]UseCaseActorRefItem, len(uc.Actors))
+		for j, ar := range uc.Actors {
+			actors[j] = UseCaseActorRefItem{
+				ActorID: ar.ActorID,
+				Role:    string(ar.Role),
+			}
+		}
+
+		// リレーションの変換
+		relations := make([]UseCaseRelationItem, len(uc.Relations))
+		for j, rel := range uc.Relations {
+			relations[j] = UseCaseRelationItem{
+				Type:           string(rel.Type),
+				TargetID:       rel.TargetID,
+				Condition:      rel.Condition,
+				ExtensionPoint: rel.ExtensionPoint,
+			}
+		}
+
+		usecases = append(usecases, UseCaseItem{
+			ID:          uc.ID,
+			Title:       uc.Title,
+			Description: uc.Description,
+			Status:      string(uc.Status),
+			ObjectiveID: uc.ObjectiveID,
+			Actors:      actors,
+			Relations:   relations,
+		})
+	}
+
+	response := UseCasesResponse{
+		UseCases: usecases,
+		Total:    len(usecases),
+	}
+
+	writeJSON(w, http.StatusOK, response)
+}
+
+// handleAPIUseCaseDiagram はユースケース図 API を処理
+func (s *Server) handleAPIUseCaseDiagram(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "GET メソッドのみ許可されています")
+		return
+	}
+
+	ctx := r.Context()
+	fileStore := s.zeus.FileStore()
+
+	// クエリパラメータからシステム境界名を取得
+	boundary := r.URL.Query().Get("boundary")
+	if boundary == "" {
+		boundary = "System"
+	}
+
+	// アクターを取得
+	var actorsFile core.ActorsFile
+	if err := fileStore.ReadYaml(ctx, "actors.yaml", &actorsFile); err != nil {
+		actorsFile = core.ActorsFile{Actors: []core.ActorEntity{}}
+	}
+
+	actors := make([]ActorItem, len(actorsFile.Actors))
+	for i, a := range actorsFile.Actors {
+		actors[i] = ActorItem{
+			ID:          a.ID,
+			Title:       a.Title,
+			Type:        string(a.Type),
+			Description: a.Description,
+		}
+	}
+
+	// ユースケースを取得
+	files, _ := fileStore.ListDir(ctx, "usecases")
+	usecases := make([]UseCaseItem, 0)
+	ucEntities := make([]core.UseCaseEntity, 0)
+
+	for _, file := range files {
+		if !hasYamlSuffix(file) {
+			continue
+		}
+		var uc core.UseCaseEntity
+		if err := fileStore.ReadYaml(ctx, "usecases/"+file, &uc); err != nil {
+			continue
+		}
+
+		ucEntities = append(ucEntities, uc)
+
+		// アクター参照の変換
+		ucActors := make([]UseCaseActorRefItem, len(uc.Actors))
+		for j, ar := range uc.Actors {
+			ucActors[j] = UseCaseActorRefItem{
+				ActorID: ar.ActorID,
+				Role:    string(ar.Role),
+			}
+		}
+
+		// リレーションの変換
+		relations := make([]UseCaseRelationItem, len(uc.Relations))
+		for j, rel := range uc.Relations {
+			relations[j] = UseCaseRelationItem{
+				Type:           string(rel.Type),
+				TargetID:       rel.TargetID,
+				Condition:      rel.Condition,
+				ExtensionPoint: rel.ExtensionPoint,
+			}
+		}
+
+		usecases = append(usecases, UseCaseItem{
+			ID:          uc.ID,
+			Title:       uc.Title,
+			Description: uc.Description,
+			Status:      string(uc.Status),
+			ObjectiveID: uc.ObjectiveID,
+			Actors:      ucActors,
+			Relations:   relations,
+		})
+	}
+
+	// Mermaid 形式でユースケース図を生成
+	mermaid := generateUseCaseMermaid(actorsFile.Actors, ucEntities, boundary)
+
+	response := UseCaseDiagramResponse{
+		Actors:   actors,
+		UseCases: usecases,
+		Boundary: boundary,
+		Mermaid:  mermaid,
+	}
+
+	writeJSON(w, http.StatusOK, response)
+}
+
+// generateUseCaseMermaid は Mermaid 形式でユースケース図を生成
+func generateUseCaseMermaid(actors []core.ActorEntity, usecases []core.UseCaseEntity, boundary string) string {
+	var sb strings.Builder
+
+	sb.WriteString("flowchart LR\n")
+
+	// アクター定義
+	sb.WriteString("    %% Actors\n")
+	for _, actor := range actors {
+		mermaidID := strings.ReplaceAll(actor.ID, "-", "_")
+		typeEmoji := actorTypeEmoji(actor.Type)
+		sb.WriteString("    " + mermaidID + "[" + typeEmoji + " " + escapeForMermaidDiagram(actor.Title) + "]\n")
+	}
+
+	// システム境界サブグラフ
+	sb.WriteString("\n    subgraph boundary[" + escapeForMermaidDiagram(boundary) + "]\n")
+
+	// ユースケース定義
+	sb.WriteString("        %% UseCases\n")
+	for _, uc := range usecases {
+		mermaidID := strings.ReplaceAll(uc.ID, "-", "_")
+		sb.WriteString("        " + mermaidID + "((" + escapeForMermaidDiagram(uc.Title) + "))\n")
+	}
+
+	sb.WriteString("    end\n")
+
+	// アクターとユースケースの関連
+	sb.WriteString("\n    %% Actor-UseCase Relations\n")
+	for _, uc := range usecases {
+		ucID := strings.ReplaceAll(uc.ID, "-", "_")
+		for _, actorRef := range uc.Actors {
+			actorID := strings.ReplaceAll(actorRef.ActorID, "-", "_")
+			if actorRef.Role == core.ActorRolePrimary {
+				sb.WriteString("    " + actorID + " ==> " + ucID + "\n")
+			} else {
+				sb.WriteString("    " + actorID + " --> " + ucID + "\n")
+			}
+		}
+	}
+
+	// ユースケース間のリレーション
+	sb.WriteString("\n    %% UseCase Relations\n")
+	for _, uc := range usecases {
+		ucID := strings.ReplaceAll(uc.ID, "-", "_")
+		for _, rel := range uc.Relations {
+			targetID := strings.ReplaceAll(rel.TargetID, "-", "_")
+			switch rel.Type {
+			case core.RelationTypeInclude:
+				sb.WriteString("    " + ucID + " -.->|include| " + targetID + "\n")
+			case core.RelationTypeExtend:
+				label := "extend"
+				if rel.Condition != "" {
+					label = "extend [" + rel.Condition + "]"
+				}
+				sb.WriteString("    " + targetID + " -.->|" + escapeForMermaidDiagram(label) + "| " + ucID + "\n")
+			case core.RelationTypeGeneralize:
+				sb.WriteString("    " + ucID + " -->|generalize| " + targetID + "\n")
+			}
+		}
+	}
+
+	return sb.String()
+}
+
+// actorTypeEmoji はアクタータイプの絵文字を返す
+func actorTypeEmoji(t core.ActorType) string {
+	switch t {
+	case core.ActorTypeHuman:
+		return "👤"
+	case core.ActorTypeSystem:
+		return "🖥️"
+	case core.ActorTypeTime:
+		return "⏰"
+	case core.ActorTypeDevice:
+		return "📱"
+	case core.ActorTypeExternal:
+		return "🌐"
+	default:
+		return "❓"
+	}
+}
+
+// escapeForMermaidDiagram は Mermaid 用にエスケープ
+func escapeForMermaidDiagram(s string) string {
+	s = strings.ReplaceAll(s, "\"", "'")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	return s
+}

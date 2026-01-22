@@ -1,6 +1,5 @@
 // Factorio風ビューワーのエクスポート
 export { default as FactorioViewer } from './FactorioViewer.svelte';
-export { default as WBSViewer } from './WBSViewer.svelte';
 export { ViewerEngine, type Viewport, type ViewerConfig } from './engine/ViewerEngine';
 export { LayoutEngine, type NodePosition, type LayoutResult } from './engine/LayoutEngine';
 export { SpatialIndex, type Rect, type SpatialItem } from './engine/SpatialIndex';

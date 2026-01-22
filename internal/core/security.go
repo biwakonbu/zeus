@@ -42,6 +42,9 @@ var idPatterns = map[string]*regexp.Regexp{
 	"quality":       regexp.MustCompile(`^qual-[0-9]{3}$`),
 	// 既存の Task エンティティ（UUID ベース）
 	"task": regexp.MustCompile(`^task-[a-f0-9]{8}$`),
+	// UML UseCase エンティティ（UUID ベース）
+	"actor":   regexp.MustCompile(`^actor-[a-f0-9]{8}$`),
+	"usecase": regexp.MustCompile(`^uc-[a-f0-9]{8}$`),
 }
 
 // entityDirectories はエンティティタイプとディレクトリのマッピング
@@ -57,6 +60,9 @@ var entityDirectories = map[string]string{
 	"constraint":    "",               // ルートに配置（constraints.yaml）
 	"quality":       "quality",
 	"task":          "tasks",          // 既存
+	// UML UseCase エンティティ
+	"actor":   "",          // ルートに配置（actors.yaml、単一ファイル）
+	"usecase": "usecases",  // usecases/uc-NNN.yaml
 }
 
 // ValidatePath はパストラバーサル攻撃を防ぐ
@@ -156,6 +162,8 @@ func GetEntityFilePath(baseDir, entityType, id string) (string, error) {
 			relativePath = "vision.yaml"
 		} else if entityType == "constraint" {
 			relativePath = "constraints.yaml"
+		} else if entityType == "actor" {
+			relativePath = "actors.yaml"
 		} else {
 			relativePath = id + ".yaml"
 		}

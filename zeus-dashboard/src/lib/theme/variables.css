@@ -93,4 +93,40 @@
 
 	/* サイドペイン */
 	--side-panel-width: 360px;
+
+	/* ======================================
+	   Factorio カラーパレット（議論結果）
+	   round: 20260121-174500_wbsdesign
+	   ====================================== */
+	--factorio-orange: #ff9533;
+	--factorio-green: #44cc44;
+	--factorio-yellow: #ffcc00;
+	--factorio-red: #ee4444;
+	--factorio-blue: #4488ff;
+	--factorio-bg-dark: #1a1a1a;
+	--factorio-bg-mid: #2d2d2d;
+	--factorio-border-mid: #4a4a4a;
+
+	/* ======================================
+	   シャドウ（議論結果）
+	   ====================================== */
+	--shadow-tooltip: 0 4px 20px rgba(0, 0, 0, 0.5);
+	--shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3);
+	--shadow-glow-strong: 0 0 15px rgba(255, 149, 51, 0.3);
+	--shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+
+	/* ======================================
+	   Tooltip サイズ（議論結果）
+	   ====================================== */
+	--tooltip-width: 320px;
+	--tooltip-height: 220px;
+	--tooltip-offset: 16px;
+
+	/* ======================================
+	   タイミング（議論結果）
+	   ====================================== */
+	--timing-tooltip-delay: 500ms;
+	--timing-transition-fast: 100ms;
+	--timing-transition-normal: 200ms;
+	--timing-transition-slow: 300ms;
 }

@@ -9,11 +9,11 @@
 		argTypes: {
 			currentView: {
 				control: 'select',
-				options: ['graph', 'wbs']
+				options: ['graph', 'usecase']
 			},
 			disabledViews: {
 				control: 'multi-select',
-				options: ['graph', 'wbs']
+				options: ['graph', 'usecase']
 			}
 		}
 	});
@@ -26,9 +26,9 @@
 	const handleViewChange = fn();
 
 	// 状態付きのラッパー
-	let currentView: 'graph' | 'wbs' = $state('graph');
+	let currentView: 'graph' | 'usecase' = $state('graph');
 
-	function createHandler(view: 'graph' | 'wbs') {
+	function createHandler(view: 'graph' | 'usecase') {
 		currentView = view;
 		handleViewChange(view);
 	}
@@ -39,14 +39,14 @@
 	<ViewSwitcher currentView="graph" onViewChange={handleViewChange} />
 </Story>
 
-<!-- WBS 選択中 -->
-<Story name="WBSSelected">
-	<ViewSwitcher currentView="wbs" onViewChange={handleViewChange} />
+<!-- UseCase 選択中 -->
+<Story name="UseCaseSelected">
+	<ViewSwitcher currentView="usecase" onViewChange={handleViewChange} />
 </Story>
 
-<!-- WBS 無効化 -->
-<Story name="WBSDisabled">
-	<ViewSwitcher currentView="graph" onViewChange={handleViewChange} disabledViews={['wbs']} />
+<!-- UseCase 無効化 -->
+<Story name="UseCaseDisabled">
+	<ViewSwitcher currentView="graph" onViewChange={handleViewChange} disabledViews={['usecase']} />
 </Story>
 
 <!-- インタラクティブ -->
@@ -64,6 +64,6 @@
 	<div
 		style="background: var(--bg-secondary); padding: 16px; border-radius: 8px; display: flex; justify-content: center;"
 	>
-		<ViewSwitcher currentView="wbs" onViewChange={handleViewChange} />
+		<ViewSwitcher currentView="usecase" onViewChange={handleViewChange} />
 	</div>
 </Story>

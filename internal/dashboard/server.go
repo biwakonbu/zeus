@@ -141,7 +141,13 @@ func (s *Server) handler() http.Handler {
 	mux.HandleFunc("/api/metrics", s.corsMiddleware(s.handleAPIMetrics))
 	mux.HandleFunc("/api/bottlenecks", s.corsMiddleware(s.handleAPIBottlenecks))
 	mux.HandleFunc("/api/affinity", s.corsMiddleware(s.handleAPIAffinity)) // Phase 7: Affinity Canvas
-	mux.HandleFunc("/api/events", s.handleSSE)                             // SSE エンドポイント
+
+	// UML UseCase API エンドポイント
+	mux.HandleFunc("/api/actors", s.corsMiddleware(s.handleAPIActors))
+	mux.HandleFunc("/api/usecases", s.corsMiddleware(s.handleAPIUseCases))
+	mux.HandleFunc("/api/uml/usecase", s.corsMiddleware(s.handleAPIUseCaseDiagram))
+
+	mux.HandleFunc("/api/events", s.handleSSE) // SSE エンドポイント
 
 	// 静的ファイルを提供（本番モード）
 	if !s.devMode {

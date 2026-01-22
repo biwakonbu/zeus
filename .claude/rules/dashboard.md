@@ -50,6 +50,9 @@ paths:
 - `GET /api/events` - SSE ストリーム（リアルタイム更新）
 - `GET /api/affinity` - 機能間類似度マトリクス（Phase 7 で追加予定）
 - `POST /api/metrics` - メトリクス保存（Graph View 計測ログ）
+- `GET /api/actors` - Actor 一覧
+- `GET /api/usecases` - UseCase 一覧
+- `GET /api/uml/usecase` - ユースケース図（Mermaid 形式）
 
 ## ダッシュボード機能
 
@@ -73,6 +76,7 @@ paths:
 - WBS View: 階層構造ツリー
 - Timeline View: ガントチャート風表示
 - Affinity Canvas: 機能間関連性可視化（Phase 7 で追加予定、設計書: `docs/design/affinity-canvas.md`）
+- UseCaseView: UML ユースケース図（Mermaid ベース）
 
 ## 影響範囲可視化
 
@@ -92,6 +96,27 @@ paths:
 - 画面右上の `DL` ボタンで `zeus-viewer-metrics-*.json` をダウンロード
 - 自動保存先: `.zeus/metrics/dashboard-metrics-<session>.jsonl`
 - 収集ログは `window.__VIEWER_METRICS__` にも格納され、ステータスバーに件数が表示される
+
+## UseCaseView
+
+UML ユースケース図を表示するビュー。
+
+**レイアウト**: 3 カラム構成
+- 左: Actor 一覧パネル
+- 中央: Mermaid ユースケース図
+- 右: 選択エンティティの詳細パネル
+
+**インタラクション**:
+| 操作 | 結果 |
+|------|------|
+| クリック（Actor/UseCase） | 詳細パネル表示 |
+| ホバー | 関連エンティティハイライト |
+| リフレッシュボタン | データ再取得 |
+
+**API 連携**:
+- `/api/actors` - Actor 一覧取得
+- `/api/usecases` - UseCase 一覧取得
+- `/api/uml/usecase` - Mermaid 図取得
 
 ## デザインガイドライン
 

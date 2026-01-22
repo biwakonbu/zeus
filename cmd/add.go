@@ -55,6 +55,14 @@ var (
 
 	// Quality 用
 	addMetrics []string
+
+	// Actor 用
+	addActorType string
+
+	// UseCase 用
+	addActorID     string
+	addActorRole   string
+	addUseCaseStatus string
 )
 
 var addCmd = &cobra.Command{
@@ -74,6 +82,8 @@ var addCmd = &cobra.Command{
   assumption    前提条件
   constraint    制約条件
   quality       品質基準
+  actor         UML アクター
+  usecase       UML ユースケース
 
 共通オプション:
   --description  説明
@@ -139,6 +149,15 @@ Quality 用オプション:
   --deliverable   紐づく Deliverable の ID（必須）
   --metric        メトリクス（name:target[:unit] 形式、複数回指定可）
 
+Actor 用オプション:
+  --type          アクタータイプ（human, system, time, device, external）
+
+UseCase 用オプション:
+  --objective     紐づく Objective の ID（必須）
+  --actor         紐づく Actor の ID
+  --actor-role    アクターのロール（primary, secondary）
+  --status        ステータス（draft, active, deprecated）
+
 例:
   zeus add task "設計ドキュメント作成"
   zeus add vision "AI駆動PM" --statement "AIと人間が協調するPM"
@@ -150,7 +169,9 @@ Quality 用オプション:
   zeus add risk "外部API依存" --probability medium --impact high
   zeus add assumption "ユーザー数1000人以下" --objective obj-001
   zeus add constraint "外部DB不使用" --category technical --non-negotiable
-  zeus add quality "コードカバレッジ" --deliverable del-001 --metric "coverage:80:%" --metric "performance:100:ms"`,
+  zeus add quality "コードカバレッジ" --deliverable del-001 --metric "coverage:80:%" --metric "performance:100:ms"
+  zeus add actor "管理者" --type human
+  zeus add usecase "ログイン" --objective obj-001 --actor actor-001 --actor-role primary`,
 	Args: cobra.ExactArgs(2),
 	RunE: runAdd,
 }
@@ -203,6 +224,14 @@ func init() {
 
 	// Quality 用フラグ
 	addCmd.Flags().StringArrayVar(&addMetrics, "metric", nil, "メトリクス（name:target[:unit] 形式、複数回指定可）")
+
+	// Actor 用フラグ
+	addCmd.Flags().StringVar(&addActorType, "type", "", "アクタータイプ（human, system, time, device, external）")
+
+	// UseCase 用フラグ
+	addCmd.Flags().StringVar(&addActorID, "actor", "", "紐づく Actor の ID")
+	addCmd.Flags().StringVar(&addActorRole, "actor-role", "", "アクターのロール（primary, secondary）")
+	addCmd.Flags().StringVar(&addUseCaseStatus, "status", "", "ステータス（draft, active, deprecated）")
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
@@ -272,6 +301,10 @@ func buildAddOptions(entity string) []core.EntityOption {
 		opts = buildConstraintOptions()
 	case "quality":
 		opts = buildQualityOptions()
+	case "actor":
+		opts = buildActorOptions()
+	case "usecase":
+		opts = buildUseCaseOptions()
 	}
 
 	return opts
@@ -607,6 +640,87 @@ func buildQualityOptions() []core.EntityOption {
 
 	if addOwner != "" {
 		opts = append(opts, core.WithQualityReviewer(addOwner))
+	}
+
+	return opts
+}
+
+// buildActorOptions は Actor 用オプションを構築
+func buildActorOptions() []core.EntityOption {
+	var opts []core.EntityOption
+
+	if addActorType != "" {
+		var actorType core.ActorType
+		switch addActorType {
+		case "human":
+			actorType = core.ActorTypeHuman
+		case "system":
+			actorType = core.ActorTypeSystem
+		case "time":
+			actorType = core.ActorTypeTime
+		case "device":
+			actorType = core.ActorTypeDevice
+		case "external":
+			actorType = core.ActorTypeExternal
+		default:
+			actorType = core.ActorTypeHuman
+		}
+		opts = append(opts, core.WithActorType(actorType))
+	}
+	if addDescription != "" {
+		opts = append(opts, core.WithActorDescription(addDescription))
+	}
+	if addOwner != "" {
+		opts = append(opts, core.WithActorOwner(addOwner))
+	}
+	if len(addTags) > 0 {
+		opts = append(opts, core.WithActorTags(addTags))
+	}
+
+	return opts
+}
+
+// buildUseCaseOptions は UseCase 用オプションを構築
+func buildUseCaseOptions() []core.EntityOption {
+	var opts []core.EntityOption
+
+	if addObjectiveID != "" {
+		opts = append(opts, core.WithUseCaseObjective(addObjectiveID))
+	}
+	if addDescription != "" {
+		opts = append(opts, core.WithUseCaseDescription(addDescription))
+	}
+	if addActorID != "" {
+		var role core.ActorRole
+		switch addActorRole {
+		case "primary":
+			role = core.ActorRolePrimary
+		case "secondary":
+			role = core.ActorRoleSecondary
+		default:
+			role = core.ActorRolePrimary
+		}
+		opts = append(opts, core.WithUseCaseActor(addActorID, role))
+	}
+	if addUseCaseStatus != "" {
+		var status core.UseCaseStatus
+		switch addUseCaseStatus {
+		case "draft":
+			status = core.UseCaseStatusDraft
+		case "active":
+			status = core.UseCaseStatusActive
+		case "deprecated":
+			status = core.UseCaseStatusDeprecated
+		default:
+			status = core.UseCaseStatusDraft
+		}
+		opts = append(opts, core.WithUseCaseStatus(status))
+	}
+	if addOwner != "" {
+		opts = append(opts, core.WithUseCaseOwner(addOwner))
+	}
+	if len(addTags) > 0 {
+		opts = append(opts, core.WithUseCaseTags(addTags))
 	}
 
 	return opts
