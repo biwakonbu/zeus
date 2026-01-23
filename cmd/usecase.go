@@ -17,10 +17,30 @@ var (
 	linkExtensionPoint string
 )
 
+// usecase add-actor コマンドのフラグ
+var (
+	usecaseAddActorRole string
+)
+
 var usecaseCmd = &cobra.Command{
 	Use:   "usecase",
 	Short: "ユースケース操作",
 	Long:  `ユースケースに関する操作を行います。`,
+}
+
+var addActorCmd = &cobra.Command{
+	Use:   "add-actor <usecase-id> <actor-id>",
+	Short: "ユースケースにアクターを関連付け",
+	Long: `ユースケースにアクターを関連付けます。
+
+オプション:
+  --role    アクターの役割（primary: 主要アクター, secondary: 副次アクター）
+
+例:
+  zeus usecase add-actor uc-001 actor-001
+  zeus usecase add-actor uc-001 actor-002 --role secondary`,
+	Args: cobra.ExactArgs(2),
+	RunE: runAddActor,
 }
 
 var linkCmd = &cobra.Command{
@@ -48,6 +68,7 @@ extend オプション:
 func init() {
 	rootCmd.AddCommand(usecaseCmd)
 	usecaseCmd.AddCommand(linkCmd)
+	usecaseCmd.AddCommand(addActorCmd)
 
 	// link コマンドのフラグ
 	linkCmd.Flags().StringVar(&linkInclude, "include", "", "include 先 UseCase ID")
@@ -55,6 +76,45 @@ func init() {
 	linkCmd.Flags().StringVar(&linkGeneralize, "generalize", "", "generalize 先 UseCase ID")
 	linkCmd.Flags().StringVar(&linkCondition, "condition", "", "extend の条件")
 	linkCmd.Flags().StringVar(&linkExtensionPoint, "extension-point", "", "extend の拡張点")
+
+	// add-actor コマンドのフラグ
+	addActorCmd.Flags().StringVar(&usecaseAddActorRole, "role", "primary", "アクターの役割 (primary|secondary)")
+}
+
+func runAddActor(cmd *cobra.Command, args []string) error {
+	ctx := getContext(cmd)
+	usecaseID := args[0]
+	actorID := args[1]
+
+	zeus := getZeus(cmd)
+
+	// Registry から UseCaseHandler を取得
+	handler, ok := zeus.GetRegistry().Get("usecase")
+	if !ok {
+		return fmt.Errorf("usecase ハンドラーが見つかりません")
+	}
+	usecaseHandler, ok := handler.(*core.UseCaseHandler)
+	if !ok {
+		return fmt.Errorf("usecaseHandler への型アサーションに失敗しました")
+	}
+
+	// アクター参照を作成
+	actorRef := core.UseCaseActorRef{
+		ActorID: actorID,
+		Role:    core.ActorRole(usecaseAddActorRole),
+	}
+
+	// アクターを追加
+	if err := usecaseHandler.AddActor(ctx, usecaseID, actorRef); err != nil {
+		return err
+	}
+
+	// 出力
+	green := color.New(color.FgGreen).SprintFunc()
+	fmt.Printf("%s Added actor %s to usecase %s (role: %s)\n",
+		green("✓"), actorID, usecaseID, usecaseAddActorRole)
+
+	return nil
 }
 
 func runLink(cmd *cobra.Command, args []string) error {

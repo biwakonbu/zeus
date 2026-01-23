@@ -4,6 +4,7 @@ export * from './status';
 export * from './tasks';
 export * from './graph';
 export * from './prediction';
+export * from './view';
 
 // 全データを一括更新
 import { refreshStatus } from './status';

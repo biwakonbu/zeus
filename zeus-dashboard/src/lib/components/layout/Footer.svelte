@@ -1,5 +1,4 @@
 <script lang="ts">
-	// 現在時刻を表示（1秒ごとに更新）
 	import { onMount } from 'svelte';
 
 	let currentTime = $state('');
@@ -23,15 +22,11 @@
 
 <footer class="footer">
 	<div class="footer-content">
-		<div class="footer-left">
-			<span class="footer-text">Zeus Project Management System</span>
-			<span class="footer-separator">|</span>
-			<span class="footer-text text-muted">v0.1.0</span>
-		</div>
-
-		<div class="footer-right">
-			<span class="footer-time">{currentTime}</span>
-		</div>
+		<span class="footer-text">Zeus</span>
+		<span class="footer-separator">|</span>
+		<span class="footer-text text-muted">v0.1.0</span>
+		<span class="footer-separator">|</span>
+		<span class="footer-time">{currentTime}</span>
 	</div>
 </footer>
 
@@ -46,14 +41,7 @@
 	.footer-content {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		max-width: 1600px;
-		margin: 0 auto;
-	}
-
-	.footer-left {
-		display: flex;
-		align-items: center;
+		justify-content: center;
 		gap: var(--spacing-sm);
 	}
 
@@ -66,16 +54,11 @@
 
 	.footer-separator {
 		color: var(--border-metal);
-	}
-
-	.footer-right {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-md);
+		font-size: var(--font-size-xs);
 	}
 
 	.footer-time {
-		font-size: var(--font-size-sm);
+		font-size: var(--font-size-xs);
 		color: var(--accent-primary);
 		font-variant-numeric: tabular-nums;
 	}

@@ -110,6 +110,12 @@ export class UseCaseEngine {
 	private selectedActorId: string | null = null;
 	private selectedUseCaseId: string | null = null;
 
+	// フィルタモード（デフォルトで非表示、選択時に関連要素のみ表示）
+	private filterModeEnabled = false;
+
+	// データ（フィルタリング計算用に保持）
+	private currentData: UseCaseDiagramResponse | null = null;
+
 	constructor(config: Partial<UseCaseEngineConfig> = {}) {
 		this.config = { ...getDefaultConfig(), ...config };
 	}
@@ -305,6 +311,7 @@ export class UseCaseEngine {
 	 */
 	setData(data: UseCaseDiagramResponse): void {
 		this.clearAll();
+		this.currentData = data;
 
 		if (!data.actors.length && !data.usecases.length) return;
 
@@ -326,6 +333,11 @@ export class UseCaseEngine {
 
 		// 関係線を作成
 		this.createEdges(data.usecases);
+
+		// フィルタモード有効時は非表示にする
+		if (this.filterModeEnabled) {
+			this.hideAll();
+		}
 
 		// ビューを中央に配置
 		this.centerView();
@@ -552,6 +564,11 @@ export class UseCaseEngine {
 		this.selectedActorId = actorId;
 		const node = this.actorNodes.get(actorId);
 		node?.setSelected(true);
+
+		// フィルタモード有効時は関連要素のみ表示
+		if (this.filterModeEnabled) {
+			this.showRelatedTo(actorId, null);
+		}
 	}
 
 	/**
@@ -573,6 +590,11 @@ export class UseCaseEngine {
 		this.selectedUseCaseId = usecaseId;
 		const node = this.usecaseNodes.get(usecaseId);
 		node?.setSelected(true);
+
+		// フィルタモード有効時は関連要素のみ表示
+		if (this.filterModeEnabled) {
+			this.showRelatedTo(null, usecaseId);
+		}
 	}
 
 	/**
@@ -588,6 +610,11 @@ export class UseCaseEngine {
 			const node = this.usecaseNodes.get(this.selectedUseCaseId);
 			node?.setSelected(false);
 			this.selectedUseCaseId = null;
+		}
+
+		// フィルタモード有効時は非表示に戻す
+		if (this.filterModeEnabled) {
+			this.hideAll();
 		}
 	}
 
@@ -713,6 +740,9 @@ export class UseCaseEngine {
 		// 選択状態をクリア
 		this.selectedActorId = null;
 		this.selectedUseCaseId = null;
+
+		// データをクリア（フィルタモードで使用）
+		// Note: setData で新しいデータが設定されるので、ここではクリアしない
 	}
 
 	/**
@@ -782,6 +812,173 @@ export class UseCaseEngine {
 
 	onViewportChanged(callback: (viewport: Viewport) => void): void {
 		this.onViewportChange = callback;
+	}
+
+	/**
+	 * フィルタモードを設定
+	 * @param enabled true: デフォルト非表示、選択時に関連要素のみ表示
+	 */
+	setFilterMode(enabled: boolean): void {
+		this.filterModeEnabled = enabled;
+		if (enabled) {
+			// 選択がなければすべて非表示
+			if (!this.selectedActorId && !this.selectedUseCaseId) {
+				this.hideAll();
+			}
+		} else {
+			// フィルタモード無効時はすべて表示
+			this.showAll();
+		}
+	}
+
+	/**
+	 * フィルタモードが有効かどうかを取得
+	 */
+	isFilterModeEnabled(): boolean {
+		return this.filterModeEnabled;
+	}
+
+	/**
+	 * すべての要素を非表示
+	 */
+	hideAll(): void {
+		// アクターノード
+		for (const node of this.actorNodes.values()) {
+			node.visible = false;
+		}
+
+		// ユースケースノード
+		for (const node of this.usecaseNodes.values()) {
+			node.visible = false;
+		}
+
+		// エッジ
+		for (const edge of this.actorUsecaseEdges.values()) {
+			edge.visible = false;
+		}
+		for (const edge of this.relationEdges.values()) {
+			edge.visible = false;
+		}
+
+		// システム境界も非表示
+		if (this.systemBoundary) {
+			this.systemBoundary.visible = false;
+		}
+	}
+
+	/**
+	 * すべての要素を表示
+	 */
+	showAll(): void {
+		// アクターノード
+		for (const node of this.actorNodes.values()) {
+			node.visible = true;
+		}
+
+		// ユースケースノード
+		for (const node of this.usecaseNodes.values()) {
+			node.visible = true;
+		}
+
+		// エッジ
+		for (const edge of this.actorUsecaseEdges.values()) {
+			edge.visible = true;
+		}
+		for (const edge of this.relationEdges.values()) {
+			edge.visible = true;
+		}
+
+		// システム境界
+		if (this.systemBoundary) {
+			this.systemBoundary.visible = true;
+		}
+	}
+
+	/**
+	 * 選択されたエンティティに関連する要素のみを表示
+	 * @param actorId 選択されたアクターID（null ならアクター選択なし）
+	 * @param usecaseId 選択されたユースケースID（null ならユースケース選択なし）
+	 */
+	showRelatedTo(actorId: string | null, usecaseId: string | null): void {
+		if (!this.currentData) return;
+
+		// まずすべて非表示
+		this.hideAll();
+
+		if (!actorId && !usecaseId) {
+			// 選択なしの場合は非表示のまま
+			return;
+		}
+
+		// 表示するIDを収集
+		const visibleActorIds = new Set<string>();
+		const visibleUseCaseIds = new Set<string>();
+
+		if (actorId) {
+			// アクターが選択された場合
+			visibleActorIds.add(actorId);
+
+			// このアクターに関連するユースケースを探す
+			for (const usecase of this.currentData.usecases) {
+				const isRelated = usecase.actors.some(ref => ref.actor_id === actorId);
+				if (isRelated) {
+					visibleUseCaseIds.add(usecase.id);
+				}
+			}
+		}
+
+		if (usecaseId) {
+			// ユースケースが選択された場合
+			visibleUseCaseIds.add(usecaseId);
+
+			const usecase = this.currentData.usecases.find(u => u.id === usecaseId);
+			if (usecase) {
+				// 関連するアクターを追加
+				for (const actorRef of usecase.actors) {
+					visibleActorIds.add(actorRef.actor_id);
+				}
+
+				// 関連するユースケースを追加（include, extend, generalize）
+				for (const relation of usecase.relations) {
+					visibleUseCaseIds.add(relation.target_id);
+				}
+
+				// このユースケースを参照している他のユースケースも追加
+				for (const otherUsecase of this.currentData.usecases) {
+					const referencesThis = otherUsecase.relations.some(r => r.target_id === usecaseId);
+					if (referencesThis) {
+						visibleUseCaseIds.add(otherUsecase.id);
+					}
+				}
+			}
+		}
+
+		// 表示を適用
+		for (const [id, node] of this.actorNodes) {
+			node.visible = visibleActorIds.has(id);
+		}
+
+		for (const [id, node] of this.usecaseNodes) {
+			node.visible = visibleUseCaseIds.has(id);
+		}
+
+		// エッジ: 両端が表示されている場合のみ表示
+		for (const edge of this.actorUsecaseEdges.values()) {
+			const actorVisible = visibleActorIds.has(edge.getActorId());
+			const usecaseVisible = visibleUseCaseIds.has(edge.getUseCaseId());
+			edge.visible = actorVisible && usecaseVisible;
+		}
+
+		for (const edge of this.relationEdges.values()) {
+			const fromVisible = visibleUseCaseIds.has(edge.getFromId());
+			const toVisible = visibleUseCaseIds.has(edge.getToId());
+			edge.visible = fromVisible && toVisible;
+		}
+
+		// システム境界: 表示される UseCase が1つでもあれば表示
+		if (this.systemBoundary) {
+			this.systemBoundary.visible = visibleUseCaseIds.size > 0;
+		}
 	}
 
 	/**

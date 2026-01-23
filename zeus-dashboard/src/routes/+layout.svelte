@@ -90,13 +90,15 @@
 	.app-container {
 		display: flex;
 		flex-direction: column;
-		min-height: 100vh;
+		height: 100vh;
+		overflow: hidden;
 	}
 
 	.main-content {
 		flex: 1;
 		padding: 0;
 		width: 100%;
+		min-height: 0;
 		overflow: hidden;
 	}
 </style>

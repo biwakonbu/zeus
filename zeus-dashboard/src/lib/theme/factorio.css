@@ -422,3 +422,146 @@ h3 {
 		min-width: 44px;
 	}
 }
+
+/* ======================================
+   フローティングパネル（UseCase UI 改善）
+   ====================================== */
+.floating-panel {
+	position: relative;
+	background: linear-gradient(
+		135deg,
+		rgba(45, 45, 45, 0.98) 0%,
+		rgba(36, 36, 36, 0.95) 100%
+	);
+	border: 2px solid var(--border-metal);
+	border-radius: var(--border-radius-md);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.03),
+		0 4px 20px rgba(0, 0, 0, 0.4);
+	backdrop-filter: blur(8px);
+}
+
+.floating-panel::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 8px;
+	right: 8px;
+	height: 1px;
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		var(--border-highlight) 50%,
+		transparent 100%
+	);
+	pointer-events: none;
+}
+
+/* ======================================
+   スライドインパネル
+   ====================================== */
+.slide-panel {
+	position: fixed;
+	right: 0;
+	top: 0;
+	height: 100%;
+	width: 320px;
+	background: linear-gradient(
+		180deg,
+		rgba(45, 45, 45, 0.98) 0%,
+		rgba(36, 36, 36, 0.95) 100%
+	);
+	border-left: 2px solid var(--border-metal);
+	box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+	transform: translateX(100%);
+	transition: transform 200ms ease-out;
+	z-index: 100;
+	overflow-y: auto;
+}
+
+.slide-panel.visible {
+	transform: translateX(0);
+}
+
+.slide-panel::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	width: 1px;
+	background: linear-gradient(
+		180deg,
+		var(--border-highlight) 0%,
+		transparent 30%,
+		transparent 70%,
+		var(--border-highlight) 100%
+	);
+	pointer-events: none;
+}
+
+/* ======================================
+   選択時グロー効果
+   ====================================== */
+.glow-on-select {
+	transition:
+		box-shadow var(--transition-select) ease-out,
+		background-color var(--transition-select) ease-out;
+}
+
+.glow-on-select.selected {
+	box-shadow: 0 0 12px rgba(255, 149, 51, 0.5);
+}
+
+.glow-on-hover:hover {
+	box-shadow: 0 0 8px rgba(255, 149, 51, 0.3);
+	border-color: var(--border-highlight);
+}
+
+/* ======================================
+   ステータスバー
+   ====================================== */
+.status-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.375rem 1rem;
+	background: linear-gradient(
+		180deg,
+		var(--bg-secondary) 0%,
+		var(--bg-primary) 100%
+	);
+	border-top: 1px solid var(--border-metal);
+	font-size: var(--font-size-xs);
+	color: var(--text-muted);
+}
+
+.status-bar-item {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.status-bar-separator {
+	width: 1px;
+	height: 12px;
+	background: var(--border-metal);
+}
+
+/* ======================================
+   インナーシャドウ（凹み感）
+   ====================================== */
+.inset-shadow {
+	box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* ======================================
+   金属質感ボーダー（強化版）
+   ====================================== */
+.metal-border-strong {
+	border: 2px solid var(--border-metal);
+	border-top-color: rgba(100, 100, 100, 0.6);
+	border-left-color: rgba(100, 100, 100, 0.5);
+	border-bottom-color: rgba(30, 30, 30, 0.8);
+	border-right-color: rgba(30, 30, 30, 0.7);
+}

@@ -1,8 +1,8 @@
 <script lang="ts">
-	// UseCase View Panel
+	// UseCase View Panel（オーバーレイ用シンプル版）
 	// 選択された Actor または UseCase の詳細を表示
 	import type { ActorItem, UseCaseItem } from '$lib/types/api';
-	import { Icon, Panel } from '$lib/components/ui';
+	import { Icon } from '$lib/components/ui';
 
 	interface Props {
 		actor?: ActorItem | null;
@@ -29,241 +29,205 @@
 
 	// Role のラベル
 	const roleLabels: Record<string, string> = {
-		primary: '主アクター',
-		secondary: '副アクター'
+		primary: '主',
+		secondary: '副'
 	};
 
 	// Relation タイプのラベル
 	const relationLabels: Record<string, string> = {
-		include: '<<include>>',
-		extend: '<<extend>>',
-		generalize: '<<generalize>>'
+		include: 'include',
+		extend: 'extend',
+		generalize: 'generalize'
 	};
 
 	// Actor タイプのアイコン
 	function getActorIcon(type: string): string {
-		switch (type) {
-			case 'human':
-				return 'User';
-			case 'system':
-				return 'Server';
-			case 'time':
-				return 'Clock';
-			case 'device':
-				return 'Smartphone';
-			case 'external':
-				return 'Globe';
-			default:
-				return 'HelpCircle';
-		}
+		const icons: Record<string, string> = {
+			human: 'User',
+			system: 'Server',
+			time: 'Clock',
+			device: 'Smartphone',
+			external: 'Globe'
+		};
+		return icons[type] ?? 'HelpCircle';
 	}
 
 	// ステータスカラー
 	function getStatusColor(status: string): string {
-		switch (status) {
-			case 'active':
-				return 'var(--status-good)';
-			case 'draft':
-				return 'var(--status-fair)';
-			case 'deprecated':
-				return 'var(--text-muted)';
-			default:
-				return 'var(--text-secondary)';
-		}
+		const colors: Record<string, string> = {
+			active: 'var(--status-good)',
+			draft: 'var(--status-fair)',
+			deprecated: 'var(--text-muted)'
+		};
+		return colors[status] ?? 'var(--text-secondary)';
 	}
 </script>
 
-<div class="usecase-panel">
+<div class="detail-content">
 	{#if actor}
 		<!-- Actor 詳細 -->
-		<Panel title="アクター詳細">
-			<div class="panel-header">
-				<Icon name={getActorIcon(actor.type)} size={24} />
-				<div class="header-info">
-					<h3>{actor.title}</h3>
-					<span class="id">{actor.id}</span>
-				</div>
-				{#if onClose}
-					<button class="close-btn" onclick={onClose} aria-label="閉じる">
-						<Icon name="X" size={16} />
-					</button>
-				{/if}
+		<div class="entity-header">
+			<span class="entity-icon">
+				<Icon name={getActorIcon(actor.type)} size={20} />
+			</span>
+			<div class="entity-info">
+				<h3 class="entity-title">{actor.title}</h3>
+				<span class="entity-id">{actor.id}</span>
 			</div>
+		</div>
 
-			<dl class="detail-list">
-				<div class="detail-item">
-					<dt>タイプ</dt>
-					<dd>
-						<span class="badge badge-type">{actorTypeLabels[actor.type] ?? actor.type}</span>
-					</dd>
+		<dl class="detail-list">
+			<div class="detail-item">
+				<dt>タイプ</dt>
+				<dd>
+					<span class="badge">{actorTypeLabels[actor.type] ?? actor.type}</span>
+				</dd>
+			</div>
+			{#if actor.description}
+				<div class="detail-item full">
+					<dt>説明</dt>
+					<dd class="description">{actor.description}</dd>
 				</div>
-				{#if actor.description}
-					<div class="detail-item full">
-						<dt>説明</dt>
-						<dd class="description">{actor.description}</dd>
-					</div>
-				{/if}
-			</dl>
-		</Panel>
+			{/if}
+		</dl>
 	{:else if usecase}
 		<!-- UseCase 詳細 -->
-		<Panel title="ユースケース詳細">
-			<div class="panel-header">
-				<div
-					class="status-indicator"
-					style="background: {getStatusColor(usecase.status)}"
-				></div>
-				<div class="header-info">
-					<h3>{usecase.title}</h3>
-					<span class="id">{usecase.id}</span>
-				</div>
-				{#if onClose}
-					<button class="close-btn" onclick={onClose} aria-label="閉じる">
-						<Icon name="X" size={16} />
-					</button>
-				{/if}
+		<div class="entity-header">
+			<span class="status-dot" style="background: {getStatusColor(usecase.status)}"></span>
+			<div class="entity-info">
+				<h3 class="entity-title">{usecase.title}</h3>
+				<span class="entity-id">{usecase.id}</span>
+			</div>
+		</div>
+
+		<dl class="detail-list">
+			<div class="detail-item">
+				<dt>ステータス</dt>
+				<dd>
+					<span class="badge" style="background: {getStatusColor(usecase.status)}; color: #1a1a1a;">
+						{statusLabels[usecase.status] ?? usecase.status}
+					</span>
+				</dd>
 			</div>
 
-			<dl class="detail-list">
+			{#if usecase.objective_id}
 				<div class="detail-item">
-					<dt>ステータス</dt>
+					<dt>目標</dt>
+					<dd class="monospace">{usecase.objective_id}</dd>
+				</div>
+			{/if}
+
+			{#if usecase.description}
+				<div class="detail-item full">
+					<dt>説明</dt>
+					<dd class="description">{usecase.description}</dd>
+				</div>
+			{/if}
+
+			{#if usecase.actors && usecase.actors.length > 0}
+				<div class="detail-item full">
+					<dt>関連アクター</dt>
 					<dd>
-						<span
-							class="badge"
-							style="background: {getStatusColor(usecase.status)}"
-						>
-							{statusLabels[usecase.status] ?? usecase.status}
-						</span>
+						<ul class="relation-list">
+							{#each usecase.actors as actorRef}
+								<li class="relation-item">
+									<Icon name="User" size={12} />
+									<span class="relation-name">{actorRef.actor_id}</span>
+									<span class="role-badge">{roleLabels[actorRef.role] ?? actorRef.role}</span>
+								</li>
+							{/each}
+						</ul>
 					</dd>
 				</div>
+			{/if}
 
-				{#if usecase.objective_id}
-					<div class="detail-item">
-						<dt>目標</dt>
-						<dd class="monospace">{usecase.objective_id}</dd>
-					</div>
-				{/if}
-
-				{#if usecase.description}
-					<div class="detail-item full">
-						<dt>説明</dt>
-						<dd class="description">{usecase.description}</dd>
-					</div>
-				{/if}
-
-				{#if usecase.actors && usecase.actors.length > 0}
-					<div class="detail-item full">
-						<dt>関連アクター</dt>
-						<dd>
-							<ul class="relation-list">
-								{#each usecase.actors as actorRef}
-									<li class="relation-item">
-										<Icon name="User" size={14} />
-										<span>{actorRef.actor_id}</span>
-										<span class="role-badge">{roleLabels[actorRef.role] ?? actorRef.role}</span>
-									</li>
-								{/each}
-							</ul>
-						</dd>
-					</div>
-				{/if}
-
-				{#if usecase.relations && usecase.relations.length > 0}
-					<div class="detail-item full">
-						<dt>ユースケース関係</dt>
-						<dd>
-							<ul class="relation-list">
-								{#each usecase.relations as relation}
-									<li class="relation-item">
-										<span class="relation-type">{relationLabels[relation.type] ?? relation.type}</span>
-										<span class="target-id">{relation.target_id}</span>
-										{#if relation.condition}
-											<span class="condition">[{relation.condition}]</span>
-										{/if}
-									</li>
-								{/each}
-							</ul>
-						</dd>
-					</div>
-				{/if}
-			</dl>
-		</Panel>
+			{#if usecase.relations && usecase.relations.length > 0}
+				<div class="detail-item full">
+					<dt>関係</dt>
+					<dd>
+						<ul class="relation-list">
+							{#each usecase.relations as relation}
+								<li class="relation-item">
+									<span class="relation-type">{relationLabels[relation.type] ?? relation.type}</span>
+									<span class="relation-name">{relation.target_id}</span>
+									{#if relation.condition}
+										<span class="condition">[{relation.condition}]</span>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</dd>
+				</div>
+			{/if}
+		</dl>
 	{:else}
 		<!-- 未選択状態 -->
-		<Panel title="詳細">
-			<div class="empty-state">
-				<Icon name="Info" size={24} />
-				<p>アクターまたはユースケースを選択してください</p>
-			</div>
-		</Panel>
+		<div class="empty-state">
+			<Icon name="Info" size={20} />
+			<span>要素を選択してください</span>
+		</div>
 	{/if}
 </div>
 
 <style>
-	.usecase-panel {
-		height: 100%;
-		overflow-y: auto;
+	.detail-content {
+		font-size: 0.8125rem;
 	}
 
-	.panel-header {
+	.entity-header {
 		display: flex;
 		align-items: flex-start;
-		gap: 0.75rem;
-		margin-bottom: 1rem;
-		padding-bottom: 0.75rem;
-		border-bottom: 1px solid var(--border-primary);
+		gap: 10px;
+		margin-bottom: 12px;
+		padding-bottom: 10px;
+		border-bottom: 1px solid var(--border-metal);
 	}
 
-	.header-info {
-		flex: 1;
+	.entity-icon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--text-secondary);
 	}
 
-	.header-info h3 {
-		margin: 0 0 0.25rem 0;
-		font-size: 1rem;
-		font-weight: 600;
-		color: var(--text-primary);
-	}
-
-	.header-info .id {
-		font-size: 0.75rem;
-		color: var(--text-muted);
-		font-family: monospace;
-	}
-
-	.status-indicator {
-		width: 12px;
-		height: 12px;
+	.status-dot {
+		width: 10px;
+		height: 10px;
 		border-radius: 50%;
 		flex-shrink: 0;
-		margin-top: 4px;
+		margin-top: 5px;
+		box-shadow: 0 0 6px currentColor;
 	}
 
-	.close-btn {
-		background: transparent;
-		border: none;
-		color: var(--text-muted);
-		cursor: pointer;
-		padding: 0.25rem;
-		border-radius: 4px;
-		transition: background 0.15s ease;
+	.entity-info {
+		flex: 1;
+		min-width: 0;
 	}
 
-	.close-btn:hover {
-		background: var(--bg-tertiary);
+	.entity-title {
+		margin: 0 0 2px 0;
+		font-size: 0.875rem;
+		font-weight: 600;
 		color: var(--text-primary);
+		line-height: 1.3;
+	}
+
+	.entity-id {
+		font-size: 0.6875rem;
+		color: var(--text-muted);
+		font-family: monospace;
 	}
 
 	.detail-list {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: 0.75rem;
+		gap: 10px;
 	}
 
 	.detail-item {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: 3px;
 	}
 
 	.detail-item.full {
@@ -271,7 +235,7 @@
 	}
 
 	.detail-item dt {
-		font-size: 0.7rem;
+		font-size: 0.625rem;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 		color: var(--text-muted);
@@ -280,32 +244,29 @@
 
 	.detail-item dd {
 		margin: 0;
-		font-size: 0.875rem;
+		font-size: 0.8125rem;
 		color: var(--text-primary);
 	}
 
 	.badge {
 		display: inline-block;
-		padding: 0.125rem 0.5rem;
-		border-radius: 2px;
-		font-size: 0.75rem;
+		padding: 2px 6px;
+		border-radius: 3px;
+		font-size: 0.6875rem;
 		font-weight: 500;
-	}
-
-	.badge-type {
 		background: var(--bg-tertiary);
-		color: var(--text-primary);
 	}
 
 	.monospace {
 		font-family: monospace;
-		font-size: 0.8rem;
-		background: var(--bg-primary);
-		padding: 0.25rem 0.5rem;
-		border-radius: 2px;
+		font-size: 0.75rem;
+		background: rgba(0, 0, 0, 0.3);
+		padding: 2px 6px;
+		border-radius: 3px;
 	}
 
 	.description {
+		font-size: 0.75rem;
 		line-height: 1.5;
 		color: var(--text-secondary);
 	}
@@ -316,41 +277,44 @@
 		padding: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 4px;
 	}
 
 	.relation-item {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
-		padding: 0.5rem;
-		background: var(--bg-primary);
+		gap: 6px;
+		padding: 5px 8px;
+		background: rgba(0, 0, 0, 0.25);
+		border: 1px solid var(--border-metal);
 		border-radius: 4px;
-		font-size: 0.85rem;
+		font-size: 0.75rem;
+	}
+
+	.relation-name {
+		font-family: monospace;
+		font-size: 0.7rem;
 	}
 
 	.role-badge {
 		margin-left: auto;
-		font-size: 0.7rem;
-		color: var(--text-muted);
-		background: var(--bg-tertiary);
-		padding: 0.125rem 0.375rem;
+		font-size: 0.625rem;
+		color: var(--accent-primary);
+		background: rgba(255, 149, 51, 0.15);
+		padding: 1px 5px;
 		border-radius: 2px;
 	}
 
 	.relation-type {
-		font-family: monospace;
-		font-size: 0.75rem;
+		font-size: 0.625rem;
 		color: var(--accent-primary);
-	}
-
-	.target-id {
-		font-family: monospace;
-		font-size: 0.8rem;
+		padding: 1px 5px;
+		background: rgba(255, 149, 51, 0.15);
+		border-radius: 2px;
 	}
 
 	.condition {
-		font-size: 0.75rem;
+		font-size: 0.65rem;
 		color: var(--text-muted);
 		font-style: italic;
 	}
@@ -360,14 +324,13 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 0.75rem;
-		padding: 2rem;
+		gap: 8px;
+		padding: 24px;
 		color: var(--text-muted);
 		text-align: center;
 	}
 
-	.empty-state p {
-		margin: 0;
-		font-size: 0.875rem;
+	.empty-state span {
+		font-size: 0.75rem;
 	}
 </style>

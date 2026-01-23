@@ -11,6 +11,8 @@
 	import { FilterManager, type FilterCriteria } from './interaction/FilterManager';
 	import Minimap from './ui/Minimap.svelte';
 	import FilterPanel from './ui/FilterPanel.svelte';
+	import { OverlayPanel } from '$lib/components/ui';
+	import { updateGraphViewState, resetGraphViewState } from '$lib/stores/view';
 	import { Container, Graphics, FederatedPointerEvent } from 'pixi.js';
 
 	// Props
@@ -171,6 +173,10 @@
 	let showCriticalPath: boolean = $state(true);
 	let isLoadingTimeline: boolean = $state(false);
 	let timelineLoadError: string | null = $state(null);
+
+	// UI パネル表示状態（Header 連携用）
+	let showFilterPanel: boolean = $state(true);
+	let showLegend: boolean = $state(true);
 
 	// 影響範囲可視化（下流タスクのハイライト）
 	let highlightedDownstream: Set<string> = $state(new Set());
@@ -634,6 +640,9 @@
 			void flushMetrics('destroy', true);
 		}
 		stopMetricsAutoSave();
+
+		// Store をリセット
+		resetGraphViewState();
 	});
 
 	// タイムライン読み込みのデバウンス用タイマー
@@ -1650,57 +1659,100 @@
 	let visibleCount = $derived(
 		Array.from(nodeMap.values()).filter((n) => n.visible).length
 	);
+
+	// パネルトグル関数
+	function toggleFilterPanel(): void {
+		showFilterPanel = !showFilterPanel;
+	}
+
+	function toggleLegend(): void {
+		showLegend = !showLegend;
+	}
+
+	/**
+	 * Store へのコールバック登録（一度だけ実行）
+	 */
+	let callbacksRegistered = false;
+	function registerStoreCallbacks(): void {
+		if (callbacksRegistered) return;
+		updateGraphViewState({
+			onZoomIn: zoomIn,
+			onZoomOut: zoomOut,
+			onZoomReset: resetZoom,
+			onToggleCriticalPath: toggleCriticalPath,
+			onToggleFilterPanel: toggleFilterPanel,
+			onToggleLegend: toggleLegend,
+			onClearDependencyFilter: clearDependencyFilter
+		});
+		callbacksRegistered = true;
+	}
+
+	/**
+	 * Store へのデータ同期
+	 */
+	function syncStoreData(): void {
+		updateGraphViewState({
+			zoom: currentViewport.scale,
+			nodeCount: graphNodes.length,
+			visibleCount,
+			mode: isWBSMode ? 'wbs' : 'task',
+			showCriticalPath,
+			showFilterPanel,
+			showLegend,
+			hasDependencyFilter: dependencyFilterNodeId !== null,
+			dependencyFilterNodeId
+		});
+	}
+
+	// コールバック登録 Effect（engineReady 時に一度だけ）
+	$effect(() => {
+		if (engineReady) {
+			registerStoreCallbacks();
+		}
+	});
+
+	// Store へのデータ同期 Effect
+	$effect(() => {
+		// 依存関係を読み取り、変更時に再実行
+		if (
+			engineReady &&
+			(currentViewport.scale !== undefined ||
+				graphNodes.length !== undefined ||
+				visibleCount !== undefined ||
+				isWBSMode !== undefined ||
+				showCriticalPath !== undefined ||
+				showFilterPanel !== undefined ||
+				showLegend !== undefined ||
+				dependencyFilterNodeId !== undefined)
+		) {
+			syncStoreData();
+		}
+	});
 </script>
 
 <div class="factorio-viewer">
 	<!-- キャンバスコンテナ -->
 	<div class="canvas-container" bind:this={containerElement}></div>
 
-	<!-- ビューコントロール -->
-	<div class="view-controls">
-		<button class="control-btn" onclick={zoomIn} title="Zoom In">
-			<span class="icon">+</span>
-		</button>
-		<button class="control-btn" onclick={zoomOut} title="Zoom Out">
-			<span class="icon">-</span>
-		</button>
-		<button class="control-btn" onclick={resetZoom} title="Reset View">
-			<span class="icon">⊙</span>
-		</button>
-		<button
-			class="control-btn critical-path-toggle"
-			class:active={showCriticalPath}
-			onclick={toggleCriticalPath}
-			title={showCriticalPath ? 'Hide Critical Path' : 'Show Critical Path'}
+	<!-- フィルターパネル（オーバーレイ） -->
+	{#if showFilterPanel}
+		<OverlayPanel
+			title="FILTER"
+			position="top-right"
+			width="220px"
+			onClose={toggleFilterPanel}
 		>
-			<span class="icon">⚡</span>
-		</button>
-		{#if dependencyFilterNodeId}
-			<button
-				class="control-btn filter-reset-btn"
-				onclick={clearDependencyFilter}
-				title="Reset Dependency Filter"
-			>
-				<span class="icon">✕</span>
-			</button>
-		{/if}
-		{#if METRICS_ENABLED}
-			<button class="control-btn metrics-btn" onclick={downloadMetrics} title="Download metrics log">
-				<span class="icon">DL</span>
-			</button>
-		{/if}
-	</div>
-
-	<!-- フィルターパネル -->
-	<FilterPanel
-		criteria={filterCriteria}
-		{availableAssignees}
-		onStatusToggle={handleStatusToggle}
-		onPriorityToggle={handlePriorityToggle}
-		onAssigneeToggle={handleAssigneeToggle}
-		onSearchChange={handleSearchChange}
-		onClear={handleFilterClear}
-	/>
+			<FilterPanel
+				criteria={filterCriteria}
+				{availableAssignees}
+				onStatusToggle={handleStatusToggle}
+				onPriorityToggle={handlePriorityToggle}
+				onAssigneeToggle={handleAssigneeToggle}
+				onSearchChange={handleSearchChange}
+				onClear={handleFilterClear}
+			/>
+		</OverlayPanel>
+	{/if}
 
 	<!-- ミニマップ -->
 	<Minimap
@@ -1740,63 +1792,76 @@
 		{/if}
 	</div>
 
-	<!-- 凡例 -->
-	<div class="legend">
-		{#if isWBSMode}
-			<!-- WBS モード: ノードタイプ凡例 -->
-			<div class="legend-title">NODE TYPE</div>
-			<div class="legend-item">
-				<span class="legend-dot vision"></span>
-				<span>Vision</span>
+	<!-- 凡例（オーバーレイ） -->
+	{#if showLegend}
+		<OverlayPanel
+			title="LEGEND"
+			position="top-left"
+			width="160px"
+			onClose={toggleLegend}
+		>
+			<div class="legend-content">
+				{#if isWBSMode}
+					<!-- WBS モード: ノードタイプ凡例 -->
+					<div class="legend-section">
+						<div class="legend-section-title">NODE TYPE</div>
+						<div class="legend-item">
+							<span class="legend-dot vision"></span>
+							<span>Vision</span>
+						</div>
+						<div class="legend-item">
+							<span class="legend-dot objective"></span>
+							<span>Objective</span>
+						</div>
+						<div class="legend-item">
+							<span class="legend-dot deliverable"></span>
+							<span>Deliverable</span>
+						</div>
+						<div class="legend-item">
+							<span class="legend-dot task"></span>
+							<span>Task</span>
+						</div>
+					</div>
+				{/if}
+				<div class="legend-section">
+					<div class="legend-section-title">STATUS</div>
+					<div class="legend-item">
+						<span class="legend-dot completed"></span>
+						<span>Completed</span>
+					</div>
+					<div class="legend-item">
+						<span class="legend-dot in-progress"></span>
+						<span>In Progress</span>
+					</div>
+					<div class="legend-item">
+						<span class="legend-dot pending"></span>
+						<span>Pending</span>
+					</div>
+					<div class="legend-item">
+						<span class="legend-dot blocked"></span>
+						<span>Blocked</span>
+					</div>
+				</div>
+				{#if showCriticalPath && criticalPathIds.size > 0}
+					<div class="legend-section">
+						<div class="legend-section-title">CRITICAL PATH</div>
+						<div class="legend-item">
+							<span class="legend-line critical"></span>
+							<span>Critical</span>
+						</div>
+						<div class="legend-item">
+							<span class="legend-badge slack-zero">CRIT</span>
+							<span>No Slack</span>
+						</div>
+						<div class="legend-item">
+							<span class="legend-badge slack-positive">+3d</span>
+							<span>Slack Days</span>
+						</div>
+					</div>
+				{/if}
 			</div>
-			<div class="legend-item">
-				<span class="legend-dot objective"></span>
-				<span>Objective</span>
-			</div>
-			<div class="legend-item">
-				<span class="legend-dot deliverable"></span>
-				<span>Deliverable</span>
-			</div>
-			<div class="legend-item">
-				<span class="legend-dot task"></span>
-				<span>Task</span>
-			</div>
-			<div class="legend-divider"></div>
-		{/if}
-		<div class="legend-title">STATUS</div>
-		<div class="legend-item">
-			<span class="legend-dot completed"></span>
-			<span>Completed</span>
-		</div>
-		<div class="legend-item">
-			<span class="legend-dot in-progress"></span>
-			<span>In Progress</span>
-		</div>
-		<div class="legend-item">
-			<span class="legend-dot pending"></span>
-			<span>Pending</span>
-		</div>
-		<div class="legend-item">
-			<span class="legend-dot blocked"></span>
-			<span>Blocked</span>
-		</div>
-		{#if showCriticalPath && criticalPathIds.size > 0}
-			<div class="legend-divider"></div>
-			<div class="legend-title">CRITICAL PATH</div>
-			<div class="legend-item">
-				<span class="legend-line critical"></span>
-				<span>Critical</span>
-			</div>
-			<div class="legend-item">
-				<span class="legend-badge slack-zero">CRIT</span>
-				<span>No Slack</span>
-			</div>
-			<div class="legend-item">
-				<span class="legend-badge slack-positive">+3d</span>
-				<span>Slack Days</span>
-			</div>
-		{/if}
-	</div>
+		</OverlayPanel>
+	{/if}
 
 	<!-- 操作ヒント -->
 	<div class="hints">
@@ -1824,40 +1889,6 @@
 
 	.canvas-container :global(canvas) {
 		display: block;
-	}
-
-	/* ビューコントロール */
-	.view-controls {
-		position: absolute;
-		top: var(--spacing-md);
-		right: var(--spacing-md);
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-xs);
-	}
-
-	.control-btn {
-		width: 36px;
-		height: 36px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background-color: var(--bg-panel);
-		border: 2px solid var(--border-metal);
-		border-radius: var(--border-radius-sm);
-		color: var(--text-primary);
-		font-size: 18px;
-		cursor: pointer;
-		transition: all var(--transition-fast);
-	}
-
-	.control-btn:hover {
-		background-color: var(--bg-hover);
-		border-color: var(--accent-primary);
-	}
-
-	.control-btn .icon {
-		line-height: 1;
 	}
 
 	/* ステータスバー */
@@ -1905,24 +1936,27 @@
 		border: 1px solid rgba(255, 215, 0, 0.4);
 	}
 
-	/* 凡例 */
-	.legend {
-		position: absolute;
-		top: var(--spacing-md);
-		left: var(--spacing-md);
+	/* 凡例（オーバーレイパネル内） */
+	.legend-content {
 		padding: var(--spacing-sm);
-		background-color: rgba(45, 45, 45, 0.9);
-		border: 1px solid var(--border-metal);
-		border-radius: var(--border-radius-sm);
 		font-size: var(--font-size-xs);
 	}
 
-	.legend-title {
+	.legend-section {
+		margin-bottom: var(--spacing-sm);
+	}
+
+	.legend-section:last-child {
+		margin-bottom: 0;
+	}
+
+	.legend-section-title {
 		color: var(--accent-primary);
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.1em;
 		margin-bottom: var(--spacing-xs);
+		font-size: 0.65rem;
 	}
 
 	.legend-item {
@@ -1972,12 +2006,6 @@
 		background-color: #888888;  /* グレー - タスク */
 	}
 
-	.legend-divider {
-		height: 1px;
-		background-color: var(--border-dark);
-		margin: var(--spacing-xs) 0;
-	}
-
 	.legend-line {
 		width: 16px;
 		height: 3px;
@@ -2005,27 +2033,6 @@
 		color: var(--text-primary);
 	}
 
-	/* クリティカルパストグル */
-	.critical-path-toggle.active {
-		background-color: var(--accent-primary);
-		border-color: var(--accent-primary);
-		color: var(--bg-primary);
-	}
-
-	.critical-path-toggle.active:hover {
-		background-color: var(--accent-secondary);
-	}
-
-	/* フィルターリセットボタン */
-	.filter-reset-btn {
-		background-color: rgba(238, 68, 68, 0.3);
-		border-color: #ee4444;
-	}
-
-	.filter-reset-btn:hover {
-		background-color: rgba(238, 68, 68, 0.5);
-	}
-
 	/* インラインリセットボタン */
 	.inline-reset-btn {
 		background: none;
@@ -2047,12 +2054,6 @@
 		background-color: rgba(255, 149, 51, 0.2);
 		padding: 2px 8px;
 		border-radius: 4px;
-	}
-
-	.metrics-btn {
-		font-size: 11px;
-		font-weight: 600;
-		letter-spacing: 0.02em;
 	}
 
 	.metrics-info {

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { FactorioViewer, ViewSwitcher, type ViewType } from '$lib/viewer';
+	import { FactorioViewer } from '$lib/viewer';
 	import { UseCaseView } from '$lib/viewer/usecase';
-	import { refreshAllData } from '$lib/stores';
+	import { refreshAllData, currentView } from '$lib/stores';
 	import { setConnected, setDisconnected, setConnecting } from '$lib/stores/connection';
 	import { connectSSE, disconnectSSE } from '$lib/api/sse';
 	import { fetchWBSAsGraphData } from '$lib/api/client';
@@ -11,9 +11,6 @@
 
 	let useSSE = $state(true);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
-
-	// 現在のビュー
-	let currentView: ViewType = $state('graph');
 
 	// WBS グラフデータ（Graph View 用）
 	let wbsGraphData: WBSGraphData | undefined = $state(undefined);
@@ -109,26 +106,11 @@
 	function handleTaskHover(_taskId: string | null) {
 		// 必要に応じてツールチップ表示などを追加
 	}
-
-	// ビュー切り替えハンドラ
-	function handleViewChange(view: ViewType) {
-		currentView = view;
-		// ビュー切り替え時に選択をクリア
-		selectedTaskId = null;
-	}
 </script>
-
-<!-- ビュー切り替えヘッダー -->
-<div class="view-header">
-	<ViewSwitcher
-		{currentView}
-		onViewChange={handleViewChange}
-	/>
-</div>
 
 <!-- ビューワーコンテナ -->
 <div class="viewer-container">
-	{#if currentView === 'graph'}
+	{#if $currentView === 'graph'}
 		<FactorioViewer
 			tasks={$tasks}
 			graphData={wbsGraphData}
@@ -136,13 +118,13 @@
 			onTaskSelect={handleTaskSelect}
 			onTaskHover={handleTaskHover}
 		/>
-	{:else if currentView === 'usecase'}
+	{:else if $currentView === 'usecase'}
 		<UseCaseView />
 	{/if}
 </div>
 
 <!-- 選択タスク詳細パネル（Graph View） -->
-{#if currentView === 'graph' && selectedTaskId}
+{#if $currentView === 'graph' && selectedTaskId}
 	{@const selectedTask = $tasks.find(t => t.id === selectedTaskId)}
 	{#if selectedTask}
 		<div class="task-detail-panel">
@@ -185,19 +167,9 @@
 <!-- UseCase View は内部で詳細パネルを管理 -->
 
 <style>
-	/* ビュー切り替えヘッダー */
-	.view-header {
-		display: flex;
-		justify-content: center;
-		padding: var(--spacing-xs) var(--spacing-md);
-		background-color: var(--bg-secondary);
-		border-bottom: 1px solid var(--border-dark);
-	}
-
 	/* ビューワーコンテナ - 画面最大化 */
 	.viewer-container {
-		height: calc(100vh - 85px);
-		min-height: 400px;
+		height: 100%;
 	}
 
 	/* タスク詳細パネル */
@@ -303,11 +275,5 @@
 
 	.priority-low {
 		color: var(--priority-low);
-	}
-
-	@media (max-width: 1024px) {
-		.viewer-container {
-			height: calc(100vh - 160px);
-		}
 	}
 </style>

@@ -1,6 +1,7 @@
 // UseCase Viewer コンポーネント
 export { default as UseCaseView } from './UseCaseView.svelte';
 export { default as UseCaseViewPanel } from './UseCaseViewPanel.svelte';
+export { default as UseCaseListPanel } from './UseCaseListPanel.svelte';
 
 // PixiJS エンジン
 export { UseCaseEngine } from './engine/UseCaseEngine';

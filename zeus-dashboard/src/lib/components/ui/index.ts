@@ -9,6 +9,7 @@ export { default as ToastContainer } from './ToastContainer.svelte';
 export { default as ContextMenu } from './ContextMenu.svelte';
 export { default as KeyboardHelp } from './KeyboardHelp.svelte';
 export { default as RichTooltip } from './RichTooltip.svelte';
+export { default as OverlayPanel } from './OverlayPanel.svelte';
 
 // RichTooltip 型もエクスポート
 export type { TooltipEntity } from './RichTooltip.svelte';

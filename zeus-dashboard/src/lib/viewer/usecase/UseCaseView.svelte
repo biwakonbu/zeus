@@ -1,15 +1,14 @@
 <script lang="ts">
 	// UseCase View - PixiJS 版
-	// UML ユースケース図を PixiJS で表示するビュー
+	// ミニマルデザイン: キャンバスが主役、パネルはオーバーレイで必要時のみ表示
 	import { onMount, onDestroy } from 'svelte';
-	import type {
-		UseCaseDiagramResponse,
-		ActorItem,
-		UseCaseItem
-	} from '$lib/types/api';
+	import type { UseCaseDiagramResponse, ActorItem, UseCaseItem } from '$lib/types/api';
 	import { fetchUseCaseDiagram } from '$lib/api/client';
-	import { Icon, EmptyState, Panel } from '$lib/components/ui';
+	import { Icon, EmptyState, OverlayPanel } from '$lib/components/ui';
 	import { UseCaseEngine } from './engine/UseCaseEngine';
+	import UseCaseListPanel from './UseCaseListPanel.svelte';
+	import UseCaseViewPanel from './UseCaseViewPanel.svelte';
+	import { updateUseCaseViewState, resetUseCaseViewState } from '$lib/stores/view';
 
 	type Props = {
 		boundary?: string;
@@ -23,16 +22,35 @@
 	let loading = $state(true);
 	let error: string | null = $state(null);
 
+	// パネル表示状態
+	// リストパネルはデフォルト表示（フィルタモードでアクター/ユースケースを選択するため）
+	let showListPanel = $state(true);
+	let showDetailPanel = $state(false);
+
 	// 選択状態
 	let selectedActorId: string | null = $state(null);
 	let selectedUseCaseId: string | null = $state(null);
+
+	// 選択されたエンティティ
+	const selectedActor = $derived.by((): ActorItem | null => {
+		if (!selectedActorId || !data) return null;
+		return data.actors.find((a: ActorItem) => a.id === selectedActorId) ?? null;
+	});
+
+	const selectedUseCase = $derived.by((): UseCaseItem | null => {
+		if (!selectedUseCaseId || !data) return null;
+		return data.usecases.find((u: UseCaseItem) => u.id === selectedUseCaseId) ?? null;
+	});
+
+	// 何か選択されているか
+	const hasSelection = $derived(selectedActor !== null || selectedUseCase !== null);
 
 	// ホバー状態（Tooltip用）
 	let hoveredActor: ActorItem | null = $state(null);
 	let hoveredUseCase: UseCaseItem | null = $state(null);
 	let hoverPosition = $state({ x: 0, y: 0 });
 
-	// Tooltip 位置（ビューポートオーバーフロー防止）
+	// Tooltip 位置
 	const TOOLTIP_WIDTH = 280;
 	const TOOLTIP_HEIGHT = 150;
 	const TOOLTIP_OFFSET = 16;
@@ -40,26 +58,20 @@
 	const tooltipStyle = $derived(() => {
 		const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
 		const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 1080;
-
-		// 右端・下端に近い場合は反対側に表示
 		const flipX = hoverPosition.x + TOOLTIP_WIDTH + TOOLTIP_OFFSET > viewportWidth;
 		const flipY = hoverPosition.y + TOOLTIP_HEIGHT + TOOLTIP_OFFSET > viewportHeight;
-
 		const left = flipX
 			? hoverPosition.x - TOOLTIP_WIDTH - TOOLTIP_OFFSET
 			: hoverPosition.x + TOOLTIP_OFFSET;
 		const top = flipY
 			? hoverPosition.y - TOOLTIP_HEIGHT - TOOLTIP_OFFSET
 			: hoverPosition.y + TOOLTIP_OFFSET;
-
 		return `left: ${Math.max(8, left)}px; top: ${Math.max(8, top)}px;`;
 	});
 
 	// PixiJS エンジン
 	let engine: UseCaseEngine | null = null;
 	let canvasContainer: HTMLDivElement | null = $state(null);
-
-	// ズーム状態
 	let currentZoom = $state(1.0);
 
 	// データ取得
@@ -75,151 +87,197 @@
 		}
 	}
 
-	// エンジン初期化
-	async function initEngine() {
-		if (!canvasContainer || engine) return;
+	// エンジン初期化状態
+	let engineInitializing = false;
+	let engineInitialized = false;
 
-		engine = new UseCaseEngine();
-		await engine.init(canvasContainer);
+	// エンジン初期化（一度だけ実行）
+	async function initEngine(): Promise<void> {
+		if (!canvasContainer || engineInitializing || engineInitialized) return;
+		engineInitializing = true;
 
-		// イベントリスナー設定
-		engine.onActorClicked((actor) => {
-			selectedActorId = actor.id;
-			selectedUseCaseId = null;
-			onActorSelect?.(actor);
-		});
+		try {
+			engine = new UseCaseEngine();
+			await engine.init(canvasContainer);
 
-		engine.onActorHovered((actor, event) => {
-			hoveredActor = actor;
-			hoveredUseCase = null;
-			if (event) {
-				hoverPosition = { x: event.clientX, y: event.clientY };
+			// デフォルトでフィルタモードを有効化（選択するまで非表示）
+			engine.setFilterMode(true);
+
+			engine.onActorClicked((actor) => {
+				selectedActorId = actor.id;
+				selectedUseCaseId = null;
+				showDetailPanel = true;
+				onActorSelect?.(actor);
+			});
+
+			engine.onActorHovered((actor, event) => {
+				hoveredActor = actor;
+				hoveredUseCase = null;
+				if (event) hoverPosition = { x: event.clientX, y: event.clientY };
+			});
+
+			engine.onUseCaseClicked((usecase) => {
+				selectedUseCaseId = usecase.id;
+				selectedActorId = null;
+				showDetailPanel = true;
+				onUseCaseSelect?.(usecase);
+			});
+
+			engine.onUseCaseHovered((usecase, event) => {
+				hoveredUseCase = usecase;
+				hoveredActor = null;
+				if (event) hoverPosition = { x: event.clientX, y: event.clientY };
+			});
+
+			engine.onViewportChanged((viewport) => {
+				currentZoom = viewport.scale;
+				// ヘッダーの store を更新
+				updateUseCaseViewState({ zoom: viewport.scale });
+			});
+
+			engineInitialized = true;
+
+			// 初期化完了後にデータがあれば設定
+			if (data) {
+				engine.setData(data);
+				syncStoreState();
 			}
-		});
-
-		engine.onUseCaseClicked((usecase) => {
-			selectedUseCaseId = usecase.id;
-			selectedActorId = null;
-			onUseCaseSelect?.(usecase);
-		});
-
-		engine.onUseCaseHovered((usecase, event) => {
-			hoveredUseCase = usecase;
-			hoveredActor = null;
-			if (event) {
-				hoverPosition = { x: event.clientX, y: event.clientY };
-			}
-		});
-
-		engine.onViewportChanged((viewport) => {
-			currentZoom = viewport.scale;
-		});
-
-		// データがあれば描画
-		if (data) {
-			engine.setData(data);
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'エンジン初期化に失敗しました';
+		} finally {
+			engineInitializing = false;
 		}
 	}
 
-	// Actor クリック処理（サイドバーから）
-	function handleActorClick(actor: ActorItem) {
-		selectedActorId = actor.id;
-		selectedUseCaseId = null;
-		engine?.selectActor(actor.id);
-		onActorSelect?.(actor);
-	}
-
-	// UseCase クリック処理（サイドバーから）
-	function handleUseCaseClick(usecase: UseCaseItem) {
-		selectedUseCaseId = usecase.id;
-		selectedActorId = null;
-		engine?.selectUseCase(usecase.id);
-		onUseCaseSelect?.(usecase);
-	}
-
-	// ズーム操作
+	// ズーム操作（ヘッダーから呼び出される）
 	function handleZoomIn() {
 		engine?.setZoom(currentZoom * 1.2);
 	}
-
 	function handleZoomOut() {
 		engine?.setZoom(currentZoom / 1.2);
 	}
-
 	function handleZoomReset() {
 		engine?.centerView();
 	}
 
-	// Actor タイプのアイコン名を取得
+	// パネル操作
+	function toggleListPanel() {
+		showListPanel = !showListPanel;
+		updateUseCaseViewState({ showListPanel });
+	}
+
+	function closeListPanel() {
+		showListPanel = false;
+		updateUseCaseViewState({ showListPanel: false });
+	}
+
+	function closeDetailPanel() {
+		showDetailPanel = false;
+		selectedActorId = null;
+		selectedUseCaseId = null;
+		engine?.clearSelection();
+	}
+
+	// Actor/UseCase クリック（リストから）
+	function handleActorClick(actor: ActorItem) {
+		selectedActorId = actor.id;
+		selectedUseCaseId = null;
+		showDetailPanel = true;
+		engine?.selectActor(actor.id);
+		onActorSelect?.(actor);
+	}
+
+	function handleUseCaseClick(usecase: UseCaseItem) {
+		selectedUseCaseId = usecase.id;
+		selectedActorId = null;
+		showDetailPanel = true;
+		engine?.selectUseCase(usecase.id);
+		onUseCaseSelect?.(usecase);
+	}
+
+	// Actor アイコン取得
 	function getActorIcon(type: string): string {
-		switch (type) {
-			case 'human':
-				return 'User';
-			case 'system':
-				return 'Server';
-			case 'time':
-				return 'Clock';
-			case 'device':
-				return 'Smartphone';
-			case 'external':
-				return 'Globe';
-			default:
-				return 'HelpCircle';
-		}
+		const icons: Record<string, string> = {
+			human: 'User',
+			system: 'Server',
+			time: 'Clock',
+			device: 'Smartphone',
+			external: 'Globe'
+		};
+		return icons[type] ?? 'HelpCircle';
 	}
 
-	// UseCase ステータスの色を取得
+	// ステータス色取得
 	function getStatusColor(status: string): string {
-		switch (status) {
-			case 'active':
-				return 'var(--status-good)';
-			case 'draft':
-				return 'var(--status-fair)';
-			case 'deprecated':
-				return 'var(--text-muted)';
-			default:
-				return 'var(--text-secondary)';
+		const colors: Record<string, string> = {
+			active: 'var(--status-good)',
+			draft: 'var(--status-fair)',
+			deprecated: 'var(--text-muted)'
+		};
+		return colors[status] ?? 'var(--text-secondary)';
+	}
+
+	// ESC キーでパネルを閉じる
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			if (showDetailPanel) closeDetailPanel();
+			else if (showListPanel) closeListPanel();
 		}
 	}
 
-	// マウント時
+	// ヘッダーの store を更新
+	function syncStoreState() {
+		updateUseCaseViewState({
+			zoom: currentZoom,
+			boundary: data?.boundary || 'System',
+			actorCount: data?.actors.length || 0,
+			usecaseCount: data?.usecases.length || 0,
+			showListPanel,
+			onZoomIn: handleZoomIn,
+			onZoomOut: handleZoomOut,
+			onZoomReset: handleZoomReset,
+			onToggleListPanel: toggleListPanel
+		});
+	}
+
 	onMount(() => {
 		loadData();
+		document.addEventListener('keydown', handleKeydown);
+		return () => document.removeEventListener('keydown', handleKeydown);
 	});
 
-	// データ変更時にエンジンを初期化/更新
+	// エンジン初期化 Effect（canvasContainer が利用可能になったら一度だけ）
 	$effect(() => {
-		if (data && canvasContainer) {
-			if (!engine) {
-				// async 関数をエラーハンドリング付きで呼び出し
-				initEngine().catch((e) => {
-					error = e instanceof Error ? e.message : 'エンジン初期化に失敗しました';
-				});
-			} else {
-				engine.setData(data);
-			}
+		if (canvasContainer && !engineInitialized && !engineInitializing) {
+			initEngine();
 		}
 	});
 
-	// リサイズ対応
+	// データ設定 Effect（エンジン初期化後、data が変更されたら）
 	$effect(() => {
-		// 早期 return でクリーンアップ関数が常に返されるようにする
-		if (!canvasContainer || !engine) {
-			return () => {};
+		if (engineInitialized && engine && data) {
+			engine.setData(data);
+			syncStoreState();
 		}
+	});
 
-		const resizeObserver = new ResizeObserver(() => {
-			engine?.resize();
-		});
+	// showListPanel が変わったら store を更新
+	$effect(() => {
+		updateUseCaseViewState({ showListPanel });
+	});
+
+	$effect(() => {
+		if (!canvasContainer || !engine) return () => {};
+		const resizeObserver = new ResizeObserver(() => engine?.resize());
 		resizeObserver.observe(canvasContainer);
-
 		return () => resizeObserver.disconnect();
 	});
 
-	// クリーンアップ
 	onDestroy(() => {
 		engine?.destroy();
 		engine = null;
+		// store をリセット
+		resetUseCaseViewState();
 	});
 </script>
 
@@ -242,86 +300,51 @@
 			icon="ClipboardList"
 		/>
 	{:else}
-		<div class="usecase-layout">
-			<!-- 左サイドバー: Actor リスト -->
-			<aside class="actor-sidebar">
-				<Panel title="アクター ({data.actors.length})">
-					<ul class="actor-list">
-						{#each data.actors as actor}
-							<li>
-								<button
-									class="actor-item"
-									class:selected={selectedActorId === actor.id}
-									onclick={() => handleActorClick(actor)}
-								>
-									<Icon name={getActorIcon(actor.type)} size={16} />
-									<span class="actor-title">{actor.title}</span>
-									<span class="actor-type">{actor.type}</span>
-								</button>
-							</li>
-						{/each}
-					</ul>
-				</Panel>
-			</aside>
+		<!-- フルスクリーンキャンバス -->
+		<div class="canvas-area">
+			<div class="canvas-wrapper" bind:this={canvasContainer}></div>
 
-			<!-- メインエリア: PixiJS キャンバス -->
-			<main class="diagram-area">
-				<div class="diagram-header">
-					<h2>
-						<Icon name="Target" size={20} />
-						{data.boundary || 'System'}
-					</h2>
-					<div class="diagram-controls">
-						<button class="zoom-btn" onclick={handleZoomOut} aria-label="ズームアウト">
-							<Icon name="ZoomOut" size={16} />
-						</button>
-						<span class="zoom-level">{Math.round(currentZoom * 100)}%</span>
-						<button class="zoom-btn" onclick={handleZoomIn} aria-label="ズームイン">
-							<Icon name="ZoomIn" size={16} />
-						</button>
-						<button class="zoom-btn" onclick={handleZoomReset} aria-label="リセット">
-							<Icon name="Maximize" size={16} />
-						</button>
-					</div>
-					<div class="diagram-stats">
-						<span>{data.actors.length} actors</span>
-						<span>{data.usecases.length} usecases</span>
-					</div>
-				</div>
-				<div class="canvas-wrapper" bind:this={canvasContainer}></div>
-			</main>
+			<!-- リストパネル（オーバーレイ） -->
+			{#if showListPanel}
+				<OverlayPanel
+					title="要素一覧"
+					position="top-left"
+					width="280px"
+					onClose={closeListPanel}
+				>
+					<UseCaseListPanel
+						actors={data.actors}
+						usecases={data.usecases}
+						{selectedActorId}
+						{selectedUseCaseId}
+						onActorSelect={handleActorClick}
+						onUseCaseSelect={handleUseCaseClick}
+					/>
+				</OverlayPanel>
+			{/if}
 
-			<!-- 右サイドバー: UseCase リスト -->
-			<aside class="usecase-sidebar">
-				<Panel title="ユースケース ({data.usecases.length})">
-					<ul class="usecase-list">
-						{#each data.usecases as usecase}
-							<li>
-								<button
-									class="usecase-item"
-									class:selected={selectedUseCaseId === usecase.id}
-									onclick={() => handleUseCaseClick(usecase)}
-								>
-									<span
-										class="usecase-status"
-										style="background: {getStatusColor(usecase.status)}"
-									></span>
-									<span class="usecase-title">{usecase.title}</span>
-									<span class="usecase-id">{usecase.id}</span>
-								</button>
-							</li>
-						{/each}
-					</ul>
-				</Panel>
-			</aside>
+			<!-- 詳細パネル（オーバーレイ） -->
+			{#if showDetailPanel && hasSelection}
+				<OverlayPanel
+					title="詳細"
+					position="top-right"
+					width="300px"
+					onClose={closeDetailPanel}
+				>
+					<div class="detail-content">
+						<UseCaseViewPanel
+							actor={selectedActor}
+							usecase={selectedUseCase}
+							onClose={closeDetailPanel}
+						/>
+					</div>
+				</OverlayPanel>
+			{/if}
 		</div>
 
-		<!-- ホバーTooltip -->
+		<!-- ホバー Tooltip -->
 		{#if hoveredActor}
-			<div
-				class="hover-tooltip"
-				style={tooltipStyle()}
-			>
+			<div class="hover-tooltip" style={tooltipStyle()}>
 				<div class="tooltip-header">
 					<Icon name={getActorIcon(hoveredActor.type)} size={14} />
 					<span>{hoveredActor.title}</span>
@@ -337,15 +360,9 @@
 		{/if}
 
 		{#if hoveredUseCase}
-			<div
-				class="hover-tooltip"
-				style={tooltipStyle()}
-			>
+			<div class="hover-tooltip" style={tooltipStyle()}>
 				<div class="tooltip-header">
-					<span
-						class="tooltip-status-dot"
-						style="background: {getStatusColor(hoveredUseCase.status)}"
-					></span>
+					<span class="tooltip-status-dot" style="background: {getStatusColor(hoveredUseCase.status)}"></span>
 					<span>{hoveredUseCase.title}</span>
 				</div>
 				<div class="tooltip-meta">
@@ -356,9 +373,7 @@
 					<div class="tooltip-desc">{hoveredUseCase.description}</div>
 				{/if}
 				{#if hoveredUseCase.actors.length > 0}
-					<div class="tooltip-actors">
-						{hoveredUseCase.actors.length} actor(s) connected
-					</div>
+					<div class="tooltip-actors">{hoveredUseCase.actors.length} actor(s)</div>
 				{/if}
 			</div>
 		{/if}
@@ -369,8 +384,6 @@
 	.usecase-view {
 		width: 100%;
 		height: 100%;
-		display: flex;
-		flex-direction: column;
 		background: var(--bg-primary);
 		color: var(--text-primary);
 	}
@@ -403,188 +416,54 @@
 		background: var(--bg-hover);
 	}
 
-	.usecase-layout {
-		display: grid;
-		grid-template-columns: 220px 1fr 260px;
-		gap: 0;
+	/* フルスクリーンキャンバス */
+	.canvas-area {
+		position: relative;
+		width: 100%;
 		height: 100%;
 		overflow: hidden;
 	}
 
-	.actor-sidebar,
-	.usecase-sidebar {
-		overflow-y: auto;
-		background: var(--bg-secondary);
-		border-right: 1px solid var(--border-metal);
-	}
-
-	.usecase-sidebar {
-		border-right: none;
-		border-left: 1px solid var(--border-metal);
-	}
-
-	.actor-list,
-	.usecase-list {
-		list-style: none;
-		padding: 0;
-		margin: 0;
-	}
-
-	.actor-item,
-	.usecase-item {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		width: 100%;
-		padding: 0.625rem 0.75rem;
-		background: transparent;
-		border: none;
-		border-bottom: 1px solid var(--border-dark);
-		color: var(--text-primary);
-		cursor: pointer;
-		text-align: left;
-		transition: background var(--transition-fast);
-	}
-
-	.actor-item:hover,
-	.usecase-item:hover {
-		background: var(--bg-hover);
-	}
-
-	.actor-item.selected,
-	.usecase-item.selected {
-		background: var(--accent-primary);
-		color: var(--bg-primary);
-	}
-
-	.actor-title,
-	.usecase-title {
-		flex: 1;
-		font-weight: 500;
-		font-size: 0.8125rem;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.actor-type {
-		font-size: 0.6875rem;
-		color: var(--text-muted);
-		background: var(--bg-primary);
-		padding: 0.125rem 0.375rem;
-		border-radius: 2px;
-	}
-
-	.usecase-status {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		flex-shrink: 0;
-	}
-
-	.usecase-id {
-		font-size: 0.625rem;
-		color: var(--text-muted);
-		font-family: var(--font-family);
-	}
-
-	.diagram-area {
-		display: flex;
-		flex-direction: column;
-		background: var(--bg-primary);
-		overflow: hidden;
-	}
-
-	.diagram-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 0.625rem 1rem;
-		background: var(--bg-secondary);
-		border-bottom: 1px solid var(--border-metal);
-	}
-
-	.diagram-header h2 {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		margin: 0;
-		font-size: 0.9375rem;
-		font-weight: 600;
-	}
-
-	.diagram-controls {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.zoom-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 28px;
-		height: 28px;
-		background: var(--bg-primary);
-		border: 1px solid var(--border-metal);
-		border-radius: 4px;
-		color: var(--text-secondary);
-		cursor: pointer;
-		transition: all var(--transition-fast);
-	}
-
-	.zoom-btn:hover {
-		background: var(--bg-hover);
-		color: var(--accent-primary);
-		border-color: var(--accent-primary);
-	}
-
-	.zoom-level {
-		font-size: 0.75rem;
-		color: var(--text-muted);
-		min-width: 40px;
-		text-align: center;
-		font-family: var(--font-family);
-	}
-
-	.diagram-stats {
-		display: flex;
-		gap: 1rem;
-		font-size: 0.75rem;
-		color: var(--text-muted);
-	}
-
 	.canvas-wrapper {
-		flex: 1;
-		overflow: hidden;
-		position: relative;
+		width: 100%;
+		height: 100%;
+		background-color: #1a1a1a;
+		background-image:
+			radial-gradient(circle at 1px 1px, rgba(255, 149, 51, 0.08) 1px, transparent 0);
+		background-size: 24px 24px;
 	}
 
 	.canvas-wrapper :global(canvas) {
 		display: block;
 	}
 
-	/* ホバーTooltip */
+	/* 詳細パネルのコンテンツ（パディング調整） */
+	.detail-content {
+		padding: 12px;
+	}
+
+	/* ホバー Tooltip */
 	.hover-tooltip {
 		position: fixed;
 		z-index: 1000;
-		background: var(--bg-panel);
+		background: rgba(30, 30, 30, 0.95);
 		border: 1px solid var(--border-metal);
-		border-radius: 4px;
-		padding: 0.625rem;
-		min-width: 180px;
-		max-width: 280px;
-		box-shadow: var(--shadow-tooltip);
+		border-radius: 6px;
+		padding: 10px;
+		min-width: 160px;
+		max-width: 260px;
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 		pointer-events: none;
+		backdrop-filter: blur(8px);
 	}
 
 	.tooltip-header {
 		display: flex;
 		align-items: center;
-		gap: 0.375rem;
+		gap: 6px;
 		font-weight: 600;
 		font-size: 0.8125rem;
-		margin-bottom: 0.375rem;
+		margin-bottom: 6px;
 	}
 
 	.tooltip-status-dot {
@@ -595,60 +474,33 @@
 
 	.tooltip-meta {
 		display: flex;
-		gap: 0.5rem;
+		gap: 6px;
 		font-size: 0.6875rem;
 		color: var(--text-muted);
-		margin-bottom: 0.375rem;
+		margin-bottom: 6px;
 	}
 
 	.tooltip-type,
 	.tooltip-status {
-		background: var(--bg-secondary);
-		padding: 0.125rem 0.375rem;
-		border-radius: 2px;
+		background: rgba(0, 0, 0, 0.3);
+		padding: 2px 6px;
+		border-radius: 3px;
 	}
 
 	.tooltip-id {
-		font-family: var(--font-family);
+		font-family: monospace;
+		font-size: 0.65rem;
 	}
 
 	.tooltip-desc {
 		font-size: 0.75rem;
 		color: var(--text-secondary);
 		line-height: 1.4;
-		margin-top: 0.375rem;
 	}
 
 	.tooltip-actors {
 		font-size: 0.6875rem;
 		color: var(--accent-primary);
-		margin-top: 0.375rem;
-	}
-
-	/* レスポンシブ対応 */
-	@media (max-width: 1024px) {
-		.usecase-layout {
-			grid-template-columns: 180px 1fr 200px;
-		}
-	}
-
-	@media (max-width: 768px) {
-		.usecase-layout {
-			grid-template-columns: 1fr;
-			grid-template-rows: auto 1fr auto;
-		}
-
-		.actor-sidebar,
-		.usecase-sidebar {
-			max-height: 180px;
-			border-right: none;
-			border-left: none;
-			border-bottom: 1px solid var(--border-metal);
-		}
-
-		.usecase-sidebar {
-			border-bottom: none;
-			border-top: 1px solid var(--border-metal);
-		}
+		margin-top: 6px;
 	}
 </style>
