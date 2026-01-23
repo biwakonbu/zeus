@@ -187,13 +187,6 @@ export class UseCaseEngine {
 		stage.on('pointermove', (e: FederatedPointerEvent) => this.handlePanMove(e));
 		stage.on('pointerup', () => this.handlePanEnd());
 		stage.on('pointerupoutside', () => this.handlePanEnd());
-
-		// 背景クリックで選択解除
-		stage.on('pointertap', (e: FederatedPointerEvent) => {
-			if (e.target === stage) {
-				this.clearSelection();
-			}
-		});
 	}
 
 	/**
@@ -616,6 +609,24 @@ export class UseCaseEngine {
 		if (this.filterModeEnabled) {
 			this.hideAll();
 		}
+	}
+
+	/**
+	 * 選択の視覚状態のみ解除（図は維持）
+	 * パネルを閉じる際に使用 - 図は表示したまま選択ハイライトのみ解除
+	 */
+	clearSelectionVisual(): void {
+		if (this.selectedActorId) {
+			const node = this.actorNodes.get(this.selectedActorId);
+			node?.setSelected(false);
+			this.selectedActorId = null;
+		}
+		if (this.selectedUseCaseId) {
+			const node = this.usecaseNodes.get(this.selectedUseCaseId);
+			node?.setSelected(false);
+			this.selectedUseCaseId = null;
+		}
+		// hideAll() は呼ばない - 図は維持
 	}
 
 	/**

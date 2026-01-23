@@ -175,7 +175,8 @@
 		showDetailPanel = false;
 		selectedActorId = null;
 		selectedUseCaseId = null;
-		engine?.clearSelection();
+		// 視覚的な選択状態のみ解除（図は消さない）
+		engine?.clearSelectionVisual();
 	}
 
 	// Actor/UseCase クリック（リストから）

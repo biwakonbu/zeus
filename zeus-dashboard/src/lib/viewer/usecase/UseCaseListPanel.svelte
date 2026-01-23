@@ -1,6 +1,7 @@
 <script lang="ts">
 	// UseCaseListPanel - 統合リストパネル（オーバーレイ用シンプル版）
 	// Actor/UseCase をタブ、検索、フィルタで管理
+	import { onDestroy } from 'svelte';
 	import type { ActorItem, UseCaseItem } from '$lib/types/api';
 	import SegmentedTabs from './components/SegmentedTabs.svelte';
 	import SearchInput from './components/SearchInput.svelte';
@@ -127,6 +128,11 @@
 			onUseCaseSelect(item);
 		}
 	}
+
+	// クリーンアップ
+	onDestroy(() => {
+		clearTimeout(debounceTimer);
+	});
 </script>
 
 <div class="list-panel-content">
