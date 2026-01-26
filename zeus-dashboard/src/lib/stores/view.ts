@@ -2,7 +2,7 @@ import { writable, get } from 'svelte/store';
 import type { ViewType } from '$lib/viewer';
 
 // 現在のビュー状態を管理するストア
-export const currentView = writable<ViewType>('graph');
+export const currentView = writable<ViewType>('usecase');
 
 // ビューを変更する関数
 export function setView(view: ViewType): void {
@@ -101,4 +101,44 @@ export function resetGraphViewState(): void {
 // Graph ビュー状態を取得
 export function getGraphViewState(): GraphViewState {
 	return get(graphViewState);
+}
+
+// Activity ビュー用の状態
+export interface ActivityViewState {
+	// 表示情報
+	zoom: number;
+	activityCount: number;
+	// 選択中のアクティビティ
+	selectedActivityId: string | null;
+	// リストパネル表示状態
+	showListPanel: boolean;
+	// コールバック（エンジンへの操作）
+	onZoomIn?: () => void;
+	onZoomOut?: () => void;
+	onZoomReset?: () => void;
+	onToggleListPanel?: () => void;
+}
+
+const defaultActivityViewState: ActivityViewState = {
+	zoom: 1.0,
+	activityCount: 0,
+	selectedActivityId: null,
+	showListPanel: true
+};
+
+export const activityViewState = writable<ActivityViewState>(defaultActivityViewState);
+
+// Activity ビュー状態を更新
+export function updateActivityViewState(partial: Partial<ActivityViewState>): void {
+	activityViewState.update((state) => ({ ...state, ...partial }));
+}
+
+// Activity ビュー状態をリセット
+export function resetActivityViewState(): void {
+	activityViewState.set(defaultActivityViewState);
+}
+
+// Activity ビュー状態を取得
+export function getActivityViewState(): ActivityViewState {
+	return get(activityViewState);
 }

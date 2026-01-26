@@ -52,7 +52,10 @@ paths:
 - `POST /api/metrics` - メトリクス保存（Graph View 計測ログ）
 - `GET /api/actors` - Actor 一覧
 - `GET /api/usecases` - UseCase 一覧
+- `GET /api/subsystems` - Subsystem 一覧
 - `GET /api/uml/usecase` - ユースケース図（Mermaid 形式）
+- `GET /api/activities` - Activity 一覧
+- `GET /api/uml/activity?id=X` - アクティビティ図（指定 ID のノード・遷移）
 
 ## ダッシュボード機能
 
@@ -76,7 +79,8 @@ paths:
 - WBS View: 階層構造ツリー
 - Timeline View: ガントチャート風表示
 - Affinity Canvas: 機能間関連性可視化（Phase 7 で追加予定、設計書: `docs/design/affinity-canvas.md`）
-- UseCaseView: UML ユースケース図（Mermaid ベース）
+- UseCaseView: UML ユースケース図（PixiJS ベース）
+- ActivityView: UML アクティビティ図（PixiJS ベース）
 
 ## 影響範囲可視化
 
@@ -99,11 +103,17 @@ paths:
 
 ## UseCaseView
 
-UML ユースケース図を表示するビュー。
+UML ユースケース図を表示するビュー。サブシステムによるグルーピングをサポート。
+
+**サブシステム機能**:
+- UseCase をサブシステムごとにグループ化表示
+- サブシステム境界を UML 準拠の角丸矩形で描画
+- ハッシュベースのカラー自動生成（HSL 色空間）
+- 未分類 UseCase は「未分類」境界（グレー系）に配置
 
 **レイアウト**: 3 カラム構成
-- 左: Actor 一覧パネル
-- 中央: Mermaid ユースケース図
+- 左: Actor 一覧パネル + サブシステムフィルタ
+- 中央: PixiJS ユースケース図（サブシステム境界付き）
 - 右: 選択エンティティの詳細パネル
 
 **インタラクション**:
@@ -116,7 +126,52 @@ UML ユースケース図を表示するビュー。
 **API 連携**:
 - `/api/actors` - Actor 一覧取得
 - `/api/usecases` - UseCase 一覧取得
+- `/api/subsystems` - Subsystem 一覧取得
 - `/api/uml/usecase` - Mermaid 図取得
+
+## ActivityView
+
+UML アクティビティ図を表示するビュー。フルスクリーンキャンバスにオーバーレイパネル方式。
+
+**ノードタイプ**:
+| タイプ | UML 記号 | 説明 |
+|--------|---------|------|
+| `initial` | 黒丸 | 開始ノード |
+| `final` | 二重丸 | 終了ノード |
+| `action` | 角丸四角形 | アクション |
+| `decision` | ひし形 | 分岐 |
+| `merge` | ひし形 | 合流 |
+| `fork` | 太い横線 | 並列分岐 |
+| `join` | 太い横線 | 並列合流 |
+
+**レイアウト**: オーバーレイパネル構成
+- 左上: アクティビティ一覧パネル（デフォルト表示）
+- 右上: 選択ノードの詳細パネル（選択時のみ表示）
+- 中央: PixiJS キャンバス（フルスクリーン）
+
+**インタラクション**:
+| 操作 | 結果 |
+|------|------|
+| クリック（ノード） | 詳細パネル表示 + 選択状態 |
+| ホバー | ツールチップ表示 |
+| ドラッグ | キャンバスパン |
+| ホイール | ズームイン/アウト |
+| ESC | パネルを閉じる |
+
+**API 連携**:
+- `/api/activities` - アクティビティ一覧取得
+- `/api/uml/activity?id=X` - 指定アクティビティのノード・遷移取得
+
+**PixiJS レンダリングクラス**:
+| クラス | 役割 |
+|--------|------|
+| ActivityEngine | エンジン管理、レイアウト計算、インタラクション |
+| ActivityNodeBase | ノード基底クラス |
+| InitialNode, FinalNode | 開始/終了ノード |
+| ActionNode | アクションノード |
+| DecisionNode, MergeNode | 分岐/合流ノード |
+| ForkNode, JoinNode | 並列分岐/合流ノード |
+| TransitionEdge | 遷移エッジ（矢印） |
 
 ## デザインガイドライン
 

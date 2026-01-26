@@ -310,7 +310,7 @@
 				<OverlayPanel
 					title="要素一覧"
 					position="top-left"
-					width="280px"
+					width="320px"
 					onClose={closeListPanel}
 				>
 					<UseCaseListPanel
@@ -327,7 +327,7 @@
 			<!-- 詳細パネル（オーバーレイ） -->
 			{#if showDetailPanel && hasSelection}
 				<OverlayPanel
-					title="詳細"
+					title="プロパティ"
 					position="top-right"
 					width="300px"
 					onClose={closeDetailPanel}
@@ -336,6 +336,8 @@
 						<UseCaseViewPanel
 							actor={selectedActor}
 							usecase={selectedUseCase}
+							actors={data.actors}
+							usecases={data.usecases}
 							onClose={closeDetailPanel}
 						/>
 					</div>

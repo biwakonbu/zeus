@@ -1,6 +1,7 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import ViewSwitcher from './ViewSwitcher.svelte';
+	import type { ViewType } from './ViewSwitcher.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Viewer/ViewSwitcher',
@@ -9,11 +10,11 @@
 		argTypes: {
 			currentView: {
 				control: 'select',
-				options: ['graph', 'usecase']
+				options: ['graph', 'usecase', 'activity']
 			},
 			disabledViews: {
 				control: 'multi-select',
-				options: ['graph', 'usecase']
+				options: ['graph', 'usecase', 'activity']
 			}
 		}
 	});
@@ -26,9 +27,9 @@
 	const handleViewChange = fn();
 
 	// 状態付きのラッパー
-	let currentView: 'graph' | 'usecase' = $state('graph');
+	let currentView: ViewType = $state('graph');
 
-	function createHandler(view: 'graph' | 'usecase') {
+	function createHandler(view: ViewType) {
 		currentView = view;
 		handleViewChange(view);
 	}
@@ -42,6 +43,11 @@
 <!-- UseCase 選択中 -->
 <Story name="UseCaseSelected">
 	<ViewSwitcher currentView="usecase" onViewChange={handleViewChange} />
+</Story>
+
+<!-- Activity 選択中 -->
+<Story name="ActivitySelected">
+	<ViewSwitcher currentView="activity" onViewChange={handleViewChange} />
 </Story>
 
 <!-- UseCase 無効化 -->

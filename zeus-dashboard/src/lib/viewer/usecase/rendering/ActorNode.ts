@@ -1,49 +1,54 @@
-// ActorNode - UML ユースケース図のアクター（棒人間）描画クラス
-// 棒人間のスタイルで人間アクター、アイコン形式でシステム/時間/デバイス/外部アクターを表現
+// ActorNode - UML ユースケース図のアクター描画クラス
+// UML 標準のシンプルな棒人間とステレオタイプ付き長方形
 import { Container, Graphics, Text, FederatedPointerEvent } from 'pixi.js';
 import type { ActorItem, ActorType } from '$lib/types/api';
 import { TEXT_RESOLUTION, COMMON_COLORS } from './constants';
 
 // サイズ定数
 const ACTOR_WIDTH = 60;
-const ACTOR_HEIGHT = 100;
-const HEAD_RADIUS = 12;
-const BODY_LENGTH = 25;
-const ARM_LENGTH = 20;
-const LEG_LENGTH = 25;
+const ACTOR_HEIGHT = 90;
 const LINE_WIDTH = 2;
+
+// Human（棒人間）定数
+const HUMAN = {
+	headRadius: 8,
+	bodyLength: 20,
+	armLength: 16,
+	legLength: 18
+};
+
+// 非人間アクター（長方形）定数
+const BOX = {
+	width: 50,
+	height: 40,
+	centerY: 35
+};
 
 // 色定義（Factorio テーマ準拠）
 const COLORS = {
-	// アクタータイプ別の色
-	actorType: {
-		human: 0xff9533,    // オレンジ（人間）
-		system: 0x4488ff,   // ブルー（システム）
-		time: 0xffcc00,     // イエロー（時間）
-		device: 0x66cc99,   // グリーン（デバイス）
-		external: 0xcc66ff  // パープル（外部）
-	} as Record<ActorType, number>,
 	// 基本色（共通定数から取得）
 	stroke: COMMON_COLORS.text,
 	strokeHover: COMMON_COLORS.borderHover,
 	strokeSelected: COMMON_COLORS.borderSelected,
 	text: COMMON_COLORS.text,
-	textMuted: COMMON_COLORS.textMuted
+	textMuted: COMMON_COLORS.textMuted,
+	background: COMMON_COLORS.backgroundPanel
 };
 
 /**
  * ActorNode - UML アクターの視覚的表現
  *
  * 責務:
- * - 棒人間（human）またはアイコン形式の描画
- * - アクタータイプに応じたスタイル変更
+ * - UML 標準のアクターアイコン描画
+ * - Human: 棒人間（stick figure）
+ * - 非人間: ステレオタイプ付き長方形
  * - インタラクション（クリック、ホバー）
  */
 export class ActorNode extends Container {
 	private actor: ActorItem;
 	private graphics: Graphics;
 	private labelText: Text;
-	private typeText: Text;
+	private stereotypeText: Text;
 
 	private isHovered = false;
 	private isSelected = false;
@@ -69,7 +74,7 @@ export class ActorNode extends Container {
 			},
 			resolution: TEXT_RESOLUTION
 		});
-		this.typeText = new Text({
+		this.stereotypeText = new Text({
 			text: '',
 			style: {
 				fontSize: 9,
@@ -81,8 +86,8 @@ export class ActorNode extends Container {
 		});
 
 		this.addChild(this.graphics);
+		this.addChild(this.stereotypeText);
 		this.addChild(this.labelText);
-		this.addChild(this.typeText);
 
 		// インタラクション設定
 		this.eventMode = 'static';
@@ -105,11 +110,11 @@ export class ActorNode extends Container {
 		const color = this.getColor();
 		const strokeWidth = this.isHovered || this.isSelected ? LINE_WIDTH + 1 : LINE_WIDTH;
 
-		// アクタータイプに応じて描画を分岐
+		// Human は棒人間、それ以外はステレオタイプ付き長方形
 		if (this.actor.type === 'human') {
 			this.drawStickFigure(color, strokeWidth);
 		} else {
-			this.drawIcon(color, strokeWidth);
+			this.drawStereotypeBox(color, strokeWidth);
 		}
 
 		// ラベル描画
@@ -117,141 +122,82 @@ export class ActorNode extends Container {
 	}
 
 	/**
-	 * 棒人間を描画（human タイプ）
+	 * UML 標準の棒人間を描画
 	 */
-	private drawStickFigure(color: number, strokeWidth: number): void {
+	private drawStickFigure(color: number, sw: number): void {
 		const g = this.graphics;
-		const centerX = ACTOR_WIDTH / 2;
-		const headY = HEAD_RADIUS + 5;
+		const cx = ACTOR_WIDTH / 2;
+		const headY = HUMAN.headRadius + 5;
 
 		// 選択/ホバー時の背景グロー
 		if (this.isSelected || this.isHovered) {
-			g.circle(centerX, headY + BODY_LENGTH / 2, 35);
+			g.circle(cx, headY + HUMAN.bodyLength / 2, 30);
 			g.fill({ color: color, alpha: 0.1 });
 		}
 
 		// 頭（円）
-		g.circle(centerX, headY, HEAD_RADIUS);
-		g.stroke({ width: strokeWidth, color });
+		g.circle(cx, headY, HUMAN.headRadius);
+		g.stroke({ width: sw, color });
 
-		// 胴体（縦線）
-		const bodyTop = headY + HEAD_RADIUS;
-		const bodyBottom = bodyTop + BODY_LENGTH;
-		g.moveTo(centerX, bodyTop);
-		g.lineTo(centerX, bodyBottom);
-		g.stroke({ width: strokeWidth, color });
+		// 体（縦線）
+		const bodyTop = headY + HUMAN.headRadius;
+		const bodyBottom = bodyTop + HUMAN.bodyLength;
+		g.moveTo(cx, bodyTop);
+		g.lineTo(cx, bodyBottom);
+		g.stroke({ width: sw, color });
 
-		// 腕（横線）
-		const armY = bodyTop + BODY_LENGTH * 0.3;
-		g.moveTo(centerX - ARM_LENGTH, armY);
-		g.lineTo(centerX + ARM_LENGTH, armY);
-		g.stroke({ width: strokeWidth, color });
+		// 腕（横線、T字型）
+		const armY = bodyTop + HUMAN.bodyLength * 0.3;
+		g.moveTo(cx - HUMAN.armLength, armY);
+		g.lineTo(cx + HUMAN.armLength, armY);
+		g.stroke({ width: sw, color });
 
 		// 左足
-		g.moveTo(centerX, bodyBottom);
-		g.lineTo(centerX - LEG_LENGTH * 0.6, bodyBottom + LEG_LENGTH);
-		g.stroke({ width: strokeWidth, color });
+		g.moveTo(cx, bodyBottom);
+		g.lineTo(cx - HUMAN.legLength * 0.6, bodyBottom + HUMAN.legLength);
+		g.stroke({ width: sw, color });
 
 		// 右足
-		g.moveTo(centerX, bodyBottom);
-		g.lineTo(centerX + LEG_LENGTH * 0.6, bodyBottom + LEG_LENGTH);
-		g.stroke({ width: strokeWidth, color });
+		g.moveTo(cx, bodyBottom);
+		g.lineTo(cx + HUMAN.legLength * 0.6, bodyBottom + HUMAN.legLength);
+		g.stroke({ width: sw, color });
 	}
 
 	/**
-	 * アイコン形式で描画（system, time, device, external タイプ）
+	 * UML 標準のステレオタイプ付き長方形を描画
 	 */
-	private drawIcon(color: number, strokeWidth: number): void {
+	private drawStereotypeBox(color: number, sw: number): void {
 		const g = this.graphics;
-		const centerX = ACTOR_WIDTH / 2;
-		const centerY = 40;
-		const iconSize = 24;
+		const cx = ACTOR_WIDTH / 2;
+		const cy = BOX.centerY;
 
-		// 選択/ホバー時の背景
+		// 選択/ホバー時の背景グロー
 		if (this.isSelected || this.isHovered) {
-			g.circle(centerX, centerY, iconSize + 8);
-			g.fill({ color: color, alpha: 0.15 });
+			g.roundRect(cx - BOX.width / 2 - 5, cy - BOX.height / 2 - 5, BOX.width + 10, BOX.height + 10, 4);
+			g.fill({ color: color, alpha: 0.1 });
 		}
 
-		// 外枠（円形）
-		g.circle(centerX, centerY, iconSize);
-		g.stroke({ width: strokeWidth, color });
+		// 長方形
+		g.rect(cx - BOX.width / 2, cy - BOX.height / 2, BOX.width, BOX.height);
+		g.fill({ color: COLORS.background, alpha: 0.8 });
+		g.stroke({ width: sw, color });
 
-		// タイプ別のアイコン
-		switch (this.actor.type) {
-			case 'system':
-				this.drawSystemIcon(g, centerX, centerY, iconSize * 0.6, color, strokeWidth);
-				break;
-			case 'time':
-				this.drawTimeIcon(g, centerX, centerY, iconSize * 0.6, color, strokeWidth);
-				break;
-			case 'device':
-				this.drawDeviceIcon(g, centerX, centerY, iconSize * 0.6, color, strokeWidth);
-				break;
-			case 'external':
-				this.drawExternalIcon(g, centerX, centerY, iconSize * 0.6, color, strokeWidth);
-				break;
+		// ステレオタイプをボックス内に表示
+		const stereotypes: Record<ActorType, string> = {
+			human: '',
+			system: '«system»',
+			time: '«time»',
+			device: '«device»',
+			external: '«external»'
+		};
+		const stereotype = stereotypes[this.actor.type];
+		if (stereotype) {
+			this.stereotypeText.text = stereotype;
+			this.stereotypeText.x = cx - this.stereotypeText.width / 2;
+			this.stereotypeText.y = cy - BOX.height / 2 + 5;
+		} else {
+			this.stereotypeText.text = '';
 		}
-	}
-
-	/**
-	 * システムアイコン（サーバー風のボックス）
-	 */
-	private drawSystemIcon(g: Graphics, cx: number, cy: number, size: number, color: number, sw: number): void {
-		const halfSize = size / 2;
-		// ボックス
-		g.rect(cx - halfSize, cy - halfSize * 1.2, size, size * 1.4);
-		g.stroke({ width: sw, color });
-		// 横線（サーバーラック風）
-		g.moveTo(cx - halfSize + 2, cy - halfSize * 0.4);
-		g.lineTo(cx + halfSize - 2, cy - halfSize * 0.4);
-		g.stroke({ width: sw * 0.7, color });
-		g.moveTo(cx - halfSize + 2, cy + halfSize * 0.4);
-		g.lineTo(cx + halfSize - 2, cy + halfSize * 0.4);
-		g.stroke({ width: sw * 0.7, color });
-	}
-
-	/**
-	 * 時間アイコン（時計）
-	 */
-	private drawTimeIcon(g: Graphics, cx: number, cy: number, size: number, color: number, sw: number): void {
-		// 時計の針
-		g.moveTo(cx, cy);
-		g.lineTo(cx, cy - size * 0.7);
-		g.stroke({ width: sw, color });
-		g.moveTo(cx, cy);
-		g.lineTo(cx + size * 0.5, cy);
-		g.stroke({ width: sw, color });
-		// 中心点
-		g.circle(cx, cy, 2);
-		g.fill(color);
-	}
-
-	/**
-	 * デバイスアイコン（スマートフォン風）
-	 */
-	private drawDeviceIcon(g: Graphics, cx: number, cy: number, size: number, color: number, sw: number): void {
-		const w = size * 0.7;
-		const h = size * 1.2;
-		// 外枠
-		g.roundRect(cx - w / 2, cy - h / 2, w, h, 3);
-		g.stroke({ width: sw, color });
-		// ホームボタン
-		g.circle(cx, cy + h / 2 - 4, 2);
-		g.fill(color);
-	}
-
-	/**
-	 * 外部アイコン（地球儀風）
-	 */
-	private drawExternalIcon(g: Graphics, cx: number, cy: number, size: number, color: number, sw: number): void {
-		// 縦線（経線）
-		g.ellipse(cx, cy, size * 0.4, size * 0.8);
-		g.stroke({ width: sw * 0.7, color });
-		// 横線（緯線）
-		g.moveTo(cx - size * 0.8, cy);
-		g.lineTo(cx + size * 0.8, cy);
-		g.stroke({ width: sw * 0.7, color });
 	}
 
 	/**
@@ -267,19 +213,7 @@ export class ActorNode extends Container {
 			: this.actor.title;
 		this.labelText.text = displayName;
 		this.labelText.x = centerX - this.labelText.width / 2;
-		this.labelText.y = ACTOR_HEIGHT - 22;
-
-		// タイプ表示
-		const typeLabels: Record<ActorType, string> = {
-			human: 'Human',
-			system: 'System',
-			time: 'Time',
-			device: 'Device',
-			external: 'External'
-		};
-		this.typeText.text = typeLabels[this.actor.type] || this.actor.type;
-		this.typeText.x = centerX - this.typeText.width / 2;
-		this.typeText.y = ACTOR_HEIGHT - 10;
+		this.labelText.y = ACTOR_HEIGHT - 14;
 	}
 
 	/**
@@ -288,7 +222,7 @@ export class ActorNode extends Container {
 	private getColor(): number {
 		if (this.isSelected) return COLORS.strokeSelected;
 		if (this.isHovered) return COLORS.strokeHover;
-		return COLORS.actorType[this.actor.type] || COLORS.stroke;
+		return COLORS.stroke;
 	}
 
 	/**

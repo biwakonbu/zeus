@@ -25,6 +25,9 @@ type Zeus struct {
 	approvalStore    ApprovalStore
 	entityRegistry   *EntityRegistry
 	idCounterManager *IDCounterManager
+
+	// UML ハンドラーへの直接アクセス（TASK-006）
+	subsystemHandler *SubsystemHandler
 }
 
 // Option は Zeus の設定オプション
@@ -113,10 +116,24 @@ func New(projectPath string, opts ...Option) *Zeus {
 		// UML ユースケース図のハンドラー登録
 		actorHandler := NewActorHandler(z.fileStore)
 		z.entityRegistry.Register(actorHandler)
-		z.entityRegistry.Register(NewUseCaseHandler(z.fileStore, objHandler, actorHandler, z.idCounterManager))
+
+		// UML サブシステムのハンドラー登録（TASK-006）
+		z.subsystemHandler = NewSubsystemHandler(z.fileStore)
+		z.entityRegistry.Register(z.subsystemHandler)
+
+		usecaseHandler := NewUseCaseHandler(z.fileStore, objHandler, actorHandler, z.idCounterManager)
+		z.entityRegistry.Register(usecaseHandler)
+
+		// UML アクティビティ図のハンドラー登録
+		z.entityRegistry.Register(NewActivityHandler(z.fileStore, usecaseHandler))
 	}
 
 	return z
+}
+
+// Subsystems は SubsystemHandler を返す（TASK-006）
+func (z *Zeus) Subsystems() *SubsystemHandler {
+	return z.subsystemHandler
 }
 
 // Init はプロジェクトを初期化
@@ -277,7 +294,7 @@ func (z *Zeus) Add(ctx context.Context, entity, name string, opts ...EntityOptio
 }
 
 // executeAdd は実際のエンティティ追加を実行
-func (z *Zeus) executeAdd(ctx context.Context, handler EntityHandler, entity, name string, opts ...EntityOption) (*AddResult, error) {
+func (z *Zeus) executeAdd(ctx context.Context, handler EntityHandler, _, name string, opts ...EntityOption) (*AddResult, error) {
 	result, err := handler.Add(ctx, name, opts...)
 	if err != nil {
 		return nil, err

@@ -822,7 +822,7 @@ func TestUseCaseHandlerWithScenario(t *testing.T) {
 	}
 	result, err := handler.Add(ctx, "Login UseCase",
 		WithUseCaseObjective("obj-test0001"),
-		WithUseCaseScenario(mainFlow),
+		WithUseCaseFullScenario(UseCaseScenario{MainFlow: mainFlow}),
 	)
 	if err != nil {
 		t.Fatalf("Add with scenario failed: %v", err)
@@ -841,5 +841,199 @@ func TestUseCaseHandlerWithScenario(t *testing.T) {
 
 	if usecase.Scenario.MainFlow[0] != "1. ユーザーがログイン画面を開く" {
 		t.Errorf("unexpected first step: %q", usecase.Scenario.MainFlow[0])
+	}
+}
+
+// TestUseCaseHandlerWithFullScenario は完全なシナリオ（UML 2.5 準拠）のテスト
+func TestUseCaseHandlerWithFullScenario(t *testing.T) {
+	handler, _, _, cleanup := setupUseCaseHandlerTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// 完全なシナリオを作成
+	fullScenario := UseCaseScenario{
+		Preconditions: []string{
+			"ユーザーが未認証",
+			"ログイン画面が表示可能",
+		},
+		Trigger: "ログインボタンクリック",
+		MainFlow: []string{
+			"1. ログイン画面表示",
+			"2. 認証情報入力",
+			"3. 認証検証",
+			"4. セッション作成",
+		},
+		AlternativeFlows: []AlternativeFlow{
+			{
+				ID:        "AF-1",
+				Name:      "パスワード忘れ",
+				Condition: "リセットリンクをクリック",
+				Steps: []string{
+					"パスワードリセット画面へ遷移",
+					"メールアドレス入力",
+					"リセットメール送信",
+				},
+				RejoinsAt: "",
+			},
+			{
+				ID:        "AF-2",
+				Name:      "新規登録",
+				Condition: "新規登録リンクをクリック",
+				Steps: []string{
+					"新規登録画面へ遷移",
+				},
+				RejoinsAt: "",
+			},
+		},
+		ExceptionFlows: []ExceptionFlow{
+			{
+				ID:      "EF-1",
+				Name:    "認証失敗",
+				Trigger: "認証情報が無効",
+				Steps: []string{
+					"エラーメッセージ表示",
+					"入力フィールドクリア",
+				},
+				Outcome: "ステップ2へ戻る",
+			},
+			{
+				ID:      "EF-2",
+				Name:    "アカウントロック",
+				Trigger: "失敗回数が上限超過",
+				Steps: []string{
+					"アカウントロック処理",
+					"管理者通知",
+				},
+				Outcome: "ユースケース終了",
+			},
+		},
+		Postconditions: []string{
+			"セッション有効",
+			"ユーザー認証済み",
+		},
+	}
+
+	result, err := handler.Add(ctx, "Login UseCase (Full Scenario)",
+		WithUseCaseObjective("obj-test0001"),
+		WithUseCaseFullScenario(fullScenario),
+	)
+	if err != nil {
+		t.Fatalf("Add with full scenario failed: %v", err)
+	}
+
+	// 確認
+	usecaseAny, err := handler.Get(ctx, result.ID)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+
+	usecase := usecaseAny.(*UseCaseEntity)
+
+	// 事前条件
+	if len(usecase.Scenario.Preconditions) != 2 {
+		t.Errorf("expected 2 preconditions, got %d", len(usecase.Scenario.Preconditions))
+	}
+	if usecase.Scenario.Preconditions[0] != "ユーザーが未認証" {
+		t.Errorf("unexpected precondition: %q", usecase.Scenario.Preconditions[0])
+	}
+
+	// トリガー
+	if usecase.Scenario.Trigger != "ログインボタンクリック" {
+		t.Errorf("unexpected trigger: %q", usecase.Scenario.Trigger)
+	}
+
+	// メインフロー
+	if len(usecase.Scenario.MainFlow) != 4 {
+		t.Errorf("expected 4 main flow steps, got %d", len(usecase.Scenario.MainFlow))
+	}
+
+	// 代替フロー
+	if len(usecase.Scenario.AlternativeFlows) != 2 {
+		t.Errorf("expected 2 alternative flows, got %d", len(usecase.Scenario.AlternativeFlows))
+	}
+	if usecase.Scenario.AlternativeFlows[0].ID != "AF-1" {
+		t.Errorf("unexpected alternative flow ID: %q", usecase.Scenario.AlternativeFlows[0].ID)
+	}
+	if usecase.Scenario.AlternativeFlows[0].Name != "パスワード忘れ" {
+		t.Errorf("unexpected alternative flow name: %q", usecase.Scenario.AlternativeFlows[0].Name)
+	}
+	if len(usecase.Scenario.AlternativeFlows[0].Steps) != 3 {
+		t.Errorf("expected 3 steps in AF-1, got %d", len(usecase.Scenario.AlternativeFlows[0].Steps))
+	}
+
+	// 例外フロー
+	if len(usecase.Scenario.ExceptionFlows) != 2 {
+		t.Errorf("expected 2 exception flows, got %d", len(usecase.Scenario.ExceptionFlows))
+	}
+	if usecase.Scenario.ExceptionFlows[0].ID != "EF-1" {
+		t.Errorf("unexpected exception flow ID: %q", usecase.Scenario.ExceptionFlows[0].ID)
+	}
+	if usecase.Scenario.ExceptionFlows[0].Trigger != "認証情報が無効" {
+		t.Errorf("unexpected exception flow trigger: %q", usecase.Scenario.ExceptionFlows[0].Trigger)
+	}
+	if usecase.Scenario.ExceptionFlows[0].Outcome != "ステップ2へ戻る" {
+		t.Errorf("unexpected exception flow outcome: %q", usecase.Scenario.ExceptionFlows[0].Outcome)
+	}
+
+	// 事後条件
+	if len(usecase.Scenario.Postconditions) != 2 {
+		t.Errorf("expected 2 postconditions, got %d", len(usecase.Scenario.Postconditions))
+	}
+}
+
+// TestUseCaseHandlerScenarioIndividualOptions は個別のシナリオオプションのテスト
+func TestUseCaseHandlerScenarioIndividualOptions(t *testing.T) {
+	handler, _, _, cleanup := setupUseCaseHandlerTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// 個別オプションで追加
+	// WithUseCaseFullScenario は Scenario 全体を上書きするため、最初に呼び出し、
+	// その後で個別オプションで各フィールドを設定
+	result, err := handler.Add(ctx, "Individual Options UseCase",
+		WithUseCaseObjective("obj-test0001"),
+		WithUseCaseFullScenario(UseCaseScenario{MainFlow: []string{"ステップ1", "ステップ2"}}),
+		WithUseCasePreconditions([]string{"条件1", "条件2"}),
+		WithUseCaseTrigger("開始イベント"),
+		WithUseCasePostconditions([]string{"結果1"}),
+		WithUseCaseAlternativeFlows([]AlternativeFlow{
+			{ID: "AF-1", Name: "代替1", Condition: "条件", Steps: []string{"ステップ"}},
+		}),
+		WithUseCaseExceptionFlows([]ExceptionFlow{
+			{ID: "EF-1", Name: "例外1", Trigger: "トリガー", Steps: []string{"ステップ"}},
+		}),
+	)
+	if err != nil {
+		t.Fatalf("Add with individual options failed: %v", err)
+	}
+
+	// 確認
+	usecaseAny, err := handler.Get(ctx, result.ID)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+
+	usecase := usecaseAny.(*UseCaseEntity)
+
+	// 各フィールドが正しく設定されている
+	if len(usecase.Scenario.Preconditions) != 2 {
+		t.Errorf("expected 2 preconditions, got %d", len(usecase.Scenario.Preconditions))
+	}
+	if usecase.Scenario.Trigger != "開始イベント" {
+		t.Errorf("expected trigger '開始イベント', got %q", usecase.Scenario.Trigger)
+	}
+	if len(usecase.Scenario.MainFlow) != 2 {
+		t.Errorf("expected 2 main flow steps, got %d", len(usecase.Scenario.MainFlow))
+	}
+	if len(usecase.Scenario.Postconditions) != 1 {
+		t.Errorf("expected 1 postcondition, got %d", len(usecase.Scenario.Postconditions))
+	}
+	if len(usecase.Scenario.AlternativeFlows) != 1 {
+		t.Errorf("expected 1 alternative flow, got %d", len(usecase.Scenario.AlternativeFlows))
+	}
+	if len(usecase.Scenario.ExceptionFlows) != 1 {
+		t.Errorf("expected 1 exception flow, got %d", len(usecase.Scenario.ExceptionFlows))
 	}
 }

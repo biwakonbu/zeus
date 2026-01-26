@@ -1,6 +1,7 @@
 <script lang="ts">
 	// 共通オーバーレイパネルコンポーネント
 	// ビューワー上に浮かぶフローティングパネルを提供
+	import { onMount } from 'svelte';
 	import type { Snippet } from 'svelte';
 	import { Icon } from '$lib/components/ui';
 
@@ -24,16 +25,55 @@
 		children
 	}: Props = $props();
 
+	// パネル参照
+	let panelRef: HTMLDivElement | null = $state(null);
+
+	// ARIA 用の一意なID
+	const titleId = `overlay-title-${Math.random().toString(36).slice(2, 10)}`;
+
 	// 位置に応じたスタイルクラス
 	const positionClass = $derived(`overlay-panel position-${position}`);
 
-	// インラインスタイル
-	const panelStyle = $derived(`width: ${width}; max-height: ${maxHeight};`);
+	// CSS 値のバリデーション（インジェクション対策）
+	function sanitizeCSSLength(value: string, fallback: string): string {
+		// 許可パターン: 数値+単位 または calc() 関数
+		const pattern = /^(\d+(\.\d+)?(px|rem|em|%|vh|vw)|calc\([^)]+\)|auto)$/;
+		return pattern.test(value) ? value : fallback;
+	}
+
+	// バリデート済みインラインスタイル
+	const panelStyle = $derived.by(() => {
+		const safeWidth = sanitizeCSSLength(width, '280px');
+		const safeMaxHeight = sanitizeCSSLength(maxHeight, 'calc(100% - 24px)');
+		return `width: ${safeWidth}; max-height: ${safeMaxHeight};`;
+	});
+
+	// ESC キーでパネルを閉じる
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' && onClose) {
+			event.preventDefault();
+			onClose();
+		}
+	}
+
+	// マウント時にフォーカス
+	onMount(() => {
+		panelRef?.focus();
+	});
 </script>
 
-<div class={positionClass} style={panelStyle}>
+<div
+	bind:this={panelRef}
+	class={positionClass}
+	style={panelStyle}
+	role="dialog"
+	aria-labelledby={titleId}
+	aria-modal="false"
+	tabindex="-1"
+	onkeydown={handleKeydown}
+>
 	<div class="overlay-header">
-		<span class="overlay-title">{title}</span>
+		<span class="overlay-title" id={titleId}>{title}</span>
 		{#if showCloseButton && onClose}
 			<button class="close-btn" onclick={onClose} aria-label="閉じる">
 				<Icon name="X" size={16} />
@@ -58,6 +98,16 @@
 		display: flex;
 		flex-direction: column;
 		z-index: 10;
+	}
+
+	/* フォーカス時のアウトライン */
+	.overlay-panel:focus {
+		outline: none;
+	}
+
+	.overlay-panel:focus-visible {
+		outline: 2px solid var(--accent-primary);
+		outline-offset: 2px;
 	}
 
 	/* 位置バリエーション */
@@ -117,29 +167,44 @@
 		color: var(--accent-primary);
 	}
 
+	.close-btn:focus-visible {
+		outline: 2px solid var(--accent-primary);
+		outline-offset: 1px;
+	}
+
 	.overlay-content {
 		flex: 1;
 		overflow-y: auto;
 	}
 
-	/* レスポンシブ */
+	/* レスポンシブ（詳細度を上げて !important を回避） */
 	@media (max-width: 768px) {
-		.overlay-panel {
+		.overlay-panel.position-top-left,
+		.overlay-panel.position-top-right,
+		.overlay-panel.position-bottom-left,
+		.overlay-panel.position-bottom-right {
 			left: 12px;
 			right: 12px;
-			width: auto !important;
-			max-height: 50% !important;
+			width: auto;
+			max-height: 50%;
 		}
 
-		.position-top-left,
-		.position-top-right {
+		.overlay-panel.position-top-left,
+		.overlay-panel.position-top-right {
 			top: 12px;
 		}
 
-		.position-bottom-left,
-		.position-bottom-right {
+		.overlay-panel.position-bottom-left,
+		.overlay-panel.position-bottom-right {
 			top: auto;
 			bottom: 12px;
+		}
+	}
+
+	/* アニメーション対応 */
+	@media (prefers-reduced-motion: reduce) {
+		.close-btn {
+			transition: none;
 		}
 	}
 </style>

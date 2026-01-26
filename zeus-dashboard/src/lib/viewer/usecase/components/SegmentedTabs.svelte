@@ -1,6 +1,6 @@
 <script lang="ts">
 	// SegmentedTabs - セグメント化タブ UI
-	// Factorio 風デザインのタブコンポーネント
+	// Factorio 風デザインのタブコンポーネント（矢印キーナビゲーション対応）
 
 	type TabItem = {
 		id: string;
@@ -14,17 +14,55 @@
 		onTabChange: (tabId: string) => void;
 	}
 	let { tabs, activeTab, onTabChange }: Props = $props();
+
+	// ボタン参照配列
+	let buttonRefs: HTMLButtonElement[] = $state([]);
+
+	// アクティブタブのインデックス
+	const activeIndex = $derived(tabs.findIndex((t) => t.id === activeTab));
+
+	// 矢印キーナビゲーション
+	function handleKeydown(event: KeyboardEvent, currentIndex: number) {
+		let newIndex: number | null = null;
+
+		switch (event.key) {
+			case 'ArrowRight':
+			case 'ArrowDown':
+				newIndex = currentIndex === tabs.length - 1 ? 0 : currentIndex + 1;
+				break;
+			case 'ArrowLeft':
+			case 'ArrowUp':
+				newIndex = currentIndex === 0 ? tabs.length - 1 : currentIndex - 1;
+				break;
+			case 'Home':
+				newIndex = 0;
+				break;
+			case 'End':
+				newIndex = tabs.length - 1;
+				break;
+			default:
+				return; // その他のキーは無視
+		}
+
+		if (newIndex !== null) {
+			event.preventDefault();
+			onTabChange(tabs[newIndex].id);
+			buttonRefs[newIndex]?.focus();
+		}
+	}
 </script>
 
 <div class="segmented-tabs" role="tablist">
-	{#each tabs as tab}
+	{#each tabs as tab, i}
 		<button
+			bind:this={buttonRefs[i]}
 			class="tab"
 			class:active={activeTab === tab.id}
 			role="tab"
 			aria-selected={activeTab === tab.id}
 			tabindex={activeTab === tab.id ? 0 : -1}
 			onclick={() => onTabChange(tab.id)}
+			onkeydown={(e) => handleKeydown(e, i)}
 		>
 			<span class="tab-label">{tab.label}</span>
 			<span class="tab-count">({tab.count})</span>
@@ -36,6 +74,7 @@
 	.segmented-tabs {
 		display: flex;
 		gap: 0;
+		min-width: fit-content; /* 内容に応じた最小幅を確保 */
 		background: linear-gradient(
 			180deg,
 			rgba(25, 25, 25, 0.9) 0%,
@@ -49,12 +88,13 @@
 	}
 
 	.tab {
-		flex: 1;
+		flex: 0 0 auto; /* 均等配分ではなく内容に応じたサイズ */
+		min-width: 60px; /* 各タブの最小幅 */
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		gap: 0.25rem;
-		padding: 0.5rem 0.75rem;
+		padding: 0.625rem 0.875rem; /* 縦幅拡大: 約10px x 14px */
 		background: transparent;
 		border: none;
 		border-right: 1px solid var(--border-metal);

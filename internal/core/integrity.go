@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
@@ -15,6 +16,8 @@ type IntegrityChecker struct {
 	riskHandler          *RiskHandler
 	assumptionHandler    *AssumptionHandler
 	qualityHandler       *QualityHandler
+	usecaseHandler       *UseCaseHandler
+	subsystemHandler     *SubsystemHandler
 }
 
 // NewIntegrityChecker は新しい IntegrityChecker を作成
@@ -55,6 +58,16 @@ func (c *IntegrityChecker) SetQualityHandler(h *QualityHandler) {
 	c.qualityHandler = h
 }
 
+// SetUseCaseHandler は UseCaseHandler を設定
+func (c *IntegrityChecker) SetUseCaseHandler(h *UseCaseHandler) {
+	c.usecaseHandler = h
+}
+
+// SetSubsystemHandler は SubsystemHandler を設定
+func (c *IntegrityChecker) SetSubsystemHandler(h *SubsystemHandler) {
+	c.subsystemHandler = h
+}
+
 // ReferenceError は参照エラーを表す
 type ReferenceError struct {
 	SourceType string // "deliverable" or "objective"
@@ -86,6 +99,21 @@ type IntegrityResult struct {
 	Valid           bool
 	ReferenceErrors []*ReferenceError
 	CycleErrors     []*CycleError
+	Warnings        []*ReferenceWarning // 警告（エラーではないが注意が必要）
+}
+
+// ReferenceWarning は参照警告を表す（エラーではないが注意が必要な参照問題）
+type ReferenceWarning struct {
+	SourceType string
+	SourceID   string
+	TargetType string
+	TargetID   string
+	Message    string
+}
+
+// Warning は警告メッセージを返す
+func (w *ReferenceWarning) Warning() string {
+	return fmt.Sprintf("%s %s → %s %s: %s", w.SourceType, w.SourceID, w.TargetType, w.TargetID, w.Message)
 }
 
 // CheckAll は全ての整合性チェックを実行
@@ -94,6 +122,7 @@ func (c *IntegrityChecker) CheckAll(ctx context.Context) (*IntegrityResult, erro
 		Valid:           true,
 		ReferenceErrors: []*ReferenceError{},
 		CycleErrors:     []*CycleError{},
+		Warnings:        []*ReferenceWarning{},
 	}
 
 	// 参照チェック
@@ -110,7 +139,14 @@ func (c *IntegrityChecker) CheckAll(ctx context.Context) (*IntegrityResult, erro
 	}
 	result.CycleErrors = cycleErrors
 
-	// エラーがあれば Valid = false
+	// 警告チェック（UseCase → Subsystem 参照など）
+	warnings, err := c.CheckWarnings(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("warning check failed: %w", err)
+	}
+	result.Warnings = warnings
+
+	// エラーがあれば Valid = false（警告は Valid に影響しない）
 	if len(result.ReferenceErrors) > 0 || len(result.CycleErrors) > 0 {
 		result.Valid = false
 	}
@@ -655,4 +691,80 @@ func (c *IntegrityChecker) checkAssumptionReferences(ctx context.Context) ([]*Re
 	}
 
 	return errors, nil
+}
+
+// CheckWarnings は警告レベルの参照問題をチェック（TASK-015: サブシステム参照）
+// - UseCase → Subsystem 参照（任意、存在しないサブシステムへの参照は警告）
+func (c *IntegrityChecker) CheckWarnings(ctx context.Context) ([]*ReferenceWarning, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	var warnings []*ReferenceWarning
+
+	// UseCase → Subsystem 参照チェック
+	usecaseWarnings, err := c.checkUseCaseSubsystemReferences(ctx)
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, usecaseWarnings...)
+
+	return warnings, nil
+}
+
+// checkUseCaseSubsystemReferences は UseCase から Subsystem への参照をチェック（警告レベル）
+// SubsystemID が設定されているが、該当の Subsystem が存在しない場合は警告を出す
+// 無効な ID 形式（ValidationError）も警告として扱う
+func (c *IntegrityChecker) checkUseCaseSubsystemReferences(ctx context.Context) ([]*ReferenceWarning, error) {
+	if c.usecaseHandler == nil {
+		return []*ReferenceWarning{}, nil
+	}
+
+	usecases, err := c.usecaseHandler.getAllUseCases(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var warnings []*ReferenceWarning
+	for _, uc := range usecases {
+		// SubsystemID が未設定なら OK（任意フィールド）
+		if uc.SubsystemID == "" {
+			continue
+		}
+
+		// SubsystemHandler が未設定なら警告チェックをスキップ
+		if c.subsystemHandler == nil {
+			continue
+		}
+
+		// Subsystem の存在確認
+		_, err := c.subsystemHandler.Get(ctx, uc.SubsystemID)
+		if err == ErrEntityNotFound {
+			// サブシステムが存在しない
+			warnings = append(warnings, &ReferenceWarning{
+				SourceType: "usecase",
+				SourceID:   uc.ID,
+				TargetType: "subsystem",
+				TargetID:   uc.SubsystemID,
+				Message:    "referenced subsystem not found",
+			})
+		} else if err != nil {
+			// ValidationError（無効な ID 形式）も警告として扱う
+			var validationErr *ValidationError
+			if errors.As(err, &validationErr) {
+				warnings = append(warnings, &ReferenceWarning{
+					SourceType: "usecase",
+					SourceID:   uc.ID,
+					TargetType: "subsystem",
+					TargetID:   uc.SubsystemID,
+					Message:    "invalid subsystem ID format",
+				})
+			} else {
+				// その他のエラーはそのまま返す
+				return nil, err
+			}
+		}
+	}
+
+	return warnings, nil
 }

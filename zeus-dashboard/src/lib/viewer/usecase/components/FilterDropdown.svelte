@@ -1,6 +1,6 @@
 <script lang="ts">
 	// FilterDropdown - フィルタドロップダウンコンポーネント
-	// 関連 Actor でのフィルタリング用
+	// 関連 Actor でのフィルタリング用（矢印キーナビゲーション対応）
 	import { Icon } from '$lib/components/ui';
 
 	type Option = {
@@ -18,6 +18,12 @@
 
 	let isOpen = $state(false);
 	let dropdownRef: HTMLDivElement | null = $state(null);
+	let triggerRef: HTMLButtonElement | null = $state(null);
+	let menuRef: HTMLUListElement | null = $state(null);
+	let focusedIndex = $state(-1); // -1 = trigger focused, 0 = 全て, 1+ = options
+
+	// 全オプション（「全て」を含む）
+	const allOptions = $derived([{ id: null, label: '全て' }, ...options.map((o) => ({ id: o.id, label: o.label }))]);
 
 	const selectedLabel = $derived(
 		selected ? options.find((o) => o.id === selected)?.label ?? placeholder : placeholder
@@ -25,44 +31,113 @@
 
 	function handleToggle() {
 		isOpen = !isOpen;
+		if (isOpen) {
+			// 開いたときは現在の選択位置にフォーカス
+			const currentIndex = allOptions.findIndex((o) => o.id === selected);
+			focusedIndex = currentIndex >= 0 ? currentIndex : 0;
+		}
 	}
 
 	function handleSelect(id: string | null) {
 		onSelect(id);
 		isOpen = false;
+		focusedIndex = -1;
+		triggerRef?.focus();
 	}
 
 	// 外部クリックで閉じる
 	function handleClickOutside(event: MouseEvent) {
-		if (dropdownRef && !dropdownRef.contains(event.target as Node)) {
+		const target = event.target;
+		if (dropdownRef && target instanceof Node && !dropdownRef.contains(target)) {
 			isOpen = false;
+			focusedIndex = -1;
 		}
 	}
 
-	// ESC キーで閉じる
+	// キーボードナビゲーション
 	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape' && isOpen) {
-			isOpen = false;
+		if (!isOpen) {
+			// 閉じているとき
+			if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
+				event.preventDefault();
+				isOpen = true;
+				focusedIndex = 0;
+			}
+			return;
+		}
+
+		// 開いているとき
+		switch (event.key) {
+			case 'Escape':
+				event.preventDefault();
+				isOpen = false;
+				focusedIndex = -1;
+				triggerRef?.focus();
+				break;
+			case 'ArrowDown':
+				event.preventDefault();
+				focusedIndex = Math.min(focusedIndex + 1, allOptions.length - 1);
+				focusMenuItem(focusedIndex);
+				break;
+			case 'ArrowUp':
+				event.preventDefault();
+				focusedIndex = Math.max(focusedIndex - 1, 0);
+				focusMenuItem(focusedIndex);
+				break;
+			case 'Home':
+				event.preventDefault();
+				focusedIndex = 0;
+				focusMenuItem(focusedIndex);
+				break;
+			case 'End':
+				event.preventDefault();
+				focusedIndex = allOptions.length - 1;
+				focusMenuItem(focusedIndex);
+				break;
+			case 'Enter':
+			case ' ':
+				event.preventDefault();
+				if (focusedIndex >= 0 && focusedIndex < allOptions.length) {
+					handleSelect(allOptions[focusedIndex].id);
+				}
+				break;
+			case 'Tab':
+				// Tab キーで閉じる
+				isOpen = false;
+				focusedIndex = -1;
+				break;
+		}
+	}
+
+	// メニューアイテムにフォーカス
+	function focusMenuItem(index: number) {
+		if (menuRef) {
+			const items = menuRef.querySelectorAll<HTMLButtonElement>('.dropdown-item');
+			items[index]?.focus();
 		}
 	}
 
 	$effect(() => {
 		if (isOpen) {
-			document.addEventListener('click', handleClickOutside);
-			document.addEventListener('keydown', handleKeydown);
+			// 次のフレームでリスナーを追加（トグルクリックを無視するため）
+			const timeoutId = setTimeout(() => {
+				document.addEventListener('click', handleClickOutside);
+			}, 0);
+			return () => {
+				clearTimeout(timeoutId);
+				document.removeEventListener('click', handleClickOutside);
+			};
 		}
-		return () => {
-			document.removeEventListener('click', handleClickOutside);
-			document.removeEventListener('keydown', handleKeydown);
-		};
 	});
 </script>
 
-<div class="dropdown" bind:this={dropdownRef}>
+<div class="dropdown" bind:this={dropdownRef} role="presentation">
 	<button
+		bind:this={triggerRef}
 		class="dropdown-trigger"
 		class:open={isOpen}
 		onclick={handleToggle}
+		onkeydown={handleKeydown}
 		aria-haspopup="listbox"
 		aria-expanded={isOpen}
 	>
@@ -73,25 +148,16 @@
 	</button>
 
 	{#if isOpen}
-		<ul class="dropdown-menu" role="listbox">
-			<li>
-				<button
-					class="dropdown-item"
-					class:selected={selected === null}
-					role="option"
-					aria-selected={selected === null}
-					onclick={() => handleSelect(null)}
-				>
-					全て
-				</button>
-			</li>
-			{#each options as option}
+		<ul bind:this={menuRef} class="dropdown-menu" role="listbox">
+			{#each allOptions as option, i}
 				<li>
 					<button
 						class="dropdown-item"
 						class:selected={selected === option.id}
+						class:focused={focusedIndex === i}
 						role="option"
 						aria-selected={selected === option.id}
+						tabindex={focusedIndex === i ? 0 : -1}
 						onclick={() => handleSelect(option.id)}
 					>
 						{option.label}
@@ -209,7 +275,8 @@
 			border-color var(--transition-select) ease-out;
 	}
 
-	.dropdown-item:hover {
+	.dropdown-item:hover,
+	.dropdown-item.focused {
 		background: rgba(255, 149, 51, 0.1);
 		border-left-color: var(--border-highlight);
 	}

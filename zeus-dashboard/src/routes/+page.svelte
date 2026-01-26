@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { FactorioViewer } from '$lib/viewer';
 	import { UseCaseView } from '$lib/viewer/usecase';
+	import { ActivityView } from '$lib/viewer/activity';
 	import { refreshAllData, currentView } from '$lib/stores';
 	import { setConnected, setDisconnected, setConnecting } from '$lib/stores/connection';
 	import { connectSSE, disconnectSSE } from '$lib/api/sse';
@@ -120,6 +121,8 @@
 		/>
 	{:else if $currentView === 'usecase'}
 		<UseCaseView />
+	{:else if $currentView === 'activity'}
+		<ActivityView />
 	{/if}
 </div>
 
@@ -164,7 +167,7 @@
 	{/if}
 {/if}
 
-<!-- UseCase View は内部で詳細パネルを管理 -->
+<!-- UseCase View / Activity View は内部で詳細パネルを管理 -->
 
 <style>
 	/* ビューワーコンテナ - 画面最大化 */

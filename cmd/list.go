@@ -27,6 +27,7 @@ var listCmd = &cobra.Command{
   assumption(s)  前提条件
   constraint(s)  制約条件
   quality        品質基準
+  subsystem(s)   サブシステム（ユースケース分類）
 
 エンティティを省略すると全タスクを表示します。
 
@@ -42,7 +43,8 @@ var listCmd = &cobra.Command{
   zeus list risks        # リスク一覧
   zeus list assumptions  # 前提条件一覧
   zeus list constraints  # 制約条件一覧
-  zeus list quality      # 品質基準一覧`,
+  zeus list quality      # 品質基準一覧
+  zeus list subsystems   # サブシステム一覧`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runList,
 }
@@ -82,6 +84,8 @@ func runList(cmd *cobra.Command, args []string) error {
 		return listConstraints(cmd, zeus)
 	case "quality", "qualities":
 		return listQualities(cmd, zeus)
+	case "subsystem", "subsystems":
+		return listSubsystems(cmd, zeus)
 	default:
 		// Task（既存の振る舞い）
 		return listTasks(cmd, zeus, entity)
@@ -402,6 +406,31 @@ func listQualities(cmd *cobra.Command, zeus *core.Zeus) error {
 
 	fmt.Printf("Total: %d quality criteria\n", result.Total)
 	fmt.Println("\n詳細を見るには 'zeus status' を使用してください。")
+
+	return nil
+}
+
+// listSubsystems は Subsystem 一覧を表示
+func listSubsystems(cmd *cobra.Command, zeus *core.Zeus) error {
+	ctx := getContext(cmd)
+	result, err := zeus.List(ctx, "subsystem")
+	if err != nil {
+		return err
+	}
+
+	cyan := color.New(color.FgCyan).SprintFunc()
+	fmt.Printf("%s (%d items)\n", cyan("Subsystems"), result.Total)
+	fmt.Println("────────────────────────────────────────")
+
+	if result.Total == 0 {
+		fmt.Println("サブシステムがありません。")
+		fmt.Println("'zeus add subsystem \"名前\"' で作成できます。")
+		return nil
+	}
+
+	for _, item := range result.Items {
+		fmt.Printf("[%s] %s\n", item.ID, item.Title)
+	}
 
 	return nil
 }

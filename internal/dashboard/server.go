@@ -145,7 +145,12 @@ func (s *Server) handler() http.Handler {
 	// UML UseCase API エンドポイント
 	mux.HandleFunc("/api/actors", s.corsMiddleware(s.handleAPIActors))
 	mux.HandleFunc("/api/usecases", s.corsMiddleware(s.handleAPIUseCases))
+	mux.HandleFunc("/api/subsystems", s.corsMiddleware(s.handleAPISubsystems))
 	mux.HandleFunc("/api/uml/usecase", s.corsMiddleware(s.handleAPIUseCaseDiagram))
+
+	// UML Activity API エンドポイント
+	mux.HandleFunc("/api/activities", s.corsMiddleware(s.handleAPIActivities))
+	mux.HandleFunc("/api/uml/activity", s.corsMiddleware(s.handleAPIActivityDiagram))
 
 	mux.HandleFunc("/api/events", s.handleSSE) // SSE エンドポイント
 

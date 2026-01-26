@@ -281,5 +281,24 @@ func (d *Doctor) checkIntegrity(ctx context.Context) []CheckResult {
 		})
 	}
 
+	// 警告のチェック（TASK-015: サブシステム参照チェック追加）
+	if len(result.Warnings) > 0 {
+		for _, warn := range result.Warnings {
+			checks = append(checks, CheckResult{
+				Check:   "subsystem_reference",
+				Status:  "warn",
+				Message: warn.Warning(),
+				Fixable: false, // 警告は自動修復不可（参照先の作成は手動で行う）
+			})
+		}
+	} else {
+		checks = append(checks, CheckResult{
+			Check:   "subsystem_reference",
+			Status:  "pass",
+			Message: "All UseCase subsystem references are valid",
+			Fixable: false,
+		})
+	}
+
 	return checks
 }

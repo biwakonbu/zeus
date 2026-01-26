@@ -1131,7 +1131,7 @@ func (q *QualityEntity) GetID() string { return q.ID }
 func (q *QualityEntity) GetTitle() string { return q.Title }
 
 // ============================================================
-// UML ユースケース図型定義 (Actor, UseCase)
+// UML ユースケース図型定義 (Actor, UseCase, Subsystem)
 // ============================================================
 
 // === Actor ===
@@ -1190,6 +1190,41 @@ func (a *ActorEntity) GetID() string { return a.ID }
 // GetTitle は Entity インターフェースを実装（ActorEntity）
 func (a *ActorEntity) GetTitle() string { return a.Title }
 
+// === Subsystem ===
+
+// SubsystemEntity はサブシステムエンティティ（UML ユースケース図のシステム境界）
+type SubsystemEntity struct {
+	ID          string   `yaml:"id"`
+	Name        string   `yaml:"name"`
+	Description string   `yaml:"description,omitempty"`
+	Metadata    Metadata `yaml:"metadata"`
+}
+
+// SubsystemsFile はサブシステムファイルの構造（単一ファイル管理）
+type SubsystemsFile struct {
+	Subsystems []SubsystemEntity `yaml:"subsystems"`
+}
+
+// Validate は SubsystemEntity の妥当性を検証
+func (s *SubsystemEntity) Validate() error {
+	if s.ID == "" {
+		return fmt.Errorf("subsystem ID is required")
+	}
+	if err := ValidateID("subsystem", s.ID); err != nil {
+		return err
+	}
+	if s.Name == "" {
+		return fmt.Errorf("subsystem name is required")
+	}
+	return nil
+}
+
+// GetID は Entity インターフェースを実装（SubsystemEntity）
+func (s *SubsystemEntity) GetID() string { return s.ID }
+
+// GetTitle は Entity インターフェースを実装（SubsystemEntity）
+func (s *SubsystemEntity) GetTitle() string { return s.Name }
+
 // === UseCase ===
 
 // UseCaseStatus はユースケースの状態
@@ -1232,9 +1267,32 @@ type UseCaseRelation struct {
 	Condition      string       `yaml:"condition,omitempty"`
 }
 
-// UseCaseScenario はシナリオ
+// AlternativeFlow は代替フロー（UML 2.5 準拠）
+type AlternativeFlow struct {
+	ID        string   `yaml:"id"`
+	Name      string   `yaml:"name"`
+	Condition string   `yaml:"condition"`
+	Steps     []string `yaml:"steps"`
+	RejoinsAt string   `yaml:"rejoins_at,omitempty"` // メインフローに戻るステップ
+}
+
+// ExceptionFlow は例外フロー（UML 2.5 準拠）
+type ExceptionFlow struct {
+	ID      string   `yaml:"id"`
+	Name    string   `yaml:"name"`
+	Trigger string   `yaml:"trigger"` // 例外発生条件
+	Steps   []string `yaml:"steps"`
+	Outcome string   `yaml:"outcome,omitempty"` // 結果（例: "ステップ2へ戻る"）
+}
+
+// UseCaseScenario はシナリオ（UML 2.5 準拠の拡張版）
 type UseCaseScenario struct {
-	MainFlow []string `yaml:"main_flow,omitempty"`
+	Preconditions    []string          `yaml:"preconditions,omitempty"`     // 事前条件
+	Trigger          string            `yaml:"trigger,omitempty"`           // 開始イベント
+	MainFlow         []string          `yaml:"main_flow,omitempty"`         // メインフロー
+	AlternativeFlows []AlternativeFlow `yaml:"alternative_flows,omitempty"` // 代替フロー
+	ExceptionFlows   []ExceptionFlow   `yaml:"exception_flows,omitempty"`   // 例外フロー
+	Postconditions   []string          `yaml:"postconditions,omitempty"`    // 事後条件
 }
 
 // UseCaseEntity はユースケースエンティティ
@@ -1242,8 +1300,9 @@ type UseCaseScenario struct {
 type UseCaseEntity struct {
 	ID          string            `yaml:"id"`
 	Title       string            `yaml:"title"`
-	ObjectiveID string            `yaml:"objective_id"` // 必須
+	ObjectiveID string            `yaml:"objective_id"`             // 必須
 	Description string            `yaml:"description,omitempty"`
+	SubsystemID string            `yaml:"subsystem_id,omitempty"`   // サブシステム ID（オプション）
 	Actors      []UseCaseActorRef `yaml:"actors,omitempty"`
 	Relations   []UseCaseRelation `yaml:"relations,omitempty"`
 	Scenario    UseCaseScenario   `yaml:"scenario,omitempty"`
@@ -1315,3 +1374,150 @@ func (u *UseCaseEntity) GetID() string { return u.ID }
 
 // GetTitle は Entity インターフェースを実装（UseCaseEntity）
 func (u *UseCaseEntity) GetTitle() string { return u.Title }
+
+// ============================================================
+// UML アクティビティ図型定義 (Activity)
+// ============================================================
+
+// === Activity ===
+
+// ActivityStatus はアクティビティの状態
+type ActivityStatus string
+
+const (
+	ActivityStatusDraft      ActivityStatus = "draft"
+	ActivityStatusActive     ActivityStatus = "active"
+	ActivityStatusDeprecated ActivityStatus = "deprecated"
+)
+
+// ActivityNodeType はアクティビティノードの種類
+type ActivityNodeType string
+
+const (
+	ActivityNodeTypeInitial  ActivityNodeType = "initial"  // 開始ノード（黒丸）
+	ActivityNodeTypeFinal    ActivityNodeType = "final"    // 終了ノード（二重丸）
+	ActivityNodeTypeAction   ActivityNodeType = "action"   // アクション（角丸四角形）
+	ActivityNodeTypeDecision ActivityNodeType = "decision" // 分岐（ひし形）
+	ActivityNodeTypeMerge    ActivityNodeType = "merge"    // 合流（ひし形）
+	ActivityNodeTypeFork     ActivityNodeType = "fork"     // 並列分岐（太い横線）
+	ActivityNodeTypeJoin     ActivityNodeType = "join"     // 並列合流（太い横線）
+)
+
+// ActivityNode はアクティビティ図のノード
+type ActivityNode struct {
+	ID   string           `yaml:"id"`
+	Type ActivityNodeType `yaml:"type"`
+	Name string           `yaml:"name,omitempty"` // initial/final では不要
+}
+
+// ActivityTransition はアクティビティ図の遷移
+type ActivityTransition struct {
+	ID     string `yaml:"id"`
+	Source string `yaml:"source"`          // ソースノードID
+	Target string `yaml:"target"`          // ターゲットノードID
+	Guard  string `yaml:"guard,omitempty"` // ガード条件（例: "[認証成功]"）
+}
+
+// ActivityEntity はアクティビティ図エンティティ
+// activities/act-NNN.yaml で管理（個別ファイル）
+type ActivityEntity struct {
+	ID          string               `yaml:"id"`
+	Title       string               `yaml:"title"`
+	Description string               `yaml:"description,omitempty"`
+	UseCaseID   string               `yaml:"usecase_id,omitempty"` // 任意紐付け
+	Status      ActivityStatus       `yaml:"status"`
+	Nodes       []ActivityNode       `yaml:"nodes,omitempty"`
+	Transitions []ActivityTransition `yaml:"transitions,omitempty"`
+	Metadata    Metadata             `yaml:"metadata"`
+}
+
+// Validate は ActivityNode の妥当性を検証
+func (n *ActivityNode) Validate() error {
+	if n.ID == "" {
+		return fmt.Errorf("activity node ID is required")
+	}
+	if n.Type == "" {
+		return fmt.Errorf("activity node type is required")
+	}
+	switch n.Type {
+	case ActivityNodeTypeInitial, ActivityNodeTypeFinal, ActivityNodeTypeAction,
+		ActivityNodeTypeDecision, ActivityNodeTypeMerge, ActivityNodeTypeFork, ActivityNodeTypeJoin:
+		// 有効
+	default:
+		return fmt.Errorf("invalid activity node type: %s", n.Type)
+	}
+	// action, decision には name が推奨（必須ではない）
+	return nil
+}
+
+// Validate は ActivityTransition の妥当性を検証
+func (t *ActivityTransition) Validate() error {
+	if t.ID == "" {
+		return fmt.Errorf("activity transition ID is required")
+	}
+	if t.Source == "" {
+		return fmt.Errorf("activity transition source is required")
+	}
+	if t.Target == "" {
+		return fmt.Errorf("activity transition target is required")
+	}
+	return nil
+}
+
+// Validate は ActivityEntity の妥当性を検証
+func (a *ActivityEntity) Validate() error {
+	if a.ID == "" {
+		return fmt.Errorf("activity ID is required")
+	}
+	if err := ValidateID("activity", a.ID); err != nil {
+		return err
+	}
+	if a.Title == "" {
+		return fmt.Errorf("activity title is required")
+	}
+	if a.Status == "" {
+		a.Status = ActivityStatusDraft
+	}
+	switch a.Status {
+	case ActivityStatusDraft, ActivityStatusActive, ActivityStatusDeprecated:
+		// 有効
+	default:
+		return fmt.Errorf("invalid activity status: %s", a.Status)
+	}
+	// ノードのバリデーションとID重複チェック
+	nodeIDs := make(map[string]bool)
+	for _, node := range a.Nodes {
+		if err := node.Validate(); err != nil {
+			return fmt.Errorf("invalid node: %w", err)
+		}
+		if nodeIDs[node.ID] {
+			return fmt.Errorf("duplicate node ID: %s", node.ID)
+		}
+		nodeIDs[node.ID] = true
+	}
+	// 遷移のバリデーションとID重複チェック
+	transitionIDs := make(map[string]bool)
+	for _, trans := range a.Transitions {
+		if err := trans.Validate(); err != nil {
+			return fmt.Errorf("invalid transition: %w", err)
+		}
+		if transitionIDs[trans.ID] {
+			return fmt.Errorf("duplicate transition ID: %s", trans.ID)
+		}
+		transitionIDs[trans.ID] = true
+		// ソース/ターゲットがノードに存在するか確認
+		if !nodeIDs[trans.Source] {
+			return fmt.Errorf("transition source not found: %s", trans.Source)
+		}
+		if !nodeIDs[trans.Target] {
+			return fmt.Errorf("transition target not found: %s", trans.Target)
+		}
+	}
+	return nil
+}
+
+// GetID は Entity インターフェースを実装（ActivityEntity）
+func (a *ActivityEntity) GetID() string { return a.ID }
+
+// GetTitle は Entity インターフェースを実装（ActivityEntity）
+func (a *ActivityEntity) GetTitle() string { return a.Title }

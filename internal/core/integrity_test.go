@@ -498,3 +498,240 @@ func containsHelper(s, substr string) bool {
 	}
 	return false
 }
+
+// ===== TASK-016: UseCase → Subsystem 参照チェックのテスト =====
+
+// テスト用セットアップ（UseCase/Subsystem 参照チェック用）
+func setupUseCaseSubsystemIntegrityTest(t *testing.T) (*IntegrityChecker, *UseCaseHandler, *SubsystemHandler, string, func()) {
+	t.Helper()
+
+	tmpDir, err := os.MkdirTemp("", "zeus-usecase-subsystem-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+
+	// .zeus ディレクトリを作成
+	zeusPath := tmpDir + "/.zeus"
+	if err := os.MkdirAll(zeusPath+"/usecases", 0755); err != nil {
+		os.RemoveAll(tmpDir)
+		t.Fatalf("failed to create usecases dir: %v", err)
+	}
+
+	fs := yaml.NewFileManager(zeusPath)
+	subsystemHandler := NewSubsystemHandler(fs)
+	usecaseHandler := NewUseCaseHandler(fs, nil, nil, nil)
+
+	// IntegrityChecker に設定
+	checker := NewIntegrityChecker(nil, nil)
+	checker.SetUseCaseHandler(usecaseHandler)
+	checker.SetSubsystemHandler(subsystemHandler)
+
+	cleanup := func() {
+		os.RemoveAll(tmpDir)
+	}
+
+	return checker, usecaseHandler, subsystemHandler, zeusPath, cleanup
+}
+
+// TestIntegrityCheckerUseCaseSubsystemWarningClean は正常なサブシステム参照をチェック
+func TestIntegrityCheckerUseCaseSubsystemWarningClean(t *testing.T) {
+	checker, _, subsystemHandler, zeusPath, cleanup := setupUseCaseSubsystemIntegrityTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	fs := yaml.NewFileManager(zeusPath)
+
+	// Subsystem を作成
+	subResult, err := subsystemHandler.Add(ctx, "認証サブシステム")
+	if err != nil {
+		t.Fatalf("Add subsystem failed: %v", err)
+	}
+
+	// 正しい参照を持つ UseCase を直接作成（ObjectiveID は必須だが、整合性チェックではスキップされる）
+	uc := &UseCaseEntity{
+		ID:          "uc-12345678",
+		Title:       "ログイン",
+		ObjectiveID: "obj-00000001", // ダミー（Objective ハンドラーは nil なのでチェックされない）
+		SubsystemID: subResult.ID,
+		Status:      UseCaseStatusDraft,
+		Metadata:    Metadata{CreatedAt: Now(), UpdatedAt: Now()},
+	}
+	if err := fs.WriteYaml(ctx, "usecases/uc-12345678.yaml", uc); err != nil {
+		t.Fatalf("Write usecase failed: %v", err)
+	}
+
+	// チェック実行
+	result, err := checker.CheckAll(ctx)
+	if err != nil {
+		t.Fatalf("CheckAll failed: %v", err)
+	}
+
+	if !result.Valid {
+		t.Error("expected Valid to be true")
+	}
+
+	if len(result.Warnings) != 0 {
+		t.Errorf("expected 0 warnings, got %d", len(result.Warnings))
+	}
+}
+
+// TestIntegrityCheckerUseCaseSubsystemWarningNoSubsystem はサブシステム未設定をチェック
+func TestIntegrityCheckerUseCaseSubsystemWarningNoSubsystem(t *testing.T) {
+	checker, _, _, zeusPath, cleanup := setupUseCaseSubsystemIntegrityTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	fs := yaml.NewFileManager(zeusPath)
+
+	// サブシステムなしの UseCase を直接作成
+	uc := &UseCaseEntity{
+		ID:          "uc-12345678",
+		Title:       "ログイン",
+		ObjectiveID: "obj-00000001", // ダミー
+		SubsystemID: "",             // サブシステム未設定
+		Status:      UseCaseStatusDraft,
+		Metadata:    Metadata{CreatedAt: Now(), UpdatedAt: Now()},
+	}
+	if err := fs.WriteYaml(ctx, "usecases/uc-12345678.yaml", uc); err != nil {
+		t.Fatalf("Write usecase failed: %v", err)
+	}
+
+	// チェック実行
+	result, err := checker.CheckAll(ctx)
+	if err != nil {
+		t.Fatalf("CheckAll failed: %v", err)
+	}
+
+	if !result.Valid {
+		t.Error("expected Valid to be true (no subsystem is OK)")
+	}
+
+	if len(result.Warnings) != 0 {
+		t.Errorf("expected 0 warnings for empty subsystem_id, got %d", len(result.Warnings))
+	}
+}
+
+// TestIntegrityCheckerUseCaseSubsystemWarningBrokenReference は存在しないサブシステム参照をチェック
+func TestIntegrityCheckerUseCaseSubsystemWarningBrokenReference(t *testing.T) {
+	checker, _, _, zeusPath, cleanup := setupUseCaseSubsystemIntegrityTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	fs := yaml.NewFileManager(zeusPath)
+
+	// 存在しないサブシステムへの参照を持つ UseCase を直接作成
+	brokenUC := &UseCaseEntity{
+		ID:          "uc-12345678",
+		Title:       "ログイン",
+		SubsystemID: "sub-99999999", // 存在しない Subsystem
+		Status:      UseCaseStatusDraft,
+		Metadata:    Metadata{CreatedAt: Now(), UpdatedAt: Now()},
+	}
+	if err := fs.WriteYaml(ctx, "usecases/uc-12345678.yaml", brokenUC); err != nil {
+		t.Fatalf("Write broken usecase failed: %v", err)
+	}
+
+	// チェック実行
+	result, err := checker.CheckAll(ctx)
+	if err != nil {
+		t.Fatalf("CheckAll failed: %v", err)
+	}
+
+	// 警告は Valid に影響しない
+	if !result.Valid {
+		t.Error("expected Valid to be true (warnings don't affect Valid)")
+	}
+
+	if len(result.Warnings) != 1 {
+		t.Errorf("expected 1 warning, got %d", len(result.Warnings))
+	}
+
+	// 警告内容確認
+	if len(result.Warnings) > 0 {
+		warning := result.Warnings[0]
+		if warning.SourceType != "usecase" {
+			t.Errorf("expected source type 'usecase', got %q", warning.SourceType)
+		}
+		if warning.SourceID != "uc-12345678" {
+			t.Errorf("expected source ID 'uc-12345678', got %q", warning.SourceID)
+		}
+		if warning.TargetType != "subsystem" {
+			t.Errorf("expected target type 'subsystem', got %q", warning.TargetType)
+		}
+		if warning.TargetID != "sub-99999999" {
+			t.Errorf("expected target ID 'sub-99999999', got %q", warning.TargetID)
+		}
+	}
+}
+
+// TestIntegrityCheckerUseCaseSubsystemWarningMultiple は複数の警告をチェック
+func TestIntegrityCheckerUseCaseSubsystemWarningMultiple(t *testing.T) {
+	checker, _, _, zeusPath, cleanup := setupUseCaseSubsystemIntegrityTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	fs := yaml.NewFileManager(zeusPath)
+
+	// 複数の壊れた参照を持つ UseCase を作成
+	for i := 1; i <= 3; i++ {
+		uc := &UseCaseEntity{
+			ID:          "uc-1234567" + string(rune('0'+i)),
+			Title:       "UseCase",
+			SubsystemID: "sub-99999999", // 存在しない
+			Status:      UseCaseStatusDraft,
+			Metadata:    Metadata{CreatedAt: Now(), UpdatedAt: Now()},
+		}
+		if err := fs.WriteYaml(ctx, "usecases/uc-1234567"+string(rune('0'+i))+".yaml", uc); err != nil {
+			t.Fatalf("Write uc failed: %v", err)
+		}
+	}
+
+	// チェック実行
+	result, err := checker.CheckAll(ctx)
+	if err != nil {
+		t.Fatalf("CheckAll failed: %v", err)
+	}
+
+	// 警告は Valid に影響しない
+	if !result.Valid {
+		t.Error("expected Valid to be true")
+	}
+
+	if len(result.Warnings) != 3 {
+		t.Errorf("expected 3 warnings, got %d", len(result.Warnings))
+	}
+}
+
+// TestIntegrityCheckerUseCaseSubsystemWarningNilHandler は nil ハンドラーでのチェック
+func TestIntegrityCheckerUseCaseSubsystemWarningNilHandler(t *testing.T) {
+	checker := NewIntegrityChecker(nil, nil)
+	// UseCaseHandler と SubsystemHandler は nil のまま
+
+	ctx := context.Background()
+
+	// CheckWarnings は nil ハンドラーでもエラーなく動作すべき
+	warnings, err := checker.CheckWarnings(ctx)
+	if err != nil {
+		t.Fatalf("CheckWarnings with nil handlers failed: %v", err)
+	}
+
+	if len(warnings) != 0 {
+		t.Errorf("expected 0 warnings with nil handlers, got %d", len(warnings))
+	}
+}
+
+// TestReferenceWarningMessage は警告メッセージをチェック
+func TestReferenceWarningMessage(t *testing.T) {
+	warning := &ReferenceWarning{
+		SourceType: "usecase",
+		SourceID:   "uc-12345678",
+		TargetType: "subsystem",
+		TargetID:   "sub-99999999",
+		Message:    "referenced subsystem not found",
+	}
+
+	expected := "usecase uc-12345678 → subsystem sub-99999999: referenced subsystem not found"
+	if warning.Warning() != expected {
+		t.Errorf("expected warning message %q, got %q", expected, warning.Warning())
+	}
+}

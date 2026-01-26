@@ -55,7 +55,28 @@ zeus uml show usecase                        # TEXT 形式
 zeus uml show usecase --format mermaid       # Mermaid 形式
 zeus uml show usecase --boundary "システム名" # システム境界指定
 zeus uml show usecase -o diagram.md          # ファイル出力
+
+zeus uml show activity                       # Activity 一覧
+zeus uml show activity --id act-001          # 特定 Activity 表示
 ```
+
+#### Activity（アクティビティ図）
+```bash
+zeus add activity "アクティビティ名" \
+  --usecase <uc-id> \      # 任意（紐付け）
+  -d "説明"
+```
+
+**ノードタイプ:**
+| タイプ | 説明 |
+|--------|------|
+| `initial` | 開始ノード |
+| `final` | 終了ノード |
+| `action` | アクション |
+| `decision` | 分岐 |
+| `merge` | 合流 |
+| `fork` | 並列分岐 |
+| `join` | 並列合流 |
 
 ### 承認管理
 - `zeus pending` - 承認待ち一覧
@@ -197,6 +218,7 @@ zeus list constraints   # Constraint 一覧
 zeus list quality       # Quality 一覧
 zeus list actors        # Actor 一覧
 zeus list usecases      # UseCase 一覧
+zeus list activities    # Activity 一覧
 ```
 
 ## 参照整合性
@@ -232,6 +254,8 @@ GET /api/events     # SSE ストリーム
 GET /api/actors     # Actor 一覧
 GET /api/usecases   # UseCase 一覧
 GET /api/uml/usecase # ユースケース図（Mermaid）
+GET /api/activities  # Activity 一覧
+GET /api/uml/activity?id=X # アクティビティ図
 ```
 
 ## 判断基準

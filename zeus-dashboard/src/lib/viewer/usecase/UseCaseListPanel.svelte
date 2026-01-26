@@ -76,8 +76,8 @@
 	// フィルタ表示条件（UseCase/全て タブのみ）
 	const showFilter = $derived(activeTab === 'all' || activeTab === 'usecase');
 
-	// フィルタ済みアイテム
-	const filteredItems = $derived(() => {
+	// フィルタ済みアイテム（$derived.by で関数呼び出し不要）
+	const filteredItems = $derived.by(() => {
 		const query = debouncedQuery.toLowerCase();
 
 		// ベースデータ
@@ -166,7 +166,7 @@
 	<!-- リスト -->
 	<div class="list-area">
 		<GroupedList
-			items={filteredItems()}
+			items={filteredItems}
 			groupBy={shouldGroupBy}
 			{selectedId}
 			{actors}

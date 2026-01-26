@@ -1,31 +1,17 @@
 // UseCaseNode - UML ユースケース図のユースケース（楕円）描画クラス
-// 楕円形でユースケースを表現し、ステータスに応じた色分けとラベル表示を行う
-import { Container, Graphics, Text, FederatedPointerEvent } from 'pixi.js';
+// 楕円形でユースケースを表現し、ステータスに応じた背景色とラベル表示を行う
+import { Container, Graphics, Text, TextStyle, CanvasTextMetrics, FederatedPointerEvent } from 'pixi.js';
 import type { UseCaseItem, UseCaseStatus } from '$lib/types/api';
-import { TEXT_RESOLUTION, COMMON_COLORS } from './constants';
+import { TEXT_RESOLUTION, COMMON_COLORS, USECASE_SIZE, USECASE_STATUS_STYLES } from './constants';
 
-// サイズ定数
-const ELLIPSE_WIDTH = 140;
-const ELLIPSE_HEIGHT = 50;
-const PADDING = 10;
-
-// ステータスインジケーター定数
-const STATUS_INDICATOR_X = 10;
-const STATUS_INDICATOR_RADIUS = 5;
+// パディング（ID表示用）
+const ID_AREA_HEIGHT = 14;
 
 // 色定義（Factorio テーマ準拠）
 const COLORS = {
-	// ステータス別の色
-	status: {
-		active: 0x44cc44,      // 緑（アクティブ）
-		draft: 0xffcc00,       // 黄（下書き）
-		deprecated: 0x888888   // グレー（非推奨）
-	} as Record<UseCaseStatus, number>,
 	// 基本色（共通定数から取得）
-	background: COMMON_COLORS.backgroundPanel,
 	backgroundHover: COMMON_COLORS.backgroundHover,
 	backgroundSelected: COMMON_COLORS.backgroundSelected,
-	border: COMMON_COLORS.borderHighlight,
 	borderHover: COMMON_COLORS.borderHover,
 	borderSelected: COMMON_COLORS.borderSelected,
 	text: COMMON_COLORS.text,
@@ -37,15 +23,19 @@ const COLORS = {
  *
  * 責務:
  * - 楕円形のユースケース描画
- * - ステータスに応じたスタイル変更
+ * - テキスト量に応じたサイズ自動調整
+ * - ステータスに応じた背景色でのスタイル変更
  * - インタラクション（クリック、ホバー）
  */
 export class UseCaseNode extends Container {
 	private usecase: UseCaseItem;
 	private background: Graphics;
-	private statusIndicator: Graphics;
 	private titleText: Text;
 	private idText: Text;
+
+	// 動的サイズ
+	private ellipseWidth: number;
+	private ellipseHeight: number;
 
 	private isHovered = false;
 	private isSelected = false;
@@ -59,9 +49,13 @@ export class UseCaseNode extends Container {
 
 		this.usecase = usecase;
 
+		// サイズ計算
+		const size = this.calculateSize();
+		this.ellipseWidth = size.width;
+		this.ellipseHeight = size.height;
+
 		// コンポーネント初期化
 		this.background = new Graphics();
-		this.statusIndicator = new Graphics();
 		this.titleText = new Text({
 			text: '',
 			style: {
@@ -70,7 +64,7 @@ export class UseCaseNode extends Container {
 				fontFamily: 'IBM Plex Mono, monospace',
 				align: 'center',
 				wordWrap: true,
-				wordWrapWidth: ELLIPSE_WIDTH - PADDING * 2
+				wordWrapWidth: this.ellipseWidth - USECASE_SIZE.paddingH * 2
 			},
 			resolution: TEXT_RESOLUTION
 		});
@@ -86,7 +80,6 @@ export class UseCaseNode extends Container {
 		});
 
 		this.addChild(this.background);
-		this.addChild(this.statusIndicator);
 		this.addChild(this.titleText);
 		this.addChild(this.idText);
 
@@ -103,86 +96,109 @@ export class UseCaseNode extends Container {
 	}
 
 	/**
+	 * テキスト量に応じたサイズを計算
+	 */
+	private calculateSize(): { width: number; height: number } {
+		// PixiJS TextMetrics でテキスト幅を測定
+		const style = new TextStyle({
+			fontSize: 11,
+			fontFamily: 'IBM Plex Mono, monospace'
+		});
+		const metrics = CanvasTextMetrics.measureText(this.usecase.title, style);
+
+		// パディングを加算してサイズ決定
+		const width = Math.min(
+			USECASE_SIZE.maxWidth,
+			Math.max(USECASE_SIZE.minWidth, metrics.width + USECASE_SIZE.paddingH * 2)
+		);
+		const height = Math.min(
+			USECASE_SIZE.maxHeight,
+			Math.max(USECASE_SIZE.minHeight, metrics.height + USECASE_SIZE.paddingV * 2 + ID_AREA_HEIGHT)
+		);
+
+		return { width, height };
+	}
+
+	/**
 	 * ユースケースを描画
 	 */
 	draw(): void {
 		this.drawBackground();
-		this.drawStatusIndicator();
 		this.drawTexts();
 	}
 
 	/**
 	 * 背景（楕円）を描画
+	 * ステータスに応じた背景色・ボーダー色で表現
 	 */
 	private drawBackground(): void {
 		this.background.clear();
 
-		const centerX = ELLIPSE_WIDTH / 2;
-		const centerY = ELLIPSE_HEIGHT / 2;
+		const centerX = this.ellipseWidth / 2;
+		const centerY = this.ellipseHeight / 2;
 
-		let bgColor = COLORS.background;
-		let borderColor = COLORS.border;
+		// ステータススタイルを取得
+		const statusStyle = USECASE_STATUS_STYLES[this.usecase.status] || USECASE_STATUS_STYLES.draft;
+
+		let bgColor = statusStyle.background;
+		let borderColor = statusStyle.border;
 		let borderWidth = 2;
+		let glowAlpha = statusStyle.glowAlpha;
 
+		// 選択/ホバー時はオーバーライド
 		if (this.isSelected) {
 			bgColor = COLORS.backgroundSelected;
 			borderColor = COLORS.borderSelected;
 			borderWidth = 3;
+			glowAlpha = 0.2;
 		} else if (this.isHovered) {
 			bgColor = COLORS.backgroundHover;
 			borderColor = COLORS.borderHover;
+			glowAlpha = 0.15;
 		}
 
-		// グロー効果（選択/ホバー時）
-		if (this.isSelected || this.isHovered) {
-			this.background.ellipse(centerX, centerY, ELLIPSE_WIDTH / 2 + 4, ELLIPSE_HEIGHT / 2 + 4);
-			this.background.fill({ color: borderColor, alpha: 0.15 });
+		// グロー効果
+		if (glowAlpha > 0) {
+			this.background.ellipse(centerX, centerY, this.ellipseWidth / 2 + 4, this.ellipseHeight / 2 + 4);
+			this.background.fill({ color: borderColor, alpha: glowAlpha });
 		}
 
 		// メイン楕円
-		this.background.ellipse(centerX, centerY, ELLIPSE_WIDTH / 2, ELLIPSE_HEIGHT / 2);
+		this.background.ellipse(centerX, centerY, this.ellipseWidth / 2, this.ellipseHeight / 2);
 		this.background.fill(bgColor);
 		this.background.stroke({ width: borderWidth, color: borderColor });
 
 		// 上部ハイライト（金属感）
-		this.background.ellipse(centerX, centerY - 5, ELLIPSE_WIDTH / 2 - 10, ELLIPSE_HEIGHT / 2 - 15);
+		this.background.ellipse(centerX, centerY - 5, this.ellipseWidth / 2 - 15, this.ellipseHeight / 2 - 15);
 		this.background.stroke({ width: 1, color: 0x666666, alpha: 0.3 });
-	}
-
-	/**
-	 * ステータスインジケーターを描画（左端の小円）
-	 */
-	private drawStatusIndicator(): void {
-		this.statusIndicator.clear();
-
-		const statusColor = COLORS.status[this.usecase.status] || COLORS.status.draft;
-		const indicatorY = ELLIPSE_HEIGHT / 2;
-
-		// ステータスドット
-		this.statusIndicator.circle(STATUS_INDICATOR_X, indicatorY, STATUS_INDICATOR_RADIUS);
-		this.statusIndicator.fill(statusColor);
-		this.statusIndicator.stroke({ width: 1, color: 0x1a1a1a });
 	}
 
 	/**
 	 * テキストを描画
 	 */
 	private drawTexts(): void {
-		const centerX = ELLIPSE_WIDTH / 2;
+		const centerX = this.ellipseWidth / 2;
 
-		// タイトル（中央）
-		const maxTitleChars = 18;
-		const title = this.usecase.title.length > maxTitleChars
-			? this.usecase.title.substring(0, maxTitleChars - 2) + '..'
-			: this.usecase.title;
+		// タイトル（中央）- 最大幅で切り詰め
+		const maxWidth = this.ellipseWidth - USECASE_SIZE.paddingH;
+		let title = this.usecase.title;
+
+		// テキストが最大幅を超える場合は切り詰め
 		this.titleText.text = title;
+		if (this.titleText.width > maxWidth) {
+			while (this.titleText.width > maxWidth && title.length > 3) {
+				title = title.substring(0, title.length - 1);
+				this.titleText.text = title + '..';
+			}
+		}
+
 		this.titleText.x = centerX - this.titleText.width / 2;
-		this.titleText.y = ELLIPSE_HEIGHT / 2 - this.titleText.height / 2 - 3;
+		this.titleText.y = this.ellipseHeight / 2 - this.titleText.height / 2 - 3;
 
 		// ID（下部）
 		this.idText.text = this.usecase.id;
 		this.idText.x = centerX - this.idText.width / 2;
-		this.idText.y = ELLIPSE_HEIGHT / 2 + 8;
+		this.idText.y = this.ellipseHeight / 2 + 8;
 	}
 
 	/**
@@ -218,6 +234,10 @@ export class UseCaseNode extends Container {
 	 */
 	updateUseCase(usecase: UseCaseItem): void {
 		this.usecase = usecase;
+		// サイズ再計算
+		const size = this.calculateSize();
+		this.ellipseWidth = size.width;
+		this.ellipseHeight = size.height;
 		this.draw();
 	}
 
@@ -236,17 +256,31 @@ export class UseCaseNode extends Container {
 	}
 
 	/**
-	 * ノードの幅を取得
+	 * インスタンスの幅を取得
 	 */
-	static getWidth(): number {
-		return ELLIPSE_WIDTH;
+	getWidth(): number {
+		return this.ellipseWidth;
 	}
 
 	/**
-	 * ノードの高さを取得
+	 * インスタンスの高さを取得
 	 */
-	static getHeight(): number {
-		return ELLIPSE_HEIGHT;
+	getHeight(): number {
+		return this.ellipseHeight;
+	}
+
+	/**
+	 * 最大幅を取得（レイアウト計算用）
+	 */
+	static getMaxWidth(): number {
+		return USECASE_SIZE.maxWidth;
+	}
+
+	/**
+	 * 最大高さを取得（レイアウト計算用）
+	 */
+	static getMaxHeight(): number {
+		return USECASE_SIZE.maxHeight;
 	}
 
 	/**

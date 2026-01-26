@@ -8,7 +8,7 @@ description: プロジェクト全体をスキャンし、現在の状態を分�
 
 ## 概要
 
-Zeus プロジェクト（New Zeus Project）の 10概念モデル全体（Vision, Objective, Deliverable, Task, Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality）および Actor/UseCase を分析します。
+Zeus プロジェクト（New Zeus Project）の 10概念モデル全体（Vision, Objective, Deliverable, Task, Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality）および Actor/UseCase/Subsystem/Activity を分析します。
 
 ## 入力
 
@@ -27,7 +27,7 @@ project:
     statement: "ビジョンステートメント"
     success_criteria: ["基準1", "基準2"]
 
-  # 10概念モデル件数 + Actor/UseCase
+  # 10概念モデル件数 + Actor/UseCase/Subsystem/Activity
   entities:
     objectives: 7
     deliverables: 4
@@ -41,6 +41,8 @@ project:
     quality: 2
     actors: 5
     usecases: 8
+    subsystems: 3
+    activities: 3
 
   # 参照整合性
   integrity:
@@ -134,6 +136,12 @@ zeus list actors
 
 # UseCase 一覧
 zeus list usecases
+
+# Subsystem 一覧
+zeus list subsystems
+
+# Activity 一覧
+zeus list activities
 ```
 
 ## 分析・可視化
@@ -160,6 +168,10 @@ zeus dashboard
 zeus uml show usecase
 zeus uml show usecase --format mermaid
 zeus uml show usecase --boundary "システム名"
+
+# UML アクティビティ図
+zeus uml show activity
+zeus uml show activity --id act-001
 ```
 
 ## 10概念モデル詳細
@@ -189,12 +201,14 @@ zeus uml show usecase --boundary "システム名"
 | Constraint | 制約条件 | `.zeus/constraints.yaml` | グローバル単一ファイル |
 | Quality | 品質基準 | `.zeus/quality/qual-NNN.yaml` | メトリクス・ゲート管理 |
 
-### UML 拡張（Actor/UseCase）
+### UML 拡張（Actor/UseCase/Subsystem/Activity）
 
 | 概念 | 説明 | ファイル | 特性 |
 |------|------|----------|------|
 | Actor | アクター定義 | `.zeus/actors.yaml` | 単一ファイル |
 | UseCase | ユースケース定義 | `.zeus/usecases/uc-NNN.yaml` | Objective 参照必須 |
+| Subsystem | サブシステム定義 | `.zeus/subsystems.yaml` | 単一ファイル、UseCase グルーピング |
+| Activity | アクティビティ図 | `.zeus/activities/act-NNN.yaml` | UseCase 参照任意 |
 
 ## 参照整合性チェック
 
@@ -206,7 +220,7 @@ zeus uml show usecase --boundary "システム名"
 - **Quality → Deliverable**: `deliverable_id` が必須
 - **UseCase → Objective**: `objective_id` が必須
 
-### 任意参照（参照先が存在しない場合はエラー）
+### 任意参照（参照先が存在しない場合はエラー/警告）
 - **Objective → Objective**: 親 `parent_id`（循環参照チェックあり）
 - **Consideration → Objective/Deliverable/Decision**: 任意の紐付け
 - **Problem → Objective/Deliverable**: 関連エンティティ
@@ -214,6 +228,7 @@ zeus uml show usecase --boundary "システム名"
 - **Assumption → Objective/Deliverable**: 関連エンティティ
 - **UseCase → Actor**: `actors[].actor_id` の参照先確認
 - **UseCase → UseCase**: `relations[].target_id` の参照先確認
+- **UseCase → Subsystem**: `subsystem_id` の参照先確認（警告レベル）
 
 ### 循環参照検出
 - Objective の親子階層で循環を検出
@@ -231,7 +246,10 @@ curl http://localhost:8080/api/wbs
 curl http://localhost:8080/api/timeline
 curl http://localhost:8080/api/actors
 curl http://localhost:8080/api/usecases
+curl http://localhost:8080/api/subsystems
 curl http://localhost:8080/api/uml/usecase
+curl http://localhost:8080/api/activities
+curl http://localhost:8080/api/uml/activity?id=act-001
 ```
 
 ## 関連スキル

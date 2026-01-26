@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/biwakonbu/zeus/internal/core"
+	"github.com/biwakonbu/zeus/internal/yaml"
 )
 
 func TestNew(t *testing.T) {
@@ -370,5 +371,299 @@ func TestFixableCount(t *testing.T) {
 	// 設定ファイルがないので fixable があるはず
 	if result.FixableCount == 0 {
 		t.Error("expected FixableCount > 0")
+	}
+}
+
+// TASK-016: サブシステム参照チェックのテスト
+
+// setupIntegrityCheckerTest は IntegrityChecker 付き Doctor をセットアップ
+func setupIntegrityCheckerTest(t *testing.T) (string, *Doctor, *core.IntegrityChecker, func()) {
+	t.Helper()
+
+	tmpDir, err := os.MkdirTemp("", "doctor-integrity-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+
+	zeusPath := filepath.Join(tmpDir, ".zeus")
+	if err := os.MkdirAll(zeusPath, 0755); err != nil {
+		os.RemoveAll(tmpDir)
+		t.Fatalf("failed to create zeus dir: %v", err)
+	}
+
+	// 必要なディレクトリを作成（usecases のみ、subsystems はファイルベース）
+	if err := os.MkdirAll(filepath.Join(zeusPath, "usecases"), 0755); err != nil {
+		os.RemoveAll(tmpDir)
+		t.Fatalf("failed to create usecases dir: %v", err)
+	}
+
+	// FileStore と各ハンドラーを作成
+	fs := yaml.NewFileManager(zeusPath)
+	usecaseHandler := core.NewUseCaseHandler(fs, nil, nil, nil)
+	subsystemHandler := core.NewSubsystemHandler(fs)
+
+	// IntegrityChecker を作成
+	checker := core.NewIntegrityChecker(nil, nil)
+	checker.SetUseCaseHandler(usecaseHandler)
+	checker.SetSubsystemHandler(subsystemHandler)
+
+	// Doctor を作成
+	d := NewWithIntegrity(tmpDir, checker)
+
+	cleanup := func() {
+		os.RemoveAll(tmpDir)
+	}
+
+	return zeusPath, d, checker, cleanup
+}
+
+func TestCheckIntegrity_SubsystemReference_Valid(t *testing.T) {
+	zeusPath, d, _, cleanup := setupIntegrityCheckerTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	fs := yaml.NewFileManager(zeusPath)
+
+	// 有効なサブシステムを作成（SubsystemsFile 形式で保存）
+	subsystemsFile := &core.SubsystemsFile{
+		Subsystems: []core.SubsystemEntity{
+			{
+				ID:   "sub-12345678",
+				Name: "Test Subsystem",
+			},
+		},
+	}
+	if err := fs.WriteYaml(ctx, "subsystems.yaml", subsystemsFile); err != nil {
+		t.Fatalf("failed to write subsystems.yaml: %v", err)
+	}
+
+	// サブシステムを参照するユースケースを作成
+	usecase := &core.UseCaseEntity{
+		ID:          "uc-12345678",
+		Title:       "Test UseCase",
+		SubsystemID: "sub-12345678", // 有効な参照
+		Status:      core.UseCaseStatusDraft,
+	}
+	if err := fs.WriteYaml(ctx, "usecases/uc-12345678.yaml", usecase); err != nil {
+		t.Fatalf("failed to write usecase: %v", err)
+	}
+
+	// Zeus 初期化（設定ファイルを作成）
+	z := core.New(filepath.Dir(zeusPath))
+	_, _ = z.Init(ctx)
+
+	// 診断を実行
+	result, err := d.Diagnose(ctx)
+	if err != nil {
+		t.Fatalf("Diagnose() error = %v", err)
+	}
+
+	// サブシステム参照チェックが pass であることを確認
+	foundSubsystemCheck := false
+	for _, check := range result.Checks {
+		if check.Check == "subsystem_reference" {
+			foundSubsystemCheck = true
+			if check.Status != "pass" {
+				t.Errorf("expected subsystem_reference check to pass, got %q: %s", check.Status, check.Message)
+			}
+		}
+	}
+
+	if !foundSubsystemCheck {
+		t.Error("subsystem_reference check not found")
+	}
+}
+
+func TestCheckIntegrity_SubsystemReference_Invalid(t *testing.T) {
+	zeusPath, d, _, cleanup := setupIntegrityCheckerTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	fs := yaml.NewFileManager(zeusPath)
+
+	// サブシステムを参照するユースケースを作成（サブシステムは存在しない）
+	usecase := &core.UseCaseEntity{
+		ID:          "uc-12345678",
+		Title:       "Test UseCase",
+		SubsystemID: "sub-nonexist", // 無効な参照（存在しないサブシステム）
+		Status:      core.UseCaseStatusDraft,
+	}
+	if err := fs.WriteYaml(ctx, "usecases/uc-12345678.yaml", usecase); err != nil {
+		t.Fatalf("failed to write usecase: %v", err)
+	}
+
+	// Zeus 初期化
+	z := core.New(filepath.Dir(zeusPath))
+	_, _ = z.Init(ctx)
+
+	// 診断を実行
+	result, err := d.Diagnose(ctx)
+	if err != nil {
+		t.Fatalf("Diagnose() error = %v", err)
+	}
+
+	// サブシステム参照チェックが warn であることを確認
+	foundSubsystemCheck := false
+	for _, check := range result.Checks {
+		if check.Check == "subsystem_reference" {
+			foundSubsystemCheck = true
+			if check.Status != "warn" {
+				t.Errorf("expected subsystem_reference check to warn, got %q: %s", check.Status, check.Message)
+			}
+			// メッセージに適切な情報が含まれていることを確認
+			if check.Message == "" {
+				t.Error("expected warning message to be non-empty")
+			}
+		}
+	}
+
+	if !foundSubsystemCheck {
+		t.Error("subsystem_reference check not found")
+	}
+
+	// 警告があっても Overall は degraded になることを確認
+	// （他のチェックが pass の場合）
+	// Note: 実際には zeus.yaml なども必要なので unhealthy or degraded
+}
+
+func TestCheckIntegrity_SubsystemReference_NoSubsystem(t *testing.T) {
+	zeusPath, d, _, cleanup := setupIntegrityCheckerTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	fs := yaml.NewFileManager(zeusPath)
+
+	// サブシステムを参照しないユースケースを作成
+	usecase := &core.UseCaseEntity{
+		ID:          "uc-12345678",
+		Title:       "Test UseCase",
+		SubsystemID: "", // サブシステム未設定（任意フィールド）
+		Status:      core.UseCaseStatusDraft,
+	}
+	if err := fs.WriteYaml(ctx, "usecases/uc-12345678.yaml", usecase); err != nil {
+		t.Fatalf("failed to write usecase: %v", err)
+	}
+
+	// Zeus 初期化
+	z := core.New(filepath.Dir(zeusPath))
+	_, _ = z.Init(ctx)
+
+	// 診断を実行
+	result, err := d.Diagnose(ctx)
+	if err != nil {
+		t.Fatalf("Diagnose() error = %v", err)
+	}
+
+	// サブシステム参照チェックが pass であることを確認（未設定は OK）
+	foundSubsystemCheck := false
+	for _, check := range result.Checks {
+		if check.Check == "subsystem_reference" {
+			foundSubsystemCheck = true
+			if check.Status != "pass" {
+				t.Errorf("expected subsystem_reference check to pass when no subsystem_id, got %q: %s", check.Status, check.Message)
+			}
+		}
+	}
+
+	if !foundSubsystemCheck {
+		t.Error("subsystem_reference check not found")
+	}
+}
+
+func TestCheckIntegrity_MultipleUseCases_MixedReferences(t *testing.T) {
+	zeusPath, d, _, cleanup := setupIntegrityCheckerTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	fs := yaml.NewFileManager(zeusPath)
+
+	// 有効なサブシステムを作成（SubsystemsFile 形式で保存）
+	subsystemsFile := &core.SubsystemsFile{
+		Subsystems: []core.SubsystemEntity{
+			{
+				ID:   "sub-12345678",
+				Name: "Test Subsystem",
+			},
+		},
+	}
+	if err := fs.WriteYaml(ctx, "subsystems.yaml", subsystemsFile); err != nil {
+		t.Fatalf("failed to write subsystems.yaml: %v", err)
+	}
+
+	// 有効な参照を持つユースケース
+	usecase1 := &core.UseCaseEntity{
+		ID:          "uc-11111111",
+		Title:       "UseCase 1",
+		SubsystemID: "sub-12345678", // 有効
+		Status:      core.UseCaseStatusDraft,
+	}
+	if err := fs.WriteYaml(ctx, "usecases/uc-11111111.yaml", usecase1); err != nil {
+		t.Fatalf("failed to write usecase1: %v", err)
+	}
+
+	// 無効な参照を持つユースケース
+	usecase2 := &core.UseCaseEntity{
+		ID:          "uc-22222222",
+		Title:       "UseCase 2",
+		SubsystemID: "sub-nonexist", // 無効
+		Status:      core.UseCaseStatusDraft,
+	}
+	if err := fs.WriteYaml(ctx, "usecases/uc-22222222.yaml", usecase2); err != nil {
+		t.Fatalf("failed to write usecase2: %v", err)
+	}
+
+	// 参照なしのユースケース
+	usecase3 := &core.UseCaseEntity{
+		ID:          "uc-33333333",
+		Title:       "UseCase 3",
+		SubsystemID: "", // 未設定
+		Status:      core.UseCaseStatusDraft,
+	}
+	if err := fs.WriteYaml(ctx, "usecases/uc-33333333.yaml", usecase3); err != nil {
+		t.Fatalf("failed to write usecase3: %v", err)
+	}
+
+	// Zeus 初期化
+	z := core.New(filepath.Dir(zeusPath))
+	_, _ = z.Init(ctx)
+
+	// 診断を実行
+	result, err := d.Diagnose(ctx)
+	if err != nil {
+		t.Fatalf("Diagnose() error = %v", err)
+	}
+
+	// サブシステム参照チェックの結果を確認
+	warnCount := 0
+	for _, check := range result.Checks {
+		if check.Check == "subsystem_reference" && check.Status == "warn" {
+			warnCount++
+		}
+	}
+
+	// 1つの無効な参照があるので 1 つの警告
+	if warnCount != 1 {
+		t.Errorf("expected 1 warning, got %d", warnCount)
+	}
+}
+
+func TestNewWithIntegrity(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "doctor-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	checker := core.NewIntegrityChecker(nil, nil)
+	d := NewWithIntegrity(tmpDir, checker)
+
+	if d == nil {
+		t.Error("NewWithIntegrity should return non-nil")
+	}
+	if d.integrityChecker == nil {
+		t.Error("integrityChecker should be set")
+	}
+	if d.zeusPath != filepath.Join(tmpDir, ".zeus") {
+		t.Errorf("expected zeusPath %q, got %q", filepath.Join(tmpDir, ".zeus"), d.zeusPath)
 	}
 }

@@ -2,7 +2,8 @@
 	// GroupedList - グループ化リストコンポーネント
 	// Actor/UseCase をグループ化して表示
 	import { Icon } from '$lib/components/ui';
-	import type { ActorItem, UseCaseItem, ActorType } from '$lib/types/api';
+	import type { ActorItem, UseCaseItem } from '$lib/types/api';
+	import { getActorIcon, getStatusColor } from '../utils';
 
 	// リストアイテム型
 	type ActorListItem = ActorItem & { itemType: 'actor' };
@@ -18,8 +19,8 @@
 	}
 	let { items, groupBy, selectedId, actors = [], onSelect }: Props = $props();
 
-	// グループ化
-	const grouped = $derived(() => {
+	// グループ化（$derived.by で関数呼び出し不要）
+	const grouped = $derived.by(() => {
 		if (!groupBy) {
 			return [{ key: 'all', label: '', items }];
 		}
@@ -30,32 +31,6 @@
 			{ key: 'usecase', label: 'UseCase', items: usecaseItems }
 		].filter((g) => g.items.length > 0);
 	});
-
-	// Actor タイプのアイコン名
-	function getActorIcon(type: ActorType): string {
-		const icons: Record<ActorType, string> = {
-			human: 'User',
-			system: 'Server',
-			time: 'Clock',
-			device: 'Smartphone',
-			external: 'Globe'
-		};
-		return icons[type] ?? 'HelpCircle';
-	}
-
-	// UseCase ステータスの色
-	function getStatusColor(status: string): string {
-		switch (status) {
-			case 'active':
-				return 'var(--status-good)';
-			case 'draft':
-				return 'var(--status-fair)';
-			case 'deprecated':
-				return 'var(--text-muted)';
-			default:
-				return 'var(--text-secondary)';
-		}
-	}
 
 	// アクター名解決
 	function getActorNames(actorRefs: UseCaseListItem['actors']): string {
@@ -73,7 +48,7 @@
 </script>
 
 <div class="grouped-list">
-	{#each grouped() as group}
+	{#each grouped as group}
 		{#if group.label}
 			<div class="group-header">
 				<span class="group-label">{group.label}</span>

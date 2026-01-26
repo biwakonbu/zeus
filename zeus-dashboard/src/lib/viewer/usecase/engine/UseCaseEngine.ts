@@ -1,17 +1,25 @@
 // UseCaseEngine - UML ユースケース図の PixiJS エンジン
-// アクター、ユースケース、システム境界、関係線のレイアウトと描画を管理
+// アクター、ユースケース、システム境界、サブシステム境界、関係線のレイアウトと描画を管理
 import { Application, Container, Graphics, FederatedPointerEvent } from 'pixi.js';
 import type {
 	UseCaseDiagramResponse,
 	ActorItem,
 	UseCaseItem,
 	UseCaseActorRef,
-	UseCaseRelation
+	UseCaseRelation,
+	SubsystemItem
 } from '$lib/types/api';
 import { ActorNode } from '../rendering/ActorNode';
 import { UseCaseNode } from '../rendering/UseCaseNode';
 import { SystemBoundary } from '../rendering/SystemBoundary';
+import { SubsystemBoundary } from '../rendering/SubsystemBoundary';
 import { RelationEdge, ActorUseCaseEdge } from '../rendering/RelationEdge';
+import { UNCATEGORIZED_SUBSYSTEM } from '../utils';
+
+// エンジンに渡すデータ型（サブシステム情報を含む拡張版）
+export interface UseCaseEngineData extends UseCaseDiagramResponse {
+	subsystems?: SubsystemItem[];
+}
 
 // レイアウト定数
 const ACTOR_MARGIN = 80;        // アクター間の垂直マージン
@@ -64,6 +72,7 @@ export class UseCaseEngine {
 	private worldContainer: Container | null = null;
 	private gridContainer: Container | null = null;
 	private boundaryContainer: Container | null = null;
+	private subsystemContainer: Container | null = null;
 	private edgeContainer: Container | null = null;
 	private usecaseContainer: Container | null = null;
 	private actorContainer: Container | null = null;
@@ -81,12 +90,22 @@ export class UseCaseEngine {
 	private actorNodes: Map<string, ActorNode> = new Map();
 	private usecaseNodes: Map<string, UseCaseNode> = new Map();
 	private systemBoundary: SystemBoundary | null = null;
+	private subsystemBoundaries: Map<string, SubsystemBoundary> = new Map();
 	private relationEdges: Map<string, RelationEdge> = new Map();
 	private actorUsecaseEdges: Map<string, ActorUseCaseEdge> = new Map();
+
+	// サブシステムデータ
+	private subsystems: SubsystemItem[] = [];
 
 	// 位置データ
 	private actorPositions: Map<string, { x: number; y: number }> = new Map();
 	private usecasePositions: Map<string, { x: number; y: number }> = new Map();
+
+	// インデックス（パフォーマンス最適化用）
+	// actor_id → 関連する usecase_id のセット
+	private actorToUseCases: Map<string, Set<string>> = new Map();
+	// usecase_id → このユースケースを参照している usecase_id のセット
+	private usecaseReferencedBy: Map<string, Set<string>> = new Map();
 
 	// 境界サイズ/位置（レイアウト計算用）
 	private boundarySize = { width: 400, height: 300 };
@@ -140,15 +159,17 @@ export class UseCaseEngine {
 		this.worldContainer = new Container();
 		this.gridContainer = new Container();
 		this.boundaryContainer = new Container();
+		this.subsystemContainer = new Container();
 		this.edgeContainer = new Container();
 		this.usecaseContainer = new Container();
 		this.actorContainer = new Container();
 
 		// コンテナ追加順序 = 描画順序（後に追加されたものが上に表示）
-		// UML図として正しい順序: グリッド → 境界 → エッジ → ユースケース → アクター
+		// UML図として正しい順序: グリッド → 境界 → サブシステム → エッジ → ユースケース → アクター
 		// ノードがエッジの上に表示されることで、線がノード内部を貫通しない
 		this.worldContainer.addChild(this.gridContainer);
 		this.worldContainer.addChild(this.boundaryContainer);
+		this.worldContainer.addChild(this.subsystemContainer);
 		this.worldContainer.addChild(this.edgeContainer);
 		this.worldContainer.addChild(this.usecaseContainer);
 		this.worldContainer.addChild(this.actorContainer);
@@ -302,29 +323,43 @@ export class UseCaseEngine {
 	/**
 	 * データを設定して描画
 	 */
-	setData(data: UseCaseDiagramResponse): void {
+	setData(data: UseCaseEngineData): void {
 		this.clearAll();
 		this.currentData = data;
 
+		// サブシステムデータを保存
+		this.subsystems = data.subsystems || [];
+
 		if (!data.actors.length && !data.usecases.length) return;
 
-		// レイアウト計算
-		this.calculateLayout(data);
+		// インデックス構築（showRelatedTo のパフォーマンス最適化）
+		this.buildIndexes(data);
 
-		// システム境界を作成
-		this.createSystemBoundary(data.boundary);
-
-		// アクターを作成
+		// アクターを作成（レイアウト計算に先立って作成）
 		for (const actor of data.actors) {
 			this.createActorNode(actor);
 		}
 
-		// ユースケースを作成
+		// ユースケースを作成（動的サイズ取得のためレイアウト前に作成）
 		for (const usecase of data.usecases) {
 			this.createUseCaseNode(usecase);
 		}
 
-		// 関係線を作成
+		// 動的レイアウト計算（ノード作成後にサイズを参照）
+		// サブシステムがある場合はサブシステム別レイアウト
+		if (this.subsystems.length > 0 || this.hasUseCasesWithSubsystem(data.usecases)) {
+			this.calculateLayoutWithSubsystems(data);
+		} else {
+			this.calculateLayout(data);
+		}
+
+		// レイアウト計算後に位置を適用
+		this.applyPositions();
+
+		// システム境界を作成
+		this.createSystemBoundary(data.boundary);
+
+		// 関係線を作成（位置確定後）
 		this.createEdges(data.usecases);
 
 		// フィルタモード有効時は非表示にする
@@ -337,7 +372,46 @@ export class UseCaseEngine {
 	}
 
 	/**
-	 * レイアウトを計算
+	 * ユースケースにサブシステム参照があるかチェック
+	 */
+	private hasUseCasesWithSubsystem(usecases: UseCaseItem[]): boolean {
+		return usecases.some(uc => uc.subsystem_id);
+	}
+
+	/**
+	 * インデックスを構築（パフォーマンス最適化）
+	 * actor → usecases、usecase → referenced_by の逆引きマップを作成
+	 */
+	private buildIndexes(data: UseCaseDiagramResponse): void {
+		// インデックスをクリア
+		this.actorToUseCases.clear();
+		this.usecaseReferencedBy.clear();
+
+		// actor → usecases インデックス構築
+		for (const usecase of data.usecases) {
+			for (const actorRef of usecase.actors) {
+				let set = this.actorToUseCases.get(actorRef.actor_id);
+				if (!set) {
+					set = new Set();
+					this.actorToUseCases.set(actorRef.actor_id, set);
+				}
+				set.add(usecase.id);
+			}
+
+			// usecase → referenced_by インデックス構築
+			for (const relation of usecase.relations) {
+				let set = this.usecaseReferencedBy.get(relation.target_id);
+				if (!set) {
+					set = new Set();
+					this.usecaseReferencedBy.set(relation.target_id, set);
+				}
+				set.add(usecase.id);
+			}
+		}
+	}
+
+	/**
+	 * レイアウトを計算（動的サイズ対応）
 	 */
 	private calculateLayout(data: UseCaseDiagramResponse): void {
 		// アクター配置（左側に縦並び）
@@ -352,45 +426,226 @@ export class UseCaseEngine {
 			actorY += actorHeight + ACTOR_MARGIN;
 		}
 
-		// ユースケース配置（グリッド状）
-		const usecaseWidth = UseCaseNode.getWidth();
-		const usecaseHeight = UseCaseNode.getHeight();
+		// ユースケース配置（動的サイズを考慮したグリッド配置）
 		const maxCols = 3;
-		let col = 0;
-		let row = 0;
-
 		const boundaryX = BOUNDARY_PADDING + ActorNode.getWidth() + ACTOR_BOUNDARY_GAP;
 
+		// 行ごとのサイズを追跡
+		let currentX = BOUNDARY_PADDING;
+		let currentY = SystemBoundary.getTitleHeight() + BOUNDARY_PADDING;
+		let rowMaxHeight = 0;
+		let col = 0;
+		let maxRowWidth = 0;
+
+		// 各ユースケースの動的サイズを取得して配置
 		for (const usecase of data.usecases) {
+			const node = this.usecaseNodes.get(usecase.id);
+			const width = node ? node.getWidth() : UseCaseNode.getMaxWidth();
+			const height = node ? node.getHeight() : UseCaseNode.getMaxHeight();
+
+			// 3列超えたら改行
+			if (col >= maxCols) {
+				currentY += rowMaxHeight + USECASE_MARGIN_Y;
+				maxRowWidth = Math.max(maxRowWidth, currentX);
+				currentX = BOUNDARY_PADDING;
+				rowMaxHeight = 0;
+				col = 0;
+			}
+
 			this.usecasePositions.set(usecase.id, {
-				x: boundaryX + BOUNDARY_PADDING + col * (usecaseWidth + USECASE_MARGIN_X),
-				y: SystemBoundary.getTitleHeight() + BOUNDARY_PADDING + row * (usecaseHeight + USECASE_MARGIN_Y)
+				x: boundaryX + currentX,
+				y: currentY
 			});
 
+			currentX += width + USECASE_MARGIN_X;
+			rowMaxHeight = Math.max(rowMaxHeight, height);
 			col++;
-			if (col >= maxCols) {
-				col = 0;
-				row++;
-			}
 		}
 
-		// 境界サイズを計算
-		const usecaseCols = Math.min(data.usecases.length, maxCols);
-		const usecaseRows = Math.ceil(data.usecases.length / maxCols) || 1;
+		// 最終行の幅も考慮
+		maxRowWidth = Math.max(maxRowWidth, currentX);
+
+		// 境界サイズを計算（実際のノードサイズから）
+		const totalHeight = currentY + rowMaxHeight + BOUNDARY_PADDING;
 
 		const boundaryWidth = Math.max(
 			300,
-			usecaseCols * (usecaseWidth + USECASE_MARGIN_X) + BOUNDARY_PADDING * 2
+			maxRowWidth + BOUNDARY_PADDING
 		);
 		const boundaryHeight = Math.max(
 			200,
-			usecaseRows * (usecaseHeight + USECASE_MARGIN_Y) + SystemBoundary.getTitleHeight() + BOUNDARY_PADDING * 2
+			totalHeight
 		);
 
 		// 境界位置を保存
 		this.systemBoundary = null;  // 後で作成
 		this.boundarySize = { width: boundaryWidth, height: boundaryHeight };
 		this.boundaryPosition = { x: boundaryX, y: 0 };
+	}
+
+	/**
+	 * サブシステムを考慮したレイアウト計算
+	 * ユースケースをサブシステムごとにグループ化して配置
+	 */
+	private calculateLayoutWithSubsystems(data: UseCaseDiagramResponse): void {
+		// アクター配置（左側に縦並び）- 通常レイアウトと同じ
+		const actorHeight = ActorNode.getHeight();
+		let actorY = BOUNDARY_PADDING;
+
+		for (const actor of data.actors) {
+			this.actorPositions.set(actor.id, {
+				x: BOUNDARY_PADDING,
+				y: actorY
+			});
+			actorY += actorHeight + ACTOR_MARGIN;
+		}
+
+		// サブシステムごとにユースケースをグループ化
+		const usecasesBySubsystem = new Map<string, UseCaseItem[]>();
+
+		for (const usecase of data.usecases) {
+			const subsystemId = usecase.subsystem_id || UNCATEGORIZED_SUBSYSTEM.id;
+			if (!usecasesBySubsystem.has(subsystemId)) {
+				usecasesBySubsystem.set(subsystemId, []);
+			}
+			usecasesBySubsystem.get(subsystemId)!.push(usecase);
+		}
+
+		// サブシステム境界の配置計算
+		const boundaryX = BOUNDARY_PADDING + ActorNode.getWidth() + ACTOR_BOUNDARY_GAP;
+		const SUBSYSTEM_GAP = 30;
+		const SUBSYSTEM_PADDING = SubsystemBoundary.getPadding();
+		const SUBSYSTEM_TITLE_HEIGHT = SubsystemBoundary.getTitleHeight();
+		const maxCols = 2;  // サブシステム内は2列
+
+		let currentSubsystemX = BOUNDARY_PADDING;
+		let currentSubsystemY = SystemBoundary.getTitleHeight() + BOUNDARY_PADDING;
+		let maxSubsystemWidth = 0;
+		let totalHeight = currentSubsystemY;
+
+		// サブシステムの順序: 定義されたサブシステム → 未分類
+		const sortedSubsystemIds: string[] = [];
+		for (const sub of this.subsystems) {
+			if (usecasesBySubsystem.has(sub.id)) {
+				sortedSubsystemIds.push(sub.id);
+			}
+		}
+		if (usecasesBySubsystem.has(UNCATEGORIZED_SUBSYSTEM.id)) {
+			sortedSubsystemIds.push(UNCATEGORIZED_SUBSYSTEM.id);
+		}
+
+		// 各サブシステムを配置
+		for (const subsystemId of sortedSubsystemIds) {
+			const usecases = usecasesBySubsystem.get(subsystemId)!;
+			if (usecases.length === 0) continue;
+
+			// サブシステム情報を取得
+			const subsystem = subsystemId === UNCATEGORIZED_SUBSYSTEM.id
+				? UNCATEGORIZED_SUBSYSTEM
+				: this.subsystems.find(s => s.id === subsystemId) || { id: subsystemId, name: subsystemId };
+
+			// サブシステム内のユースケースを配置
+			let ucX = SUBSYSTEM_PADDING;
+			let ucY = SUBSYSTEM_TITLE_HEIGHT + SUBSYSTEM_PADDING;
+			let rowMaxHeight = 0;
+			let col = 0;
+			let subsystemContentWidth = 0;
+
+			for (const usecase of usecases) {
+				const node = this.usecaseNodes.get(usecase.id);
+				const width = node ? node.getWidth() : UseCaseNode.getMaxWidth();
+				const height = node ? node.getHeight() : UseCaseNode.getMaxHeight();
+
+				if (col >= maxCols) {
+					ucY += rowMaxHeight + USECASE_MARGIN_Y;
+					subsystemContentWidth = Math.max(subsystemContentWidth, ucX);
+					ucX = SUBSYSTEM_PADDING;
+					rowMaxHeight = 0;
+					col = 0;
+				}
+
+				// ユースケースの絶対位置を計算
+				this.usecasePositions.set(usecase.id, {
+					x: boundaryX + currentSubsystemX + ucX,
+					y: currentSubsystemY + ucY
+				});
+
+				ucX += width + USECASE_MARGIN_X;
+				rowMaxHeight = Math.max(rowMaxHeight, height);
+				col++;
+			}
+
+			subsystemContentWidth = Math.max(subsystemContentWidth, ucX);
+
+			// サブシステム境界のサイズを計算
+			const subsystemWidth = Math.max(200, subsystemContentWidth + SUBSYSTEM_PADDING);
+			const subsystemHeight = ucY + rowMaxHeight + SUBSYSTEM_PADDING;
+
+			// サブシステム境界を作成
+			this.createSubsystemBoundary(
+				subsystem,
+				boundaryX + currentSubsystemX,
+				currentSubsystemY,
+				subsystemWidth,
+				subsystemHeight
+			);
+
+			// 次のサブシステムの位置
+			currentSubsystemY += subsystemHeight + SUBSYSTEM_GAP;
+			totalHeight = currentSubsystemY;
+			maxSubsystemWidth = Math.max(maxSubsystemWidth, subsystemWidth);
+		}
+
+		// システム境界サイズを計算
+		const boundaryWidth = Math.max(300, maxSubsystemWidth + BOUNDARY_PADDING * 2);
+		const boundaryHeight = Math.max(200, totalHeight);
+
+		this.systemBoundary = null;
+		this.boundarySize = { width: boundaryWidth, height: boundaryHeight };
+		this.boundaryPosition = { x: boundaryX, y: 0 };
+	}
+
+	/**
+	 * サブシステム境界を作成
+	 */
+	private createSubsystemBoundary(
+		subsystem: SubsystemItem,
+		x: number,
+		y: number,
+		width: number,
+		height: number
+	): void {
+		if (!this.subsystemContainer) return;
+
+		const boundary = new SubsystemBoundary(subsystem, width, height);
+		boundary.x = x;
+		boundary.y = y;
+
+		this.subsystemBoundaries.set(subsystem.id, boundary);
+		this.subsystemContainer.addChild(boundary);
+	}
+
+	/**
+	 * 計算した位置をノードに適用
+	 */
+	private applyPositions(): void {
+		// アクターの位置を適用
+		for (const [id, pos] of this.actorPositions) {
+			const node = this.actorNodes.get(id);
+			if (node) {
+				node.x = pos.x;
+				node.y = pos.y;
+			}
+		}
+
+		// ユースケースの位置を適用
+		for (const [id, pos] of this.usecasePositions) {
+			const node = this.usecaseNodes.get(id);
+			if (node) {
+				node.x = pos.x;
+				node.y = pos.y;
+			}
+		}
 	}
 
 	/**
@@ -412,17 +667,12 @@ export class UseCaseEngine {
 
 	/**
 	 * アクターノードを作成
+	 * 位置は applyPositions() で後から設定される
 	 */
 	private createActorNode(actor: ActorItem): void {
 		if (!this.actorContainer) return;
 
 		const node = new ActorNode(actor);
-		const position = this.actorPositions.get(actor.id);
-
-		if (position) {
-			node.x = position.x;
-			node.y = position.y;
-		}
 
 		// イベント設定
 		node.onClick(() => {
@@ -441,17 +691,12 @@ export class UseCaseEngine {
 
 	/**
 	 * ユースケースノードを作成
+	 * 位置は applyPositions() で後から設定される
 	 */
 	private createUseCaseNode(usecase: UseCaseItem): void {
 		if (!this.usecaseContainer) return;
 
 		const node = new UseCaseNode(usecase);
-		const position = this.usecasePositions.get(usecase.id);
-
-		if (position) {
-			node.x = position.x;
-			node.y = position.y;
-		}
 
 		// イベント設定
 		node.onClick(() => {
@@ -501,11 +746,12 @@ export class UseCaseEngine {
 		const isPrimary = actorRef.role === 'primary';
 		const edge = new ActorUseCaseEdge(actorRef.actor_id, usecaseId, isPrimary);
 
-		// エンドポイント設定
+		// エンドポイント設定（動的サイズ対応）
 		const fromX = actorNode.x + ActorNode.getWidth() / 2;
 		const fromY = actorNode.y + ActorNode.getHeight() / 2;
+		// ユースケースの左端中央に接続
 		const toX = usecaseNode.x;
-		const toY = usecaseNode.y + UseCaseNode.getHeight() / 2;
+		const toY = usecaseNode.y + usecaseNode.getHeight() / 2;
 
 		edge.setEndpoints(fromX, fromY, toX, toY);
 
@@ -526,11 +772,11 @@ export class UseCaseEngine {
 
 		const edge = new RelationEdge(fromId, relation.target_id, relation.type, relation.condition);
 
-		// エンドポイント設定
-		const fromX = fromNode.x + UseCaseNode.getWidth() / 2;
-		const fromY = fromNode.y + UseCaseNode.getHeight() / 2;
-		const toX = toNode.x + UseCaseNode.getWidth() / 2;
-		const toY = toNode.y + UseCaseNode.getHeight() / 2;
+		// エンドポイント設定（動的サイズ対応）
+		const fromX = fromNode.x + fromNode.getWidth() / 2;
+		const fromY = fromNode.y + fromNode.getHeight() / 2;
+		const toX = toNode.x + toNode.getWidth() / 2;
+		const toY = toNode.y + toNode.getHeight() / 2;
 
 		edge.setEndpoints(fromX, fromY, toX, toY);
 
@@ -748,6 +994,10 @@ export class UseCaseEngine {
 		this.actorPositions.clear();
 		this.usecasePositions.clear();
 
+		// インデックスをクリア
+		this.actorToUseCases.clear();
+		this.usecaseReferencedBy.clear();
+
 		// 選択状態をクリア
 		this.selectedActorId = null;
 		this.selectedUseCaseId = null;
@@ -929,11 +1179,11 @@ export class UseCaseEngine {
 			// アクターが選択された場合
 			visibleActorIds.add(actorId);
 
-			// このアクターに関連するユースケースを探す
-			for (const usecase of this.currentData.usecases) {
-				const isRelated = usecase.actors.some(ref => ref.actor_id === actorId);
-				if (isRelated) {
-					visibleUseCaseIds.add(usecase.id);
+			// インデックスから関連ユースケースを O(1) で取得
+			const relatedUseCases = this.actorToUseCases.get(actorId);
+			if (relatedUseCases) {
+				for (const ucId of relatedUseCases) {
+					visibleUseCaseIds.add(ucId);
 				}
 			}
 		}
@@ -954,11 +1204,11 @@ export class UseCaseEngine {
 					visibleUseCaseIds.add(relation.target_id);
 				}
 
-				// このユースケースを参照している他のユースケースも追加
-				for (const otherUsecase of this.currentData.usecases) {
-					const referencesThis = otherUsecase.relations.some(r => r.target_id === usecaseId);
-					if (referencesThis) {
-						visibleUseCaseIds.add(otherUsecase.id);
+				// インデックスからこのユースケースを参照している他のユースケースを O(1) で取得
+				const referencingUseCases = this.usecaseReferencedBy.get(usecaseId);
+				if (referencingUseCases) {
+					for (const ucId of referencingUseCases) {
+						visibleUseCaseIds.add(ucId);
 					}
 				}
 			}
@@ -997,6 +1247,9 @@ export class UseCaseEngine {
 	 */
 	destroy(): void {
 		this.clearAll();
+
+		// データをクリア（メモリリーク防止）
+		this.currentData = null;
 
 		// wheel イベントリスナーを削除
 		if (this.app && this.wheelHandler) {

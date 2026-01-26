@@ -43,26 +43,32 @@ var idPatterns = map[string]*regexp.Regexp{
 	// 既存の Task エンティティ（UUID ベース）
 	"task": regexp.MustCompile(`^task-[a-f0-9]{8}$`),
 	// UML UseCase エンティティ（UUID ベース）
-	"actor":   regexp.MustCompile(`^actor-[a-f0-9]{8}$`),
-	"usecase": regexp.MustCompile(`^uc-[a-f0-9]{8}$`),
+	"actor":     regexp.MustCompile(`^actor-[a-f0-9]{8}$`),
+	"usecase":   regexp.MustCompile(`^uc-[a-f0-9]{8}$`),
+	"subsystem": regexp.MustCompile(`^sub-[a-f0-9]{8}$`),
+	// UML Activity エンティティ（UUID ベース）
+	"activity": regexp.MustCompile(`^act-[a-f0-9]{8}$`),
 }
 
 // entityDirectories はエンティティタイプとディレクトリのマッピング
 var entityDirectories = map[string]string{
-	"vision":        "",              // ルートに配置（vision.yaml）
-	"objective":     "objectives",    // objectives/obj-NNN.yaml
-	"deliverable":   "deliverables",  // deliverables/del-NNN.yaml
+	"vision":        "",             // ルートに配置（vision.yaml）
+	"objective":     "objectives",   // objectives/obj-NNN.yaml
+	"deliverable":   "deliverables", // deliverables/del-NNN.yaml
 	"consideration": "considerations",
 	"decision":      "decisions",
 	"problem":       "problems",
 	"risk":          "risks",
 	"assumption":    "assumptions",
-	"constraint":    "",               // ルートに配置（constraints.yaml）
+	"constraint":    "",        // ルートに配置（constraints.yaml）
 	"quality":       "quality",
-	"task":          "tasks",          // 既存
+	"task":          "tasks", // 既存
 	// UML UseCase エンティティ
-	"actor":   "",          // ルートに配置（actors.yaml、単一ファイル）
-	"usecase": "usecases",  // usecases/uc-NNN.yaml
+	"actor":     "",         // ルートに配置（actors.yaml、単一ファイル）
+	"usecase":   "usecases", // usecases/uc-NNN.yaml
+	"subsystem": "",         // ルートに配置（subsystems.yaml、単一ファイル）
+	// UML Activity エンティティ
+	"activity": "activities", // activities/act-NNN.yaml
 }
 
 // ValidatePath はパストラバーサル攻撃を防ぐ
@@ -158,13 +164,16 @@ func GetEntityFilePath(baseDir, entityType, id string) (string, error) {
 	var relativePath string
 	if dirName == "" {
 		// ルートに配置する単一ファイルエンティティ
-		if entityType == "vision" {
+		switch entityType {
+		case "vision":
 			relativePath = "vision.yaml"
-		} else if entityType == "constraint" {
+		case "constraint":
 			relativePath = "constraints.yaml"
-		} else if entityType == "actor" {
+		case "actor":
 			relativePath = "actors.yaml"
-		} else {
+		case "subsystem":
+			relativePath = "subsystems.yaml"
+		default:
 			relativePath = id + ".yaml"
 		}
 	} else {

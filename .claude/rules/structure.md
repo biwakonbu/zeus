@@ -26,6 +26,7 @@ zeus/
 │   │   ├── interfaces.go     # FileStore, StateStore, ApprovalStore インターフェース
 │   │   ├── entity.go         # EntityHandler, EntityRegistry
 │   │   ├── task_handler.go   # タスクエンティティハンドラー
+│   │   ├── subsystem_handler.go # サブシステムハンドラー
 │   │   ├── types.go          # 型定義
 │   │   ├── state.go          # 状態・スナップショット管理（Context対応）
 │   │   ├── approval.go       # 3段階承認システム（Context対応）

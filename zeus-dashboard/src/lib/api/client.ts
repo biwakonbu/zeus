@@ -14,7 +14,10 @@ import type {
 	WBSGraphData,
 	ActorsResponse,
 	UseCasesResponse,
-	UseCaseDiagramResponse
+	UseCaseDiagramResponse,
+	ActivitiesResponse,
+	ActivityDiagramResponse,
+	SubsystemsResponse
 } from '$lib/types/api';
 
 // API ベース URL（開発時は Vite Proxy 経由、本番時は同一オリジン）
@@ -111,6 +114,29 @@ export async function fetchUseCases(): Promise<UseCasesResponse> {
 export async function fetchUseCaseDiagram(boundary?: string): Promise<UseCaseDiagramResponse> {
 	const params = boundary ? `?boundary=${encodeURIComponent(boundary)}` : '';
 	return fetchJSON<UseCaseDiagramResponse>(`/uml/usecase${params}`);
+}
+
+// =============================================================================
+// UML Subsystem API（TASK-023）
+// =============================================================================
+
+// サブシステム一覧取得
+export async function fetchSubsystems(): Promise<SubsystemsResponse> {
+	return fetchJSON<SubsystemsResponse>('/subsystems');
+}
+
+// =============================================================================
+// UML Activity API
+// =============================================================================
+
+// アクティビティ一覧取得
+export async function fetchActivities(): Promise<ActivitiesResponse> {
+	return fetchJSON<ActivitiesResponse>('/activities');
+}
+
+// アクティビティ図取得
+export async function fetchActivityDiagram(activityId: string): Promise<ActivityDiagramResponse> {
+	return fetchJSON<ActivityDiagramResponse>(`/uml/activity?id=${encodeURIComponent(activityId)}`);
 }
 
 // =============================================================================

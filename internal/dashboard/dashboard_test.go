@@ -533,3 +533,222 @@ func TestHandleAPIUseCasesEmpty(t *testing.T) {
 		t.Errorf("Total が正しくありません: got %d, want 0", result.Total)
 	}
 }
+
+// TestHandleAPIActivities は /api/activities エンドポイントをテストします
+func TestHandleAPIActivities(t *testing.T) {
+	zeus := setupTestZeus(t)
+	ctx := context.Background()
+
+	// Activity を追加
+	handler, ok := zeus.GetRegistry().Get("activity")
+	if !ok {
+		t.Fatal("activity ハンドラーが見つかりません")
+	}
+	activityHandler := handler.(*core.ActivityHandler)
+
+	_, err := activityHandler.Add(ctx, "テストアクティビティ",
+		core.WithActivityDescription("テスト用アクティビティ"),
+		core.WithActivityStatus(core.ActivityStatusActive),
+	)
+	if err != nil {
+		t.Fatalf("Activity 追加に失敗: %v", err)
+	}
+
+	server := NewServer(zeus, 0)
+	ts := httptest.NewServer(server.handler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/activities")
+	if err != nil {
+		t.Fatalf("リクエストに失敗: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result ActivitiesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("JSON デコードに失敗: %v", err)
+	}
+
+	if result.Total != 1 {
+		t.Errorf("Total が正しくありません: got %d, want 1", result.Total)
+	}
+
+	if len(result.Activities) != 1 {
+		t.Errorf("Activities の数が正しくありません: got %d, want 1", len(result.Activities))
+	}
+
+	if result.Activities[0].Title != "テストアクティビティ" {
+		t.Errorf("Activity Title が正しくありません: got %s, want テストアクティビティ", result.Activities[0].Title)
+	}
+
+	if result.Activities[0].Status != "active" {
+		t.Errorf("Activity Status が正しくありません: got %s, want active", result.Activities[0].Status)
+	}
+}
+
+// TestHandleAPIActivitiesEmpty は Activity がない場合の /api/activities をテストします
+func TestHandleAPIActivitiesEmpty(t *testing.T) {
+	zeus := setupTestZeus(t)
+	server := NewServer(zeus, 0)
+
+	ts := httptest.NewServer(server.handler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/activities")
+	if err != nil {
+		t.Fatalf("リクエストに失敗: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result ActivitiesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("JSON デコードに失敗: %v", err)
+	}
+
+	if result.Total != 0 {
+		t.Errorf("Total が正しくありません: got %d, want 0", result.Total)
+	}
+
+	if result.Activities == nil {
+		t.Error("Activities 配列が nil です")
+	}
+}
+
+// TestHandleAPIActivityDiagram は /api/uml/activity エンドポイントをテストします
+func TestHandleAPIActivityDiagram(t *testing.T) {
+	zeus := setupTestZeus(t)
+	ctx := context.Background()
+
+	// Activity を追加
+	handler, ok := zeus.GetRegistry().Get("activity")
+	if !ok {
+		t.Fatal("activity ハンドラーが見つかりません")
+	}
+	activityHandler := handler.(*core.ActivityHandler)
+
+	// ノードと遷移を含むアクティビティを作成
+	result, err := activityHandler.Add(ctx, "ログインフロー",
+		core.WithActivityDescription("ユーザーログインのアクティビティ図"),
+		core.WithActivityStatus(core.ActivityStatusActive),
+		core.WithActivityNodes([]core.ActivityNode{
+			{ID: "node-001", Type: core.ActivityNodeTypeInitial, Name: ""},
+			{ID: "node-002", Type: core.ActivityNodeTypeAction, Name: "ログイン画面表示"},
+			{ID: "node-003", Type: core.ActivityNodeTypeDecision, Name: "認証成功？"},
+			{ID: "node-004", Type: core.ActivityNodeTypeAction, Name: "ダッシュボード表示"},
+			{ID: "node-005", Type: core.ActivityNodeTypeFinal, Name: ""},
+		}),
+		core.WithActivityTransitions([]core.ActivityTransition{
+			{ID: "trans-001", Source: "node-001", Target: "node-002"},
+			{ID: "trans-002", Source: "node-002", Target: "node-003"},
+			{ID: "trans-003", Source: "node-003", Target: "node-004", Guard: "[認証成功]"},
+			{ID: "trans-004", Source: "node-004", Target: "node-005"},
+		}),
+	)
+	if err != nil {
+		t.Fatalf("Activity 追加に失敗: %v", err)
+	}
+
+	server := NewServer(zeus, 0)
+	ts := httptest.NewServer(server.handler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/uml/activity?id=" + result.ID)
+	if err != nil {
+		t.Fatalf("リクエストに失敗: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var diagramResult ActivityDiagramResponse
+	if err := json.NewDecoder(resp.Body).Decode(&diagramResult); err != nil {
+		t.Fatalf("JSON デコードに失敗: %v", err)
+	}
+
+	if diagramResult.Activity == nil {
+		t.Fatal("Activity が nil です")
+	}
+
+	if diagramResult.Activity.Title != "ログインフロー" {
+		t.Errorf("Activity Title が正しくありません: got %s, want ログインフロー", diagramResult.Activity.Title)
+	}
+
+	if len(diagramResult.Activity.Nodes) != 5 {
+		t.Errorf("Nodes の数が正しくありません: got %d, want 5", len(diagramResult.Activity.Nodes))
+	}
+
+	if len(diagramResult.Activity.Transitions) != 4 {
+		t.Errorf("Transitions の数が正しくありません: got %d, want 4", len(diagramResult.Activity.Transitions))
+	}
+
+	if diagramResult.Mermaid == "" {
+		t.Error("Mermaid が空です")
+	}
+
+	// Mermaid に flowchart が含まれているか確認
+	if !containsString(diagramResult.Mermaid, "flowchart TD") {
+		t.Error("Mermaid に flowchart TD が含まれていません")
+	}
+}
+
+// TestHandleAPIActivityDiagram_NotFound は存在しない Activity の場合の /api/uml/activity をテストします
+func TestHandleAPIActivityDiagram_NotFound(t *testing.T) {
+	zeus := setupTestZeus(t)
+	server := NewServer(zeus, 0)
+
+	ts := httptest.NewServer(server.handler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/uml/activity?id=act-notexist")
+	if err != nil {
+		t.Fatalf("リクエストに失敗: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusNotFound)
+	}
+}
+
+// TestHandleAPIActivityDiagram_MissingID は ID パラメータがない場合の /api/uml/activity をテストします
+func TestHandleAPIActivityDiagram_MissingID(t *testing.T) {
+	zeus := setupTestZeus(t)
+	server := NewServer(zeus, 0)
+
+	ts := httptest.NewServer(server.handler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/uml/activity")
+	if err != nil {
+		t.Fatalf("リクエストに失敗: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusBadRequest)
+	}
+}
+
+// containsString は文字列に部分文字列が含まれるかチェックするヘルパー
+func containsString(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsStringHelper(s, substr))
+}
+
+func containsStringHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

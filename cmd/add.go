@@ -60,9 +60,10 @@ var (
 	addActorType string
 
 	// UseCase 用
-	addActorID     string
-	addActorRole   string
+	addActorID       string
+	addActorRole     string
 	addUseCaseStatus string
+	addSubsystemID   string
 )
 
 var addCmd = &cobra.Command{
@@ -84,6 +85,7 @@ var addCmd = &cobra.Command{
   quality       品質基準
   actor         UML アクター
   usecase       UML ユースケース
+  subsystem     UML サブシステム（ユースケース分類）
 
 共通オプション:
   --description  説明
@@ -157,6 +159,10 @@ UseCase 用オプション:
   --actor         紐づく Actor の ID
   --actor-role    アクターのロール（primary, secondary）
   --status        ステータス（draft, active, deprecated）
+  --subsystem     紐づくサブシステムの ID
+
+Subsystem 用オプション:
+  --description   説明
 
 例:
   zeus add task "設計ドキュメント作成"
@@ -171,7 +177,8 @@ UseCase 用オプション:
   zeus add constraint "外部DB不使用" --category technical --non-negotiable
   zeus add quality "コードカバレッジ" --deliverable del-001 --metric "coverage:80:%" --metric "performance:100:ms"
   zeus add actor "管理者" --type human
-  zeus add usecase "ログイン" --objective obj-001 --actor actor-001 --actor-role primary`,
+  zeus add usecase "ログイン" --objective obj-001 --actor actor-001 --actor-role primary --subsystem sub-12345678
+  zeus add subsystem "認証システム" --description "ユーザー認証関連のユースケース"`,
 	Args: cobra.ExactArgs(2),
 	RunE: runAdd,
 }
@@ -232,6 +239,7 @@ func init() {
 	addCmd.Flags().StringVar(&addActorID, "actor", "", "紐づく Actor の ID")
 	addCmd.Flags().StringVar(&addActorRole, "actor-role", "", "アクターのロール（primary, secondary）")
 	addCmd.Flags().StringVar(&addUseCaseStatus, "status", "", "ステータス（draft, active, deprecated）")
+	addCmd.Flags().StringVar(&addSubsystemID, "subsystem", "", "紐づくサブシステムの ID")
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
@@ -305,6 +313,8 @@ func buildAddOptions(entity string) []core.EntityOption {
 		opts = buildActorOptions()
 	case "usecase":
 		opts = buildUseCaseOptions()
+	case "subsystem":
+		opts = buildSubsystemOptions()
 	}
 
 	return opts
@@ -721,6 +731,26 @@ func buildUseCaseOptions() []core.EntityOption {
 	}
 	if len(addTags) > 0 {
 		opts = append(opts, core.WithUseCaseTags(addTags))
+	}
+	if addSubsystemID != "" {
+		opts = append(opts, core.WithUseCaseSubsystem(addSubsystemID))
+	}
+
+	return opts
+}
+
+// buildSubsystemOptions は Subsystem 用オプションを構築
+func buildSubsystemOptions() []core.EntityOption {
+	var opts []core.EntityOption
+
+	if addDescription != "" {
+		opts = append(opts, core.WithSubsystemDescription(addDescription))
+	}
+	if addOwner != "" {
+		opts = append(opts, core.WithSubsystemOwner(addOwner))
+	}
+	if len(addTags) > 0 {
+		opts = append(opts, core.WithSubsystemTags(addTags))
 	}
 
 	return opts

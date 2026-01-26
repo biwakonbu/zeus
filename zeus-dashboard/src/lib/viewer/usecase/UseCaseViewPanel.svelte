@@ -7,9 +7,48 @@
 	interface Props {
 		actor?: ActorItem | null;
 		usecase?: UseCaseItem | null;
+		actors?: ActorItem[];
+		usecases?: UseCaseItem[];
 		onClose?: () => void;
 	}
-	let { actor = null, usecase = null, onClose }: Props = $props();
+	let { actor = null, usecase = null, actors = [], usecases = [], onClose }: Props = $props();
+
+	// 折りたたみ状態
+	let alternativeFlowExpanded = $state<Record<string, boolean>>({});
+	let exceptionFlowExpanded = $state<Record<string, boolean>>({});
+
+	function toggleAlternativeFlow(id: string) {
+		alternativeFlowExpanded[id] = !alternativeFlowExpanded[id];
+	}
+
+	function toggleExceptionFlow(id: string) {
+		exceptionFlowExpanded[id] = !exceptionFlowExpanded[id];
+	}
+
+	// シナリオが存在するか確認
+	function hasScenario(uc: UseCaseItem | null): boolean {
+		if (!uc?.scenario) return false;
+		const s = uc.scenario;
+		return !!(
+			(s.preconditions && s.preconditions.length > 0) ||
+			s.trigger ||
+			(s.main_flow && s.main_flow.length > 0) ||
+			(s.alternative_flows && s.alternative_flows.length > 0) ||
+			(s.exception_flows && s.exception_flows.length > 0) ||
+			(s.postconditions && s.postconditions.length > 0)
+		);
+	}
+
+	// 名前解決ヘルパー関数
+	function getActorName(actorId: string): string {
+		const found = actors.find((a) => a.id === actorId);
+		return found ? found.title : actorId;
+	}
+
+	function getUseCaseName(usecaseId: string): string {
+		const found = usecases.find((u) => u.id === usecaseId);
+		return found ? found.title : usecaseId;
+	}
 
 	// Actor タイプのラベル
 	const actorTypeLabels: Record<string, string> = {
@@ -132,7 +171,8 @@
 							{#each usecase.actors as actorRef}
 								<li class="relation-item">
 									<Icon name="User" size={12} />
-									<span class="relation-name">{actorRef.actor_id}</span>
+									<span class="relation-name">{getActorName(actorRef.actor_id)}</span>
+									<span class="relation-id">({actorRef.actor_id})</span>
 									<span class="role-badge">{roleLabels[actorRef.role] ?? actorRef.role}</span>
 								</li>
 							{/each}
@@ -149,13 +189,151 @@
 							{#each usecase.relations as relation}
 								<li class="relation-item">
 									<span class="relation-type">{relationLabels[relation.type] ?? relation.type}</span>
-									<span class="relation-name">{relation.target_id}</span>
+									<span class="relation-name">{getUseCaseName(relation.target_id)}</span>
+									<span class="relation-id">({relation.target_id})</span>
 									{#if relation.condition}
 										<span class="condition">[{relation.condition}]</span>
 									{/if}
 								</li>
 							{/each}
 						</ul>
+					</dd>
+				</div>
+			{/if}
+
+			<!-- シナリオセクション -->
+			{#if hasScenario(usecase)}
+				<div class="detail-item full scenario-section">
+					<dt>
+						<Icon name="FileText" size={12} />
+						シナリオ
+					</dt>
+					<dd class="scenario-content">
+						<!-- 事前条件 -->
+						{#if usecase.scenario?.preconditions && usecase.scenario.preconditions.length > 0}
+							<div class="scenario-group">
+								<h4 class="scenario-heading">事前条件</h4>
+								<ul class="scenario-list">
+									{#each usecase.scenario.preconditions as condition}
+										<li>{condition}</li>
+									{/each}
+								</ul>
+							</div>
+						{/if}
+
+						<!-- トリガー -->
+						{#if usecase.scenario?.trigger}
+							<div class="scenario-group">
+								<h4 class="scenario-heading">トリガー</h4>
+								<p class="scenario-trigger">{usecase.scenario.trigger}</p>
+							</div>
+						{/if}
+
+						<!-- メインフロー -->
+						{#if usecase.scenario?.main_flow && usecase.scenario.main_flow.length > 0}
+							<div class="scenario-group">
+								<h4 class="scenario-heading">メインフロー</h4>
+								<ol class="scenario-flow-list">
+									{#each usecase.scenario.main_flow as step}
+										<li>{step}</li>
+									{/each}
+								</ol>
+							</div>
+						{/if}
+
+						<!-- 代替フロー -->
+						{#if usecase.scenario?.alternative_flows && usecase.scenario.alternative_flows.length > 0}
+							<div class="scenario-group">
+								<h4 class="scenario-heading">代替フロー</h4>
+								{#each usecase.scenario.alternative_flows as altFlow}
+									<div class="flow-card">
+										<button
+											class="flow-header"
+											onclick={() => toggleAlternativeFlow(altFlow.id)}
+											aria-expanded={alternativeFlowExpanded[altFlow.id] ?? false}
+										>
+											<Icon
+												name={alternativeFlowExpanded[altFlow.id] ? 'ChevronDown' : 'ChevronRight'}
+												size={12}
+											/>
+											<span class="flow-id">{altFlow.id}</span>
+											<span class="flow-name">{altFlow.name}</span>
+										</button>
+										{#if alternativeFlowExpanded[altFlow.id]}
+											<div class="flow-body">
+												<div class="flow-condition">
+													<strong>条件:</strong> {altFlow.condition}
+												</div>
+												<ol class="flow-steps">
+													{#each altFlow.steps as step}
+														<li>{step}</li>
+													{/each}
+												</ol>
+												{#if altFlow.rejoins_at}
+													<div class="flow-rejoins">
+														<Icon name="CornerDownRight" size={12} />
+														{altFlow.rejoins_at}
+													</div>
+												{/if}
+											</div>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						{/if}
+
+						<!-- 例外フロー -->
+						{#if usecase.scenario?.exception_flows && usecase.scenario.exception_flows.length > 0}
+							<div class="scenario-group">
+								<h4 class="scenario-heading">例外フロー</h4>
+								{#each usecase.scenario.exception_flows as excFlow}
+									<div class="flow-card exception">
+										<button
+											class="flow-header"
+											onclick={() => toggleExceptionFlow(excFlow.id)}
+											aria-expanded={exceptionFlowExpanded[excFlow.id] ?? false}
+										>
+											<Icon
+												name={exceptionFlowExpanded[excFlow.id] ? 'ChevronDown' : 'ChevronRight'}
+												size={12}
+											/>
+											<span class="flow-id">{excFlow.id}</span>
+											<span class="flow-name">{excFlow.name}</span>
+										</button>
+										{#if exceptionFlowExpanded[excFlow.id]}
+											<div class="flow-body">
+												<div class="flow-trigger">
+													<strong>発生条件:</strong> {excFlow.trigger}
+												</div>
+												<ol class="flow-steps">
+													{#each excFlow.steps as step}
+														<li>{step}</li>
+													{/each}
+												</ol>
+												{#if excFlow.outcome}
+													<div class="flow-outcome">
+														<Icon name="ArrowRight" size={12} />
+														{excFlow.outcome}
+													</div>
+												{/if}
+											</div>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						{/if}
+
+						<!-- 事後条件 -->
+						{#if usecase.scenario?.postconditions && usecase.scenario.postconditions.length > 0}
+							<div class="scenario-group">
+								<h4 class="scenario-heading">事後条件</h4>
+								<ul class="scenario-list">
+									{#each usecase.scenario.postconditions as condition}
+										<li>{condition}</li>
+									{/each}
+								</ul>
+							</div>
+						{/if}
 					</dd>
 				</div>
 			{/if}
@@ -292,8 +470,14 @@
 	}
 
 	.relation-name {
+		font-size: 0.75rem;
+		color: var(--text-primary);
+	}
+
+	.relation-id {
 		font-family: monospace;
-		font-size: 0.7rem;
+		font-size: 0.65rem;
+		color: var(--text-muted);
 	}
 
 	.role-badge {
@@ -332,5 +516,181 @@
 
 	.empty-state span {
 		font-size: 0.75rem;
+	}
+
+	/* シナリオセクション */
+	.scenario-section {
+		margin-top: 12px;
+		padding-top: 12px;
+		border-top: 1px solid var(--border-metal);
+	}
+
+	.scenario-section dt {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		color: var(--accent-primary);
+	}
+
+	.scenario-content {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		margin-top: 8px;
+	}
+
+	.scenario-group {
+		background: rgba(0, 0, 0, 0.2);
+		border: 1px solid var(--border-metal);
+		border-radius: 4px;
+		padding: 10px;
+	}
+
+	.scenario-heading {
+		margin: 0 0 8px 0;
+		font-size: 0.6875rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--text-muted);
+		font-weight: 600;
+	}
+
+	.scenario-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.scenario-list li {
+		font-size: 0.75rem;
+		color: var(--text-secondary);
+		padding-left: 12px;
+		position: relative;
+	}
+
+	.scenario-list li::before {
+		content: '•';
+		position: absolute;
+		left: 0;
+		color: var(--accent-primary);
+	}
+
+	.scenario-trigger {
+		margin: 0;
+		font-size: 0.75rem;
+		color: var(--text-primary);
+		background: rgba(255, 149, 51, 0.1);
+		padding: 6px 10px;
+		border-radius: 3px;
+		border-left: 2px solid var(--accent-primary);
+	}
+
+	.scenario-flow-list {
+		margin: 0;
+		padding: 0 0 0 20px;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.scenario-flow-list li {
+		font-size: 0.75rem;
+		color: var(--text-secondary);
+	}
+
+	/* 代替・例外フローカード */
+	.flow-card {
+		background: rgba(0, 0, 0, 0.15);
+		border: 1px solid var(--border-metal);
+		border-radius: 4px;
+		overflow: hidden;
+		margin-bottom: 6px;
+	}
+
+	.flow-card:last-child {
+		margin-bottom: 0;
+	}
+
+	.flow-card.exception {
+		border-color: rgba(255, 100, 100, 0.3);
+	}
+
+	.flow-header {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		width: 100%;
+		padding: 8px 10px;
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		color: var(--text-primary);
+		text-align: left;
+		font-family: inherit;
+		transition: background 0.15s ease;
+	}
+
+	.flow-header:hover {
+		background: rgba(255, 255, 255, 0.05);
+	}
+
+	.flow-id {
+		font-family: monospace;
+		font-size: 0.625rem;
+		color: var(--accent-primary);
+		background: rgba(255, 149, 51, 0.15);
+		padding: 1px 5px;
+		border-radius: 2px;
+	}
+
+	.flow-name {
+		font-size: 0.75rem;
+		font-weight: 500;
+	}
+
+	.flow-body {
+		padding: 8px 10px 10px 28px;
+		border-top: 1px solid var(--border-metal);
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.flow-condition,
+	.flow-trigger {
+		font-size: 0.7rem;
+		color: var(--text-secondary);
+	}
+
+	.flow-condition strong,
+	.flow-trigger strong {
+		color: var(--text-muted);
+		font-weight: 500;
+	}
+
+	.flow-steps {
+		margin: 0;
+		padding: 0 0 0 16px;
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+	}
+
+	.flow-steps li {
+		font-size: 0.7rem;
+		color: var(--text-secondary);
+	}
+
+	.flow-rejoins,
+	.flow-outcome {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 0.65rem;
+		color: var(--text-muted);
+		font-style: italic;
 	}
 </style>

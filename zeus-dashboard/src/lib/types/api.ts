@@ -455,6 +455,23 @@ export interface WBSGraphData {
 }
 
 // =============================================================================
+// UML Subsystem API レスポンス（TASK-017）
+// =============================================================================
+
+// サブシステム
+export interface SubsystemItem {
+	id: string;
+	name: string;
+	description?: string;
+}
+
+// サブシステム一覧 API レスポンス
+export interface SubsystemsResponse {
+	subsystems: SubsystemItem[];
+	total: number;
+}
+
+// =============================================================================
 // UML UseCase API レスポンス
 // =============================================================================
 
@@ -498,15 +515,54 @@ export interface UseCaseRelation {
 // ユースケースステータス
 export type UseCaseStatus = 'draft' | 'active' | 'deprecated';
 
-// ユースケース
+/** 代替フロー（UML 2.5 準拠） */
+export interface AlternativeFlow {
+	id: string;
+	name: string;
+	condition: string;
+	steps: string[];
+	/** メインフローに戻るステップ */
+	rejoins_at?: string;
+}
+
+/** 例外フロー（UML 2.5 準拠） */
+export interface ExceptionFlow {
+	id: string;
+	name: string;
+	/** 例外発生条件 */
+	trigger: string;
+	steps: string[];
+	/** 結果（例: "ステップ2へ戻る"） */
+	outcome?: string;
+}
+
+/** シナリオ（UML 2.5 準拠の拡張版） */
+export interface UseCaseScenario {
+	/** 事前条件 */
+	preconditions?: string[];
+	/** 開始イベント */
+	trigger?: string;
+	/** メインフロー */
+	main_flow?: string[];
+	/** 代替フロー */
+	alternative_flows?: AlternativeFlow[];
+	/** 例外フロー */
+	exception_flows?: ExceptionFlow[];
+	/** 事後条件 */
+	postconditions?: string[];
+}
+
+// ユースケース（TASK-018: subsystem_id 追加）
 export interface UseCaseItem {
 	id: string;
 	title: string;
 	description?: string;
 	status: UseCaseStatus;
 	objective_id?: string;
+	subsystem_id?: string;  // サブシステム参照（オプション）
 	actors: UseCaseActorRef[];
 	relations: UseCaseRelation[];
+	scenario?: UseCaseScenario;
 }
 
 // ユースケース一覧 API レスポンス
@@ -520,5 +576,62 @@ export interface UseCaseDiagramResponse {
 	actors: ActorItem[];
 	usecases: UseCaseItem[];
 	boundary: string;
+	mermaid: string;
+}
+
+// =============================================================================
+// UML Activity API レスポンス
+// =============================================================================
+
+// アクティビティノードタイプ
+export type ActivityNodeType =
+	| 'initial'    // 開始ノード（黒丸）
+	| 'final'      // 終了ノード（二重丸）
+	| 'action'     // アクション（角丸四角形）
+	| 'decision'   // 分岐（ひし形）
+	| 'merge'      // 合流（ひし形）
+	| 'fork'       // 並列分岐（太い横線）
+	| 'join';      // 並列合流（太い横線）
+
+// アクティビティステータス
+export type ActivityStatus = 'draft' | 'active' | 'deprecated';
+
+// アクティビティノード
+export interface ActivityNodeItem {
+	id: string;
+	type: ActivityNodeType;
+	name?: string;
+}
+
+// アクティビティ遷移
+export interface ActivityTransitionItem {
+	id: string;
+	source: string;
+	target: string;
+	guard?: string;
+}
+
+// アクティビティ
+export interface ActivityItem {
+	id: string;
+	title: string;
+	description?: string;
+	usecase_id?: string;
+	status: ActivityStatus;
+	nodes: ActivityNodeItem[];
+	transitions: ActivityTransitionItem[];
+	created_at: string;
+	updated_at: string;
+}
+
+// アクティビティ一覧 API レスポンス
+export interface ActivitiesResponse {
+	activities: ActivityItem[];
+	total: number;
+}
+
+// アクティビティ図 API レスポンス
+export interface ActivityDiagramResponse {
+	activity?: ActivityItem;
 	mermaid: string;
 }

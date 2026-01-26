@@ -2,7 +2,7 @@
 	import { Icon } from '$lib/components/ui';
 
 	// ビュータイプの定義
-	export type ViewType = 'graph' | 'usecase';
+	export type ViewType = 'graph' | 'usecase' | 'activity';
 
 	interface Props {
 		currentView: ViewType;
@@ -15,16 +15,22 @@
 	// Lucide Icon 名を使用
 	const views: { type: ViewType; label: string; iconName: string; description: string }[] = [
 		{
-			type: 'graph',
-			label: 'Graph',
-			iconName: 'Network',
-			description: '依存関係グラフ'
-		},
-		{
 			type: 'usecase',
 			label: 'UseCase',
 			iconName: 'Users',
 			description: 'UML ユースケース図'
+		},
+		{
+			type: 'activity',
+			label: 'Activity',
+			iconName: 'Workflow',
+			description: 'UML アクティビティ図'
+		},
+		{
+			type: 'graph',
+			label: 'Graph',
+			iconName: 'Network',
+			description: '依存関係グラフ'
 		}
 	];
 

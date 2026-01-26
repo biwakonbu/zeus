@@ -53,6 +53,9 @@ make build-all          # 統合ビルド
 | Phase 7 (Affinity Canvas) | 機能間関連性可視化、フォースダイレクテッド | 完了 |
 | 10概念モデル Phase 1 | Vision, Objective, Deliverable, 参照整合性 | 完了 |
 | 10概念モデル Phase 2+3 | Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality | 完了 (M1-M3対応推奨) |
+| UML UseCase | Actor, UseCase, シナリオ、PixiJS ビューワー | 完了 |
+| UML Activity | アクティビティ図、ノード/遷移、PixiJS ビューワー | 完了 |
+| UML Subsystem | サブシステム分類、UseCase グルーピング、境界描画 | 完了 |
 
 ## 実装済みコマンド
 
@@ -62,12 +65,12 @@ zeus init                                       # プロジェクト初期化
 zeus status                                     # 状態表示
 zeus add <entity> <name> [options]              # エンティティ追加
   # entity: task, vision, objective, deliverable, consideration, decision,
-  #         problem, risk, assumption, constraint, quality
+  #         problem, risk, assumption, constraint, quality, actor, usecase, subsystem
   # --parent <id>  --start <date>  --due <date>  --progress <0-100>  --wbs <code>
-  # --statement <text>  --objective <id>  --format <type>
+  # --statement <text>  --objective <id>  --format <type>  --subsystem <id>
 zeus list [entity]                              # 一覧表示
   # entity: tasks, vision, objectives, deliverables, considerations, decisions,
-  #         problems, risks, assumptions, constraints, quality
+  #         problems, risks, assumptions, constraints, quality, actors, usecases, subsystems
 zeus doctor                                     # 診断（参照整合性・循環参照チェック含む）
 zeus fix [--dry-run]                            # 修復
 
@@ -145,6 +148,15 @@ Task ベースのシステムを拡張し、プロジェクト管理の本質的
 | Constraint | 制約条件 | `.zeus/constraints.yaml` | グローバル単一ファイル |
 | Quality | 品質基準 | `.zeus/quality/qual-NNN.yaml` | メトリクス・ゲート管理 |
 
+### UML 拡張
+
+| 概念 | 説明 | ファイル | 特性 |
+|------|------|----------|------|
+| Actor | アクター定義 | `.zeus/actors.yaml` | 単一ファイル |
+| UseCase | ユースケース定義 | `.zeus/usecases/uc-NNN.yaml` | Objective 参照必須 |
+| Subsystem | サブシステム定義 | `.zeus/subsystems.yaml` | 単一ファイル、UseCase グルーピング |
+| Activity | アクティビティ図 | `.zeus/activities/act-NNN.yaml` | UseCase 参照任意 |
+
 ### 参照整合性
 
 - `zeus doctor` で全参照をチェック：
@@ -153,6 +165,7 @@ Task ベースのシステムを拡張し、プロジェクト管理の本質的
   - Decision → Consideration（必須）
   - Quality → Deliverable（必須）
   - Problem/Risk/Assumption → Objective/Deliverable（任意）
+  - UseCase → Subsystem（任意、警告レベル）
 - 循環参照検出実装済み
 - セキュリティ: ValidatePath, ValidateID, Sanitizer
 

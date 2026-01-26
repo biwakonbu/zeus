@@ -3,7 +3,9 @@ package core
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -201,6 +203,9 @@ func (h *UseCaseHandler) Update(ctx context.Context, id string, update any) erro
 		if objectiveID, exists := updateMap["objective_id"].(string); exists {
 			usecase.ObjectiveID = objectiveID
 		}
+		if subsystemID, exists := updateMap["subsystem_id"].(string); exists {
+			usecase.SubsystemID = subsystemID
+		}
 	}
 	usecase.Metadata.UpdatedAt = Now()
 
@@ -311,6 +316,40 @@ func (h *UseCaseHandler) AddActor(ctx context.Context, usecaseID string, actorRe
 	return h.fileStore.WriteYaml(ctx, filePath, &usecase)
 }
 
+// getAllUseCases は全てのユースケースを取得（内部用）
+func (h *UseCaseHandler) getAllUseCases(ctx context.Context) ([]*UseCaseEntity, error) {
+	// usecases ディレクトリ内のファイル一覧を取得
+	files, err := h.fileStore.ListDir(ctx, "usecases")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []*UseCaseEntity{}, nil
+		}
+		return nil, err
+	}
+
+	var usecases []*UseCaseEntity
+	for _, file := range files {
+		if !strings.HasSuffix(file, ".yaml") {
+			continue
+		}
+
+		// ID を抽出
+		id := strings.TrimSuffix(filepath.Base(file), ".yaml")
+		if err := ValidateID("usecase", id); err != nil {
+			// 無効な ID は無視（ログは記録しない）
+			continue
+		}
+
+		var usecase UseCaseEntity
+		if err := h.fileStore.ReadYaml(ctx, filepath.Join("usecases", file), &usecase); err != nil {
+			continue // 読み込み失敗はスキップ
+		}
+		usecases = append(usecases, &usecase)
+	}
+
+	return usecases, nil
+}
+
 // generateUseCaseID はユースケース ID を生成
 func (h *UseCaseHandler) generateUseCaseID() string {
 	return fmt.Sprintf("uc-%s", uuid.New().String()[:8])
@@ -375,11 +414,65 @@ func WithUseCaseTags(tags []string) EntityOption {
 	}
 }
 
-// WithUseCaseScenario はシナリオを設定
-func WithUseCaseScenario(mainFlow []string) EntityOption {
+// WithUseCasePreconditions は事前条件を設定
+func WithUseCasePreconditions(preconditions []string) EntityOption {
 	return func(v any) {
 		if u, ok := v.(*UseCaseEntity); ok {
-			u.Scenario = UseCaseScenario{MainFlow: mainFlow}
+			u.Scenario.Preconditions = preconditions
+		}
+	}
+}
+
+// WithUseCaseTrigger はトリガーを設定
+func WithUseCaseTrigger(trigger string) EntityOption {
+	return func(v any) {
+		if u, ok := v.(*UseCaseEntity); ok {
+			u.Scenario.Trigger = trigger
+		}
+	}
+}
+
+// WithUseCasePostconditions は事後条件を設定
+func WithUseCasePostconditions(postconditions []string) EntityOption {
+	return func(v any) {
+		if u, ok := v.(*UseCaseEntity); ok {
+			u.Scenario.Postconditions = postconditions
+		}
+	}
+}
+
+// WithUseCaseAlternativeFlows は代替フローを設定
+func WithUseCaseAlternativeFlows(flows []AlternativeFlow) EntityOption {
+	return func(v any) {
+		if u, ok := v.(*UseCaseEntity); ok {
+			u.Scenario.AlternativeFlows = flows
+		}
+	}
+}
+
+// WithUseCaseExceptionFlows は例外フローを設定
+func WithUseCaseExceptionFlows(flows []ExceptionFlow) EntityOption {
+	return func(v any) {
+		if u, ok := v.(*UseCaseEntity); ok {
+			u.Scenario.ExceptionFlows = flows
+		}
+	}
+}
+
+// WithUseCaseFullScenario は完全なシナリオを設定
+func WithUseCaseFullScenario(scenario UseCaseScenario) EntityOption {
+	return func(v any) {
+		if u, ok := v.(*UseCaseEntity); ok {
+			u.Scenario = scenario
+		}
+	}
+}
+
+// WithUseCaseSubsystem はサブシステム ID を設定（TASK-005）
+func WithUseCaseSubsystem(subsystemID string) EntityOption {
+	return func(v any) {
+		if u, ok := v.(*UseCaseEntity); ok {
+			u.SubsystemID = subsystemID
 		}
 	}
 }
