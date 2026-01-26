@@ -990,6 +990,15 @@ export class UseCaseEngine {
 			this.systemBoundary = null;
 		}
 
+		// サブシステム境界を破棄
+		for (const boundary of this.subsystemBoundaries.values()) {
+			boundary.destroy();
+		}
+		this.subsystemBoundaries.clear();
+
+		// サブシステムデータをクリア
+		this.subsystems = [];
+
 		// 位置データをクリア
 		this.actorPositions.clear();
 		this.usecasePositions.clear();
@@ -1125,6 +1134,11 @@ export class UseCaseEngine {
 		if (this.systemBoundary) {
 			this.systemBoundary.visible = false;
 		}
+
+		// サブシステム境界も非表示
+		for (const boundary of this.subsystemBoundaries.values()) {
+			boundary.visible = false;
+		}
 	}
 
 	/**
@@ -1152,6 +1166,11 @@ export class UseCaseEngine {
 		// システム境界
 		if (this.systemBoundary) {
 			this.systemBoundary.visible = true;
+		}
+
+		// サブシステム境界
+		for (const boundary of this.subsystemBoundaries.values()) {
+			boundary.visible = true;
 		}
 	}
 
@@ -1239,6 +1258,24 @@ export class UseCaseEngine {
 		// システム境界: 表示される UseCase が1つでもあれば表示
 		if (this.systemBoundary) {
 			this.systemBoundary.visible = visibleUseCaseIds.size > 0;
+		}
+
+		// サブシステム境界: 表示される UseCase のサブシステムのみ表示
+		if (this.subsystemBoundaries.size > 0) {
+			// 表示される UseCase の subsystem_id を収集
+			const visibleSubsystemIds = new Set<string>();
+			for (const ucId of visibleUseCaseIds) {
+				const usecase = this.currentData.usecases.find(u => u.id === ucId);
+				if (usecase) {
+					const subsystemId = usecase.subsystem_id || UNCATEGORIZED_SUBSYSTEM.id;
+					visibleSubsystemIds.add(subsystemId);
+				}
+			}
+
+			// サブシステム境界の表示を更新
+			for (const [subsystemId, boundary] of this.subsystemBoundaries) {
+				boundary.visible = visibleSubsystemIds.has(subsystemId);
+			}
 		}
 	}
 

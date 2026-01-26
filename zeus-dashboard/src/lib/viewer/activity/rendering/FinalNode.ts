@@ -32,20 +32,35 @@ export class FinalNode extends ActivityNodeBase {
 		const centerX = this.outerRadius;
 		const centerY = this.outerRadius;
 
-		// グロー効果（選択/ホバー時）
-		if (this.isSelected || this.isHovered) {
-			const glowColor = this.isSelected ? COMMON_COLORS.borderSelected : COMMON_COLORS.borderHover;
-			this.background.circle(centerX, centerY, this.outerRadius + 4);
-			this.background.fill({ color: glowColor, alpha: 0.2 });
+		// 常時グロー効果（終了点を強調）
+		// 外側から内側へ段階的な赤グロー
+		for (let i = 3; i >= 1; i--) {
+			this.background.circle(centerX, centerY, this.outerRadius + i * 3);
+			this.background.fill({
+				color: NODE_COLORS.final.glow,
+				alpha: NODE_COLORS.final.glowAlpha / (i + 1)
+			});
 		}
 
-		// 外側の円（輪郭のみ）
+		// 選択/ホバー時の追加グロー
+		if (this.isSelected || this.isHovered) {
+			const glowColor = this.isSelected ? COMMON_COLORS.borderSelected : COMMON_COLORS.borderHover;
+			this.background.circle(centerX, centerY, this.outerRadius + 6);
+			this.background.fill({ color: glowColor, alpha: 0.3 });
+		}
+
+		// 外側の円（塗りつぶし + 輪郭）
 		this.background.circle(centerX, centerY, this.outerRadius);
+		this.background.fill(NODE_COLORS.final.fill);
 		this.background.stroke({ width: this.getBorderWidth(), color: this.getBorderColor() });
 
-		// 内側の円（塗りつぶし）
+		// 内側の円（赤みを帯びた塗りつぶし）
 		this.background.circle(centerX, centerY, this.innerRadius);
 		this.background.fill(NODE_COLORS.final.innerFill);
+
+		// 内側の縁取り
+		this.background.circle(centerX, centerY, this.innerRadius);
+		this.background.stroke({ width: 1, color: NODE_COLORS.final.glow, alpha: 0.5 });
 	}
 
 	/**

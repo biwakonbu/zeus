@@ -3,6 +3,7 @@
 	// 選択されたノードの詳細を表示
 	import type { ActivityItem, ActivityNodeItem, ActivityTransitionItem } from '$lib/types/api';
 	import { Icon } from '$lib/components/ui';
+	import { navigateToEntity } from '$lib/stores/view';
 
 	interface Props {
 		node?: ActivityNodeItem | null;
@@ -10,6 +11,11 @@
 		onClose?: () => void;
 	}
 	let { node = null, activity = null, onClose }: Props = $props();
+
+	// UseCase へ遷移
+	function handleUseCaseClick(usecaseId: string) {
+		navigateToEntity('usecase', 'usecase', usecaseId);
+	}
 
 	// ノードタイプのラベル
 	const nodeTypeLabels: Record<string, string> = {
@@ -181,7 +187,14 @@
 					{#if activity.usecase_id}
 						<div class="summary-item">
 							<span class="summary-label">ユースケース</span>
-							<span class="summary-value monospace">{activity.usecase_id}</span>
+							<button
+								class="link-button"
+								onclick={() => handleUseCaseClick(activity!.usecase_id!)}
+								title="UseCase ビューで表示"
+							>
+								<Icon name="ExternalLink" size={10} />
+								<span class="monospace">{activity.usecase_id}</span>
+							</button>
 						</div>
 					{/if}
 					<div class="summary-item">
@@ -374,6 +387,33 @@
 
 	.summary-value {
 		color: var(--text-primary);
+	}
+
+	/* リンクボタンスタイル */
+	.link-button {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		padding: 2px 6px;
+		background: rgba(255, 149, 51, 0.1);
+		border: 1px solid rgba(255, 149, 51, 0.3);
+		border-radius: 3px;
+		color: var(--accent-primary);
+		cursor: pointer;
+		font-family: inherit;
+		font-size: 0.75rem;
+		transition: background 0.15s ease, border-color 0.15s ease;
+	}
+
+	.link-button:hover {
+		background: rgba(255, 149, 51, 0.2);
+		border-color: var(--accent-primary);
+	}
+
+	.link-button .monospace {
+		background: transparent;
+		padding: 0;
+		color: inherit;
 	}
 
 	.empty-state {

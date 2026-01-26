@@ -1,17 +1,30 @@
 <script lang="ts">
 	// UseCase View Panel（オーバーレイ用シンプル版）
 	// 選択された Actor または UseCase の詳細を表示
-	import type { ActorItem, UseCaseItem } from '$lib/types/api';
+	import type { ActorItem, UseCaseItem, ActivityItem } from '$lib/types/api';
 	import { Icon } from '$lib/components/ui';
+	import { navigateToEntity } from '$lib/stores/view';
 
 	interface Props {
 		actor?: ActorItem | null;
 		usecase?: UseCaseItem | null;
 		actors?: ActorItem[];
 		usecases?: UseCaseItem[];
+		activities?: ActivityItem[];
 		onClose?: () => void;
 	}
-	let { actor = null, usecase = null, actors = [], usecases = [], onClose }: Props = $props();
+	let { actor = null, usecase = null, actors = [], usecases = [], activities = [], onClose }: Props = $props();
+
+	// 関連 Activity を取得
+	const relatedActivities = $derived.by((): ActivityItem[] => {
+		if (!usecase) return [];
+		return activities.filter((a) => a.usecase_id === usecase.id);
+	});
+
+	// Activity へ遷移
+	function handleActivityClick(activityId: string) {
+		navigateToEntity('activity', 'activity', activityId);
+	}
 
 	// 折りたたみ状態
 	let alternativeFlowExpanded = $state<Record<string, boolean>>({});
@@ -334,6 +347,33 @@
 								</ul>
 							</div>
 						{/if}
+					</dd>
+				</div>
+			{/if}
+
+			<!-- 関連アクティビティセクション -->
+			{#if relatedActivities.length > 0}
+				<div class="detail-item full activity-section">
+					<dt>
+						<Icon name="Workflow" size={12} />
+						関連アクティビティ ({relatedActivities.length})
+					</dt>
+					<dd>
+						<ul class="activity-list">
+							{#each relatedActivities as activity}
+								<li class="activity-item">
+									<button
+										class="activity-link"
+										onclick={() => handleActivityClick(activity.id)}
+										title="Activity ビューで表示"
+									>
+										<Icon name="ExternalLink" size={10} />
+										<span class="activity-title">{activity.title}</span>
+										<span class="activity-id">{activity.id}</span>
+									</button>
+								</li>
+							{/each}
+						</ul>
 					</dd>
 				</div>
 			{/if}
@@ -692,5 +732,70 @@
 		font-size: 0.65rem;
 		color: var(--text-muted);
 		font-style: italic;
+	}
+
+	/* 関連アクティビティセクション */
+	.activity-section {
+		margin-top: 12px;
+		padding-top: 12px;
+		border-top: 1px solid var(--border-metal);
+	}
+
+	.activity-section dt {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		color: var(--accent-primary);
+	}
+
+	.activity-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		margin-top: 8px;
+	}
+
+	.activity-item {
+		display: block;
+	}
+
+	.activity-link {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		width: 100%;
+		padding: 6px 8px;
+		background: rgba(255, 149, 51, 0.1);
+		border: 1px solid rgba(255, 149, 51, 0.3);
+		border-radius: 4px;
+		color: var(--text-primary);
+		cursor: pointer;
+		font-family: inherit;
+		font-size: 0.75rem;
+		text-align: left;
+		transition: background 0.15s ease, border-color 0.15s ease;
+	}
+
+	.activity-link:hover {
+		background: rgba(255, 149, 51, 0.2);
+		border-color: var(--accent-primary);
+	}
+
+	.activity-title {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.activity-id {
+		font-family: monospace;
+		font-size: 0.65rem;
+		color: var(--text-muted);
+		flex-shrink: 0;
 	}
 </style>

@@ -18,16 +18,23 @@ export class ActionNode extends ActivityNodeBase {
 	constructor(nodeData: ActivityNodeItem) {
 		super(nodeData);
 
-		// テキストコンポーネント初期化
+		// テキストコンポーネント初期化（より明るいテキスト）
 		this.nameText = new Text({
 			text: '',
 			style: {
 				fontSize: 11,
-				fill: NODE_COLORS.action.text,
+				fill: NODE_COLORS.action.text, // 0xe0e0e0
 				fontFamily: 'IBM Plex Mono, monospace',
 				align: 'center',
 				wordWrap: true,
-				wordWrapWidth: ACTION_NODE_SIZE.maxWidth - ACTION_NODE_SIZE.paddingH * 2
+				wordWrapWidth: ACTION_NODE_SIZE.maxWidth - ACTION_NODE_SIZE.paddingH * 2,
+				// テキストにも軽いシャドウ（PixiJS v8 形式）
+				dropShadow: {
+					color: 0x000000,
+					alpha: 0.3,
+					distance: 1,
+					blur: 1
+				}
 			},
 			resolution: TEXT_RESOLUTION
 		});
@@ -71,9 +78,10 @@ export class ActionNode extends ActivityNodeBase {
 	draw(): void {
 		this.background.clear();
 
-		const bgColor = this.getBackgroundColor();
+		const bgColor = NODE_COLORS.action.background;
 		const borderColor = this.getBorderColor();
 		const borderWidth = this.getBorderWidth();
+		const borderRadius = ACTION_NODE_SIZE.borderRadius;
 
 		// グロー効果（選択/ホバー時）
 		if (this.isSelected || this.isHovered) {
@@ -83,25 +91,44 @@ export class ActionNode extends ActivityNodeBase {
 				-4,
 				this.nodeWidth + 8,
 				this.nodeHeight + 8,
-				ACTION_NODE_SIZE.borderRadius + 4
+				borderRadius + 4
 			);
-			this.background.fill({ color: glowColor, alpha: 0.2 });
+			this.background.fill({ color: glowColor, alpha: 0.25 });
 		}
 
+		// インナーシャドウ効果（外側に暗い縁）
+		this.background.roundRect(2, 2, this.nodeWidth - 4, this.nodeHeight - 4, borderRadius - 1);
+		this.background.fill({ color: 0x000000, alpha: 0.15 });
+
 		// メイン背景（角丸四角形）
-		this.background.roundRect(0, 0, this.nodeWidth, this.nodeHeight, ACTION_NODE_SIZE.borderRadius);
+		this.background.roundRect(0, 0, this.nodeWidth, this.nodeHeight, borderRadius);
 		this.background.fill(bgColor);
 		this.background.stroke({ width: borderWidth, color: borderColor });
 
-		// 上部ハイライト（金属感）
+		// 上部ハイライト（金属光沢）- より強く
 		this.background.roundRect(
-			4,
-			4,
-			this.nodeWidth - 8,
-			this.nodeHeight / 3,
-			ACTION_NODE_SIZE.borderRadius - 2
+			3,
+			3,
+			this.nodeWidth - 6,
+			this.nodeHeight * 0.35,
+			borderRadius - 2
 		);
-		this.background.fill({ color: 0x555555, alpha: 0.2 });
+		this.background.fill({ color: NODE_COLORS.action.borderHighlight, alpha: 0.25 });
+
+		// 下部シャドウ（凹み感）
+		this.background.roundRect(
+			3,
+			this.nodeHeight * 0.65,
+			this.nodeWidth - 6,
+			this.nodeHeight * 0.3,
+			borderRadius - 2
+		);
+		this.background.fill({ color: 0x000000, alpha: 0.12 });
+
+		// 上部ボーダーハイライト（金属の縁）
+		this.background.moveTo(borderRadius, 1);
+		this.background.lineTo(this.nodeWidth - borderRadius, 1);
+		this.background.stroke({ width: 1, color: NODE_COLORS.action.borderHighlight, alpha: 0.4 });
 
 		// テキスト描画
 		this.drawText();

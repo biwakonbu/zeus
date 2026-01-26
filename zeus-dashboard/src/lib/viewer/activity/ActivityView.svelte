@@ -8,7 +8,12 @@
 	import { ActivityEngine } from './engine/ActivityEngine';
 	import ActivityListPanel from './ActivityListPanel.svelte';
 	import ActivityDetailPanel from './ActivityDetailPanel.svelte';
-	import { updateActivityViewState, resetActivityViewState } from '$lib/stores/view';
+	import {
+		updateActivityViewState,
+		resetActivityViewState,
+		pendingNavigation,
+		clearPendingNavigation
+	} from '$lib/stores/view';
 
 	type Props = {
 		onActivitySelect?: (activity: ActivityItem) => void;
@@ -250,6 +255,21 @@
 		const resizeObserver = new ResizeObserver(() => engine?.resize());
 		resizeObserver.observe(canvasContainer);
 		return () => resizeObserver.disconnect();
+	});
+
+	// ナビゲーションによる自動選択 Effect
+	$effect(() => {
+		const nav = $pendingNavigation;
+		if (!nav || nav.view !== 'activity' || !activitiesData) return;
+
+		if (nav.entityType === 'activity' && nav.entityId) {
+			// Activity を選択
+			const activity = activitiesData.activities.find((a: ActivityItem) => a.id === nav.entityId);
+			if (activity) {
+				selectActivity(activity.id);
+			}
+			clearPendingNavigation();
+		}
 	});
 
 	onDestroy(() => {

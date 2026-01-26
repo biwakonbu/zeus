@@ -1,32 +1,8 @@
 // Activity 図描画用の定数定義
 // UML 2.5 準拠のアクティビティ図ノードスタイル
 
-// テキスト解像度（高DPI対応）
-export const TEXT_RESOLUTION = 2;
-
-// 共通カラー（Factorio テーマ準拠）
-export const COMMON_COLORS = {
-	// 背景色
-	background: 0x2a2a2a,
-	backgroundHover: 0x3a3a3a,
-	backgroundSelected: 0x4a4a4a,
-
-	// ボーダー色
-	border: 0x555555,
-	borderHover: 0x888888,
-	borderSelected: 0xf59e0b,
-
-	// テキスト色
-	text: 0xcccccc,
-	textMuted: 0x888888,
-	textDark: 0x1a1a1a,
-
-	// アクセントカラー
-	accent: 0xf59e0b, // Factorio オレンジ
-	accentGreen: 0x22c55e, // 成功
-	accentRed: 0xef4444, // エラー/停止
-	accentBlue: 0x3b82f6 // 情報
-};
+// 共通定数を共有ファイルからインポート
+export { TEXT_RESOLUTION, COMMON_COLORS } from '$lib/viewer/shared/constants';
 
 // 初期/終了ノードサイズ
 export const TERMINAL_NODE_SIZE = {
@@ -60,43 +36,55 @@ export const FORK_NODE_SIZE = {
 	height: 6 // 太さ
 };
 
-// 遷移エッジスタイル
+// 遷移エッジスタイル（矢印改善版）
 export const TRANSITION_STYLE = {
 	lineWidth: 2,
-	arrowSize: 10,
+	arrowSize: 12, // 10 → 12
+	arrowAngle: Math.PI / 7, // より鋭角な矢印
 	guardFontSize: 10,
-	guardPadding: 4
+	guardPadding: 4,
+	// 曲線オプション
+	curveThreshold: 20 // この水平距離以上で曲線を使用
 };
 
-// ノードタイプ別カラー
+// ノードタイプ別カラー（Factorio 風強化版）
 export const NODE_COLORS = {
-	// 初期ノード - 黒丸
+	// 初期ノード - 黒丸 + オレンジグロー
 	initial: {
 		fill: 0x1a1a1a,
-		border: 0x555555
+		border: 0x666666,
+		glow: 0xff9533,
+		glowAlpha: 0.4
 	},
-	// 終了ノード - 二重丸
+	// 終了ノード - 二重丸 + 赤グロー
 	final: {
 		fill: 0x1a1a1a,
-		border: 0x555555,
-		innerFill: 0x1a1a1a
+		border: 0x666666,
+		innerFill: 0x2a1a1a, // 微かに赤み
+		glow: 0xef4444,
+		glowAlpha: 0.3
 	},
-	// アクションノード - 角丸四角形
+	// アクションノード - 金属質感強化
 	action: {
-		background: 0x2a2a2a,
-		border: 0x555555,
-		text: 0xcccccc
+		background: 0x2d2d2d, // 少し明るく
+		backgroundGradientTop: 0x3a3a3a, // 上部明るめ
+		backgroundGradientBottom: 0x242424, // 下部暗め
+		border: 0x5a5a5a,
+		borderHighlight: 0x777777, // 上部ハイライト用
+		text: 0xe0e0e0 // より明るく
 	},
-	// 分岐/合流ノード - ひし形
+	// 分岐/合流ノード - グラデーション追加
 	decision: {
-		background: 0x2a2a2a,
-		border: 0x555555,
-		text: 0xcccccc
+		background: 0x2d3530, // 緑みを帯びた色
+		backgroundGradient: 0x242d28,
+		border: 0x4a6050,
+		text: 0xe0e0e0
 	},
-	// フォーク/ジョインノード - 太い線
+	// フォーク/ジョインノード - より目立つ
 	fork: {
-		fill: 0x1a1a1a,
-		border: 0x555555
+		fill: 0x252525,
+		border: 0x666666,
+		highlight: 0x888888
 	}
 };
 
@@ -119,13 +107,15 @@ export const ACTIVITY_STATUS_STYLES = {
 	}
 };
 
-// レイアウト定数
+// レイアウト定数（間隔拡大版）
 export const LAYOUT = {
 	// ノード間の水平間隔
-	horizontalGap: 60,
+	horizontalGap: 100, // 60 → 100
 	// ノード間の垂直間隔
-	verticalGap: 80,
+	verticalGap: 120, // 80 → 120
 	// 初期マージン
-	marginTop: 40,
-	marginLeft: 40
+	marginTop: 60, // 40 → 60
+	marginLeft: 60, // 40 → 60
+	// 最小全体幅
+	minTotalWidth: 600 // 追加
 };

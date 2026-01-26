@@ -30,17 +30,31 @@ export class InitialNode extends ActivityNodeBase {
 		const centerX = this.radius;
 		const centerY = this.radius;
 
-		// グロー効果（選択/ホバー時）
+		// 常時グロー効果（開始点を強調）
+		// 外側から内側へ段階的なグロー
+		for (let i = 3; i >= 1; i--) {
+			this.background.circle(centerX, centerY, this.radius + i * 3);
+			this.background.fill({
+				color: NODE_COLORS.initial.glow,
+				alpha: NODE_COLORS.initial.glowAlpha / (i + 1)
+			});
+		}
+
+		// 選択/ホバー時の追加グロー
 		if (this.isSelected || this.isHovered) {
 			const glowColor = this.isSelected ? COMMON_COLORS.borderSelected : COMMON_COLORS.borderHover;
-			this.background.circle(centerX, centerY, this.radius + 4);
-			this.background.fill({ color: glowColor, alpha: 0.2 });
+			this.background.circle(centerX, centerY, this.radius + 6);
+			this.background.fill({ color: glowColor, alpha: 0.3 });
 		}
 
 		// メイン円（塗りつぶし）
 		this.background.circle(centerX, centerY, this.radius);
 		this.background.fill(NODE_COLORS.initial.fill);
 		this.background.stroke({ width: this.getBorderWidth(), color: this.getBorderColor() });
+
+		// 内側ハイライト（金属感）
+		this.background.circle(centerX - 2, centerY - 2, this.radius * 0.4);
+		this.background.fill({ color: 0x444444, alpha: 0.4 });
 	}
 
 	/**

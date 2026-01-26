@@ -70,9 +70,28 @@ export class TransitionEdge extends Graphics {
 		const color = this.getLineColor();
 		const width = this.getLineWidth();
 
-		// 線を描画
-		this.moveTo(this.sourcePoint.x, this.sourcePoint.y);
-		this.lineTo(this.targetPoint.x, this.targetPoint.y);
+		// 水平方向のオフセットを計算
+		const dx = Math.abs(this.targetPoint.x - this.sourcePoint.x);
+		const dy = this.targetPoint.y - this.sourcePoint.y;
+
+		// 水平オフセットが大きく、かつ下方向への遷移の場合は曲線を使用
+		if (dx > TRANSITION_STYLE.curveThreshold && dy > 0) {
+			// ベジェ曲線で描画
+			const midY = (this.sourcePoint.y + this.targetPoint.y) / 2;
+			this.moveTo(this.sourcePoint.x, this.sourcePoint.y);
+			this.bezierCurveTo(
+				this.sourcePoint.x,
+				midY,
+				this.targetPoint.x,
+				midY,
+				this.targetPoint.x,
+				this.targetPoint.y
+			);
+		} else {
+			// 直線で描画
+			this.moveTo(this.sourcePoint.x, this.sourcePoint.y);
+			this.lineTo(this.targetPoint.x, this.targetPoint.y);
+		}
 		this.stroke({ width, color });
 
 		// 矢印を描画
@@ -83,10 +102,11 @@ export class TransitionEdge extends Graphics {
 	}
 
 	/**
-	 * 矢印を描画
+	 * 矢印を描画（改善版：より鋭角、縁取り付き）
 	 */
 	private drawArrow(color: number): void {
 		const arrowSize = TRANSITION_STYLE.arrowSize;
+		const arrowAngle = TRANSITION_STYLE.arrowAngle;
 		const dx = this.targetPoint.x - this.sourcePoint.x;
 		const dy = this.targetPoint.y - this.sourcePoint.y;
 		const angle = Math.atan2(dy, dx);
@@ -95,18 +115,19 @@ export class TransitionEdge extends Graphics {
 		const tipX = this.targetPoint.x;
 		const tipY = this.targetPoint.y;
 
-		// 矢印の左右の点
-		const leftX = tipX - arrowSize * Math.cos(angle - Math.PI / 6);
-		const leftY = tipY - arrowSize * Math.sin(angle - Math.PI / 6);
-		const rightX = tipX - arrowSize * Math.cos(angle + Math.PI / 6);
-		const rightY = tipY - arrowSize * Math.sin(angle + Math.PI / 6);
+		// 矢印の左右の点（より鋭角に）
+		const leftX = tipX - arrowSize * Math.cos(angle - arrowAngle);
+		const leftY = tipY - arrowSize * Math.sin(angle - arrowAngle);
+		const rightX = tipX - arrowSize * Math.cos(angle + arrowAngle);
+		const rightY = tipY - arrowSize * Math.sin(angle + arrowAngle);
 
-		// 三角形を描画
+		// 三角形を描画（塗りつぶし + 縁取り）
 		this.moveTo(tipX, tipY);
 		this.lineTo(leftX, leftY);
 		this.lineTo(rightX, rightY);
 		this.closePath();
 		this.fill(color);
+		this.stroke({ width: 1, color: 0x888888, alpha: 0.5 });
 	}
 
 	/**

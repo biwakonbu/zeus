@@ -6,15 +6,18 @@
 	import { refreshAllData, currentView } from '$lib/stores';
 	import { setConnected, setDisconnected, setConnecting } from '$lib/stores/connection';
 	import { connectSSE, disconnectSSE } from '$lib/api/sse';
-	import { fetchWBSAsGraphData } from '$lib/api/client';
+	import { fetchWBSAsGraphData, fetchActivities } from '$lib/api/client';
 	import { tasks } from '$lib/stores/tasks';
-	import type { WBSGraphData } from '$lib/types/api';
+	import type { WBSGraphData, ActivityItem } from '$lib/types/api';
 
 	let useSSE = $state(true);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
 
 	// WBS グラフデータ（Graph View 用）
 	let wbsGraphData: WBSGraphData | undefined = $state(undefined);
+
+	// Activity データ（UseCase View の関連 Activity 表示用）
+	let activitiesData: ActivityItem[] = $state([]);
 
 	// 選択中のタスク
 	let selectedTaskId: string | null = $state(null);
@@ -44,6 +47,15 @@
 					})
 					.catch(err => {
 						console.warn('WBS data fetch failed:', err);
+					});
+
+				// Activity データを取得（UseCase View の関連 Activity 表示用）
+				fetchActivities()
+					.then(data => {
+						activitiesData = data.activities || [];
+					})
+					.catch(err => {
+						console.warn('Activities data fetch failed:', err);
 					});
 
 				// SSE 接続を試行（ポーリングとは排他的に実行）
@@ -120,7 +132,7 @@
 			onTaskHover={handleTaskHover}
 		/>
 	{:else if $currentView === 'usecase'}
-		<UseCaseView />
+		<UseCaseView activities={activitiesData} />
 	{:else if $currentView === 'activity'}
 		<ActivityView />
 	{/if}

@@ -229,7 +229,7 @@ export class ActivityEngine {
 	}
 
 	/**
-	 * グリッド描画
+	 * グリッド描画（強化版：大グリッド + 小ドット）
 	 */
 	private drawGrid(): void {
 		if (!this.gridContainer || !this.app) return;
@@ -239,7 +239,7 @@ export class ActivityEngine {
 		const grid = new Graphics();
 		const gridSize = this.calculateGridSize();
 		const color = COMMON_COLORS.accent;
-		const alpha = 0.03;
+		const alpha = 0.06; // 0.03 → 0.06 で少し見やすく
 
 		const viewWidth = this.app.screen.width / this.viewport.scale;
 		const viewHeight = this.app.screen.height / this.viewport.scale;
@@ -248,6 +248,7 @@ export class ActivityEngine {
 		const endX = startX + viewWidth + gridSize * 3;
 		const endY = startY + viewHeight + gridSize * 3;
 
+		// 大グリッド線
 		for (let x = startX; x <= endX; x += gridSize) {
 			grid.moveTo(x, startY);
 			grid.lineTo(x, endY);
@@ -259,6 +260,24 @@ export class ActivityEngine {
 		}
 
 		grid.stroke({ width: 1 / this.viewport.scale, color, alpha });
+
+		// 小ドット（細かいグリッド）
+		const dotSize = gridSize / 4;
+		const dotRadius = 0.5 / this.viewport.scale;
+
+		// パフォーマンスのため、ズームアウト時はドットを描画しない
+		if (this.viewport.scale >= 0.5) {
+			for (let x = startX; x <= endX; x += dotSize) {
+				for (let y = startY; y <= endY; y += dotSize) {
+					// 大グリッドとの交点はスキップ
+					if (x % gridSize !== 0 || y % gridSize !== 0) {
+						grid.circle(x, y, dotRadius);
+						grid.fill({ color, alpha: 0.04 });
+					}
+				}
+			}
+		}
+
 		this.gridContainer.addChild(grid);
 	}
 
@@ -373,28 +392,42 @@ export class ActivityEngine {
 		// 各レベルのノードを配置
 		const sortedLevels = Array.from(levelGroups.keys()).sort((a, b) => a - b);
 
+		// 動的な全体幅計算
+		let maxLevelWidth = 0;
+		for (const nodeIds of levelGroups.values()) {
+			let levelWidth = 0;
+			for (const nodeId of nodeIds) {
+				const node = this.nodes.get(nodeId);
+				if (node) {
+					levelWidth += node.getNodeWidth();
+				}
+			}
+			levelWidth += (nodeIds.length - 1) * LAYOUT.horizontalGap;
+			maxLevelWidth = Math.max(maxLevelWidth, levelWidth);
+		}
+		const totalWidth = Math.max(LAYOUT.minTotalWidth, maxLevelWidth + LAYOUT.marginLeft * 2);
+
 		let currentY = LAYOUT.marginTop;
 
 		for (const level of sortedLevels) {
 			const nodeIds = levelGroups.get(level)!;
-			const count = nodeIds.length;
 
-			// このレベルの最大高さを計算
+			// このレベルの最大高さと幅を計算
 			let maxHeight = 0;
-			let totalWidth = 0;
+			let levelWidth = 0;
 
 			for (const nodeId of nodeIds) {
 				const node = this.nodes.get(nodeId);
 				if (node) {
 					maxHeight = Math.max(maxHeight, node.getNodeHeight());
-					totalWidth += node.getNodeWidth();
+					levelWidth += node.getNodeWidth();
 				}
 			}
 
-			totalWidth += (count - 1) * LAYOUT.horizontalGap;
+			levelWidth += (nodeIds.length - 1) * LAYOUT.horizontalGap;
 
-			// 水平方向に中央揃えで配置
-			let currentX = LAYOUT.marginLeft + (400 - totalWidth) / 2; // 400 は仮の全体幅
+			// 水平方向に中央揃えで配置（動的な全体幅に基づく）
+			let currentX = LAYOUT.marginLeft + (totalWidth - LAYOUT.marginLeft * 2 - levelWidth) / 2;
 			if (currentX < LAYOUT.marginLeft) currentX = LAYOUT.marginLeft;
 
 			for (const nodeId of nodeIds) {

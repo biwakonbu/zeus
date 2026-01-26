@@ -108,26 +108,56 @@ UML ユースケース図を表示するビュー。サブシステムによる�
 **サブシステム機能**:
 - UseCase をサブシステムごとにグループ化表示
 - サブシステム境界を UML 準拠の角丸矩形で描画
-- ハッシュベースのカラー自動生成（HSL 色空間）
+- DJB2 ハッシュベースのカラー自動生成（HSL 色空間）
 - 未分類 UseCase は「未分類」境界（グレー系）に配置
+- サブシステムデータは `/api/subsystems` から並列取得
 
-**レイアウト**: 3 カラム構成
-- 左: Actor 一覧パネル + サブシステムフィルタ
-- 中央: PixiJS ユースケース図（サブシステム境界付き）
-- 右: 選択エンティティの詳細パネル
+**フィルタモード**:
+- デフォルトで有効（選択するまで図は非表示）
+- Actor/UseCase をクリックすると関連エンティティのみ表示
+- 関連するサブシステム境界も連動して表示/非表示
+
+**レイアウト**: フルスクリーンキャンバス + オーバーレイパネル
+- 左上: 要素一覧パネル（Actor/UseCase リスト、検索・フィルタ機能）
+- 右上: 詳細パネル（選択時のみ表示）
+- 中央: PixiJS キャンバス（サブシステム境界付き）
+
+**Svelte コンポーネント**:
+| コンポーネント | 役割 |
+|---------------|------|
+| UseCaseView.svelte | メインビュー、エンジン管理 |
+| UseCaseListPanel.svelte | Actor/UseCase リスト表示 |
+| UseCaseViewPanel.svelte | 選択エンティティの詳細表示 |
+| SearchInput.svelte | 検索入力 |
+| FilterDropdown.svelte | ステータスフィルタ |
+| GroupedList.svelte | グループ化リスト |
+| SegmentedTabs.svelte | Actor/UseCase タブ切替 |
+
+**PixiJS レンダリングクラス**:
+| クラス | 役割 |
+|--------|------|
+| UseCaseEngine | エンジン管理、レイアウト計算、インタラクション |
+| ActorNode | アクター描画（UML スティックマン） |
+| UseCaseNode | ユースケース描画（楕円） |
+| SystemBoundary | システム境界描画 |
+| SubsystemBoundary | サブシステム境界描画（カラー付き） |
+| RelationEdge | include/extend/generalize 関係線 |
+| ActorUseCaseEdge | アクター↔ユースケース接続線 |
 
 **インタラクション**:
 | 操作 | 結果 |
 |------|------|
-| クリック（Actor/UseCase） | 詳細パネル表示 |
-| ホバー | 関連エンティティハイライト |
-| リフレッシュボタン | データ再取得 |
+| クリック（Actor/UseCase） | 詳細パネル表示 + 関連エンティティ表示 |
+| ホバー | ツールチップ表示 + 関連エッジハイライト |
+| ドラッグ | キャンバスパン |
+| ホイール | ズームイン/アウト |
+| ESC | パネルを閉じる |
 
 **API 連携**:
 - `/api/actors` - Actor 一覧取得
 - `/api/usecases` - UseCase 一覧取得
-- `/api/subsystems` - Subsystem 一覧取得
-- `/api/uml/usecase` - Mermaid 図取得
+- `/api/subsystems` - Subsystem 一覧取得（並列取得）
+- `/api/uml/usecase` - ユースケース図データ取得
 
 ## ActivityView
 
@@ -144,7 +174,33 @@ UML アクティビティ図を表示するビュー。フルスクリーンキ�
 | `fork` | 太い横線 | 並列分岐 |
 | `join` | 太い横線 | 並列合流 |
 
-**レイアウト**: オーバーレイパネル構成
+**レイアウト**: Sugiyama 風階層レイアウト
+- トポロジカルソートでノードをレベル分け
+- 各レベル内で横方向に配置
+- 遷移エッジは直線または折れ線で描画
+
+**Svelte コンポーネント**:
+| コンポーネント | 役割 |
+|---------------|------|
+| ActivityView.svelte | メインビュー、エンジン管理 |
+| ActivityListPanel.svelte | アクティビティ一覧表示 |
+| ActivityDetailPanel.svelte | 選択ノードの詳細表示 |
+
+**PixiJS レンダリングクラス**:
+| クラス | 役割 |
+|--------|------|
+| ActivityEngine | エンジン管理、Sugiyama レイアウト、インタラクション |
+| ActivityNodeBase | ノード基底クラス（共通インターフェース） |
+| InitialNode | 開始ノード（黒丸） |
+| FinalNode | 終了ノード（二重丸） |
+| ActionNode | アクションノード（角丸四角形） |
+| DecisionNode | 分岐ノード（ひし形） |
+| MergeNode | 合流ノード（ひし形） |
+| ForkNode | 並列分岐ノード（太い横線） |
+| JoinNode | 並列合流ノード（太い横線） |
+| TransitionEdge | 遷移エッジ（矢印付き） |
+
+**オーバーレイパネル構成**:
 - 左上: アクティビティ一覧パネル（デフォルト表示）
 - 右上: 選択ノードの詳細パネル（選択時のみ表示）
 - 中央: PixiJS キャンバス（フルスクリーン）
@@ -161,17 +217,6 @@ UML アクティビティ図を表示するビュー。フルスクリーンキ�
 **API 連携**:
 - `/api/activities` - アクティビティ一覧取得
 - `/api/uml/activity?id=X` - 指定アクティビティのノード・遷移取得
-
-**PixiJS レンダリングクラス**:
-| クラス | 役割 |
-|--------|------|
-| ActivityEngine | エンジン管理、レイアウト計算、インタラクション |
-| ActivityNodeBase | ノード基底クラス |
-| InitialNode, FinalNode | 開始/終了ノード |
-| ActionNode | アクションノード |
-| DecisionNode, MergeNode | 分岐/合流ノード |
-| ForkNode, JoinNode | 並列分岐/合流ノード |
-| TransitionEdge | 遷移エッジ（矢印） |
 
 ## デザインガイドライン
 

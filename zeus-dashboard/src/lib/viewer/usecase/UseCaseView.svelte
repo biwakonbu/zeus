@@ -2,20 +2,28 @@
 	// UseCase View - PixiJS 版
 	// ミニマルデザイン: キャンバスが主役、パネルはオーバーレイで必要時のみ表示
 	import { onMount, onDestroy } from 'svelte';
-	import type { UseCaseDiagramResponse, ActorItem, UseCaseItem } from '$lib/types/api';
-	import { fetchUseCaseDiagram } from '$lib/api/client';
+	import type { UseCaseDiagramResponse, ActorItem, UseCaseItem, SubsystemItem } from '$lib/types/api';
+	import { fetchUseCaseDiagram, fetchSubsystems } from '$lib/api/client';
 	import { Icon, EmptyState, OverlayPanel } from '$lib/components/ui';
-	import { UseCaseEngine } from './engine/UseCaseEngine';
+	import { UseCaseEngine, type UseCaseEngineData } from './engine/UseCaseEngine';
 	import UseCaseListPanel from './UseCaseListPanel.svelte';
 	import UseCaseViewPanel from './UseCaseViewPanel.svelte';
-	import { updateUseCaseViewState, resetUseCaseViewState } from '$lib/stores/view';
+	import {
+		updateUseCaseViewState,
+		resetUseCaseViewState,
+		pendingNavigation,
+		clearPendingNavigation
+	} from '$lib/stores/view';
+
+	import type { ActivityItem } from '$lib/types/api';
 
 	type Props = {
 		boundary?: string;
+		activities?: ActivityItem[];
 		onActorSelect?: (actor: ActorItem) => void;
 		onUseCaseSelect?: (usecase: UseCaseItem) => void;
 	};
-	let { boundary = '', onActorSelect, onUseCaseSelect }: Props = $props();
+	let { boundary = '', activities = [], onActorSelect, onUseCaseSelect }: Props = $props();
 
 	// データ状態
 	let data: UseCaseDiagramResponse | null = $state(null);
@@ -74,12 +82,20 @@
 	let canvasContainer: HTMLDivElement | null = $state(null);
 	let currentZoom = $state(1.0);
 
-	// データ取得
+	// サブシステムデータ
+	let subsystems: SubsystemItem[] = $state([]);
+
+	// データ取得（ユースケース図とサブシステムを並列取得）
 	async function loadData() {
 		loading = true;
 		error = null;
 		try {
-			data = await fetchUseCaseDiagram(boundary || undefined);
+			const [diagramData, subsystemsResponse] = await Promise.all([
+				fetchUseCaseDiagram(boundary || undefined),
+				fetchSubsystems()
+			]);
+			data = diagramData;
+			subsystems = subsystemsResponse.subsystems || [];
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'データの取得に失敗しました';
 		} finally {
@@ -139,7 +155,8 @@
 
 			// 初期化完了後にデータがあれば設定
 			if (data) {
-				engine.setData(data);
+				const engineData: UseCaseEngineData = { ...data, subsystems };
+				engine.setData(engineData);
 				syncStoreState();
 			}
 		} catch (e) {
@@ -254,10 +271,11 @@
 		}
 	});
 
-	// データ設定 Effect（エンジン初期化後、data が変更されたら）
+	// データ設定 Effect（エンジン初期化後、data または subsystems が変更されたら）
 	$effect(() => {
 		if (engineInitialized && engine && data) {
-			engine.setData(data);
+			const engineData: UseCaseEngineData = { ...data, subsystems };
+			engine.setData(engineData);
 			syncStoreState();
 		}
 	});
@@ -272,6 +290,36 @@
 		const resizeObserver = new ResizeObserver(() => engine?.resize());
 		resizeObserver.observe(canvasContainer);
 		return () => resizeObserver.disconnect();
+	});
+
+	// ナビゲーションによる自動選択 Effect
+	$effect(() => {
+		const nav = $pendingNavigation;
+		if (!nav || nav.view !== 'usecase' || !engineInitialized || !data) return;
+
+		if (nav.entityType === 'usecase' && nav.entityId) {
+			// UseCase を選択
+			const usecase = data.usecases.find((u: UseCaseItem) => u.id === nav.entityId);
+			if (usecase) {
+				selectedUseCaseId = usecase.id;
+				selectedActorId = null;
+				showDetailPanel = true;
+				engine?.selectUseCase(usecase.id);
+				onUseCaseSelect?.(usecase);
+			}
+			clearPendingNavigation();
+		} else if (nav.entityType === 'actor' && nav.entityId) {
+			// Actor を選択
+			const actor = data.actors.find((a: ActorItem) => a.id === nav.entityId);
+			if (actor) {
+				selectedActorId = actor.id;
+				selectedUseCaseId = null;
+				showDetailPanel = true;
+				engine?.selectActor(actor.id);
+				onActorSelect?.(actor);
+			}
+			clearPendingNavigation();
+		}
 	});
 
 	onDestroy(() => {
@@ -338,6 +386,7 @@
 							usecase={selectedUseCase}
 							actors={data.actors}
 							usecases={data.usecases}
+							{activities}
 							onClose={closeDetailPanel}
 						/>
 					</div>

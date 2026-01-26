@@ -4,6 +4,30 @@ import type { ViewType } from '$lib/viewer';
 // 現在のビュー状態を管理するストア
 export const currentView = writable<ViewType>('usecase');
 
+// ビュー間遷移時の自動選択用
+export interface PendingNavigation {
+	view: ViewType;
+	entityType?: 'actor' | 'usecase' | 'activity';
+	entityId?: string;
+}
+
+export const pendingNavigation = writable<PendingNavigation | null>(null);
+
+// エンティティを指定してビューに遷移
+export function navigateToEntity(
+	view: ViewType,
+	entityType: 'actor' | 'usecase' | 'activity',
+	entityId: string
+): void {
+	pendingNavigation.set({ view, entityType, entityId });
+	currentView.set(view);
+}
+
+// 遷移完了後にクリア
+export function clearPendingNavigation(): void {
+	pendingNavigation.set(null);
+}
+
 // ビューを変更する関数
 export function setView(view: ViewType): void {
 	currentView.set(view);
