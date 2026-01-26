@@ -55,12 +55,11 @@ export class DecisionNode extends DiamondNode {
 	private drawText(): void {
 		if (!this.nameText || !this.nodeData.name) return;
 
-		// 短縮表示（?マーク等）
-		const displayText = this.nodeData.name.length > 5 ? '?' : this.nodeData.name;
-		this.nameText.text = displayText;
+		// 全文表示
+		this.nameText.text = this.nodeData.name;
 
-		// 中央配置
+		// ひし形の下部に配置（中央揃え）
 		this.nameText.x = (this.size - this.nameText.width) / 2;
-		this.nameText.y = (this.size - this.nameText.height) / 2;
+		this.nameText.y = this.size + 4;
 	}
 }

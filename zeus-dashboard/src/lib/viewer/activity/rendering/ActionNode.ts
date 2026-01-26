@@ -27,7 +27,7 @@ export class ActionNode extends ActivityNodeBase {
 				fontFamily: 'IBM Plex Mono, monospace',
 				align: 'center',
 				wordWrap: true,
-				wordWrapWidth: ACTION_NODE_SIZE.maxWidth - ACTION_NODE_SIZE.paddingH * 2,
+				wordWrapWidth: 500, // テキスト全文表示のため十分な幅
 				// テキストにも軽いシャドウ（PixiJS v8 形式）
 				dropShadow: {
 					color: 0x000000,
@@ -60,10 +60,7 @@ export class ActionNode extends ActivityNodeBase {
 		});
 		const metrics = CanvasTextMetrics.measureText(name, style);
 
-		const width = Math.min(
-			ACTION_NODE_SIZE.maxWidth,
-			Math.max(ACTION_NODE_SIZE.minWidth, metrics.width + ACTION_NODE_SIZE.paddingH * 2)
-		);
+		const width = Math.max(ACTION_NODE_SIZE.minWidth, metrics.width + ACTION_NODE_SIZE.paddingH * 2);
 		const height = Math.min(
 			ACTION_NODE_SIZE.maxHeight,
 			Math.max(ACTION_NODE_SIZE.minHeight, metrics.height + ACTION_NODE_SIZE.paddingV * 2)
@@ -143,14 +140,6 @@ export class ActionNode extends ActivityNodeBase {
 		let displayText = name;
 
 		this.nameText.text = displayText;
-
-		// テキストが最大幅を超える場合は切り詰め
-		if (this.nameText.width > maxWidth) {
-			while (this.nameText.width > maxWidth && displayText.length > 3) {
-				displayText = displayText.substring(0, displayText.length - 1);
-				this.nameText.text = displayText + '..';
-			}
-		}
 
 		// 中央配置
 		this.nameText.x = (this.nodeWidth - this.nameText.width) / 2;
