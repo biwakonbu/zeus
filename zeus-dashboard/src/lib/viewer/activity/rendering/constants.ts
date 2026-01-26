@@ -33,7 +33,7 @@ export const DECISION_NODE_SIZE = {
 // フォーク/ジョインノードサイズ（太い線）
 export const FORK_NODE_SIZE = {
 	width: 100,
-	height: 6 // 太さ
+	height: 10 // 太さ（6 → 10 に変更：視認性向上）
 };
 
 // 遷移エッジスタイル（矢印改善版）

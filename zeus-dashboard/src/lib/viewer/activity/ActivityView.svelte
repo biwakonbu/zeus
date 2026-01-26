@@ -47,8 +47,8 @@
 		return currentActivity.nodes.find((n: ActivityNodeItem) => n.id === selectedNodeId) ?? null;
 	});
 
-	// 何か選択されているか
-	const hasSelection = $derived(selectedNode !== null);
+	// アクティビティが選択されているか（詳細パネル表示条件）
+	const hasActivitySelection = $derived(currentActivity !== null);
 
 	// ホバー状態（Tooltip用）
 	let hoveredNode: ActivityNodeItem | null = $state(null);
@@ -110,6 +110,9 @@
 				if (engineInitialized && engine) {
 					engine.setData(currentActivity);
 				}
+
+				// 詳細パネルを自動表示
+				showDetailPanel = true;
 
 				syncStoreState();
 				onActivitySelect?.(currentActivity);
@@ -189,6 +192,14 @@
 		selectedNodeId = null;
 		// 視覚的な選択状態のみ解除
 		engine?.clearSelection();
+	}
+
+	// ノードクリック（詳細パネルから）
+	function handleNodeClickFromPanel(node: ActivityNodeItem) {
+		selectedNodeId = node.id;
+		// エンジンにも選択状態を反映
+		engine?.selectNode(node.id);
+		onNodeSelect?.(node);
 	}
 
 	// アクティビティクリック（リストから）
@@ -325,7 +336,7 @@
 			{/if}
 
 			<!-- 詳細パネル（オーバーレイ） -->
-			{#if showDetailPanel && hasSelection}
+			{#if showDetailPanel && hasActivitySelection}
 				<OverlayPanel
 					title="プロパティ"
 					position="top-right"
@@ -334,9 +345,10 @@
 				>
 					<div class="detail-content">
 						<ActivityDetailPanel
-							node={selectedNode}
 							activity={currentActivity}
+							selectedNode={selectedNode}
 							onClose={closeDetailPanel}
+							onNodeClick={handleNodeClickFromPanel}
 						/>
 					</div>
 				</OverlayPanel>

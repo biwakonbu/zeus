@@ -230,6 +230,7 @@
 		flex-direction: column;
 		gap: 6px;
 		width: 100%;
+		margin-bottom: 6px;
 		padding: 10px;
 		background: rgba(0, 0, 0, 0.2);
 		border: 1px solid var(--border-metal);
@@ -237,12 +238,11 @@
 		cursor: pointer;
 		text-align: left;
 		font-family: inherit;
-		margin-bottom: 6px;
-		transition: all 0.15s ease;
+		transition: background 0.15s ease, border-color 0.15s ease;
 	}
 
 	.activity-item:hover {
-		background: rgba(0, 0, 0, 0.35);
+		background: rgba(0, 0, 0, 0.3);
 		border-color: var(--border-hover);
 	}
 
@@ -250,6 +250,7 @@
 		background: rgba(255, 149, 51, 0.15);
 		border-color: var(--accent-primary);
 	}
+
 
 	.activity-header {
 		display: flex;
@@ -297,6 +298,7 @@
 		text-overflow: ellipsis;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 	}
 
