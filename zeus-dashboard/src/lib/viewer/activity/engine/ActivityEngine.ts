@@ -21,6 +21,14 @@ const ZOOM_SPEED = 0.001;
 // ドラッグ閾値（px）- これ以上動いたらドラッグとみなす
 const DRAG_THRESHOLD = 5;
 
+// アニメーション設定
+const ANIMATION_DURATION = 400; // ms
+
+// イージング関数（easeOutCubic: 滑らかな減速）
+function easeOutCubic(t: number): number {
+	return 1 - Math.pow(1 - t, 3);
+}
+
 // 設定型
 export interface ActivityEngineConfig {
 	backgroundColor: number;
@@ -87,6 +95,17 @@ export class ActivityEngine {
 
 	// イベントリスナー（クリーンアップ用に保持）
 	private wheelHandler: ((e: WheelEvent) => void) | null = null;
+
+	// アニメーション状態
+	private animationState: {
+		active: boolean;
+		startTime: number;
+		startX: number;
+		startY: number;
+		targetX: number;
+		targetY: number;
+	} | null = null;
+	private tickerCallback: (() => void) | null = null;
 
 	// イベントコールバック
 	private onNodeClick?: (node: ActivityNodeItem) => void;
@@ -736,27 +755,108 @@ export class ActivityEngine {
 
 	/**
 	 * 特定座標にビューを移動
+	 * @param x ワールド座標 X
+	 * @param y ワールド座標 Y
+	 * @param animate アニメーション有効化（デフォルト: false）
 	 */
-	panTo(x: number, y: number): void {
+	panTo(x: number, y: number, animate = false): void {
 		if (!this.worldContainer || !this.app) return;
 
 		const targetX = this.app.screen.width / 2 - x * this.viewport.scale;
 		const targetY = this.app.screen.height / 2 - y * this.viewport.scale;
 
-		this.worldContainer.x = targetX;
-		this.worldContainer.y = targetY;
+		if (animate) {
+			this.startPanAnimation(targetX, targetY);
+		} else {
+			this.worldContainer.x = targetX;
+			this.worldContainer.y = targetY;
+
+			this.viewport.x = -this.worldContainer.x / this.viewport.scale;
+			this.viewport.y = -this.worldContainer.y / this.viewport.scale;
+
+			this.drawGrid();
+			this.onViewportChange?.(this.getViewport());
+		}
+	}
+
+	/**
+	 * パンアニメーションを開始
+	 */
+	private startPanAnimation(targetX: number, targetY: number): void {
+		if (!this.worldContainer || !this.app) return;
+
+		// 既存のアニメーションを停止
+		this.stopPanAnimation();
+
+		const startX = this.worldContainer.x;
+		const startY = this.worldContainer.y;
+
+		// 移動距離が小さい場合はアニメーションをスキップ
+		const distance = Math.sqrt(
+			Math.pow(targetX - startX, 2) + Math.pow(targetY - startY, 2)
+		);
+		if (distance < 1) return;
+
+		this.animationState = {
+			active: true,
+			startTime: performance.now(),
+			startX,
+			startY,
+			targetX,
+			targetY
+		};
+
+		// Ticker でアニメーション更新
+		this.tickerCallback = () => this.updatePanAnimation();
+		this.app.ticker.add(this.tickerCallback);
+	}
+
+	/**
+	 * パンアニメーションを更新
+	 */
+	private updatePanAnimation(): void {
+		if (!this.animationState || !this.worldContainer) {
+			this.stopPanAnimation();
+			return;
+		}
+
+		const elapsed = performance.now() - this.animationState.startTime;
+		const progress = Math.min(1, elapsed / ANIMATION_DURATION);
+		const easedProgress = easeOutCubic(progress);
+
+		const { startX, startY, targetX, targetY } = this.animationState;
+		this.worldContainer.x = startX + (targetX - startX) * easedProgress;
+		this.worldContainer.y = startY + (targetY - startY) * easedProgress;
 
 		this.viewport.x = -this.worldContainer.x / this.viewport.scale;
 		this.viewport.y = -this.worldContainer.y / this.viewport.scale;
 
 		this.drawGrid();
 		this.onViewportChange?.(this.getViewport());
+
+		// アニメーション完了
+		if (progress >= 1) {
+			this.stopPanAnimation();
+		}
 	}
 
 	/**
-	 * 特定ノードにビューをフォーカス
+	 * パンアニメーションを停止
 	 */
-	focusNode(nodeId: string): void {
+	private stopPanAnimation(): void {
+		if (this.tickerCallback && this.app) {
+			this.app.ticker.remove(this.tickerCallback);
+			this.tickerCallback = null;
+		}
+		this.animationState = null;
+	}
+
+	/**
+	 * 特定ノードにビューをフォーカス（スムーススクロール）
+	 * @param nodeId フォーカスするノードの ID
+	 * @param animate アニメーション有効化（デフォルト: true）
+	 */
+	focusNode(nodeId: string, animate = true): void {
 		const node = this.nodes.get(nodeId);
 		if (!node) return;
 
@@ -764,7 +864,7 @@ export class ActivityEngine {
 		const centerX = node.getCenterX();
 		const centerY = node.y + node.getNodeHeight() / 2;
 
-		this.panTo(centerX, centerY);
+		this.panTo(centerX, centerY, animate);
 	}
 
 	/**
@@ -805,6 +905,9 @@ export class ActivityEngine {
 	 */
 	destroy(): void {
 		this.clearAll();
+
+		// アニメーションを停止
+		this.stopPanAnimation();
 
 		// データをクリア
 		this.currentActivity = null;
