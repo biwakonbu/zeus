@@ -266,9 +266,14 @@
 			// Activity を選択
 			const activity = activitiesData.activities.find((a: ActivityItem) => a.id === nav.entityId);
 			if (activity) {
-				selectActivity(activity.id);
+				// 非同期処理を適切にハンドリング
+				(async () => {
+					await selectActivity(activity.id);
+					clearPendingNavigation();
+				})();
+			} else {
+				clearPendingNavigation();
 			}
-			clearPendingNavigation();
 		}
 	});
 

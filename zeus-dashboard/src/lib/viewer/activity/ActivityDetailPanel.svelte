@@ -189,7 +189,11 @@
 							<span class="summary-label">ユースケース</span>
 							<button
 								class="link-button"
-								onclick={() => handleUseCaseClick(activity!.usecase_id!)}
+								onclick={() => {
+									if (activity?.usecase_id) {
+										handleUseCaseClick(activity.usecase_id);
+									}
+								}}
 								title="UseCase ビューで表示"
 							>
 								<Icon name="ExternalLink" size={10} />
