@@ -197,8 +197,9 @@
 	// ノードクリック（詳細パネルから）
 	function handleNodeClickFromPanel(node: ActivityNodeItem) {
 		selectedNodeId = node.id;
-		// エンジンにも選択状態を反映
+		// エンジンにも選択状態を反映し、ノード位置にビューを移動
 		engine?.selectNode(node.id);
+		engine?.focusNode(node.id);
 		onNodeSelect?.(node);
 	}
 

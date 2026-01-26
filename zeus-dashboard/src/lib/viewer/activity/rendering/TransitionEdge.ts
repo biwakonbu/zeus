@@ -1,7 +1,15 @@
 // TransitionEdge - UML アクティビティ図の遷移（矢印）描画クラス
-import { Graphics, Text } from 'pixi.js';
+// 3層構造（グロー → 外側 → コア）で電気回路風の発光感を表現
+import { Container, Graphics, Text } from 'pixi.js';
 import type { ActivityTransitionItem } from '$lib/types/api';
-import { TRANSITION_STYLE, COMMON_COLORS, TEXT_RESOLUTION } from './constants';
+import {
+	TRANSITION_STYLE,
+	COMMON_COLORS,
+	TEXT_RESOLUTION,
+	TRANSITION_EDGE_STYLE,
+	TRANSITION_EDGE_WIDTHS,
+	GUARD_LABEL_STYLE
+} from './constants';
 
 /**
  * 接続ポイント（ノードの境界上の点）
@@ -23,6 +31,8 @@ export class TransitionEdge extends Graphics {
 	private transition: ActivityTransitionItem;
 	private sourcePoint: ConnectionPoint;
 	private targetPoint: ConnectionPoint;
+	private guardContainer: Container | null = null;
+	private guardBackground: Graphics | null = null;
 	private guardText: Text | null = null;
 
 	private isHovered = false;
@@ -39,18 +49,31 @@ export class TransitionEdge extends Graphics {
 		this.sourcePoint = sourcePoint;
 		this.targetPoint = targetPoint;
 
-		// ガード条件がある場合はテキストコンポーネント作成
+		// ガード条件がある場合はバッジ風コンポーネント作成
 		if (transition.guard) {
+			this.guardContainer = new Container();
+
+			// 背景（角丸矩形）
+			this.guardBackground = new Graphics();
+			this.guardContainer.addChild(this.guardBackground);
+
+			// テキスト（UML 準拠: 角括弧で囲む、既に囲まれていればそのまま）
+			const guardLabel = transition.guard.startsWith('[') && transition.guard.endsWith(']')
+				? transition.guard
+				: `[${transition.guard}]`;
 			this.guardText = new Text({
-				text: transition.guard,
+				text: guardLabel,
 				style: {
-					fontSize: TRANSITION_STYLE.guardFontSize,
-					fill: COMMON_COLORS.textMuted,
-					fontFamily: 'IBM Plex Mono, monospace'
+					fontSize: GUARD_LABEL_STYLE.fontSize,
+					fill: GUARD_LABEL_STYLE.text,
+					fontFamily: 'IBM Plex Mono, monospace',
+					fontWeight: '500'
 				},
 				resolution: TEXT_RESOLUTION
 			});
-			this.addChild(this.guardText);
+			this.guardContainer.addChild(this.guardText);
+
+			this.addChild(this.guardContainer);
 		}
 
 		// インタラクション設定
@@ -62,22 +85,49 @@ export class TransitionEdge extends Graphics {
 	}
 
 	/**
-	 * エッジを描画
+	 * エッジを描画（3層構造: グロー → 外側 → コア）
+	 * 電気回路風の発光感を表現
 	 */
 	draw(): void {
 		this.clear();
 
-		const color = this.getLineColor();
-		const width = this.getLineWidth();
+		const style = this.getEdgeStyle();
+		const widths = this.getEdgeWidths();
 
 		// 水平方向のオフセットを計算
 		const dx = Math.abs(this.targetPoint.x - this.sourcePoint.x);
 		const dy = this.targetPoint.y - this.sourcePoint.y;
 
-		// 水平オフセットが大きく、かつ下方向への遷移の場合は曲線を使用
-		if (dx > TRANSITION_STYLE.curveThreshold && dy > 0) {
+		// 曲線か直線かを判定
+		const useCurve = dx > TRANSITION_STYLE.curveThreshold && dy > 0;
+		const midY = (this.sourcePoint.y + this.targetPoint.y) / 2;
+
+		// Step 1: グロー（最外層）- 淡いハロー効果
+		// glowAlpha をそのまま使用（乗算を減らす）
+		this.drawPath(useCurve, midY);
+		this.stroke({ width: widths.outer + 6, color: style.glow, alpha: style.glowAlpha * 0.5 });
+
+		// Step 2: 外側（縁取り）- 暗めの縁取りでコアを際立たせる
+		this.drawPath(useCurve, midY);
+		this.stroke({ width: widths.outer, color: style.outer, alpha: 1.0 });
+
+		// Step 3: コア（内側）- 明るいコア線
+		this.drawPath(useCurve, midY);
+		this.stroke({ width: widths.core, color: style.core, alpha: 1.0 });
+
+		// 矢印を描画
+		this.drawArrow(style);
+
+		// ガード条件ラベルを配置
+		this.positionGuardText();
+	}
+
+	/**
+	 * パスを描画（曲線または直線）
+	 */
+	private drawPath(useCurve: boolean, midY: number): void {
+		if (useCurve) {
 			// ベジェ曲線で描画
-			const midY = (this.sourcePoint.y + this.targetPoint.y) / 2;
 			this.moveTo(this.sourcePoint.x, this.sourcePoint.y);
 			this.bezierCurveTo(
 				this.sourcePoint.x,
@@ -92,19 +142,12 @@ export class TransitionEdge extends Graphics {
 			this.moveTo(this.sourcePoint.x, this.sourcePoint.y);
 			this.lineTo(this.targetPoint.x, this.targetPoint.y);
 		}
-		this.stroke({ width, color });
-
-		// 矢印を描画
-		this.drawArrow(color);
-
-		// ガード条件ラベルを配置
-		this.positionGuardText();
 	}
 
 	/**
-	 * 矢印を描画（改善版：より鋭角、縁取り付き）
+	 * 矢印を描画（3層構造対応）
 	 */
-	private drawArrow(color: number): void {
+	private drawArrow(style: (typeof TRANSITION_EDGE_STYLE)[keyof typeof TRANSITION_EDGE_STYLE]): void {
 		const arrowSize = TRANSITION_STYLE.arrowSize;
 		const arrowAngle = TRANSITION_STYLE.arrowAngle;
 		const dx = this.targetPoint.x - this.sourcePoint.x;
@@ -121,20 +164,42 @@ export class TransitionEdge extends Graphics {
 		const rightX = tipX - arrowSize * Math.cos(angle + arrowAngle);
 		const rightY = tipY - arrowSize * Math.sin(angle + arrowAngle);
 
-		// 三角形を描画（塗りつぶし + 縁取り）
+		// 三角形を描画（塗りつぶし + グロー縁取り）
+		// 外側のグロー
 		this.moveTo(tipX, tipY);
 		this.lineTo(leftX, leftY);
 		this.lineTo(rightX, rightY);
 		this.closePath();
-		this.fill(color);
-		this.stroke({ width: 1, color: 0x888888, alpha: 0.5 });
+		this.stroke({ width: 4, color: style.glow, alpha: style.glowAlpha * 0.5 });
+
+		// 縁取り（外側の暗い部分）
+		this.moveTo(tipX, tipY);
+		this.lineTo(leftX, leftY);
+		this.lineTo(rightX, rightY);
+		this.closePath();
+		this.fill(style.outer);
+
+		// コア（内側の明るい部分）
+		const innerScale = 0.7;
+		const innerTipX = tipX;
+		const innerTipY = tipY;
+		const innerLeftX = tipX - arrowSize * innerScale * Math.cos(angle - arrowAngle);
+		const innerLeftY = tipY - arrowSize * innerScale * Math.sin(angle - arrowAngle);
+		const innerRightX = tipX - arrowSize * innerScale * Math.cos(angle + arrowAngle);
+		const innerRightY = tipY - arrowSize * innerScale * Math.sin(angle + arrowAngle);
+
+		this.moveTo(innerTipX, innerTipY);
+		this.lineTo(innerLeftX, innerLeftY);
+		this.lineTo(innerRightX, innerRightY);
+		this.closePath();
+		this.fill(style.core);
 	}
 
 	/**
-	 * ガード条件ラベルを配置
+	 * ガード条件ラベルを配置（バッジ風）
 	 */
 	private positionGuardText(): void {
-		if (!this.guardText) return;
+		if (!this.guardContainer || !this.guardBackground || !this.guardText) return;
 
 		// 線の中点に配置
 		const midX = (this.sourcePoint.x + this.targetPoint.x) / 2;
@@ -144,35 +209,83 @@ export class TransitionEdge extends Graphics {
 		const dx = this.targetPoint.x - this.sourcePoint.x;
 		const dy = this.targetPoint.y - this.sourcePoint.y;
 		const angle = Math.atan2(dy, dx);
-		const offset = 12;
+		const offset = 16;
 
-		// 線の法線方向にオフセット
-		this.guardText.x = midX + offset * Math.cos(angle + Math.PI / 2) - this.guardText.width / 2;
-		this.guardText.y = midY + offset * Math.sin(angle + Math.PI / 2) - this.guardText.height / 2;
+		// テキストサイズに基づいて背景サイズを計算
+		const textWidth = this.guardText.width;
+		const textHeight = this.guardText.height;
+		const bgWidth = textWidth + GUARD_LABEL_STYLE.paddingH * 2;
+		const bgHeight = textHeight + GUARD_LABEL_STYLE.paddingV * 2;
+
+		// 状態に応じたスタイルを取得
+		const style = this.getGuardLabelStyle();
+
+		// 背景を描画
+		this.guardBackground.clear();
+
+		// 背景（角丸矩形）
+		this.guardBackground.roundRect(0, 0, bgWidth, bgHeight, GUARD_LABEL_STYLE.borderRadius);
+		this.guardBackground.fill({ color: style.background, alpha: GUARD_LABEL_STYLE.backgroundAlpha });
+		this.guardBackground.stroke({ width: GUARD_LABEL_STYLE.borderWidth, color: style.border });
+
+		// テキストを中央配置
+		this.guardText.x = GUARD_LABEL_STYLE.paddingH;
+		this.guardText.y = GUARD_LABEL_STYLE.paddingV;
+		this.guardText.style.fill = style.text;
+
+		// コンテナを線の法線方向にオフセットして中央配置
+		this.guardContainer.x =
+			midX + offset * Math.cos(angle + Math.PI / 2) - bgWidth / 2;
+		this.guardContainer.y =
+			midY + offset * Math.sin(angle + Math.PI / 2) - bgHeight / 2;
 	}
 
 	/**
-	 * 線の色を取得
+	 * ガードラベルのスタイルを取得（状態に応じた色）
 	 */
-	private getLineColor(): number {
+	private getGuardLabelStyle(): { background: number; border: number; text: number } {
 		if (this.isSelected) {
-			return COMMON_COLORS.borderSelected;
+			return {
+				background: GUARD_LABEL_STYLE.selectedBackground,
+				border: GUARD_LABEL_STYLE.selectedBorder,
+				text: GUARD_LABEL_STYLE.selectedText
+			};
 		} else if (this.isHovered) {
-			return COMMON_COLORS.borderHover;
+			return {
+				background: GUARD_LABEL_STYLE.hoverBackground,
+				border: GUARD_LABEL_STYLE.hoverBorder,
+				text: GUARD_LABEL_STYLE.hoverText
+			};
 		}
-		return COMMON_COLORS.border;
+		return {
+			background: GUARD_LABEL_STYLE.background,
+			border: GUARD_LABEL_STYLE.border,
+			text: GUARD_LABEL_STYLE.text
+		};
 	}
 
 	/**
-	 * 線の太さを取得
+	 * エッジスタイルを取得（状態に応じた3層スタイル）
 	 */
-	private getLineWidth(): number {
+	private getEdgeStyle(): (typeof TRANSITION_EDGE_STYLE)[keyof typeof TRANSITION_EDGE_STYLE] {
 		if (this.isSelected) {
-			return TRANSITION_STYLE.lineWidth + 1;
+			return TRANSITION_EDGE_STYLE.selected;
 		} else if (this.isHovered) {
-			return TRANSITION_STYLE.lineWidth + 0.5;
+			return TRANSITION_EDGE_STYLE.hover;
 		}
-		return TRANSITION_STYLE.lineWidth;
+		return TRANSITION_EDGE_STYLE.normal;
+	}
+
+	/**
+	 * エッジ幅を取得（状態に応じた幅）
+	 */
+	private getEdgeWidths(): (typeof TRANSITION_EDGE_WIDTHS)[keyof typeof TRANSITION_EDGE_WIDTHS] {
+		if (this.isSelected) {
+			return TRANSITION_EDGE_WIDTHS.selected;
+		} else if (this.isHovered) {
+			return TRANSITION_EDGE_WIDTHS.hover;
+		}
+		return TRANSITION_EDGE_WIDTHS.normal;
 	}
 
 	/**

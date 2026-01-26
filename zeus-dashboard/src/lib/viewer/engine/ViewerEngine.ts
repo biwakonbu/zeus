@@ -42,6 +42,9 @@ const MIN_SCALE = 0.1;
 const MAX_SCALE = 3.0;
 const ZOOM_SPEED = 0.001;
 
+// ドラッグ閾値（px）- これ以上動いたらドラッグとみなす
+const DRAG_THRESHOLD = 5;
+
 /**
  * ViewerEngine - PixiJS ベースのキャンバス管理
  *
@@ -68,6 +71,8 @@ export class ViewerEngine {
 
 	// パン操作用の状態
 	private isPanning = false;
+	private potentialPan = false; // 左クリック開始後、閾値超えるまで
+	private panStartPosition = { x: 0, y: 0 };
 	private lastPanPosition = { x: 0, y: 0 };
 
 	// イベントコールバック
@@ -185,9 +190,13 @@ export class ViewerEngine {
 	 * パン開始
 	 */
 	private handlePanStart(e: FederatedPointerEvent): void {
-		// 右クリックまたは中クリックの場合のみパン
-		// 左クリックはノード選択用に残す
-		if (e.button === 1 || e.button === 2 || e.shiftKey) {
+		// 左ボタン: 閾値超えてからパン開始（クリックと区別）
+		// 中・右ボタン: 即座にパン開始
+		if (e.button === 0) {
+			this.potentialPan = true;
+			this.panStartPosition = { x: e.globalX, y: e.globalY };
+			this.lastPanPosition = { x: e.globalX, y: e.globalY };
+		} else if (e.button === 1 || e.button === 2) {
 			this.isPanning = true;
 			this.lastPanPosition = { x: e.globalX, y: e.globalY };
 		}
@@ -197,7 +206,20 @@ export class ViewerEngine {
 	 * パン移動
 	 */
 	private handlePanMove(e: FederatedPointerEvent): void {
-		if (!this.isPanning || !this.worldContainer) return;
+		if (!this.worldContainer) return;
+
+		// 左クリック開始後、閾値をチェックしてパン開始判定
+		if (this.potentialPan && !this.isPanning) {
+			const dx = e.globalX - this.panStartPosition.x;
+			const dy = e.globalY - this.panStartPosition.y;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+
+			if (distance >= DRAG_THRESHOLD) {
+				this.isPanning = true;
+			}
+		}
+
+		if (!this.isPanning) return;
 
 		const dx = e.globalX - this.lastPanPosition.x;
 		const dy = e.globalY - this.lastPanPosition.y;
@@ -218,6 +240,7 @@ export class ViewerEngine {
 	 */
 	private handlePanEnd(): void {
 		this.isPanning = false;
+		this.potentialPan = false;
 	}
 
 	/**

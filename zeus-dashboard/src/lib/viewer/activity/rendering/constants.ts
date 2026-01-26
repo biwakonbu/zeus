@@ -41,11 +41,32 @@ export const TRANSITION_STYLE = {
 	lineWidth: 2,
 	arrowSize: 12, // 10 → 12
 	arrowAngle: Math.PI / 7, // より鋭角な矢印
-	guardFontSize: 10,
-	guardPadding: 4,
+	guardFontSize: 11,
+	guardPadding: 6,
 	// 曲線オプション
 	curveThreshold: 20 // この水平距離以上で曲線を使用
 };
+
+// ガード条件ラベルスタイル（バッジ風）
+export const GUARD_LABEL_STYLE = {
+	fontSize: 11,
+	paddingH: 8,
+	paddingV: 4,
+	borderRadius: 4,
+	// 通常状態
+	background: 0x2a2a2a,
+	backgroundAlpha: 0.95,
+	border: 0x4a4a4a,
+	borderWidth: 1,
+	text: 0xe0e0e0,
+	// ホバー/選択時
+	hoverBackground: 0x3a3a3a,
+	hoverBorder: 0xff9533,
+	hoverText: 0xffffff,
+	selectedBackground: 0x4a3520,
+	selectedBorder: 0xff9533,
+	selectedText: 0xffffff
+} as const;
 
 // ノードタイプ別カラー（Factorio 風強化版）
 export const NODE_COLORS = {
@@ -119,3 +140,43 @@ export const LAYOUT = {
 	// 最小全体幅
 	minTotalWidth: 600 // 追加
 };
+
+/**
+ * 遷移エッジ 3層スタイル（電気回路風・高コントラスト版）
+ * - 背景 0x1a1a1a に対して明確に視認できるコントラスト
+ * - 状態ごとに異なる発光感を表現
+ *
+ * デザイン原則:
+ * - コア: 明るい色で主線を強調
+ * - 外側: 暗い縁取りでコアを際立たせる
+ * - グロー: 淡いハロー効果で電気配線感を演出
+ */
+export const TRANSITION_EDGE_STYLE = {
+	normal: {
+		core: 0xcccccc, // 明るいコア（204, 204, 204）
+		outer: 0x2a2a2a, // 暗い縁取り
+		glow: 0x666666, // グロー色
+		glowAlpha: 0.5 // グロー強度を上げる
+	},
+	hover: {
+		core: 0xffcc88, // 明るいオレンジ
+		outer: 0xff9533, // アクセント色の縁取り
+		glow: 0xff9533,
+		glowAlpha: 0.6
+	},
+	selected: {
+		core: 0xffbb66, // 明るいオレンジ
+		outer: 0x4a2a00, // 暗い縁取り
+		glow: 0xff9533,
+		glowAlpha: 0.7
+	}
+} as const;
+
+/**
+ * 遷移エッジ幅定義（太めで視認性確保）
+ */
+export const TRANSITION_EDGE_WIDTHS = {
+	normal: { core: 2.5, outer: 6 },
+	hover: { core: 3, outer: 7 },
+	selected: { core: 3.5, outer: 8 }
+} as const;

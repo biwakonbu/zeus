@@ -33,6 +33,9 @@ const MIN_SCALE = 0.3;
 const MAX_SCALE = 2.5;
 const ZOOM_SPEED = 0.001;
 
+// ドラッグ閾値（px）- これ以上動いたらドラッグとみなす
+const DRAG_THRESHOLD = 5;
+
 // 設定型
 export interface UseCaseEngineConfig {
 	backgroundColor: number;
@@ -113,6 +116,8 @@ export class UseCaseEngine {
 
 	// パン操作
 	private isPanning = false;
+	private potentialPan = false; // 左クリック開始後、閾値超えるまで
+	private panStartPosition = { x: 0, y: 0 };
 	private lastPanPosition = { x: 0, y: 0 };
 
 	// イベントリスナー（クリーンアップ用に保持）
@@ -245,7 +250,13 @@ export class UseCaseEngine {
 	 * パン開始
 	 */
 	private handlePanStart(e: FederatedPointerEvent): void {
-		if (e.button === 1 || e.button === 2 || e.shiftKey) {
+		// 左ボタン: 閾値超えてからパン開始（クリックと区別）
+		// 中・右ボタン: 即座にパン開始
+		if (e.button === 0) {
+			this.potentialPan = true;
+			this.panStartPosition = { x: e.globalX, y: e.globalY };
+			this.lastPanPosition = { x: e.globalX, y: e.globalY };
+		} else if (e.button === 1 || e.button === 2) {
 			this.isPanning = true;
 			this.lastPanPosition = { x: e.globalX, y: e.globalY };
 		}
@@ -255,7 +266,20 @@ export class UseCaseEngine {
 	 * パン移動
 	 */
 	private handlePanMove(e: FederatedPointerEvent): void {
-		if (!this.isPanning || !this.worldContainer) return;
+		if (!this.worldContainer) return;
+
+		// 左クリック開始後、閾値をチェックしてパン開始判定
+		if (this.potentialPan && !this.isPanning) {
+			const dx = e.globalX - this.panStartPosition.x;
+			const dy = e.globalY - this.panStartPosition.y;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+
+			if (distance >= DRAG_THRESHOLD) {
+				this.isPanning = true;
+			}
+		}
+
+		if (!this.isPanning) return;
 
 		const dx = e.globalX - this.lastPanPosition.x;
 		const dy = e.globalY - this.lastPanPosition.y;
@@ -275,6 +299,7 @@ export class UseCaseEngine {
 	 */
 	private handlePanEnd(): void {
 		this.isPanning = false;
+		this.potentialPan = false;
 	}
 
 	/**
