@@ -11,5 +11,5 @@ export { default as KeyboardHelp } from './KeyboardHelp.svelte';
 export { default as RichTooltip } from './RichTooltip.svelte';
 export { default as OverlayPanel } from './OverlayPanel.svelte';
 
-// RichTooltip 型もエクスポート
-export type { TooltipEntity } from './RichTooltip.svelte';
+// 型定義のエクスポート
+export type { TooltipEntity } from './types';

@@ -35,24 +35,32 @@ const COLORS = {
 		vision: {
 			indicator: 0xffd700,    // ゴールド - 最上位の目標
 			background: 0x3d3520,  // 暗めの金色
-			border: 0xffd700
+			border: 0xffd700,
+			borderHighlight: 0xffee88,
+			borderShadow: 0x2a2510
 		},
 		objective: {
 			indicator: 0x6699ff,    // ブルー - 目標
 			background: 0x2d3550,  // 暗めの青
-			border: 0x6699ff
+			border: 0x6699ff,
+			borderHighlight: 0x99bbff,
+			borderShadow: 0x1a2030
 		},
 		deliverable: {
 			indicator: 0x66cc99,    // グリーン - 成果物
 			background: 0x2d4035,  // 暗めの緑
-			border: 0x66cc99
+			border: 0x66cc99,
+			borderHighlight: 0x99eebb,
+			borderShadow: 0x1a2a20
 		},
 		task: {
 			indicator: 0x888888,    // グレー - タスク（既存の動作）
 			background: 0x2d2d2d,  // 標準背景
-			border: 0x4a4a4a
+			border: 0x4a4a4a,
+			borderHighlight: 0x777777,
+			borderShadow: 0x1a1a1a
 		}
-	} as Record<GraphNodeType, { indicator: number; background: number; border: number }>,
+	} as Record<GraphNodeType, { indicator: number; background: number; border: number; borderHighlight?: number; borderShadow?: number }>,
 	// 基本色
 	background: 0x2d2d2d,
 	backgroundHover: 0x3a3a3a,
@@ -79,6 +87,29 @@ const COLORS = {
 	downstreamHighlight: 0xffcc00,  // 下流タスク（黄色）
 	upstreamHighlight: 0x44aaff     // 上流タスク（水色）
 };
+
+// 金属効果定数（5層ベベル構造用）
+// alpha 累積問題を解消: 合計 0.70 に調整（以前は 1.13 で過度に暗かった）
+const METAL_EFFECT = {
+	// ベベル透明度（控えめに調整）
+	outerShadowAlpha: 0.25, // 0.4 → 0.25（影を控えめに）
+	innerShadowAlpha: 0.15, // 0.3 → 0.15（内側影も控えめに）
+	innerHighlightAlpha: 0.5, // 維持
+	outerHighlightAlpha: 0.4, // 維持
+	// ベベル幅
+	bevelWidth: 1.5,
+	innerBevelWidth: 1,
+	// 上部ハイライト（金属光沢）- 領域を拡大
+	topHighlightAlpha: 0.20, // 0.25 → 0.20（光沢を適度に）
+	topHighlightRatio: 0.45, // 0.35 → 0.45（領域拡大）
+	// 下部シャドウ（凹み感）- 開始位置を上げて重なりを作る
+	bottomShadowAlpha: 0.10, // 0.15 → 0.10（下部影は最小限）
+	bottomShadowRatio: 0.40, // 0.3 → 0.40（60% 位置から開始）
+	// グロー設定（強化）
+	baseGlowAlpha: 0.12, // 0.06 → 0.12（2倍に）
+	hoverGlowAlpha: 0.25,
+	selectedGlowAlpha: 0.4
+} as const;
 
 // ハイライトタイプ
 export type HighlightType = 'downstream' | 'upstream' | null;
@@ -263,6 +294,7 @@ export class TaskNode extends Container {
 
 	/**
 	 * 背景を描画（ノードタイプ別の色対応）
+	 * 5層ベベル構造 + 3層グローで金属質感を表現
 	 */
 	private drawBackground(): void {
 		this.background.clear();
@@ -272,6 +304,8 @@ export class TaskNode extends Container {
 		let bgColor = typeColors.background;
 		let borderColor = typeColors.border;
 		let borderWidth = 2;
+		const highlightColor = typeColors.borderHighlight || 0x777777;
+		const shadowColor = typeColors.borderShadow || 0x1a1a1a;
 
 		if (this.isSelected) {
 			bgColor = COLORS.backgroundSelected;
@@ -280,42 +314,123 @@ export class TaskNode extends Container {
 			bgColor = COLORS.backgroundHover;
 			borderColor = COLORS.borderHighlight;
 		} else if (this.highlightType === 'downstream') {
-			// 下流タスク（黄色ハイライト）
 			borderColor = COLORS.downstreamHighlight;
 			borderWidth = 3;
 		} else if (this.highlightType === 'upstream') {
-			// 上流タスク（水色ハイライト）
 			borderColor = COLORS.upstreamHighlight;
 			borderWidth = 3;
 		} else if (this.isOnCriticalPath) {
-			// クリティカルパス上のノードはオレンジボーダー
 			borderColor = COLORS.borderCritical;
 			borderWidth = 3;
 		}
 
-		// 背景
+		// === 3層グロー ===
+
+		// 最外層グロー（常時微弱グロー - Factorio らしさ）
+		const baseGlowColor = typeColors.indicator;
+		this.background.roundRect(
+			-8,
+			-8,
+			NODE_WIDTH + 16,
+			NODE_HEIGHT + 16,
+			CORNER_RADIUS + 8
+		);
+		this.background.fill({ color: baseGlowColor, alpha: METAL_EFFECT.baseGlowAlpha });
+
+		// 中間・内側グロー（ホバー/選択/ハイライト時に強化）
+		if (this.isSelected || this.isHovered || this.highlightType || this.isOnCriticalPath) {
+			let glowColor = borderColor;
+			let glowAlpha: number = METAL_EFFECT.hoverGlowAlpha;
+
+			if (this.isSelected) {
+				glowAlpha = METAL_EFFECT.selectedGlowAlpha;
+			} else if (this.highlightType) {
+				glowColor = this.highlightType === 'downstream'
+					? COLORS.downstreamHighlight
+					: COLORS.upstreamHighlight;
+			} else if (this.isOnCriticalPath) {
+				glowColor = COLORS.criticalGlow;
+			}
+
+			// 中間グロー層
+			this.background.roundRect(
+				-6,
+				-6,
+				NODE_WIDTH + 12,
+				NODE_HEIGHT + 12,
+				CORNER_RADIUS + 6
+			);
+			this.background.fill({ color: glowColor, alpha: glowAlpha * 0.6 });
+
+			// 内側グロー層
+			this.background.roundRect(
+				-3,
+				-3,
+				NODE_WIDTH + 6,
+				NODE_HEIGHT + 6,
+				CORNER_RADIUS + 3
+			);
+			this.background.fill({ color: glowColor, alpha: glowAlpha });
+		}
+
+		// === 5層ベベル構造 ===
+
+		// Layer 1: 外側シャドウ（下・右）- 板金の影
+		this.background.roundRect(
+			METAL_EFFECT.bevelWidth,
+			METAL_EFFECT.bevelWidth,
+			NODE_WIDTH,
+			NODE_HEIGHT,
+			CORNER_RADIUS
+		);
+		this.background.fill({ color: shadowColor, alpha: METAL_EFFECT.outerShadowAlpha });
+
+		// Layer 2: 内側シャドウ（下・右）
+		this.background.roundRect(
+			METAL_EFFECT.innerBevelWidth,
+			METAL_EFFECT.innerBevelWidth,
+			NODE_WIDTH - METAL_EFFECT.innerBevelWidth,
+			NODE_HEIGHT - METAL_EFFECT.innerBevelWidth,
+			CORNER_RADIUS - 1
+		);
+		this.background.fill({ color: 0x000000, alpha: METAL_EFFECT.innerShadowAlpha });
+
+		// Layer 3: メイン背景
 		this.background.roundRect(0, 0, NODE_WIDTH, NODE_HEIGHT, CORNER_RADIUS);
 		this.background.fill(bgColor);
 		this.background.stroke({ width: borderWidth, color: borderColor });
 
-		// 影響範囲ハイライトのグロー効果
-		if (this.highlightType && !this.isSelected && !this.isHovered) {
-			const glowColor = this.highlightType === 'downstream'
-				? COLORS.downstreamHighlight
-				: COLORS.upstreamHighlight;
-			this.background.roundRect(-2, -2, NODE_WIDTH + 4, NODE_HEIGHT + 4, CORNER_RADIUS + 2);
-			this.background.stroke({ width: 1, color: glowColor, alpha: 0.4 });
-		}
-		// クリティカルパスの場合はグロー効果
-		else if (this.isOnCriticalPath && !this.isSelected && !this.isHovered && !this.highlightType) {
-			this.background.roundRect(-2, -2, NODE_WIDTH + 4, NODE_HEIGHT + 4, CORNER_RADIUS + 2);
-			this.background.stroke({ width: 1, color: COLORS.criticalGlow, alpha: 0.3 });
-		}
+		// Layer 4: 内側ハイライト（上部金属光沢）
+		this.background.roundRect(
+			3,
+			3,
+			NODE_WIDTH - 6,
+			NODE_HEIGHT * METAL_EFFECT.topHighlightRatio,
+			CORNER_RADIUS - 2
+		);
+		this.background.fill({ color: highlightColor, alpha: METAL_EFFECT.topHighlightAlpha });
 
-		// 金属フレーム効果（上部ハイライト）
+		// Layer 5: 外側ハイライト（上部ボーダー）
 		this.background.moveTo(CORNER_RADIUS, 1);
 		this.background.lineTo(NODE_WIDTH - CORNER_RADIUS, 1);
-		this.background.stroke({ width: 1, color: 0x666666, alpha: 0.5 });
+		this.background.stroke({ width: METAL_EFFECT.bevelWidth, color: highlightColor, alpha: METAL_EFFECT.outerHighlightAlpha });
+
+		// 下部シャドウ（凹み感）
+		this.background.roundRect(
+			3,
+			NODE_HEIGHT * (1 - METAL_EFFECT.bottomShadowRatio),
+			NODE_WIDTH - 6,
+			NODE_HEIGHT * METAL_EFFECT.bottomShadowRatio - 3,
+			CORNER_RADIUS - 2
+		);
+		this.background.fill({ color: 0x000000, alpha: METAL_EFFECT.bottomShadowAlpha });
+
+		// === アクセントライン（上部オレンジ - タスク以外）===
+		if (this.nodeType !== 'task') {
+			this.background.moveTo(CORNER_RADIUS + 4, 2);
+			this.background.lineTo(NODE_WIDTH - CORNER_RADIUS - 4, 2);
+			this.background.stroke({ width: 1, color: typeColors.indicator, alpha: 0.15 });
+		}
 	}
 
 	/**

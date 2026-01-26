@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { Icon } from '$lib/components/ui';
-
-	// ビュータイプの定義
-	export type ViewType = 'graph' | 'usecase' | 'activity';
+	import type { ViewType } from './types';
 
 	interface Props {
 		currentView: ViewType;

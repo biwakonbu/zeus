@@ -1,8 +1,9 @@
 // ActionNode - UML アクティビティ図のアクションノード（角丸四角形）
+// 5層ベベル構造 + 3層グローで金属質感を表現
 import { Text, TextStyle, CanvasTextMetrics } from 'pixi.js';
 import type { ActivityNodeItem } from '$lib/types/api';
 import { ActivityNodeBase } from './ActivityNodeBase';
-import { ACTION_NODE_SIZE, NODE_COLORS, COMMON_COLORS, TEXT_RESOLUTION } from './constants';
+import { ACTION_NODE_SIZE, NODE_COLORS, COMMON_COLORS, TEXT_RESOLUTION, METAL_EFFECT } from './constants';
 
 /**
  * ActionNode - アクションノード
@@ -71,61 +72,124 @@ export class ActionNode extends ActivityNodeBase {
 
 	/**
 	 * アクションノードを描画
+	 * 5層ベベル構造 + 3層グローで金属質感を表現
+	 *
+	 * Layer 0-2: グロー（最外層/中間/内側）
+	 * Layer 3: 外側シャドウ（下・右）
+	 * Layer 4: メイン背景
+	 * Layer 5: 内側ハイライト（上・左）
+	 * Layer 6: 外側ハイライト（上部ボーダー）
 	 */
 	draw(): void {
 		this.background.clear();
 
-		const bgColor = NODE_COLORS.action.background;
+		const colors = NODE_COLORS.action;
+		const bgColor = colors.background;
 		const borderColor = this.getBorderColor();
 		const borderWidth = this.getBorderWidth();
 		const borderRadius = ACTION_NODE_SIZE.borderRadius;
 
-		// グロー効果（選択/ホバー時）
+		// === 3層グロー ===
+
+		// 最外層グロー（常時微弱グロー - Factorio らしさ）
+		const baseGlowColor = 'baseGlow' in colors ? colors.baseGlow : COMMON_COLORS.accent;
+		const baseGlowAlpha = 'baseGlowAlpha' in colors ? colors.baseGlowAlpha : 0.06;
+		this.background.roundRect(
+			-8,
+			-8,
+			this.nodeWidth + 16,
+			this.nodeHeight + 16,
+			borderRadius + 8
+		);
+		this.background.fill({ color: baseGlowColor, alpha: baseGlowAlpha });
+
+		// 中間グロー（ホバー/選択時に強化）
 		if (this.isSelected || this.isHovered) {
 			const glowColor = this.isSelected ? COMMON_COLORS.borderSelected : COMMON_COLORS.borderHover;
+			const glowAlpha = this.isSelected
+				? ('selectedGlowAlpha' in colors ? colors.selectedGlowAlpha : 0.4)
+				: ('hoverGlowAlpha' in colors ? colors.hoverGlowAlpha : 0.25);
+
+			// 中間グロー層
 			this.background.roundRect(
-				-4,
-				-4,
-				this.nodeWidth + 8,
-				this.nodeHeight + 8,
-				borderRadius + 4
+				-6,
+				-6,
+				this.nodeWidth + 12,
+				this.nodeHeight + 12,
+				borderRadius + 6
 			);
-			this.background.fill({ color: glowColor, alpha: 0.25 });
+			this.background.fill({ color: glowColor, alpha: glowAlpha * 0.6 });
+
+			// 内側グロー層
+			this.background.roundRect(
+				-3,
+				-3,
+				this.nodeWidth + 6,
+				this.nodeHeight + 6,
+				borderRadius + 3
+			);
+			this.background.fill({ color: glowColor, alpha: glowAlpha });
 		}
 
-		// インナーシャドウ効果（外側に暗い縁）
-		this.background.roundRect(2, 2, this.nodeWidth - 4, this.nodeHeight - 4, borderRadius - 1);
-		this.background.fill({ color: 0x000000, alpha: 0.15 });
+		// === 5層ベベル構造 ===
 
-		// メイン背景（角丸四角形）
+		// Layer 1: 外側シャドウ（下・右）- 板金の影
+		const shadowColor = 'borderShadow' in colors ? colors.borderShadow : 0x1a1a1a;
+		this.background.roundRect(
+			METAL_EFFECT.bevelWidth,
+			METAL_EFFECT.bevelWidth,
+			this.nodeWidth,
+			this.nodeHeight,
+			borderRadius
+		);
+		this.background.fill({ color: shadowColor, alpha: METAL_EFFECT.outerShadowAlpha });
+
+		// Layer 2: 内側シャドウ（下・右）
+		this.background.roundRect(
+			METAL_EFFECT.innerBevelWidth,
+			METAL_EFFECT.innerBevelWidth,
+			this.nodeWidth - METAL_EFFECT.innerBevelWidth,
+			this.nodeHeight - METAL_EFFECT.innerBevelWidth,
+			borderRadius - 1
+		);
+		this.background.fill({ color: 0x000000, alpha: METAL_EFFECT.innerShadowAlpha });
+
+		// Layer 3: メイン背景（角丸四角形）
 		this.background.roundRect(0, 0, this.nodeWidth, this.nodeHeight, borderRadius);
 		this.background.fill(bgColor);
 		this.background.stroke({ width: borderWidth, color: borderColor });
 
-		// 上部ハイライト（金属光沢）- より強く
+		// Layer 4: 内側ハイライト（上・左）- 金属光沢
 		this.background.roundRect(
 			3,
 			3,
 			this.nodeWidth - 6,
-			this.nodeHeight * 0.35,
+			this.nodeHeight * METAL_EFFECT.topHighlightRatio,
 			borderRadius - 2
 		);
-		this.background.fill({ color: NODE_COLORS.action.borderHighlight, alpha: 0.25 });
+		this.background.fill({ color: colors.borderHighlight, alpha: METAL_EFFECT.topHighlightAlpha });
+
+		// Layer 5: 外側ハイライト（上部ボーダー）
+		this.background.moveTo(borderRadius, 1);
+		this.background.lineTo(this.nodeWidth - borderRadius, 1);
+		this.background.stroke({ width: METAL_EFFECT.bevelWidth, color: colors.borderHighlight, alpha: METAL_EFFECT.outerHighlightAlpha });
 
 		// 下部シャドウ（凹み感）
 		this.background.roundRect(
 			3,
-			this.nodeHeight * 0.65,
+			this.nodeHeight * (1 - METAL_EFFECT.bottomShadowRatio),
 			this.nodeWidth - 6,
-			this.nodeHeight * 0.3,
+			this.nodeHeight * METAL_EFFECT.bottomShadowRatio - 3,
 			borderRadius - 2
 		);
-		this.background.fill({ color: 0x000000, alpha: 0.12 });
+		this.background.fill({ color: 0x000000, alpha: METAL_EFFECT.bottomShadowAlpha });
 
-		// 上部ボーダーハイライト（金属の縁）
-		this.background.moveTo(borderRadius, 1);
-		this.background.lineTo(this.nodeWidth - borderRadius, 1);
-		this.background.stroke({ width: 1, color: NODE_COLORS.action.borderHighlight, alpha: 0.4 });
+		// === アクセントライン（上部オレンジ）===
+		if ('accentLine' in colors && 'accentLineAlpha' in colors) {
+			this.background.moveTo(borderRadius + 4, 2);
+			this.background.lineTo(this.nodeWidth - borderRadius - 4, 2);
+			this.background.stroke({ width: 1, color: colors.accentLine, alpha: colors.accentLineAlpha });
+		}
 
 		// テキスト描画
 		this.drawText();

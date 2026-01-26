@@ -7,18 +7,7 @@
 	import { tokens, getEntityIcon } from '$lib/theme/design-tokens';
 	import Icon from './Icon.svelte';
 	import ProgressBar from './ProgressBar.svelte';
-
-	/**
-	 * Tooltip に表示するエンティティ情報
-	 */
-	export interface TooltipEntity {
-		id: string;
-		title: string;
-		type: 'vision' | 'objective' | 'deliverable' | 'task';
-		status: string;
-		progress: number;
-		lastUpdate?: string;
-	}
+	import type { TooltipEntity } from './types';
 
 	interface Props {
 		visible: boolean;

@@ -4,6 +4,7 @@
 	import type { ActivityItem, ActivityNodeItem, ActivityTransitionItem } from '$lib/types/api';
 	import { Icon } from '$lib/components/ui';
 	import { navigateToEntity } from '$lib/stores/view';
+	import { formatGuardCondition } from '$lib/viewer/shared/utils';
 
 	interface Props {
 		activity?: ActivityItem | null;
@@ -188,7 +189,7 @@
 									<li class="transition-item">
 										<span class="transition-node">{getNodeName(transition.source)}</span>
 										{#if transition.guard}
-											<span class="guard-condition">[{transition.guard}]</span>
+											<span class="guard-condition">{formatGuardCondition(transition.guard)}</span>
 										{/if}
 									</li>
 								{/each}
@@ -205,7 +206,7 @@
 									<li class="transition-item">
 										<span class="transition-node">{getNodeName(transition.target)}</span>
 										{#if transition.guard}
-											<span class="guard-condition">[{transition.guard}]</span>
+											<span class="guard-condition">{formatGuardCondition(transition.guard)}</span>
 										{/if}
 									</li>
 								{/each}

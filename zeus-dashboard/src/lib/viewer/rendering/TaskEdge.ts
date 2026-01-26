@@ -65,7 +65,7 @@ export class TaskEdge extends Graphics {
 	}
 
 	/**
-	 * エッジを描画（3層構造: グロー → 外側 → コア）
+	 * エッジを描画（4層構造: 最外層グロー → グロー → 外側 → コア）
 	 * 電気回路風の発光感を表現
 	 */
 	draw(): void {
@@ -77,11 +77,15 @@ export class TaskEdge extends Graphics {
 		// ベジェ曲線のコントロールポイントを計算
 		const { cp1x, cp1y, cp2x, cp2y } = this.calculateControlPoints();
 
-		// Step 1: グロー（最外層）- 淡いハロー効果
-		// glowAlpha をそのまま使用（乗算なし）
+		// Step 0: 最外層グロー（常時表示・広い範囲）
 		this.moveTo(this.fromX, this.fromY);
 		this.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, this.toX, this.toY);
-		this.stroke({ width: widths.outer + 6, color: style.glow, alpha: style.glowAlpha * 0.5 });
+		this.stroke({ width: widths.outerGlow, color: style.outerGlow, alpha: style.outerGlowAlpha });
+
+		// Step 1: グロー層（中程度の範囲）
+		this.moveTo(this.fromX, this.fromY);
+		this.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, this.toX, this.toY);
+		this.stroke({ width: widths.glow, color: style.glow, alpha: style.glowAlpha * 0.5 });
 
 		// Step 2: 外側（縁取り）- 暗めの縁取りでコアを際立たせる
 		this.moveTo(this.fromX, this.fromY);
@@ -93,8 +97,8 @@ export class TaskEdge extends Graphics {
 		this.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, this.toX, this.toY);
 		this.stroke({ width: widths.core, color: style.core, alpha: 1.0 });
 
-		// 矢印を描画
-		this.drawArrow(cp2x, cp2y, this.toX, this.toY, style);
+		// 矢印を描画（4層構造対応）
+		this.drawArrow(cp2x, cp2y, this.toX, this.toY, style, widths);
 	}
 
 	/**
@@ -130,17 +134,16 @@ export class TaskEdge extends Graphics {
 	}
 
 	/**
-	 * 矢印を描画（3層構造対応）
+	 * 矢印を描画（4層構造対応）
 	 */
 	private drawArrow(
 		fromX: number,
 		fromY: number,
 		toX: number,
 		toY: number,
-		style: (typeof EDGE_COLORS)[keyof typeof EDGE_COLORS]
+		style: (typeof EDGE_COLORS)[keyof typeof EDGE_COLORS],
+		widths: (typeof EDGE_WIDTHS)[keyof typeof EDGE_WIDTHS]
 	): void {
-		const widths = EDGE_WIDTHS[this.edgeType];
-
 		// 方向ベクトルを計算
 		const dx = toX - fromX;
 		const dy = toY - fromY;
@@ -152,9 +155,14 @@ export class TaskEdge extends Graphics {
 		const arrowX2 = toX - ARROW_SIZE * Math.cos(angle + ARROW_ANGLE);
 		const arrowY2 = toY - ARROW_SIZE * Math.sin(angle + ARROW_ANGLE);
 
-		// 矢印も3層で描画
+		// Step 0: 最外層グロー（広い範囲）
+		this.moveTo(toX, toY);
+		this.lineTo(arrowX1, arrowY1);
+		this.lineTo(arrowX2, arrowY2);
+		this.closePath();
+		this.stroke({ width: 8, color: style.outerGlow, alpha: style.outerGlowAlpha });
 
-		// Step 1: グロー
+		// Step 1: グロー層（中程度）
 		this.moveTo(toX, toY);
 		this.lineTo(arrowX1, arrowY1);
 		this.moveTo(toX, toY);
