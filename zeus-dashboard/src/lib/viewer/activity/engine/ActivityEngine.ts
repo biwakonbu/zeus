@@ -22,7 +22,7 @@ const ZOOM_SPEED = 0.001;
 const DRAG_THRESHOLD = 5;
 
 // アニメーション設定
-const ANIMATION_DURATION = 400; // ms
+const ANIMATION_DURATION = 250; // ms（応答性とスムーズさのバランス）
 
 // イージング関数（easeOutCubic: 滑らかな減速）
 function easeOutCubic(t: number): number {
@@ -813,6 +813,7 @@ export class ActivityEngine {
 
 	/**
 	 * パンアニメーションを更新
+	 * パフォーマンス最適化: アニメーション中はグリッド再描画をスキップし、完了時のみ更新
 	 */
 	private updatePanAnimation(): void {
 		if (!this.animationState || !this.worldContainer) {
@@ -831,11 +832,12 @@ export class ActivityEngine {
 		this.viewport.x = -this.worldContainer.x / this.viewport.scale;
 		this.viewport.y = -this.worldContainer.y / this.viewport.scale;
 
-		this.drawGrid();
+		// ビューポート変更を通知（グリッドはスキップ）
 		this.onViewportChange?.(this.getViewport());
 
-		// アニメーション完了
+		// アニメーション完了時のみグリッドを更新
 		if (progress >= 1) {
+			this.drawGrid();
 			this.stopPanAnimation();
 		}
 	}
