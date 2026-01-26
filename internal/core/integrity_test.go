@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
@@ -733,5 +734,290 @@ func TestReferenceWarningMessage(t *testing.T) {
 	expected := "usecase uc-12345678 → subsystem sub-99999999: referenced subsystem not found"
 	if warning.Warning() != expected {
 		t.Errorf("expected warning message %q, got %q", expected, warning.Warning())
+	}
+}
+
+// ===== M3: Decision/Consideration 逆参照整合性テスト =====
+
+// テスト用セットアップ（Decision/Consideration 逆参照チェック用）
+func setupDecisionConsiderationIntegrityTest(t *testing.T) (*IntegrityChecker, *ConsiderationHandler, *DecisionHandler, string, func()) {
+	t.Helper()
+
+	tmpDir, err := os.MkdirTemp("", "zeus-decision-consideration-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+
+	// .zeus ディレクトリを作成
+	zeusPath := tmpDir + "/.zeus"
+	if err := os.MkdirAll(zeusPath+"/considerations", 0755); err != nil {
+		os.RemoveAll(tmpDir)
+		t.Fatalf("failed to create considerations dir: %v", err)
+	}
+	if err := os.MkdirAll(zeusPath+"/decisions", 0755); err != nil {
+		os.RemoveAll(tmpDir)
+		t.Fatalf("failed to create decisions dir: %v", err)
+	}
+
+	fs := yaml.NewFileManager(zeusPath)
+	conHandler := NewConsiderationHandler(fs, nil, nil, nil)
+	decHandler := NewDecisionHandler(fs, conHandler, nil)
+
+	// IntegrityChecker に設定
+	checker := NewIntegrityChecker(nil, nil)
+	checker.SetConsiderationHandler(conHandler)
+	checker.SetDecisionHandler(decHandler)
+
+	cleanup := func() {
+		os.RemoveAll(tmpDir)
+	}
+
+	return checker, conHandler, decHandler, zeusPath, cleanup
+}
+
+// TestIntegrityChecker_DecisionConsiderationBackRef は Decision/Consideration の双方向参照整合性をテスト
+func TestIntegrityChecker_DecisionConsiderationBackRef(t *testing.T) {
+	checker, conHandler, decHandler, _, cleanup := setupDecisionConsiderationIntegrityTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// 1. Consideration を作成
+	conResult, err := conHandler.Add(ctx, "検討事項 1")
+	if err != nil {
+		t.Fatalf("Add consideration failed: %v", err)
+	}
+
+	// 2. Decision を作成（Consideration を参照）
+	decResult, err := decHandler.Add(ctx, "決定事項 1",
+		WithDecisionConsideration(conResult.ID),
+		WithDecisionSelected(SelectedOption{OptionID: "opt-001", Title: "選択肢 1"}),
+		WithDecisionRationale("これが最適な選択です"),
+	)
+	if err != nil {
+		t.Fatalf("Add decision failed: %v", err)
+	}
+
+	// 3. Consideration が Decision を逆参照していることを確認
+	con, err := conHandler.Get(ctx, conResult.ID)
+	if err != nil {
+		t.Fatalf("Get consideration failed: %v", err)
+	}
+	conEntity := con.(*ConsiderationEntity)
+	if conEntity.DecisionID != decResult.ID {
+		t.Errorf("expected consideration.DecisionID = %q, got %q", decResult.ID, conEntity.DecisionID)
+	}
+
+	// 4. 整合性チェック実行（正常なデータ）
+	result, err := checker.CheckAll(ctx)
+	if err != nil {
+		t.Fatalf("CheckAll failed: %v", err)
+	}
+
+	if !result.Valid {
+		t.Error("expected Valid to be true for consistent bidirectional references")
+	}
+
+	if len(result.ReferenceErrors) != 0 {
+		t.Errorf("expected 0 reference errors, got %d", len(result.ReferenceErrors))
+	}
+}
+
+// TestIntegrityChecker_OrphanedDecision は孤立 Decision（参照先 Consideration が存在しない）を検出するテスト
+func TestIntegrityChecker_OrphanedDecision(t *testing.T) {
+	checker, _, _, zeusPath, cleanup := setupDecisionConsiderationIntegrityTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	fs := yaml.NewFileManager(zeusPath)
+
+	// 存在しない Consideration を参照する Decision を直接作成（孤立 Decision）
+	orphanedDec := &DecisionEntity{
+		ID:              "dec-001",
+		Title:           "孤立した決定事項",
+		ConsiderationID: "con-999", // 存在しない Consideration
+		DecidedAt:       Now(),
+	}
+	if err := fs.WriteYaml(ctx, "decisions/dec-001.yaml", orphanedDec); err != nil {
+		t.Fatalf("Write orphaned decision failed: %v", err)
+	}
+
+	// 整合性チェック実行
+	result, err := checker.CheckAll(ctx)
+	if err != nil {
+		t.Fatalf("CheckAll failed: %v", err)
+	}
+
+	// 孤立 Decision はエラーとして検出される
+	if result.Valid {
+		t.Error("expected Valid to be false for orphaned decision")
+	}
+
+	if len(result.ReferenceErrors) != 1 {
+		t.Errorf("expected 1 reference error, got %d", len(result.ReferenceErrors))
+	}
+
+	// エラー内容確認
+	if len(result.ReferenceErrors) > 0 {
+		refErr := result.ReferenceErrors[0]
+		if refErr.SourceType != "decision" {
+			t.Errorf("expected source type 'decision', got %q", refErr.SourceType)
+		}
+		if refErr.SourceID != "dec-001" {
+			t.Errorf("expected source ID 'dec-001', got %q", refErr.SourceID)
+		}
+		if refErr.TargetType != "consideration" {
+			t.Errorf("expected target type 'consideration', got %q", refErr.TargetType)
+		}
+		if refErr.TargetID != "con-999" {
+			t.Errorf("expected target ID 'con-999', got %q", refErr.TargetID)
+		}
+	}
+}
+
+// TestIntegrityChecker_DecisionMissingConsiderationID は ConsiderationID が空の Decision を検出するテスト
+func TestIntegrityChecker_DecisionMissingConsiderationID(t *testing.T) {
+	checker, _, _, zeusPath, cleanup := setupDecisionConsiderationIntegrityTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	fs := yaml.NewFileManager(zeusPath)
+
+	// ConsiderationID が空の Decision を直接作成（必須フィールド欠損）
+	invalidDec := &DecisionEntity{
+		ID:              "dec-001",
+		Title:           "不正な決定事項",
+		ConsiderationID: "", // 必須なのに空
+		DecidedAt:       Now(),
+	}
+	if err := fs.WriteYaml(ctx, "decisions/dec-001.yaml", invalidDec); err != nil {
+		t.Fatalf("Write invalid decision failed: %v", err)
+	}
+
+	// 整合性チェック実行
+	result, err := checker.CheckAll(ctx)
+	if err != nil {
+		t.Fatalf("CheckAll failed: %v", err)
+	}
+
+	// ConsiderationID 欠損はエラー
+	if result.Valid {
+		t.Error("expected Valid to be false for decision missing consideration_id")
+	}
+
+	if len(result.ReferenceErrors) != 1 {
+		t.Errorf("expected 1 reference error, got %d", len(result.ReferenceErrors))
+	}
+
+	// エラー内容確認
+	if len(result.ReferenceErrors) > 0 {
+		refErr := result.ReferenceErrors[0]
+		if refErr.Message != "consideration_id is required but missing" {
+			t.Errorf("expected message about missing consideration_id, got %q", refErr.Message)
+		}
+	}
+}
+
+// TestIntegrityChecker_ConsiderationDecisionBackRefInconsistent は Consideration の DecisionID が存在しない場合をテスト
+func TestIntegrityChecker_ConsiderationDecisionBackRefInconsistent(t *testing.T) {
+	checker, _, _, zeusPath, cleanup := setupDecisionConsiderationIntegrityTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	fs := yaml.NewFileManager(zeusPath)
+
+	// Consideration を直接作成（存在しない Decision を参照）
+	inconsistentCon := &ConsiderationEntity{
+		ID:         "con-001",
+		Title:      "不整合な検討事項",
+		DecisionID: "dec-999", // 存在しない Decision
+		Status:     ConsiderationStatusDecided,
+		Metadata:   Metadata{CreatedAt: Now(), UpdatedAt: Now()},
+	}
+	if err := fs.WriteYaml(ctx, "considerations/con-001.yaml", inconsistentCon); err != nil {
+		t.Fatalf("Write inconsistent consideration failed: %v", err)
+	}
+
+	// 整合性チェック実行
+	result, err := checker.CheckAll(ctx)
+	if err != nil {
+		t.Fatalf("CheckAll failed: %v", err)
+	}
+
+	// Consideration → Decision の不整合参照はエラー
+	if result.Valid {
+		t.Error("expected Valid to be false for inconsistent consideration→decision reference")
+	}
+
+	if len(result.ReferenceErrors) != 1 {
+		t.Errorf("expected 1 reference error, got %d", len(result.ReferenceErrors))
+	}
+
+	// エラー内容確認
+	if len(result.ReferenceErrors) > 0 {
+		refErr := result.ReferenceErrors[0]
+		if refErr.SourceType != "consideration" {
+			t.Errorf("expected source type 'consideration', got %q", refErr.SourceType)
+		}
+		if refErr.TargetType != "decision" {
+			t.Errorf("expected target type 'decision', got %q", refErr.TargetType)
+		}
+		if refErr.TargetID != "dec-999" {
+			t.Errorf("expected target ID 'dec-999', got %q", refErr.TargetID)
+		}
+	}
+}
+
+// TestIntegrityChecker_MultipleDecisionReferenceErrors は複数の Decision 参照エラーをテスト
+func TestIntegrityChecker_MultipleDecisionReferenceErrors(t *testing.T) {
+	checker, _, _, zeusPath, cleanup := setupDecisionConsiderationIntegrityTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	fs := yaml.NewFileManager(zeusPath)
+
+	// 複数の孤立 Decision を作成
+	for i := 1; i <= 3; i++ {
+		dec := &DecisionEntity{
+			ID:              fmt.Sprintf("dec-00%d", i),
+			Title:           "孤立した決定事項",
+			ConsiderationID: "con-999", // 存在しない
+			DecidedAt:       Now(),
+		}
+		if err := fs.WriteYaml(ctx, fmt.Sprintf("decisions/dec-00%d.yaml", i), dec); err != nil {
+			t.Fatalf("Write decision failed: %v", err)
+		}
+	}
+
+	// 整合性チェック実行
+	result, err := checker.CheckAll(ctx)
+	if err != nil {
+		t.Fatalf("CheckAll failed: %v", err)
+	}
+
+	if result.Valid {
+		t.Error("expected Valid to be false")
+	}
+
+	if len(result.ReferenceErrors) != 3 {
+		t.Errorf("expected 3 reference errors, got %d", len(result.ReferenceErrors))
+	}
+}
+
+// TestIntegrityChecker_DecisionConsiderationNilHandlers は nil ハンドラーでの動作をテスト
+func TestIntegrityChecker_DecisionConsiderationNilHandlers(t *testing.T) {
+	// DecisionHandler と ConsiderationHandler は nil のまま
+	checker := NewIntegrityChecker(nil, nil)
+
+	ctx := context.Background()
+
+	// CheckAll は nil ハンドラーでもエラーなく動作すべき
+	result, err := checker.CheckAll(ctx)
+	if err != nil {
+		t.Fatalf("CheckAll with nil handlers failed: %v", err)
+	}
+
+	if !result.Valid {
+		t.Error("expected Valid to be true with nil handlers")
 	}
 }
