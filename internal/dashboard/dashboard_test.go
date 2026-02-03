@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -67,6 +69,67 @@ func TestServerStartShutdown(t *testing.T) {
 	err = server.Shutdown(ctx)
 	if err != nil {
 		t.Fatalf("サーバーの停止に失敗: %v", err)
+	}
+}
+
+func TestServerBroadcastAllUpdates_TaskDependenciesAlwaysArray(t *testing.T) {
+	zeus := setupTestZeus(t)
+
+	// dependencies が省略されたタスク（過去データ/手編集の再現）
+	payload := []byte(`tasks:
+  - id: task-nodeps
+    title: Task without deps
+    status: pending
+    priority: medium
+    assignee: ""
+    approval_level: auto
+    created_at: "2026-01-01T00:00:00Z"
+    updated_at: "2026-01-01T00:00:00Z"
+`)
+	path := filepath.Join(zeus.ZeusPath, "tasks", "active.yaml")
+	if err := os.WriteFile(path, payload, 0o644); err != nil {
+		t.Fatalf("tasks/active.yaml の書き込みに失敗: %v", err)
+	}
+
+	server := NewServer(zeus, 0)
+	client := server.Broadcaster().AddClient("test-client")
+	t.Cleanup(func() {
+		server.Broadcaster().RemoveClient("test-client")
+	})
+
+	server.BroadcastAllUpdates(context.Background())
+
+	timeout := time.After(1 * time.Second)
+	for {
+		select {
+		case ev := <-client.Events:
+			if ev.Type != EventTask {
+				continue
+			}
+
+			raw, err := json.Marshal(ev.Data)
+			if err != nil {
+				t.Fatalf("task イベントの JSON 変換に失敗: %v", err)
+			}
+
+			var result TasksResponse
+			if err := json.Unmarshal(raw, &result); err != nil {
+				t.Fatalf("task イベントの JSON デコードに失敗: %v", err)
+			}
+
+			if len(result.Tasks) != 1 {
+				t.Fatalf("Tasks 数が正しくありません: got %d, want 1", len(result.Tasks))
+			}
+			if result.Tasks[0].Dependencies == nil {
+				t.Fatalf("dependencies が null になっています（フロントが join/length でクラッシュする）")
+			}
+			if len(result.Tasks[0].Dependencies) != 0 {
+				t.Fatalf("dependencies が空配列ではありません: got %v", result.Tasks[0].Dependencies)
+			}
+			return
+		case <-timeout:
+			t.Fatalf("task イベントを受信できませんでした")
+		}
 	}
 }
 

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/biwakonbu/zeus/internal/core"
@@ -463,6 +465,58 @@ func TestHandleAPITasks_WithTasks(t *testing.T) {
 	// Tasks 配列の長さが一致
 	if len(result.Tasks) != result.Total {
 		t.Errorf("Tasks 配列の長さが Total と一致しません: got %d, want %d", len(result.Tasks), result.Total)
+	}
+}
+
+func TestHandleAPITasks_DependenciesAlwaysArray(t *testing.T) {
+	zeus := setupTestZeus(t)
+
+	// dependencies が省略されたタスクを直接 YAML に書き込み（過去データ/手編集の再現）
+	payload := []byte(`tasks:
+  - id: task-nodeps
+    title: Task without deps
+    status: pending
+    priority: medium
+    assignee: ""
+    approval_level: auto
+    created_at: "2026-01-01T00:00:00Z"
+    updated_at: "2026-01-01T00:00:00Z"
+`)
+	path := filepath.Join(zeus.ZeusPath, "tasks", "active.yaml")
+	if err := os.WriteFile(path, payload, 0o644); err != nil {
+		t.Fatalf("tasks/active.yaml の書き込みに失敗: %v", err)
+	}
+
+	server := NewServer(zeus, 0)
+
+	ts := httptest.NewServer(server.handler())
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/tasks")
+	if err != nil {
+		t.Fatalf("リクエストに失敗: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result TasksResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("JSON のデコードに失敗: %v", err)
+	}
+
+	if len(result.Tasks) != 1 {
+		t.Fatalf("Tasks 数が正しくありません: got %d, want 1", len(result.Tasks))
+	}
+
+	if result.Tasks[0].Dependencies == nil {
+		t.Fatalf("dependencies が null になっています（フロントが join/length でクラッシュする）")
+	}
+
+	if len(result.Tasks[0].Dependencies) != 0 {
+		t.Fatalf("dependencies が空配列ではありません: got %v", result.Tasks[0].Dependencies)
 	}
 }
 

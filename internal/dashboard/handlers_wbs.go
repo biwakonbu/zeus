@@ -223,10 +223,6 @@ func (s *Server) handleAPITimeline(w http.ResponseWriter, r *http.Request) {
 	// analysis.TimelineItem から dashboard.TimelineItem に変換
 	items := make([]TimelineItem, len(timeline.Items))
 	for i, item := range timeline.Items {
-		deps := item.Dependencies
-		if deps == nil {
-			deps = []string{}
-		}
 		items[i] = TimelineItem{
 			TaskID:           item.TaskID,
 			Title:            item.Title,
@@ -238,7 +234,7 @@ func (s *Server) handleAPITimeline(w http.ResponseWriter, r *http.Request) {
 			Assignee:         item.Assignee,
 			IsOnCriticalPath: item.IsOnCriticalPath,
 			Slack:            item.Slack,
-			Dependencies:     deps,
+			Dependencies:     nonNilStrings(item.Dependencies),
 		}
 	}
 

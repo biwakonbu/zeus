@@ -180,7 +180,7 @@ func (s *Server) handleAPITasks(w http.ResponseWriter, r *http.Request) {
 			Status:       string(t.Status),
 			Priority:     string(t.Priority),
 			Assignee:     t.Assignee,
-			Dependencies: t.Dependencies,
+			Dependencies: nonNilStrings(t.Dependencies),
 			ParentID:     t.ParentID,
 			StartDate:    t.StartDate,
 			DueDate:      t.DueDate,

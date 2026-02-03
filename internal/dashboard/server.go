@@ -245,7 +245,7 @@ func (s *Server) BroadcastAllUpdates(ctx context.Context) {
 				Status:       string(t.Status),
 				Priority:     string(t.Priority),
 				Assignee:     t.Assignee,
-				Dependencies: t.Dependencies,
+				Dependencies: nonNilStrings(t.Dependencies),
 			}
 		}
 		response := TasksResponse{
