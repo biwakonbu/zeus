@@ -1,9 +1,18 @@
 <script lang="ts">
 	// 共通オーバーレイパネルコンポーネント
 	// ビューワー上に浮かぶフローティングパネルを提供
+	// 幅切り替え機能付き（3パターン、localStorage 永続化）
 	import { onMount } from 'svelte';
 	import type { Snippet } from 'svelte';
 	import { Icon } from '$lib/components/ui';
+
+	// 幅プリセット定義
+	type WidthPreset = 'narrow' | 'medium' | 'wide';
+	const WIDTH_PRESETS: Record<WidthPreset, string> = {
+		narrow: '280px',
+		medium: '360px',
+		wide: '460px'
+	};
 
 	interface Props {
 		title: string;
@@ -13,6 +22,9 @@
 		showCloseButton?: boolean;
 		onClose?: () => void;
 		children: Snippet;
+		// 幅切り替え機能
+		panelId?: string; // localStorage キー用（設定すると幅切り替えアイコンが表示）
+		defaultWidthPreset?: WidthPreset;
 	}
 
 	let {
@@ -22,8 +34,40 @@
 		maxHeight = 'calc(100% - 24px)',
 		showCloseButton = true,
 		onClose,
-		children
+		children,
+		panelId,
+		defaultWidthPreset = 'medium'
 	}: Props = $props();
+
+	// localStorage キー
+	const STORAGE_KEY_PREFIX = 'zeus-panel-width-';
+
+	// 初期幅プリセットを取得（localStorage > defaultWidthPreset）
+	function getInitialWidthPreset(): WidthPreset {
+		if (typeof window !== 'undefined' && panelId) {
+			const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}${panelId}`);
+			if (saved === 'narrow' || saved === 'medium' || saved === 'wide') {
+				return saved;
+			}
+		}
+		return defaultWidthPreset;
+	}
+
+	// 幅切り替え状態（panelId が指定されている場合のみ使用）
+	let currentWidthPreset = $state<WidthPreset>(getInitialWidthPreset());
+
+	// マウント時にフォーカス
+	onMount(() => {
+		panelRef?.focus();
+	});
+
+	// 幅切り替え
+	function setWidthPreset(preset: WidthPreset) {
+		currentWidthPreset = preset;
+		if (panelId) {
+			localStorage.setItem(`${STORAGE_KEY_PREFIX}${panelId}`, preset);
+		}
+	}
 
 	// パネル参照
 	let panelRef: HTMLDivElement | null = $state(null);
@@ -41,9 +85,19 @@
 		return pattern.test(value) ? value : fallback;
 	}
 
+	// 実際に使用する幅を計算
+	const effectiveWidth = $derived.by(() => {
+		// panelId が指定されている場合はプリセットを使用
+		if (panelId) {
+			return WIDTH_PRESETS[currentWidthPreset];
+		}
+		// それ以外は width props を使用
+		return width;
+	});
+
 	// バリデート済みインラインスタイル
 	const panelStyle = $derived.by(() => {
-		const safeWidth = sanitizeCSSLength(width, '280px');
+		const safeWidth = sanitizeCSSLength(effectiveWidth, '280px');
 		const safeMaxHeight = sanitizeCSSLength(maxHeight, 'calc(100% - 24px)');
 		return `width: ${safeWidth}; max-height: ${safeMaxHeight};`;
 	});
@@ -55,11 +109,6 @@
 			onClose();
 		}
 	}
-
-	// マウント時にフォーカス
-	onMount(() => {
-		panelRef?.focus();
-	});
 </script>
 
 <div
@@ -74,11 +123,54 @@
 >
 	<div class="overlay-header">
 		<span class="overlay-title" id={titleId}>{title}</span>
-		{#if showCloseButton && onClose}
-			<button class="close-btn" onclick={onClose} aria-label="閉じる">
-				<Icon name="X" size={16} />
-			</button>
-		{/if}
+		<div class="header-actions">
+			<!-- 幅切り替えボタン（panelId 指定時のみ表示） -->
+			{#if panelId}
+				<div class="width-switcher" role="group" aria-label="パネル幅">
+					<button
+						class="width-btn"
+						class:active={currentWidthPreset === 'narrow'}
+						onclick={() => setWidthPreset('narrow')}
+						title="狭い (280px)"
+						aria-pressed={currentWidthPreset === 'narrow'}
+					>
+						<span class="width-icon narrow">
+							<span class="bar"></span>
+						</span>
+					</button>
+					<button
+						class="width-btn"
+						class:active={currentWidthPreset === 'medium'}
+						onclick={() => setWidthPreset('medium')}
+						title="標準 (360px)"
+						aria-pressed={currentWidthPreset === 'medium'}
+					>
+						<span class="width-icon medium">
+							<span class="bar"></span>
+							<span class="bar"></span>
+						</span>
+					</button>
+					<button
+						class="width-btn"
+						class:active={currentWidthPreset === 'wide'}
+						onclick={() => setWidthPreset('wide')}
+						title="広い (460px)"
+						aria-pressed={currentWidthPreset === 'wide'}
+					>
+						<span class="width-icon wide">
+							<span class="bar"></span>
+							<span class="bar"></span>
+							<span class="bar"></span>
+						</span>
+					</button>
+				</div>
+			{/if}
+			{#if showCloseButton && onClose}
+				<button class="close-btn" onclick={onClose} aria-label="閉じる">
+					<Icon name="X" size={16} />
+				</button>
+			{/if}
+		</div>
 	</div>
 	<div class="overlay-content">
 		{@render children()}
@@ -146,6 +238,74 @@
 		color: var(--text-primary);
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
+	}
+
+	.header-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	/* 幅切り替えボタン */
+	.width-switcher {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+		padding: 2px;
+		background: rgba(0, 0, 0, 0.3);
+		border-radius: 4px;
+	}
+
+	.width-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 22px;
+		height: 18px;
+		padding: 0;
+		background: transparent;
+		border: none;
+		border-radius: 3px;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.width-btn:hover {
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	.width-btn.active {
+		background: rgba(255, 149, 51, 0.3);
+	}
+
+	.width-btn:focus-visible {
+		outline: 2px solid var(--accent-primary);
+		outline-offset: 1px;
+	}
+
+	/* 幅アイコン（バーで幅を表現） */
+	.width-icon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 2px;
+		height: 12px;
+	}
+
+	.width-icon .bar {
+		width: 3px;
+		height: 10px;
+		background: var(--text-muted);
+		border-radius: 1px;
+		transition: background 0.15s ease;
+	}
+
+	.width-btn:hover .bar {
+		background: var(--text-secondary);
+	}
+
+	.width-btn.active .bar {
+		background: var(--accent-primary);
 	}
 
 	.close-btn {

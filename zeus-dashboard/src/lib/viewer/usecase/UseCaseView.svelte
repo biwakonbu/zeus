@@ -358,7 +358,8 @@
 				<OverlayPanel
 					title="要素一覧"
 					position="top-left"
-					width="320px"
+					panelId="usecase-list"
+					defaultWidthPreset="medium"
 					onClose={closeListPanel}
 				>
 					<UseCaseListPanel
@@ -377,7 +378,8 @@
 				<OverlayPanel
 					title="プロパティ"
 					position="top-right"
-					width="300px"
+					panelId="usecase-detail"
+					defaultWidthPreset="medium"
 					onClose={closeDetailPanel}
 				>
 					<div class="detail-content">

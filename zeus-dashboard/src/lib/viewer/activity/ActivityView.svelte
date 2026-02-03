@@ -325,7 +325,8 @@
 				<OverlayPanel
 					title="アクティビティ一覧"
 					position="top-left"
-					width="280px"
+					panelId="activity-list"
+					defaultWidthPreset="medium"
 					onClose={closeListPanel}
 				>
 					<ActivityListPanel
@@ -341,7 +342,8 @@
 				<OverlayPanel
 					title="プロパティ"
 					position="top-right"
-					width="280px"
+					panelId="activity-detail"
+					defaultWidthPreset="medium"
 					onClose={closeDetailPanel}
 				>
 					<div class="detail-content">

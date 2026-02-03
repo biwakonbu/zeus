@@ -1740,7 +1740,8 @@
 		<OverlayPanel
 			title="FILTER"
 			position="top-right"
-			width="220px"
+			panelId="graph-filter"
+			defaultWidthPreset="narrow"
 			onClose={toggleFilterPanel}
 		>
 			<FilterPanel
@@ -1798,7 +1799,8 @@
 		<OverlayPanel
 			title="LEGEND"
 			position="top-left"
-			width="160px"
+			panelId="graph-legend"
+			defaultWidthPreset="narrow"
 			onClose={toggleLegend}
 		>
 			<div class="legend-content">
