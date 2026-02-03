@@ -128,15 +128,16 @@ type ActivityTransitionItem struct {
 
 // ActivityItem はアクティビティ API のアイテム
 type ActivityItem struct {
-	ID          string                   `json:"id"`
-	Title       string                   `json:"title"`
-	Description string                   `json:"description,omitempty"`
-	UseCaseID   string                   `json:"usecase_id,omitempty"`
-	Status      string                   `json:"status"`
-	Nodes       []ActivityNodeItem       `json:"nodes"`
-	Transitions []ActivityTransitionItem `json:"transitions"`
-	CreatedAt   string                   `json:"created_at"`
-	UpdatedAt   string                   `json:"updated_at"`
+	ID           string                   `json:"id"`
+	Title        string                   `json:"title"`
+	Description  string                   `json:"description,omitempty"`
+	UseCaseID    string                   `json:"usecase_id,omitempty"`
+	UseCaseTitle string                   `json:"usecase_title,omitempty"`
+	Status       string                   `json:"status"`
+	Nodes        []ActivityNodeItem       `json:"nodes"`
+	Transitions  []ActivityTransitionItem `json:"transitions"`
+	CreatedAt    string                   `json:"created_at"`
+	UpdatedAt    string                   `json:"updated_at"`
 }
 
 // ActivitiesResponse はアクティビティ一覧 API のレスポンス
@@ -421,7 +422,10 @@ func (s *Server) handleAPIActivities(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	activities := make([]ActivityItem, 0)
+	// まずアクティビティを読み込み、使用されているユースケースIDを収集
+	actEntities := make([]core.ActivityEntity, 0)
+	usecaseIDs := make(map[string]struct{})
+
 	for _, file := range files {
 		if !hasYamlSuffix(file) {
 			continue
@@ -430,7 +434,36 @@ func (s *Server) handleAPIActivities(w http.ResponseWriter, r *http.Request) {
 		if err := fileStore.ReadYaml(ctx, "activities/"+file, &act); err != nil {
 			continue
 		}
+		actEntities = append(actEntities, act)
+		if act.UseCaseID != "" {
+			usecaseIDs[act.UseCaseID] = struct{}{}
+		}
+	}
 
+	// ユースケースID→タイトルのマップを作成
+	usecaseTitles := make(map[string]string)
+	if len(usecaseIDs) > 0 {
+		ucFiles, err := fileStore.ListDir(ctx, "usecases")
+		if err == nil {
+			for _, ucFile := range ucFiles {
+				if !hasYamlSuffix(ucFile) {
+					continue
+				}
+				var uc core.UseCaseEntity
+				if err := fileStore.ReadYaml(ctx, "usecases/"+ucFile, &uc); err != nil {
+					continue
+				}
+				// 使用されているIDのみマップに追加
+				if _, needed := usecaseIDs[uc.ID]; needed {
+					usecaseTitles[uc.ID] = uc.Title
+				}
+			}
+		}
+	}
+
+	// ActivityItem に変換
+	activities := make([]ActivityItem, 0, len(actEntities))
+	for _, act := range actEntities {
 		// ノードの変換
 		nodes := make([]ActivityNodeItem, len(act.Nodes))
 		for j, n := range act.Nodes {
@@ -452,16 +485,23 @@ func (s *Server) handleAPIActivities(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		// ユースケースタイトルを取得
+		usecaseTitle := ""
+		if act.UseCaseID != "" {
+			usecaseTitle = usecaseTitles[act.UseCaseID]
+		}
+
 		activities = append(activities, ActivityItem{
-			ID:          act.ID,
-			Title:       act.Title,
-			Description: act.Description,
-			UseCaseID:   act.UseCaseID,
-			Status:      string(act.Status),
-			Nodes:       nodes,
-			Transitions: transitions,
-			CreatedAt:   act.Metadata.CreatedAt,
-			UpdatedAt:   act.Metadata.UpdatedAt,
+			ID:           act.ID,
+			Title:        act.Title,
+			Description:  act.Description,
+			UseCaseID:    act.UseCaseID,
+			UseCaseTitle: usecaseTitle,
+			Status:       string(act.Status),
+			Nodes:        nodes,
+			Transitions:  transitions,
+			CreatedAt:    act.Metadata.CreatedAt,
+			UpdatedAt:    act.Metadata.UpdatedAt,
 		})
 	}
 
@@ -520,16 +560,26 @@ func (s *Server) handleAPIActivityDiagram(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	// ユースケースタイトルを取得
+	usecaseTitle := ""
+	if act.UseCaseID != "" {
+		var uc core.UseCaseEntity
+		if err := fileStore.ReadYaml(ctx, "usecases/"+act.UseCaseID+".yaml", &uc); err == nil {
+			usecaseTitle = uc.Title
+		}
+	}
+
 	activityItem := &ActivityItem{
-		ID:          act.ID,
-		Title:       act.Title,
-		Description: act.Description,
-		UseCaseID:   act.UseCaseID,
-		Status:      string(act.Status),
-		Nodes:       nodes,
-		Transitions: transitions,
-		CreatedAt:   act.Metadata.CreatedAt,
-		UpdatedAt:   act.Metadata.UpdatedAt,
+		ID:           act.ID,
+		Title:        act.Title,
+		Description:  act.Description,
+		UseCaseID:    act.UseCaseID,
+		UseCaseTitle: usecaseTitle,
+		Status:       string(act.Status),
+		Nodes:        nodes,
+		Transitions:  transitions,
+		CreatedAt:    act.Metadata.CreatedAt,
+		UpdatedAt:    act.Metadata.UpdatedAt,
 	}
 
 	response.Activity = activityItem

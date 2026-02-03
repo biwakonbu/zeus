@@ -125,7 +125,7 @@ func New(projectPath string, opts ...Option) *Zeus {
 		z.entityRegistry.Register(usecaseHandler)
 
 		// UML アクティビティ図のハンドラー登録
-		z.entityRegistry.Register(NewActivityHandler(z.fileStore, usecaseHandler))
+		z.entityRegistry.Register(NewActivityHandler(z.fileStore, usecaseHandler, delHandler))
 	}
 
 	return z

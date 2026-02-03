@@ -10,15 +10,17 @@ import (
 
 // ActivityHandler はアクティビティエンティティのハンドラー
 type ActivityHandler struct {
-	fileStore      FileStore
-	usecaseHandler *UseCaseHandler
+	fileStore          FileStore
+	usecaseHandler     *UseCaseHandler
+	deliverableHandler *DeliverableHandler
 }
 
 // NewActivityHandler は ActivityHandler を生成
-func NewActivityHandler(fs FileStore, usecaseHandler *UseCaseHandler) *ActivityHandler {
+func NewActivityHandler(fs FileStore, usecaseHandler *UseCaseHandler, deliverableHandler *DeliverableHandler) *ActivityHandler {
 	return &ActivityHandler{
-		fileStore:      fs,
-		usecaseHandler: usecaseHandler,
+		fileStore:          fs,
+		usecaseHandler:     usecaseHandler,
+		deliverableHandler: deliverableHandler,
 	}
 }
 
@@ -61,6 +63,26 @@ func (h *ActivityHandler) Add(ctx context.Context, name string, opts ...EntityOp
 	if activity.UseCaseID != "" && h.usecaseHandler != nil {
 		if _, err := h.usecaseHandler.Get(ctx, activity.UseCaseID); err != nil {
 			return nil, fmt.Errorf("referenced usecase not found: %s", activity.UseCaseID)
+		}
+	}
+
+	// 参照整合性チェック: RelatedDeliverables（推奨）
+	if len(activity.RelatedDeliverables) > 0 && h.deliverableHandler != nil {
+		for _, delID := range activity.RelatedDeliverables {
+			if _, err := h.deliverableHandler.Get(ctx, delID); err != nil {
+				return nil, fmt.Errorf("referenced deliverable not found in related_deliverables: %s", delID)
+			}
+		}
+	}
+
+	// 参照整合性チェック: Nodes 内の DeliverableIDs（任意）
+	if h.deliverableHandler != nil {
+		for _, node := range activity.Nodes {
+			for _, delID := range node.DeliverableIDs {
+				if _, err := h.deliverableHandler.Get(ctx, delID); err != nil {
+					return nil, fmt.Errorf("referenced deliverable not found in node %s deliverable_ids: %s", node.ID, delID)
+				}
+			}
 		}
 	}
 
@@ -188,7 +210,27 @@ func (h *ActivityHandler) Update(ctx context.Context, id string, update any) err
 		if usecaseID, exists := updateMap["usecase_id"].(string); exists {
 			activity.UseCaseID = usecaseID
 		}
+		if relatedDeliverables, exists := updateMap["related_deliverables"].([]string); exists {
+			activity.RelatedDeliverables = relatedDeliverables
+		}
 	}
+
+	// 参照整合性チェック: UseCaseID（任意紐付け）
+	if activity.UseCaseID != "" && h.usecaseHandler != nil {
+		if _, err := h.usecaseHandler.Get(ctx, activity.UseCaseID); err != nil {
+			return fmt.Errorf("referenced usecase not found: %s", activity.UseCaseID)
+		}
+	}
+
+	// 参照整合性チェック: RelatedDeliverables（推奨）
+	if len(activity.RelatedDeliverables) > 0 && h.deliverableHandler != nil {
+		for _, delID := range activity.RelatedDeliverables {
+			if _, err := h.deliverableHandler.Get(ctx, delID); err != nil {
+				return fmt.Errorf("referenced deliverable not found in related_deliverables: %s", delID)
+			}
+		}
+	}
+
 	activity.Metadata.UpdatedAt = Now()
 
 	// バリデーション
@@ -274,6 +316,15 @@ func (h *ActivityHandler) AddNode(ctx context.Context, activityID string, node A
 	// ノードのバリデーション
 	if err := node.Validate(); err != nil {
 		return err
+	}
+
+	// 参照整合性チェック: DeliverableIDs（任意）
+	if len(node.DeliverableIDs) > 0 && h.deliverableHandler != nil {
+		for _, delID := range node.DeliverableIDs {
+			if _, err := h.deliverableHandler.Get(ctx, delID); err != nil {
+				return fmt.Errorf("referenced deliverable not found in node %s deliverable_ids: %s", node.ID, delID)
+			}
+		}
 	}
 
 	// 重複チェック
@@ -408,6 +459,15 @@ func WithActivityTags(tags []string) EntityOption {
 	return func(v any) {
 		if a, ok := v.(*ActivityEntity); ok {
 			a.Metadata.Tags = tags
+		}
+	}
+}
+
+// WithActivityRelatedDeliverables は関連成果物を設定
+func WithActivityRelatedDeliverables(deliverableIDs []string) EntityOption {
+	return func(v any) {
+		if a, ok := v.(*ActivityEntity); ok {
+			a.RelatedDeliverables = deliverableIDs
 		}
 	}
 }

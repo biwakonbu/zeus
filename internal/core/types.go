@@ -1405,9 +1405,10 @@ const (
 
 // ActivityNode はアクティビティ図のノード
 type ActivityNode struct {
-	ID   string           `yaml:"id"`
-	Type ActivityNodeType `yaml:"type"`
-	Name string           `yaml:"name,omitempty"` // initial/final では不要
+	ID             string           `yaml:"id"`
+	Type           ActivityNodeType `yaml:"type"`
+	Name           string           `yaml:"name,omitempty"`           // initial/final では不要
+	DeliverableIDs []string         `yaml:"deliverable_ids,omitempty"` // 関連 Deliverable ID（任意）
 }
 
 // ActivityTransition はアクティビティ図の遷移
@@ -1421,14 +1422,15 @@ type ActivityTransition struct {
 // ActivityEntity はアクティビティ図エンティティ
 // activities/act-NNN.yaml で管理（個別ファイル）
 type ActivityEntity struct {
-	ID          string               `yaml:"id"`
-	Title       string               `yaml:"title"`
-	Description string               `yaml:"description,omitempty"`
-	UseCaseID   string               `yaml:"usecase_id,omitempty"` // 任意紐付け
-	Status      ActivityStatus       `yaml:"status"`
-	Nodes       []ActivityNode       `yaml:"nodes,omitempty"`
-	Transitions []ActivityTransition `yaml:"transitions,omitempty"`
-	Metadata    Metadata             `yaml:"metadata"`
+	ID                  string               `yaml:"id"`
+	Title               string               `yaml:"title"`
+	Description         string               `yaml:"description,omitempty"`
+	UseCaseID           string               `yaml:"usecase_id,omitempty"`           // 任意紐付け
+	Status              ActivityStatus       `yaml:"status"`
+	RelatedDeliverables []string             `yaml:"related_deliverables,omitempty"` // 関連 Deliverable ID（推奨）
+	Nodes               []ActivityNode       `yaml:"nodes,omitempty"`
+	Transitions         []ActivityTransition `yaml:"transitions,omitempty"`
+	Metadata            Metadata             `yaml:"metadata"`
 }
 
 // Validate は ActivityNode の妥当性を検証
@@ -1447,6 +1449,18 @@ func (n *ActivityNode) Validate() error {
 		return fmt.Errorf("invalid activity node type: %s", n.Type)
 	}
 	// action, decision には name が推奨（必須ではない）
+
+	// DeliverableIDs の重複チェック
+	if len(n.DeliverableIDs) > 0 {
+		delIDs := make(map[string]bool)
+		for _, id := range n.DeliverableIDs {
+			if delIDs[id] {
+				return fmt.Errorf("duplicate deliverable ID in node %s deliverable_ids: %s", n.ID, id)
+			}
+			delIDs[id] = true
+		}
+	}
+
 	return nil
 }
 
@@ -1484,6 +1498,18 @@ func (a *ActivityEntity) Validate() error {
 	default:
 		return fmt.Errorf("invalid activity status: %s", a.Status)
 	}
+
+	// RelatedDeliverables の重複チェック
+	if len(a.RelatedDeliverables) > 0 {
+		delIDs := make(map[string]bool)
+		for _, id := range a.RelatedDeliverables {
+			if delIDs[id] {
+				return fmt.Errorf("duplicate deliverable ID in related_deliverables: %s", id)
+			}
+			delIDs[id] = true
+		}
+	}
+
 	// ノードのバリデーションとID重複チェック
 	nodeIDs := make(map[string]bool)
 	for _, node := range a.Nodes {

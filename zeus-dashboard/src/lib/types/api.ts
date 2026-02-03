@@ -617,6 +617,7 @@ export interface ActivityItem {
 	title: string;
 	description?: string;
 	usecase_id?: string;
+	usecase_title?: string;
 	status: ActivityStatus;
 	nodes: ActivityNodeItem[];
 	transitions: ActivityTransitionItem[];

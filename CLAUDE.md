@@ -157,6 +157,11 @@ Task ベースのシステムを拡張し、プロジェクト管理の本質的
 | Subsystem | サブシステム定義 | `.zeus/subsystems.yaml` | 単一ファイル、UseCase グルーピング |
 | Activity | アクティビティ図 | `.zeus/activities/act-NNN.yaml` | UseCase 参照任意 |
 
+**Activity action name 記載ルール:**
+- 形式: `<目的語> + <動詞（体言止め）>`（例: `.zeus ディレクトリ作成`）
+- 粒度: 1 Activity あたり 5-15 アクション
+- 詳細: `docs/detailed-design.md` セクション 11 参照
+
 ### 参照整合性
 
 - `zeus doctor` で全参照をチェック：
@@ -166,6 +171,9 @@ Task ベースのシステムを拡張し、プロジェクト管理の本質的
   - Quality → Deliverable（必須）
   - Problem/Risk/Assumption → Objective/Deliverable（任意）
   - UseCase → Subsystem（任意、警告レベル）
+  - Activity → UseCase（任意）
+  - Activity → Deliverable（RelatedDeliverables、推奨）
+  - Activity.Node → Deliverable（DeliverableIDs、任意）
 - 循環参照検出実装済み
 - セキュリティ: ValidatePath, ValidateID, Sanitizer
 
