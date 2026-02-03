@@ -11,11 +11,11 @@ import (
 type BottleneckType string
 
 const (
-	BottleneckTypeBlockChain      BottleneckType = "block_chain"        // ブロックチェーン（連鎖的にブロック）
-	BottleneckTypeOverdue         BottleneckType = "overdue"            // 期限超過
-	BottleneckTypeLongStagnation  BottleneckType = "long_stagnation"    // 長期停滞
-	BottleneckTypeIsolatedEntity  BottleneckType = "isolated_entity"    // 孤立エンティティ
-	BottleneckTypeHighRisk        BottleneckType = "high_risk"          // 高リスク未対応
+	BottleneckTypeBlockChain     BottleneckType = "block_chain"     // ブロックチェーン（連鎖的にブロック）
+	BottleneckTypeOverdue        BottleneckType = "overdue"         // 期限超過
+	BottleneckTypeLongStagnation BottleneckType = "long_stagnation" // 長期停滞
+	BottleneckTypeIsolatedEntity BottleneckType = "isolated_entity" // 孤立エンティティ
+	BottleneckTypeHighRisk       BottleneckType = "high_risk"       // 高リスク未対応
 )
 
 // BottleneckSeverity はボトルネックの深刻度
@@ -32,10 +32,10 @@ const (
 type Bottleneck struct {
 	Type       BottleneckType     `json:"type"`
 	Severity   BottleneckSeverity `json:"severity"`
-	Entities   []string           `json:"entities"`     // 関連エンティティ ID リスト
-	Message    string             `json:"message"`      // 日本語メッセージ
-	Impact     string             `json:"impact"`       // 影響説明
-	Suggestion string             `json:"suggestion"`   // 解決策の提案
+	Entities   []string           `json:"entities"`   // 関連エンティティ ID リスト
+	Message    string             `json:"message"`    // 日本語メッセージ
+	Impact     string             `json:"impact"`     // 影響説明
+	Suggestion string             `json:"suggestion"` // 解決策の提案
 }
 
 // BottleneckSummary はボトルネックのサマリー

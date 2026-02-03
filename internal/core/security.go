@@ -60,7 +60,7 @@ var entityDirectories = map[string]string{
 	"problem":       "problems",
 	"risk":          "risks",
 	"assumption":    "assumptions",
-	"constraint":    "",        // ルートに配置（constraints.yaml）
+	"constraint":    "", // ルートに配置（constraints.yaml）
 	"quality":       "quality",
 	"task":          "tasks", // 既存
 	// UML UseCase エンティティ

@@ -4,7 +4,6 @@ import { Container, Graphics, Text } from 'pixi.js';
 import type { ActivityTransitionItem } from '$lib/types/api';
 import {
 	TRANSITION_STYLE,
-	COMMON_COLORS,
 	TEXT_RESOLUTION,
 	TRANSITION_EDGE_STYLE,
 	TRANSITION_EDGE_WIDTHS,
@@ -151,7 +150,7 @@ export class TransitionEdge extends Graphics {
 	 */
 	private drawArrow(
 		style: (typeof TRANSITION_EDGE_STYLE)[keyof typeof TRANSITION_EDGE_STYLE],
-		widths: (typeof TRANSITION_EDGE_WIDTHS)[keyof typeof TRANSITION_EDGE_WIDTHS]
+		_widths: (typeof TRANSITION_EDGE_WIDTHS)[keyof typeof TRANSITION_EDGE_WIDTHS]
 	): void {
 		const arrowSize = TRANSITION_STYLE.arrowSize;
 		const arrowAngle = TRANSITION_STYLE.arrowAngle;

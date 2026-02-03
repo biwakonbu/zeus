@@ -91,7 +91,9 @@
 			status: 'active',
 			usecase_id: 'uc-003',
 			nodes: [],
-			transitions: []
+			transitions: [],
+			created_at: '2024-01-15T10:00:00Z',
+			updated_at: '2024-01-15T10:00:00Z'
 		},
 		{
 			id: 'act-002',
@@ -99,7 +101,9 @@
 			status: 'active',
 			usecase_id: 'uc-003',
 			nodes: [],
-			transitions: []
+			transitions: [],
+			created_at: '2024-01-16T09:00:00Z',
+			updated_at: '2024-01-16T09:00:00Z'
 		}
 	];
 

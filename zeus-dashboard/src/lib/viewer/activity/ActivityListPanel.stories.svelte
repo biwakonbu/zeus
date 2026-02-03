@@ -34,13 +34,15 @@
 				{ id: 'n6', type: 'final', name: '' }
 			],
 			transitions: [
-				{ source: 'n1', target: 'n2' },
-				{ source: 'n2', target: 'n3' },
-				{ source: 'n3', target: 'n4', guard: 'Yes' },
-				{ source: 'n3', target: 'n5', guard: 'No' },
-				{ source: 'n4', target: 'n6' },
-				{ source: 'n5', target: 'n2' }
-			]
+				{ id: 't1-1', source: 'n1', target: 'n2' },
+				{ id: 't1-2', source: 'n2', target: 'n3' },
+				{ id: 't1-3', source: 'n3', target: 'n4', guard: 'Yes' },
+				{ id: 't1-4', source: 'n3', target: 'n5', guard: 'No' },
+				{ id: 't1-5', source: 'n4', target: 'n6' },
+				{ id: 't1-6', source: 'n5', target: 'n2' }
+			],
+			created_at: '2024-01-15T10:00:00Z',
+			updated_at: '2024-01-15T10:00:00Z'
 		},
 		{
 			id: 'act-002',
@@ -60,16 +62,18 @@
 				{ id: 'n9', type: 'final', name: '' }
 			],
 			transitions: [
-				{ source: 'n1', target: 'n2' },
-				{ source: 'n2', target: 'n3' },
-				{ source: 'n3', target: 'n4' },
-				{ source: 'n4', target: 'n5' },
-				{ source: 'n4', target: 'n6' },
-				{ source: 'n5', target: 'n7' },
-				{ source: 'n6', target: 'n7' },
-				{ source: 'n7', target: 'n8' },
-				{ source: 'n8', target: 'n9' }
-			]
+				{ id: 't2-1', source: 'n1', target: 'n2' },
+				{ id: 't2-2', source: 'n2', target: 'n3' },
+				{ id: 't2-3', source: 'n3', target: 'n4' },
+				{ id: 't2-4', source: 'n4', target: 'n5' },
+				{ id: 't2-5', source: 'n4', target: 'n6' },
+				{ id: 't2-6', source: 'n5', target: 'n7' },
+				{ id: 't2-7', source: 'n6', target: 'n7' },
+				{ id: 't2-8', source: 'n7', target: 'n8' },
+				{ id: 't2-9', source: 'n8', target: 'n9' }
+			],
+			created_at: '2024-01-16T09:00:00Z',
+			updated_at: '2024-01-16T09:00:00Z'
 		},
 		{
 			id: 'act-003',
@@ -83,10 +87,12 @@
 				{ id: 'n4', type: 'final', name: '' }
 			],
 			transitions: [
-				{ source: 'n1', target: 'n2' },
-				{ source: 'n2', target: 'n3' },
-				{ source: 'n3', target: 'n4' }
-			]
+				{ id: 't3-1', source: 'n1', target: 'n2' },
+				{ id: 't3-2', source: 'n2', target: 'n3' },
+				{ id: 't3-3', source: 'n3', target: 'n4' }
+			],
+			created_at: '2024-01-17T11:00:00Z',
+			updated_at: '2024-01-17T11:00:00Z'
 		},
 		{
 			id: 'act-004',
@@ -99,9 +105,11 @@
 				{ id: 'n3', type: 'final', name: '' }
 			],
 			transitions: [
-				{ source: 'n1', target: 'n2' },
-				{ source: 'n2', target: 'n3' }
-			]
+				{ id: 't4-1', source: 'n1', target: 'n2' },
+				{ id: 't4-2', source: 'n2', target: 'n3' }
+			],
+			created_at: '2024-01-10T08:00:00Z',
+			updated_at: '2024-01-10T08:00:00Z'
 		}
 	];
 

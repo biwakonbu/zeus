@@ -28,13 +28,15 @@
 			{ id: 'n6', type: 'final', name: '' }
 		],
 		transitions: [
-			{ source: 'n1', target: 'n2' },
-			{ source: 'n2', target: 'n3' },
-			{ source: 'n3', target: 'n4', guard: 'Yes' },
-			{ source: 'n3', target: 'n5', guard: 'No' },
-			{ source: 'n4', target: 'n6' },
-			{ source: 'n5', target: 'n2' }
-		]
+			{ id: 't1', source: 'n1', target: 'n2' },
+			{ id: 't2', source: 'n2', target: 'n3' },
+			{ id: 't3', source: 'n3', target: 'n4', guard: 'Yes' },
+			{ id: 't4', source: 'n3', target: 'n5', guard: 'No' },
+			{ id: 't5', source: 'n4', target: 'n6' },
+			{ id: 't6', source: 'n5', target: 'n2' }
+		],
+		created_at: '2024-01-15T10:00:00Z',
+		updated_at: '2024-01-15T10:00:00Z'
 	};
 
 	const complexActivity: ActivityItem = {
@@ -58,20 +60,22 @@
 			{ id: 'n12', type: 'final', name: '' }
 		],
 		transitions: [
-			{ source: 'n1', target: 'n2' },
-			{ source: 'n2', target: 'n3' },
-			{ source: 'n3', target: 'n4' },
-			{ source: 'n4', target: 'n5' },
-			{ source: 'n4', target: 'n6' },
-			{ source: 'n5', target: 'n7' },
-			{ source: 'n6', target: 'n7' },
-			{ source: 'n7', target: 'n8' },
-			{ source: 'n8', target: 'n9', guard: 'Yes' },
-			{ source: 'n8', target: 'n10', guard: 'No' },
-			{ source: 'n9', target: 'n11' },
-			{ source: 'n10', target: 'n11' },
-			{ source: 'n11', target: 'n12' }
-		]
+			{ id: 't1', source: 'n1', target: 'n2' },
+			{ id: 't2', source: 'n2', target: 'n3' },
+			{ id: 't3', source: 'n3', target: 'n4' },
+			{ id: 't4', source: 'n4', target: 'n5' },
+			{ id: 't5', source: 'n4', target: 'n6' },
+			{ id: 't6', source: 'n5', target: 'n7' },
+			{ id: 't7', source: 'n6', target: 'n7' },
+			{ id: 't8', source: 'n7', target: 'n8' },
+			{ id: 't9', source: 'n8', target: 'n9', guard: 'Yes' },
+			{ id: 't10', source: 'n8', target: 'n10', guard: 'No' },
+			{ id: 't11', source: 'n9', target: 'n11' },
+			{ id: 't12', source: 'n10', target: 'n11' },
+			{ id: 't13', source: 'n11', target: 'n12' }
+		],
+		created_at: '2024-01-16T09:00:00Z',
+		updated_at: '2024-01-16T14:30:00Z'
 	};
 
 	const draftActivity: ActivityItem = {
@@ -85,9 +89,11 @@
 			{ id: 'n3', type: 'final', name: '' }
 		],
 		transitions: [
-			{ source: 'n1', target: 'n2' },
-			{ source: 'n2', target: 'n3' }
-		]
+			{ id: 't1', source: 'n1', target: 'n2' },
+			{ id: 't2', source: 'n2', target: 'n3' }
+		],
+		created_at: '2024-01-17T11:00:00Z',
+		updated_at: '2024-01-17T11:00:00Z'
 	};
 
 	let selectedNode = $state<ActivityNodeItem | null>(null);

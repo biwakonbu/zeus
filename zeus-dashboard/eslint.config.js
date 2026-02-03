@@ -20,6 +20,10 @@ const browserGlobals = {
 	HTMLCanvasElement: 'readonly',
 	HTMLDivElement: 'readonly',
 	HTMLInputElement: 'readonly',
+	HTMLButtonElement: 'readonly',
+	HTMLUListElement: 'readonly',
+	Node: 'readonly',
+	alert: 'readonly',
 	MouseEvent: 'readonly',
 	WheelEvent: 'readonly',
 	KeyboardEvent: 'readonly',
@@ -53,7 +57,7 @@ const svelteGlobals = {
 export default [
 	eslint.configs.recommended,
 	{
-		ignores: ['build/', '.svelte-kit/', 'node_modules/', '*.config.js', '*.config.ts']
+		ignores: ['build/', '.svelte-kit/', 'node_modules/', 'storybook-static/', '*.config.js', '*.config.ts']
 	},
 	{
 		files: ['**/*.ts'],

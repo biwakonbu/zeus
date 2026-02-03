@@ -12,7 +12,7 @@
 		onClose?: () => void;
 		onNodeClick?: (node: ActivityNodeItem) => void;
 	}
-	let { activity = null, selectedNode = null, onClose, onNodeClick }: Props = $props();
+	let { activity = null, selectedNode = null, onClose = undefined, onNodeClick }: Props = $props();
 
 	// UseCase へ遷移
 	function handleUseCaseClick(usecaseId: string) {
@@ -100,6 +100,11 @@
 </script>
 
 <div class="detail-content">
+	{#if onClose}
+		<button class="close-button" onclick={onClose} title="閉じる">
+			<Icon name="X" size={16} />
+		</button>
+	{/if}
 	{#if activity}
 		<!-- セクション1: アクティビティ情報（常に表示） -->
 		<section class="section activity-section">
@@ -256,6 +261,29 @@
 <style>
 	.detail-content {
 		font-size: 0.8125rem;
+		position: relative;
+	}
+
+	.close-button {
+		position: absolute;
+		top: 0;
+		right: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		background: rgba(0, 0, 0, 0.3);
+		border: 1px solid var(--border-metal);
+		border-radius: 4px;
+		color: var(--text-secondary);
+		cursor: pointer;
+		transition: background 0.15s ease, color 0.15s ease;
+	}
+
+	.close-button:hover {
+		background: rgba(255, 100, 100, 0.2);
+		color: var(--text-primary);
 	}
 
 	.section {

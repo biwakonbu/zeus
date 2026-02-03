@@ -1300,9 +1300,9 @@ type UseCaseScenario struct {
 type UseCaseEntity struct {
 	ID          string            `yaml:"id"`
 	Title       string            `yaml:"title"`
-	ObjectiveID string            `yaml:"objective_id"`             // 必須
+	ObjectiveID string            `yaml:"objective_id"` // 必須
 	Description string            `yaml:"description,omitempty"`
-	SubsystemID string            `yaml:"subsystem_id,omitempty"`   // サブシステム ID（オプション）
+	SubsystemID string            `yaml:"subsystem_id,omitempty"` // サブシステム ID（オプション）
 	Actors      []UseCaseActorRef `yaml:"actors,omitempty"`
 	Relations   []UseCaseRelation `yaml:"relations,omitempty"`
 	Scenario    UseCaseScenario   `yaml:"scenario,omitempty"`

@@ -187,13 +187,13 @@ func TestValidateID(t *testing.T) {
 		{"subsystem", "sub-12345678", false},
 		{"activity", "act-12345678", false},
 		// 無効なケース
-		{"task", "task-123", true},              // UUID短すぎ
-		{"objective", "obj-1", true},            // 番号短すぎ
-		{"objective", "obj-1234", true},         // 番号長すぎ
-		{"decision", "dec-abc", true},           // 番号ではない
-		{"unknown", "unknown-001", true},        // 不明なエンティティタイプ
-		{"task", "objective-001", true},         // 間違ったプレフィックス
-		{"objective", "task-12345678", true},    // 間違ったプレフィックス
+		{"task", "task-123", true},           // UUID短すぎ
+		{"objective", "obj-1", true},         // 番号短すぎ
+		{"objective", "obj-1234", true},      // 番号長すぎ
+		{"decision", "dec-abc", true},        // 番号ではない
+		{"unknown", "unknown-001", true},     // 不明なエンティティタイプ
+		{"task", "objective-001", true},      // 間違ったプレフィックス
+		{"objective", "task-12345678", true}, // 間違ったプレフィックス
 	}
 
 	for _, tc := range testCases {

@@ -339,7 +339,7 @@ func TestFormatSSEMessage_ComplexData(t *testing.T) {
 			Progress int    `json:"progress"`
 		}{
 			ID:       "task-001",
-			Title:   "タスク1",
+			Title:    "タスク1",
 			Progress: 75,
 		},
 	}

@@ -397,10 +397,10 @@ func TestQualityHandler_Update(t *testing.T) {
 
 	// 更新
 	updateQual := &QualityEntity{
-		ID:           addResult.ID,
-		Title:        "更新後品質基準",
+		ID:            addResult.ID,
+		Title:         "更新後品質基準",
 		DeliverableID: deliverableID,
-		Reviewer:     "new-reviewer",
+		Reviewer:      "new-reviewer",
 		Metrics: []QualityMetric{
 			{
 				ID:      "metric-001",
@@ -444,8 +444,8 @@ func TestQualityHandler_Update_NotFound(t *testing.T) {
 	deliverableID := createTestDeliverable(t, delHandler, objHandler)
 
 	updateQual := &QualityEntity{
-		ID:           "qual-999",
-		Title:        "存在しない品質基準",
+		ID:            "qual-999",
+		Title:         "存在しない品質基準",
 		DeliverableID: deliverableID,
 	}
 
@@ -828,7 +828,7 @@ func TestQualityHandler_ContextCancellation(t *testing.T) {
 
 	t.Run("Update", func(t *testing.T) {
 		err := handler.Update(ctx, "qual-001", &QualityEntity{
-			Title:        "更新",
+			Title:         "更新",
 			DeliverableID: deliverableID,
 		})
 		if err != context.Canceled {
