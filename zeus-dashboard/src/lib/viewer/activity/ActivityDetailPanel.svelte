@@ -139,7 +139,7 @@
 							}}
 							title="UseCase ビューで表示"
 						>
-							<span class="monospace">{activity.usecase_id}</span>
+							<span>{activity.usecase_title || activity.usecase_id}</span>
 							<Icon name="ExternalLink" size={10} />
 						</button>
 					</div>
@@ -380,12 +380,6 @@
 	.usecase-link:hover {
 		background: rgba(255, 149, 51, 0.2);
 		border-color: var(--accent-primary);
-	}
-
-	.usecase-link .monospace {
-		background: transparent;
-		padding: 0;
-		color: inherit;
 	}
 
 	.stat-item {

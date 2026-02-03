@@ -1,5 +1,6 @@
 // PixiJS ベースのビューワーエンジン
-import { Application, Container, Graphics, FederatedPointerEvent } from 'pixi.js';
+import { Application, Container, Graphics } from 'pixi.js';
+import type { FederatedPointerEvent } from 'pixi.js';
 
 // 型定義
 export interface ViewerConfig {

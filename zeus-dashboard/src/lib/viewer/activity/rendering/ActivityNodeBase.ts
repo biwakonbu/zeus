@@ -1,6 +1,7 @@
 // ActivityNodeBase - アクティビティ図ノードの基底クラス
 // 共通の状態管理とインタラクション処理を提供
-import { Container, Graphics, FederatedPointerEvent } from 'pixi.js';
+import { Container, Graphics } from 'pixi.js';
+import type { FederatedPointerEvent } from 'pixi.js';
 import type { ActivityNodeItem } from '$lib/types/api';
 import { COMMON_COLORS } from './constants';
 

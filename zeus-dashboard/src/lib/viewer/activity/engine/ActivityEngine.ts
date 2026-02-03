@@ -1,6 +1,7 @@
 // ActivityEngine - UML アクティビティ図の PixiJS エンジン
 // ノード、遷移のレイアウトと描画を管理
-import { Application, Container, Graphics, FederatedPointerEvent } from 'pixi.js';
+import { Application, Container, Graphics } from 'pixi.js';
+import type { FederatedPointerEvent } from 'pixi.js';
 import type { ActivityItem, ActivityNodeItem, ActivityTransitionItem } from '$lib/types/api';
 import { ActivityNodeBase } from '../rendering/ActivityNodeBase';
 import { InitialNode } from '../rendering/InitialNode';

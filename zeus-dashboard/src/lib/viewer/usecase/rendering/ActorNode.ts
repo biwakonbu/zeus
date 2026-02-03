@@ -1,6 +1,7 @@
 // ActorNode - UML ユースケース図のアクター描画クラス
 // UML 標準のシンプルな棒人間とステレオタイプ付き長方形
-import { Container, Graphics, Text, FederatedPointerEvent } from 'pixi.js';
+import { Container, Graphics, Text } from 'pixi.js';
+import type { FederatedPointerEvent } from 'pixi.js';
 import type { ActorItem, ActorType } from '$lib/types/api';
 import { TEXT_RESOLUTION, COMMON_COLORS } from './constants';
 

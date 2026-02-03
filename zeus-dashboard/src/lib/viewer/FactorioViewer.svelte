@@ -13,7 +13,8 @@
 	import FilterPanel from './ui/FilterPanel.svelte';
 	import { OverlayPanel } from '$lib/components/ui';
 	import { updateGraphViewState, resetGraphViewState } from '$lib/stores/view';
-	import { Container, Graphics, FederatedPointerEvent } from 'pixi.js';
+	import { Container, Graphics } from 'pixi.js';
+	import type { FederatedPointerEvent } from 'pixi.js';
 
 	// Props
 	interface Props {

@@ -1,6 +1,7 @@
 // UseCaseEngine - UML ユースケース図の PixiJS エンジン
 // アクター、ユースケース、システム境界、サブシステム境界、関係線のレイアウトと描画を管理
-import { Application, Container, Graphics, FederatedPointerEvent } from 'pixi.js';
+import { Application, Container, Graphics } from 'pixi.js';
+import type { FederatedPointerEvent } from 'pixi.js';
 import type {
 	UseCaseDiagramResponse,
 	ActorItem,

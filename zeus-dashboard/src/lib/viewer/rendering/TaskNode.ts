@@ -1,5 +1,6 @@
 // タスクノードの描画クラス（WBS 全ノードタイプ対応）
-import { Container, Graphics, Text, FederatedPointerEvent } from 'pixi.js';
+import { Container, Graphics, Text } from 'pixi.js';
+import type { FederatedPointerEvent } from 'pixi.js';
 import type { TaskItem, TaskStatus, Priority, GraphNode, GraphNodeType } from '$lib/types/api';
 
 // ノードサイズ定数
