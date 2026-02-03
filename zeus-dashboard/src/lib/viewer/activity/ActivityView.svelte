@@ -348,7 +348,6 @@
 						<ActivityDetailPanel
 							activity={currentActivity}
 							selectedNode={selectedNode}
-							onClose={closeDetailPanel}
 							onNodeClick={handleNodeClickFromPanel}
 						/>
 					</div>
