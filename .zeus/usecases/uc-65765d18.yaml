@@ -1,0 +1,14 @@
+id: uc-65765d18
+subsystem_id: sub-00000006
+title: エンティティの説明を取得する
+objective_id: obj-018
+description: zeus explain で詳細説明・コンテキストを取得
+actors:
+    - actor_id: actor-7094b420
+      role: primary
+    - actor_id: actor-047641e5
+      role: secondary
+status: draft
+metadata:
+    created_at: "2026-01-23T12:56:36+09:00"
+    updated_at: "2026-01-23T12:59:29+09:00"

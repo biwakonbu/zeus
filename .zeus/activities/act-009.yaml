@@ -1,0 +1,124 @@
+id: act-009
+title: "エンティティ一覧表示フロー"
+description: "zeus list コマンドによるエンティティ一覧表示の処理フロー"
+usecase_id: uc-2c55caa1
+related_deliverables:
+  - del-005
+  - del-006
+status: active
+
+nodes:
+  - id: node-001
+    type: initial
+    name: ""
+  - id: node-002
+    type: action
+    name: "コマンド引数をパース"
+  - id: node-003
+    type: decision
+    name: "エンティティ種別指定あり"
+  - id: node-004
+    type: action
+    name: "全エンティティ種別を対象"
+  - id: node-005
+    type: action
+    name: "指定種別のみ対象"
+  - id: node-006
+    type: merge
+    name: ""
+  - id: node-007
+    type: action
+    name: "対象エンティティを読み込み"
+  - id: node-008
+    type: decision
+    name: "ステータスフィルタあり"
+  - id: node-009
+    type: action
+    name: "ステータスでフィルタ"
+  - id: node-010
+    type: merge
+    name: ""
+  - id: node-011
+    type: action
+    name: "出力フォーマット決定"
+  - id: node-012
+    type: decision
+    name: "JSON 形式か"
+  - id: node-013
+    type: action
+    name: "JSON で出力"
+  - id: node-014
+    type: action
+    name: "テキストで出力"
+  - id: node-015
+    type: merge
+    name: ""
+  - id: node-016
+    type: final
+    name: ""
+
+transitions:
+  - id: trans-001
+    source: node-001
+    target: node-002
+  - id: trans-002
+    source: node-002
+    target: node-003
+  - id: trans-003
+    source: node-003
+    target: node-004
+    guard: "[指定なし]"
+  - id: trans-004
+    source: node-003
+    target: node-005
+    guard: "[指定あり]"
+  - id: trans-005
+    source: node-004
+    target: node-006
+  - id: trans-006
+    source: node-005
+    target: node-006
+  - id: trans-007
+    source: node-006
+    target: node-007
+  - id: trans-008
+    source: node-007
+    target: node-008
+  - id: trans-009
+    source: node-008
+    target: node-009
+    guard: "[フィルタあり]"
+  - id: trans-010
+    source: node-008
+    target: node-010
+    guard: "[フィルタなし]"
+  - id: trans-011
+    source: node-009
+    target: node-010
+  - id: trans-012
+    source: node-010
+    target: node-011
+  - id: trans-013
+    source: node-011
+    target: node-012
+  - id: trans-014
+    source: node-012
+    target: node-013
+    guard: "[json]"
+  - id: trans-015
+    source: node-012
+    target: node-014
+    guard: "[text]"
+  - id: trans-016
+    source: node-013
+    target: node-015
+  - id: trans-017
+    source: node-014
+    target: node-015
+  - id: trans-018
+    source: node-015
+    target: node-016
+
+metadata:
+  created_at: "2026-01-26T12:00:00+09:00"
+  updated_at: "2026-01-26T12:00:00+09:00"

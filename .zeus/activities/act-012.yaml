@@ -1,0 +1,121 @@
+id: act-012
+title: "予測分析フロー"
+description: "zeus predict コマンドによる予測分析の処理フロー"
+usecase_id: uc-abb11f8d
+related_deliverables:
+  - del-016
+status: active
+
+nodes:
+  - id: node-001
+    type: initial
+    name: ""
+  - id: node-002
+    type: action
+    name: "分析タイプを決定"
+  - id: node-003
+    type: decision
+    name: "分析タイプ"
+  - id: node-004
+    type: action
+    name: "完了日予測を実行"
+  - id: node-005
+    type: action
+    name: "リスク分析を実行"
+  - id: node-006
+    type: action
+    name: "ベロシティ分析を実行"
+  - id: node-007
+    type: fork
+    name: ""
+  - id: node-008
+    type: action
+    name: "完了日予測を実行"
+  - id: node-009
+    type: action
+    name: "リスク分析を実行"
+  - id: node-010
+    type: action
+    name: "ベロシティ分析を実行"
+  - id: node-011
+    type: join
+    name: ""
+  - id: node-012
+    type: merge
+    name: ""
+  - id: node-013
+    type: action
+    name: "分析結果を整形"
+  - id: node-014
+    type: action
+    name: "結果を表示"
+  - id: node-015
+    type: final
+    name: ""
+
+transitions:
+  - id: trans-001
+    source: node-001
+    target: node-002
+  - id: trans-002
+    source: node-002
+    target: node-003
+  - id: trans-003
+    source: node-003
+    target: node-004
+    guard: "[completion]"
+  - id: trans-004
+    source: node-003
+    target: node-005
+    guard: "[risk]"
+  - id: trans-005
+    source: node-003
+    target: node-006
+    guard: "[velocity]"
+  - id: trans-006
+    source: node-003
+    target: node-007
+    guard: "[all]"
+  - id: trans-007
+    source: node-004
+    target: node-012
+  - id: trans-008
+    source: node-005
+    target: node-012
+  - id: trans-009
+    source: node-006
+    target: node-012
+  - id: trans-010
+    source: node-007
+    target: node-008
+  - id: trans-011
+    source: node-007
+    target: node-009
+  - id: trans-012
+    source: node-007
+    target: node-010
+  - id: trans-013
+    source: node-008
+    target: node-011
+  - id: trans-014
+    source: node-009
+    target: node-011
+  - id: trans-015
+    source: node-010
+    target: node-011
+  - id: trans-016
+    source: node-011
+    target: node-012
+  - id: trans-017
+    source: node-012
+    target: node-013
+  - id: trans-018
+    source: node-013
+    target: node-014
+  - id: trans-019
+    source: node-014
+    target: node-015
+
+metadata:
+  created_at: "2026-01-26T12:00:00+09:00"
+  updated_at: "2026-01-26T12:00:00+09:00"

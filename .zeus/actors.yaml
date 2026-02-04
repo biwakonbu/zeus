@@ -1,0 +1,43 @@
+actors:
+    - id: actor-d60b69f1
+      title: プロジェクトマネージャー
+      type: human
+      description: プロジェクト全体を管理・監督する
+      metadata:
+        created_at: "2026-01-23T12:55:58+09:00"
+        updated_at: "2026-01-23T12:55:58+09:00"
+    - id: actor-7094b420
+      title: 開発者
+      type: human
+      description: タスクを実行し、コードを実装する
+      metadata:
+        created_at: "2026-01-23T12:55:59+09:00"
+        updated_at: "2026-01-23T12:55:59+09:00"
+    - id: actor-e2d514d2
+      title: 要件定義者
+      type: human
+      description: 要件・ユースケースを定義する
+      metadata:
+        created_at: "2026-01-23T12:55:59+09:00"
+        updated_at: "2026-01-23T12:55:59+09:00"
+    - id: actor-248f9d78
+      title: QA
+      type: human
+      description: 品質保証・テストを担当する
+      metadata:
+        created_at: "2026-01-23T12:55:59+09:00"
+        updated_at: "2026-01-23T12:55:59+09:00"
+    - id: actor-047641e5
+      title: AIアシスタント
+      type: system
+      description: 提案・分析・説明を自動生成する
+      metadata:
+        created_at: "2026-01-23T12:55:59+09:00"
+        updated_at: "2026-01-23T12:55:59+09:00"
+    - id: actor-3cf68581
+      title: チームメンバー
+      type: human
+      description: プロジェクトに参加する一般メンバー
+      metadata:
+        created_at: "2026-01-23T12:56:00+09:00"
+        updated_at: "2026-01-23T12:56:00+09:00"

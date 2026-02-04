@@ -1,0 +1,9 @@
+timestamp: "2026-01-23T12:56:37+09:00"
+summary:
+    total_tasks: 1
+    completed: 0
+    in_progress: 0
+    pending: 1
+health: poor
+risks:
+    - Low completion rate

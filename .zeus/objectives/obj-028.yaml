@@ -1,0 +1,10 @@
+id: obj-028
+title: 参照整合性
+description: 整合性チェック・循環参照検出
+status: not_started
+progress: 95
+parent_id: obj-010
+wbs_code: "4.5"
+metadata:
+    created_at: "2026-01-19T15:03:06+09:00"
+    updated_at: "2026-01-19T15:03:06+09:00"

@@ -1,0 +1,125 @@
+id: act-003
+title: "診断実行フロー"
+description: "zeus doctor コマンドによるプロジェクト診断の処理フロー"
+usecase_id: uc-46419e15
+related_deliverables:
+  - del-005
+  - del-006
+status: active
+
+nodes:
+  - id: node-001
+    type: initial
+    name: ""
+  - id: node-002
+    type: action
+    name: "プロジェクト存在確認"
+  - id: node-003
+    type: decision
+    name: ".zeus が存在するか"
+  - id: node-004
+    type: action
+    name: "エラー: プロジェクト未初期化"
+  - id: node-005
+    type: fork
+    name: ""
+  - id: node-006
+    type: action
+    name: "YAML 構文チェック"
+  - id: node-007
+    type: action
+    name: "参照整合性チェック"
+  - id: node-008
+    type: action
+    name: "循環参照チェック"
+  - id: node-009
+    type: action
+    name: "ID 重複チェック"
+  - id: node-010
+    type: join
+    name: ""
+  - id: node-011
+    type: action
+    name: "問題リストを集約"
+  - id: node-012
+    type: decision
+    name: "問題が存在するか"
+  - id: node-013
+    type: action
+    name: "問題一覧を表示"
+  - id: node-014
+    type: action
+    name: "正常メッセージ表示"
+  - id: node-015
+    type: final
+    name: ""
+  - id: node-016
+    type: final
+    name: ""
+
+transitions:
+  - id: trans-001
+    source: node-001
+    target: node-002
+  - id: trans-002
+    source: node-002
+    target: node-003
+  - id: trans-003
+    source: node-003
+    target: node-004
+    guard: "[存在しない]"
+  - id: trans-004
+    source: node-003
+    target: node-005
+    guard: "[存在する]"
+  - id: trans-005
+    source: node-004
+    target: node-016
+  - id: trans-006
+    source: node-005
+    target: node-006
+  - id: trans-007
+    source: node-005
+    target: node-007
+  - id: trans-008
+    source: node-005
+    target: node-008
+  - id: trans-009
+    source: node-005
+    target: node-009
+  - id: trans-010
+    source: node-006
+    target: node-010
+  - id: trans-011
+    source: node-007
+    target: node-010
+  - id: trans-012
+    source: node-008
+    target: node-010
+  - id: trans-013
+    source: node-009
+    target: node-010
+  - id: trans-014
+    source: node-010
+    target: node-011
+  - id: trans-015
+    source: node-011
+    target: node-012
+  - id: trans-016
+    source: node-012
+    target: node-013
+    guard: "[問題あり]"
+  - id: trans-017
+    source: node-012
+    target: node-014
+    guard: "[問題なし]"
+  - id: trans-018
+    source: node-013
+    target: node-015
+  - id: trans-019
+    source: node-014
+    target: node-015
+
+metadata:
+  created_at: "2026-01-26T12:00:00+09:00"
+  updated_at: "2026-01-26T12:00:00+09:00"

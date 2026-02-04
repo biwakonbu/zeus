@@ -1,0 +1,93 @@
+id: act-017
+title: "履歴確認フロー"
+description: "zeus history コマンドによるプロジェクト履歴確認の処理フロー"
+usecase_id: uc-96fe1356
+related_deliverables:
+  - del-002
+  - del-003
+  - del-004
+status: active
+
+nodes:
+  - id: node-001
+    type: initial
+    name: ""
+  - id: node-002
+    type: action
+    name: "履歴ファイルを読み込み"
+  - id: node-003
+    type: decision
+    name: "履歴が存在するか"
+  - id: node-004
+    type: action
+    name: "履歴なしメッセージ表示"
+  - id: node-005
+    type: decision
+    name: "limit 指定あり"
+  - id: node-006
+    type: action
+    name: "指定件数に絞り込み"
+  - id: node-007
+    type: merge
+    name: ""
+  - id: node-008
+    type: action
+    name: "履歴を時系列でソート"
+  - id: node-009
+    type: action
+    name: "履歴を整形"
+  - id: node-010
+    type: action
+    name: "履歴を表示"
+  - id: node-011
+    type: final
+    name: ""
+  - id: node-012
+    type: final
+    name: ""
+
+transitions:
+  - id: trans-001
+    source: node-001
+    target: node-002
+  - id: trans-002
+    source: node-002
+    target: node-003
+  - id: trans-003
+    source: node-003
+    target: node-004
+    guard: "[履歴なし]"
+  - id: trans-004
+    source: node-003
+    target: node-005
+    guard: "[履歴あり]"
+  - id: trans-005
+    source: node-004
+    target: node-012
+  - id: trans-006
+    source: node-005
+    target: node-006
+    guard: "[limit あり]"
+  - id: trans-007
+    source: node-005
+    target: node-007
+    guard: "[limit なし]"
+  - id: trans-008
+    source: node-006
+    target: node-007
+  - id: trans-009
+    source: node-007
+    target: node-008
+  - id: trans-010
+    source: node-008
+    target: node-009
+  - id: trans-011
+    source: node-009
+    target: node-010
+  - id: trans-012
+    source: node-010
+    target: node-011
+
+metadata:
+  created_at: "2026-01-26T12:00:00+09:00"
+  updated_at: "2026-01-26T12:00:00+09:00"

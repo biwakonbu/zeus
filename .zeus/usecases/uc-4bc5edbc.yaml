@@ -1,0 +1,12 @@
+id: uc-4bc5edbc
+subsystem_id: sub-00000003
+title: スナップショットを作成する
+objective_id: obj-014
+description: zeus snapshot create で状態を保存
+actors:
+    - actor_id: actor-d60b69f1
+      role: primary
+status: draft
+metadata:
+    created_at: "2026-01-23T12:56:21+09:00"
+    updated_at: "2026-01-23T12:59:08+09:00"

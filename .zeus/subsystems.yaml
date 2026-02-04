@@ -1,0 +1,43 @@
+subsystems:
+    - id: sub-00000001
+      name: コアコマンド
+      description: 基本的なプロジェクト操作コマンド群（init, status, add, list, doctor, fix）
+      metadata:
+        created_at: "2026-02-04T00:00:00+09:00"
+        updated_at: "2026-02-04T00:00:00+09:00"
+    - id: sub-00000002
+      name: 承認管理
+      description: 承認ワークフロー関連機能（pending, approve, reject）
+      metadata:
+        created_at: "2026-02-04T00:00:00+09:00"
+        updated_at: "2026-02-04T00:00:00+09:00"
+    - id: sub-00000003
+      name: スナップショット
+      description: 履歴・復元機能（snapshot, history）
+      metadata:
+        created_at: "2026-02-04T00:00:00+09:00"
+        updated_at: "2026-02-04T00:00:00+09:00"
+    - id: sub-00000004
+      name: 分析・可視化
+      description: レポート生成機能（graph, predict, report）
+      metadata:
+        created_at: "2026-02-04T00:00:00+09:00"
+        updated_at: "2026-02-04T00:00:00+09:00"
+    - id: sub-00000005
+      name: ダッシュボード
+      description: Web UI 機能（dashboard）
+      metadata:
+        created_at: "2026-02-04T00:00:00+09:00"
+        updated_at: "2026-02-04T00:00:00+09:00"
+    - id: sub-00000006
+      name: AI機能
+      description: AI 連携機能（suggest, apply, explain）
+      metadata:
+        created_at: "2026-02-04T00:00:00+09:00"
+        updated_at: "2026-02-04T00:00:00+09:00"
+    - id: sub-00000007
+      name: UML
+      description: UML 図関連機能（activity, usecase）
+      metadata:
+        created_at: "2026-02-04T00:00:00+09:00"
+        updated_at: "2026-02-04T00:00:00+09:00"

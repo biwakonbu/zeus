@@ -1,0 +1,144 @@
+id: act-002
+title: "タスク追加フロー"
+description: "zeus add task コマンドによるタスク追加の処理フロー"
+usecase_id: uc-07f66168
+related_deliverables:
+  - del-005
+  - del-006
+status: active
+
+nodes:
+  - id: node-001
+    type: initial
+    name: ""
+  - id: node-002
+    type: action
+    name: "コマンド引数をパース"
+  - id: node-003
+    type: decision
+    name: "タスク名が指定されているか"
+  - id: node-004
+    type: action
+    name: "エラー: タスク名必須"
+  - id: node-005
+    type: action
+    name: "新規タスク ID 生成"
+  - id: node-006
+    type: decision
+    name: "親タスク指定あり"
+  - id: node-007
+    type: action
+    name: "親タスクの存在確認"
+  - id: node-008
+    type: decision
+    name: "親タスクが存在するか"
+  - id: node-009
+    type: action
+    name: "エラー: 親タスク不在"
+  - id: node-010
+    type: merge
+    name: ""
+  - id: node-011
+    type: action
+    name: "タスク YAML ファイル生成"
+  - id: node-012
+    type: action
+    name: "承認レベルチェック"
+  - id: node-013
+    type: decision
+    name: "自動承認か"
+  - id: node-014
+    type: action
+    name: "即時保存"
+  - id: node-015
+    type: action
+    name: "承認待ちキューに追加"
+  - id: node-016
+    type: merge
+    name: ""
+  - id: node-017
+    type: action
+    name: "完了メッセージ表示"
+  - id: node-018
+    type: final
+    name: ""
+  - id: node-019
+    type: final
+    name: ""
+
+transitions:
+  - id: trans-001
+    source: node-001
+    target: node-002
+  - id: trans-002
+    source: node-002
+    target: node-003
+  - id: trans-003
+    source: node-003
+    target: node-004
+    guard: "[タスク名なし]"
+  - id: trans-004
+    source: node-003
+    target: node-005
+    guard: "[タスク名あり]"
+  - id: trans-005
+    source: node-004
+    target: node-019
+  - id: trans-006
+    source: node-005
+    target: node-006
+  - id: trans-007
+    source: node-006
+    target: node-007
+    guard: "[親タスク指定あり]"
+  - id: trans-008
+    source: node-006
+    target: node-010
+    guard: "[親タスク指定なし]"
+  - id: trans-009
+    source: node-007
+    target: node-008
+  - id: trans-010
+    source: node-008
+    target: node-009
+    guard: "[存在しない]"
+  - id: trans-011
+    source: node-008
+    target: node-010
+    guard: "[存在する]"
+  - id: trans-012
+    source: node-009
+    target: node-019
+  - id: trans-013
+    source: node-010
+    target: node-011
+  - id: trans-014
+    source: node-011
+    target: node-012
+  - id: trans-015
+    source: node-012
+    target: node-013
+  - id: trans-016
+    source: node-013
+    target: node-014
+    guard: "[auto]"
+  - id: trans-017
+    source: node-013
+    target: node-015
+    guard: "[approve]"
+  - id: trans-018
+    source: node-014
+    target: node-016
+  - id: trans-019
+    source: node-015
+    target: node-016
+  - id: trans-020
+    source: node-016
+    target: node-017
+  - id: trans-021
+    source: node-017
+    target: node-018
+
+metadata:
+  created_at: "2026-01-26T12:00:00+09:00"
+  updated_at: "2026-01-26T12:00:00+09:00"

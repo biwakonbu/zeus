@@ -1,0 +1,159 @@
+id: act-006
+title: "ダッシュボード起動フロー"
+description: "zeus dashboard コマンドによるWebダッシュボード起動の処理フロー"
+usecase_id: uc-44b5498a
+related_deliverables:
+  - del-018
+  - del-019
+  - del-020
+  - del-021
+status: active
+
+nodes:
+  - id: node-001
+    type: initial
+    name: ""
+  - id: node-002
+    type: action
+    name: "コマンドオプションをパース"
+  - id: node-003
+    type: action
+    name: "ポート番号を決定"
+  - id: node-004
+    type: decision
+    name: "ポートが使用可能か"
+  - id: node-005
+    type: action
+    name: "エラー: ポート使用中"
+  - id: node-006
+    type: fork
+    name: ""
+  - id: node-007
+    type: action
+    name: "HTTP サーバー起動"
+  - id: node-008
+    type: action
+    name: "SSE Broadcaster 初期化"
+  - id: node-009
+    type: action
+    name: "API ハンドラー登録"
+  - id: node-010
+    type: join
+    name: ""
+  - id: node-011
+    type: decision
+    name: "dev モードか"
+  - id: node-012
+    type: action
+    name: "CORS 有効化"
+  - id: node-013
+    type: merge
+    name: ""
+  - id: node-014
+    type: decision
+    name: "no-open フラグか"
+  - id: node-015
+    type: action
+    name: "ブラウザを自動起動"
+  - id: node-016
+    type: merge
+    name: ""
+  - id: node-017
+    type: action
+    name: "サーバー起動メッセージ表示"
+  - id: node-018
+    type: action
+    name: "シグナル待機 (SIGINT/SIGTERM)"
+  - id: node-019
+    type: action
+    name: "グレースフルシャットダウン"
+  - id: node-020
+    type: final
+    name: ""
+  - id: node-021
+    type: final
+    name: ""
+
+transitions:
+  - id: trans-001
+    source: node-001
+    target: node-002
+  - id: trans-002
+    source: node-002
+    target: node-003
+  - id: trans-003
+    source: node-003
+    target: node-004
+  - id: trans-004
+    source: node-004
+    target: node-005
+    guard: "[使用不可]"
+  - id: trans-005
+    source: node-004
+    target: node-006
+    guard: "[使用可能]"
+  - id: trans-006
+    source: node-005
+    target: node-021
+  - id: trans-007
+    source: node-006
+    target: node-007
+  - id: trans-008
+    source: node-006
+    target: node-008
+  - id: trans-009
+    source: node-006
+    target: node-009
+  - id: trans-010
+    source: node-007
+    target: node-010
+  - id: trans-011
+    source: node-008
+    target: node-010
+  - id: trans-012
+    source: node-009
+    target: node-010
+  - id: trans-013
+    source: node-010
+    target: node-011
+  - id: trans-014
+    source: node-011
+    target: node-012
+    guard: "[dev モード]"
+  - id: trans-015
+    source: node-011
+    target: node-013
+    guard: "[通常モード]"
+  - id: trans-016
+    source: node-012
+    target: node-013
+  - id: trans-017
+    source: node-013
+    target: node-014
+  - id: trans-018
+    source: node-014
+    target: node-015
+    guard: "[自動起動]"
+  - id: trans-019
+    source: node-014
+    target: node-016
+    guard: "[no-open]"
+  - id: trans-020
+    source: node-015
+    target: node-016
+  - id: trans-021
+    source: node-016
+    target: node-017
+  - id: trans-022
+    source: node-017
+    target: node-018
+  - id: trans-023
+    source: node-018
+    target: node-019
+  - id: trans-024
+    source: node-019
+    target: node-020
+
+metadata:
+  created_at: "2026-01-26T12:00:00+09:00"
+  updated_at: "2026-01-26T12:00:00+09:00"

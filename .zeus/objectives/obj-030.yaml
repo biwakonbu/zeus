@@ -1,0 +1,9 @@
+id: obj-030
+title: セキュリティ
+status: completed
+progress: 100
+parent_id: obj-011
+wbs_code: "5.2"
+metadata:
+    created_at: "2026-01-19T15:03:14+09:00"
+    updated_at: "2026-01-19T15:03:14+09:00"

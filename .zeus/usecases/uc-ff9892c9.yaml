@@ -1,0 +1,12 @@
+id: uc-ff9892c9
+subsystem_id: sub-00000002
+title: 承認待ち一覧を確認する
+objective_id: obj-016
+description: zeus pending で承認待ちアイテムを確認
+actors:
+    - actor_id: actor-d60b69f1
+      role: primary
+status: draft
+metadata:
+    created_at: "2026-01-23T12:56:23+09:00"
+    updated_at: "2026-01-23T12:59:19+09:00"

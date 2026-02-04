@@ -1,0 +1,19 @@
+constraints:
+    - id: const-001
+      title: 外部DB不使用
+      category: technical
+      description: 設計哲学：ファイルベース維持
+      non_negotiable: true
+    - id: const-002
+      title: 後方互換性維持
+      category: business
+      description: 既存.zeus/構造との互換性
+      non_negotiable: true
+    - id: const-003
+      title: Go標準ライブラリ優先
+      category: technical
+      description: 依存関係最小化
+      non_negotiable: false
+metadata:
+    created_at: "2026-01-19T01:45:22+09:00"
+    updated_at: "2026-01-19T01:45:22+09:00"

@@ -1,0 +1,11 @@
+version: "1.0"
+project:
+    id: zeus-1768618625
+    name: New Zeus Project
+    description: Project managed by Zeus
+    start_date: "2026-01-17"
+objectives: []
+settings:
+    automation_level: auto
+    approval_mode: default
+    ai_provider: claude-code
