@@ -113,7 +113,7 @@ zeus add assumption "前提条件" \
 ### WBS・タイムラインリスク
 - クリティカルパス上の遅延
 - 依存関係のボトルネック
-- 期限超過タスクの累積
+- 期限超過 Activity の累積
 
 ## 対策優先度マトリクス
 
@@ -164,4 +164,4 @@ zeus apply <suggestion-id>
 ## 関連スキル
 
 - zeus-project-scan - プロジェクトスキャン
-- zeus-task-suggest - タスク提案
+- zeus-activity-suggest - Activity 提案

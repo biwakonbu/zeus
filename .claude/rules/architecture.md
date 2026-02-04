@@ -14,7 +14,7 @@ paths:
 | Zeus | メインロジック、プロジェクト初期化、コマンド実行 |
 | StateManager | 状態スナップショット管理、履歴追跡 |
 | ApprovalManager | 3段階承認フロー (auto/notify/approve)、ファイルロック |
-| TaskHandler | タスクエンティティの CRUD 操作 |
+| ActivityHandler | Activity エンティティの CRUD 操作 |
 | EntityRegistry | エンティティハンドラーの登録・取得 |
 
 ## 分析モジュール (internal/analysis/)

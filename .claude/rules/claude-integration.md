@@ -25,7 +25,7 @@ paths:
 │   │   ├── SKILL.md          # スキル定義
 │   │   └── resources/        # ゴールデンファイル・シナリオ
 │   ├── zeus-project-scan/    # プロジェクト状態取得
-│   ├── zeus-task-suggest/    # タスク提案
+│   ├── zeus-activity-suggest/ # Activity 提案
 │   └── zeus-risk-analysis/   # リスク分析
 └── rules/                    # ルール定義（このファイル群）
 ```

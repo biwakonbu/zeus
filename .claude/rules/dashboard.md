@@ -27,7 +27,7 @@ paths:
 **フロントエンド設計ポイント:**
 - SvelteKit + TypeScript で型安全な開発
 - Factorio 風インダストリアル UI テーマ
-- PixiJS (WebGL) で高パフォーマンスなタスクグラフ描画
+- PixiJS (WebGL) で高パフォーマンスな Activity グラフ描画
 - Svelte Stores でリアクティブな状態管理
 - SSE クライアントで自動再接続ロジック実装
 

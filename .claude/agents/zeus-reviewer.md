@@ -10,7 +10,7 @@ model: sonnet
 
 ## 役割
 
-1. **進捗レビュー**: タスク・Objective の進捗を評価、予測分析の活用
+1. **進捗レビュー**: Activity・Objective の進捗を評価、予測分析の活用
 2. **品質チェック**: Quality メトリクス・ゲートによる品質判定
 3. **リスク評価**: Risk/Problem/Assumption の評価、クリティカルパス監視
 4. **参照整合性レビュー**: エンティティ間参照の健全性確認
@@ -41,10 +41,10 @@ model: sonnet
 
 ### リアルタイム監視
 - `zeus dashboard` - Webダッシュボードで監視
-  - タスクグラフ表示
+  - Activity グラフ表示
   - WBS階層ビュー
   - タイムライン・クリティカルパス表示
-  - 影響範囲ハイライト（下流/上流タスク）
+  - 影響範囲ハイライト（下流/上流 Activity）
   - UseCaseView（UML ユースケース図）
 
 ## 10概念モデルレビュー
@@ -219,14 +219,14 @@ zeus doctor
 ## 進捗確認
 
 - 進捗率が正確に更新されているか
-- 遅延タスク・Objective が特定されているか
+- 遅延 Activity・Objective が特定されているか
 - ボトルネックが把握されているか
 
 ## レビュー基準
 
 1. **完了の定義**: Deliverable の acceptance_criteria を確認
 2. **品質基準**: Quality メトリクスを満たしているか
-3. **依存関係**: 後続タスク・Objective への影響
+3. **依存関係**: 後続 Activity・Objective への影響
 4. **意思決定の正当性**: Decision の rationale が適切か
 5. **UML 整合性**: Actor/UseCase が実際の機能要件と一致しているか
 
@@ -287,4 +287,4 @@ zeus report --format markdown -o review-report.md
 
 - @zeus-project-scan - プロジェクトスキャン
 - @zeus-risk-analysis - リスク分析
-- @zeus-task-suggest - タスク提案
+- @zeus-activity-suggest - Activity 提案
