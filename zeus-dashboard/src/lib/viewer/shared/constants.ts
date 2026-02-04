@@ -62,9 +62,9 @@ export const EDGE_COLORS = {
 		outer: 0x3a3a3a, // より明るい縁取り
 		glow: 0x888888, // より明るいグロー
 		glowAlpha: 0.6, // 強化
-		// 最外層グロー（常時表示用）
+		// 最外層グロー（控えめな常時グロー）
 		outerGlow: 0x666666,
-		outerGlowAlpha: 0.15
+		outerGlowAlpha: 0.07
 	},
 	critical: {
 		core: 0xffcc77, // より明るいオレンジ
@@ -72,7 +72,7 @@ export const EDGE_COLORS = {
 		glow: 0xff9533,
 		glowAlpha: 0.7,
 		outerGlow: 0xff9533,
-		outerGlowAlpha: 0.2
+		outerGlowAlpha: 0.10
 	},
 	blocked: {
 		core: 0xff9999, // より明るい赤
@@ -80,7 +80,7 @@ export const EDGE_COLORS = {
 		glow: 0xff4444,
 		glowAlpha: 0.6,
 		outerGlow: 0xff4444,
-		outerGlowAlpha: 0.15
+		outerGlowAlpha: 0.07
 	},
 	highlighted: {
 		core: 0xffdd99, // より明るいオレンジ
@@ -88,7 +88,7 @@ export const EDGE_COLORS = {
 		glow: 0xff9533,
 		glowAlpha: 0.8,
 		outerGlow: 0xff9533,
-		outerGlowAlpha: 0.25
+		outerGlowAlpha: 0.12
 	}
 } as const;
 

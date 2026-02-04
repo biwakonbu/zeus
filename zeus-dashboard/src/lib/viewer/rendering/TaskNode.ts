@@ -106,8 +106,8 @@ const METAL_EFFECT = {
 	// 下部シャドウ（凹み感）- 開始位置を上げて重なりを作る
 	bottomShadowAlpha: 0.10, // 0.15 → 0.10（下部影は最小限）
 	bottomShadowRatio: 0.40, // 0.3 → 0.40（60% 位置から開始）
-	// グロー設定（強化）
-	baseGlowAlpha: 0.12, // 0.06 → 0.12（2倍に）
+	// グロー設定（選択・ハイライト・クリティカルパス時に適用）
+	baseGlowAlpha: 0.12,
 	hoverGlowAlpha: 0.25,
 	selectedGlowAlpha: 0.4
 } as const;
@@ -327,16 +327,19 @@ export class TaskNode extends Container {
 
 		// === 3層グロー ===
 
-		// 最外層グロー（常時微弱グロー - Factorio らしさ）
-		const baseGlowColor = typeColors.indicator;
-		this.background.roundRect(
-			-8,
-			-8,
-			NODE_WIDTH + 16,
-			NODE_HEIGHT + 16,
-			CORNER_RADIUS + 8
-		);
-		this.background.fill({ color: baseGlowColor, alpha: METAL_EFFECT.baseGlowAlpha });
+		// 最外層グロー（選択・ハイライト・クリティカルパス時のみ）
+		// Note: ホバー時は中間・内側グローのみ表示し、最外層グローは表示しない（視覚ノイズ軽減のため）
+		if (this.isSelected || this.highlightType || this.isOnCriticalPath) {
+			const baseGlowColor = typeColors.indicator;
+			this.background.roundRect(
+				-8,
+				-8,
+				NODE_WIDTH + 16,
+				NODE_HEIGHT + 16,
+				CORNER_RADIUS + 8
+			);
+			this.background.fill({ color: baseGlowColor, alpha: METAL_EFFECT.baseGlowAlpha });
+		}
 
 		// 中間・内側グロー（ホバー/選択/ハイライト時に強化）
 		if (this.isSelected || this.isHovered || this.highlightType || this.isOnCriticalPath) {
