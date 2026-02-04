@@ -3,8 +3,6 @@ import type { SSEEventType } from '$lib/types/api';
 import { setConnected, setDisconnected, setConnecting } from '$lib/stores/connection';
 import { setStatus } from '$lib/stores/status';
 import { setTasks } from '$lib/stores/tasks';
-import { setGraph } from '$lib/stores/graph';
-import { setPrediction } from '$lib/stores/prediction';
 
 // SSE イベントハンドラー型
 type SSEEventHandler = (data: unknown) => void;
@@ -74,7 +72,8 @@ export class SSEClient {
 			};
 
 			// 各イベントタイプのリスナーを登録
-			const eventTypes: SSEEventType[] = ['status', 'task', 'approval', 'graph', 'prediction'];
+			// Note: 'graph', 'prediction' は未使用のため削除済み
+			const eventTypes: SSEEventType[] = ['status', 'task', 'approval'];
 
 			eventTypes.forEach((eventType) => {
 				this.eventSource!.addEventListener(eventType, (event: MessageEvent) => {
@@ -178,13 +177,8 @@ export function createSSEClient(): SSEClient {
 		setTasks(data as Parameters<typeof setTasks>[0]);
 	});
 
-	client.on('graph', (data) => {
-		setGraph(data as Parameters<typeof setGraph>[0]);
-	});
-
-	client.on('prediction', (data) => {
-		setPrediction(data as Parameters<typeof setPrediction>[0]);
-	});
+	// Note: graph, prediction ハンドラーは未使用のため削除
+	// SSE イベントは引き続き受信されるが、Store 更新は行わない
 
 	return client;
 }

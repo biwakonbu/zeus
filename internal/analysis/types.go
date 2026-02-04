@@ -206,6 +206,35 @@ type VisionInfo struct {
 	Status    string // ステータス
 }
 
+// RiskInfo はリスク情報
+// 使用コンテキスト:
+//   - アフィニティ分析: Objective/Deliverable との関連付けによるクラスタリング
+//
+// core.RiskEntity からの変換時に handlers.go で生成される
+type RiskInfo struct {
+	ID            string `json:"id"`
+	Title         string `json:"title"`
+	Probability   string `json:"probability"`    // low, medium, high
+	Impact        string `json:"impact"`         // low, medium, high
+	Score         int    `json:"score"`          // 計算されたスコア（Probability × Impact）
+	Status        string `json:"status"`         // identified, mitigating, mitigated, accepted
+	ObjectiveID   string `json:"objective_id"`   // 関連 Objective（Affinity クラスタリング用）
+	DeliverableID string `json:"deliverable_id"` // 関連 Deliverable（Affinity クラスタリング用）
+}
+
+// QualityInfo は Quality エンティティ情報
+// 使用コンテキスト:
+//   - アフィニティ分析: Deliverable との関連付けによる品質基準クラスタリング
+//
+// core.QualityEntity からの変換時に handlers.go で生成される
+// Note: QualityEntity には Status フィールドがないため、状態追跡が必要な場合は
+// Gates の Pass/Fail や Metrics の達成度から派生させる
+type QualityInfo struct {
+	ID            string `json:"id"`
+	Title         string `json:"title"`
+	DeliverableID string `json:"deliverable_id"` // 関連 Deliverable（必須）
+}
+
 // ============================================================
 // UnifiedGraph 型定義 (Task/Activity 統合)
 // ============================================================

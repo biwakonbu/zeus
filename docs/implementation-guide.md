@@ -1007,7 +1007,7 @@ func (s *Server) Start(openBrowser bool) error {
     // API ハンドラーの登録
     h := NewHandlers(s.projectPath)
     mux.HandleFunc("/api/status", h.HandleStatus)
-    mux.HandleFunc("/api/tasks", h.HandleTasks)
+    mux.HandleFunc("/api/activities", h.HandleActivities)
     mux.HandleFunc("/api/graph", h.HandleGraph)
     mux.HandleFunc("/api/predict", h.HandlePredict)
 
@@ -1123,17 +1123,17 @@ func (h *Handlers) HandleStatus(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(resp)
 }
 
-// HandleTasks はタスク一覧を返す
-func (h *Handlers) HandleTasks(w http.ResponseWriter, r *http.Request) {
+// HandleActivities はアクティビティ一覧を返す
+func (h *Handlers) HandleActivities(w http.ResponseWriter, r *http.Request) {
     zeus := core.New(h.projectPath)
-    tasks, err := zeus.ListTasks(r.Context())
+    activities, err := zeus.ListActivities(r.Context())
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
 
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(tasks)
+    json.NewEncoder(w).Encode(activities)
 }
 
 // HandleGraph は依存関係グラフを返す（Mermaid形式）
@@ -1308,18 +1308,18 @@ async function fetchStatus() {
     `;
 }
 
-// タスク一覧を取得
-async function fetchTasks() {
-    const response = await fetch('/api/tasks');
-    const tasks = await response.json();
+// アクティビティ一覧を取得
+async function fetchActivities() {
+    const response = await fetch('/api/activities');
+    const activities = await response.json();
 
-    const tbody = document.querySelector('#task-table tbody');
-    tbody.innerHTML = tasks.map(task => `
-        <tr class="status-${task.status}">
-            <td>${task.id}</td>
-            <td>${task.title}</td>
-            <td><span class="badge ${task.status}">${task.status}</span></td>
-            <td>${task.priority || '-'}</td>
+    const tbody = document.querySelector('#activity-table tbody');
+    tbody.innerHTML = activities.map(activity => `
+        <tr class="status-${activity.status}">
+            <td>${activity.id}</td>
+            <td>${activity.title}</td>
+            <td><span class="badge ${activity.status}">${activity.status}</span></td>
+            <td>${activity.priority || '-'}</td>
         </tr>
     `).join('');
 }
@@ -1408,7 +1408,7 @@ make build
 |---------|--------|------|
 | `zeus init` | 高 | プロジェクト初期化（.zeus/ + .claude/ 生成） |
 | `zeus status` | 高 | 状態表示 |
-| `zeus add task` | 高 | タスク追加 |
+| `zeus add activity` | 高 | アクティビティ追加 |
 | `zeus list` | 高 | 一覧表示 |
 | `zeus doctor` | 中 | 診断 |
 | `zeus fix` | 中 | 修復 |

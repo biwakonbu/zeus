@@ -32,8 +32,8 @@ zeus status
 zeus status                    # プロジェクト状況確認
 zeus pending                   # 承認待ちアイテム確認
 
-# タスク管理
-zeus list tasks --status=in_progress  # 進行中タスク
+# アクティビティ管理
+zeus list activities --status=in_progress  # 進行中アクティビティ
 zeus suggest                   # AI提案を確認
 zeus apply <id>                # 提案を適用
 
@@ -66,11 +66,11 @@ zeus dashboard
 
 ### 2.2 技術リーダー/アーキテクト向け
 
-#### タスク分析
+#### アクティビティ分析
 ```bash
-# タスク構造の確認
-zeus list tasks                # タスク一覧
-zeus explain <task-id>         # AI解説
+# アクティビティ構造の確認
+zeus list activities           # アクティビティ一覧
+zeus explain <activity-id>     # AI解説
 zeus graph                     # 依存関係グラフ
 
 # リスク分析
@@ -80,7 +80,7 @@ zeus doctor                    # プロジェクト診断
 
 #### YAML直接編集
 ```bash
-# .zeus/tasks/active.yaml を直接編集
+# .zeus/activities/*.yaml を直接編集
 # 編集後は zeus doctor で構文チェック
 ```
 
@@ -88,11 +88,11 @@ zeus doctor                    # プロジェクト診断
 
 #### 目標管理
 ```bash
-# タスク一覧の確認
-zeus list tasks
+# アクティビティ一覧の確認
+zeus list activities
 
-# 新規タスク追加
-zeus add task "新機能の実装" --due 2026-03-31
+# 新規アクティビティ追加
+zeus add activity "新機能の実装" --due 2026-03-31
 
 # 進捗確認
 zeus status
@@ -222,8 +222,8 @@ zeus predict completion
 # =====================
 # Estimated completion: 2024-03-15
 # Confidence interval: 2024-03-10 ~ 2024-03-20
-# Remaining tasks: 12
-# Average velocity: 2.5 tasks/day
+# Remaining activities: 12
+# Average velocity: 2.5 activities/day
 ```
 
 #### リスク分析
@@ -235,9 +235,9 @@ zeus predict risk
 # Overall risk level: MEDIUM
 #
 # Risk factors:
-#   [HIGH] Dependency complexity - 3 tasks have 5+ dependencies
-#   [MEDIUM] Estimation accuracy - 30% of tasks exceeded estimates
-#   [LOW] Scope creep - 2 new tasks added this week
+#   [HIGH] Dependency complexity - 3 activities have 5+ dependencies
+#   [MEDIUM] Estimation accuracy - 30% of activities exceeded estimates
+#   [LOW] Scope creep - 2 new activities added this week
 ```
 
 #### ベロシティ分析
@@ -246,10 +246,10 @@ zeus predict velocity
 # 出力例:
 # Velocity Analysis
 # =================
-# Current velocity: 2.5 tasks/day
+# Current velocity: 2.5 activities/day
 # Trend: +0.3 (improving)
-# 7-day average: 2.2 tasks/day
-# 30-day average: 2.0 tasks/day
+# 7-day average: 2.2 activities/day
+# 30-day average: 2.0 activities/day
 ```
 
 #### 全予測を一度に表示
@@ -347,8 +347,8 @@ kill $(lsof -t -i:8080)
 # プロジェクト状態を取得
 curl http://localhost:8080/api/status | jq
 
-# タスク一覧を取得
-curl http://localhost:8080/api/tasks | jq
+# アクティビティ一覧を取得
+curl http://localhost:8080/api/activities | jq
 
 # 依存関係グラフ（Mermaid形式）を取得
 curl http://localhost:8080/api/graph
@@ -406,7 +406,7 @@ Morning Check (朝)
 
 Work Session (作業中)
 ├── zeus approve/reject  # 提案への対応
-├── zeus add task        # タスク追加
+├── zeus add activity    # アクティビティ追加
 └── zeus apply           # AI提案の適用
 
 End of Day (終業時)
@@ -519,10 +519,10 @@ zeus doctor
 
 # 結果例:
 # [FAIL] yaml_syntax: 2 YAML syntax errors found
-#   - tasks/active.yaml: invalid indentation
+#   - activities/act-001.yaml: invalid indentation
 
 # 解決: エディタで修正
-zeus edit tasks
+vim .zeus/activities/act-001.yaml
 ```
 
 #### 状態の不整合
@@ -585,7 +585,7 @@ zeus fix
    - `zeus report` でレポート生成
 
 4. **直接編集の活用**
-   - 複雑な変更は `.zeus/tasks/active.yaml` を直接編集
+   - 複雑な変更は `.zeus/activities/*.yaml` を直接編集
    - Gitでの差分管理が容易
 
 5. **分析機能の活用**
@@ -661,8 +661,8 @@ dashboard:
 | 用語 | 説明 |
 |------|------|
 | Objective | プロジェクトの目標・マイルストーン |
-| Task | 具体的な作業項目 |
-| Entity | Zeus管理対象（Task, Objective, Resource等） |
+| Activity | 具体的な作業項目（Simple/Flow モード） |
+| Entity | Zeus管理対象（Activity, Objective, Deliverable等） |
 | Approval | 承認プロセス |
 | Override | 人間によるAI提案の上書き |
 | Snapshot | 特定時点の状態保存 |

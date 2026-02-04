@@ -6,10 +6,5 @@ export { default as Icon } from './Icon.svelte';
 export { default as EmptyState } from './EmptyState.svelte';
 export { default as Toast } from './Toast.svelte';
 export { default as ToastContainer } from './ToastContainer.svelte';
-export { default as ContextMenu } from './ContextMenu.svelte';
 export { default as KeyboardHelp } from './KeyboardHelp.svelte';
-export { default as RichTooltip } from './RichTooltip.svelte';
 export { default as OverlayPanel } from './OverlayPanel.svelte';
-
-// 型定義のエクスポート
-export type { TooltipEntity } from './types';

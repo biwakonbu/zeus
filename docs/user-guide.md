@@ -79,8 +79,8 @@ cd your-project
 # 2. Zeus を初期化
 zeus init
 
-# 3. タスクを追加
-zeus add task "ドキュメント作成"
+# 3. アクティビティを追加
+zeus add activity "ドキュメント作成"
 
 # 4. 状態を確認
 zeus status
@@ -94,7 +94,7 @@ Zeus Project Status
 Project: New Zeus Project
 Health:  good
 
-Tasks Summary:
+Activities Summary:
   Total:       1
   Completed:   0
   In Progress: 0
@@ -137,38 +137,38 @@ zeus init
 zeus status
 ```
 
-### 4.3 タスク管理
+### 4.3 アクティビティ管理
 
-#### タスクの追加
+#### アクティビティの追加
 
 ```bash
-zeus add task "新機能の実装"
+zeus add activity "新機能の実装"
 ```
 
 出力例:
 ```
-✓ Added task: 新機能の実装 (ID: task-abc123)
+✓ Added activity: 新機能の実装 (ID: act-abc123)
 ```
 
-Note: `automation_level` が `approve` の場合、タスク追加時に承認フローが適用されます。
+Note: `automation_level` が `approve` の場合、アクティビティ追加時に承認フローが適用されます。
 
-#### タスク一覧の表示
+#### アクティビティ一覧の表示
 
 ```bash
-# 全タスクを表示
+# 全アクティビティを表示
 zeus list
 
-# タスクのみ表示
-zeus list task
+# アクティビティのみ表示
+zeus list activities
 ```
 
 出力例:
 ```
-Tasks (3 items)
+Activities (3 items)
 ────────────────────────────────────────
-[pending] task-001 - ドキュメント作成
-[in_progress] task-002 - 新機能の実装
-[completed] task-003 - バグ修正
+[pending] act-001 - ドキュメント作成
+[in_progress] act-002 - 新機能の実装
+[completed] act-003 - バグ修正
 ```
 
 ### 4.4 診断と修復
@@ -184,7 +184,7 @@ zeus doctor
 Zeus Doctor - System Diagnosis
 ═══════════════════════════════════════════════════════════
 ✓ zeus_yaml: zeus.yaml exists and is valid
-✓ tasks_dir: tasks directory exists
+✓ activities_dir: activities directory exists
 ⚠ backup_health: No recent backups found
 ═══════════════════════════════════════════════════════════
 Overall: fair
@@ -280,10 +280,10 @@ zeus history -n 5
 Project History
 ═══════════════════════════════════════════════════════════
 1. 2026-01-15T10:00:00Z [リリース前]
-   Health: good | Tasks: 10 (Completed: 8, In Progress: 1, Pending: 1)
+   Health: good | Activities: 10 (Completed: 8, In Progress: 1, Pending: 1)
 
 2. 2026-01-14T18:00:00Z
-   Health: fair | Tasks: 10 (Completed: 5, In Progress: 3, Pending: 2)
+   Health: fair | Activities: 10 (Completed: 5, In Progress: 3, Pending: 2)
 ═══════════════════════════════════════════════════════════
 Use 'zeus snapshot restore <timestamp>' to restore a snapshot.
 ```
@@ -342,11 +342,11 @@ zeus apply --all --dry-run
 # プロジェクト全体の説明
 zeus explain project
 
-# 特定タスクの説明
-zeus explain task-001
+# 特定アクティビティの説明
+zeus explain act-001
 
 # コンテキスト情報を含む
-zeus explain task-001 --context
+zeus explain act-001 --context
 ```
 
 ### 7.3 予測分析
@@ -375,8 +375,8 @@ Zeus Prediction Analysis
 [COMPLETION PREDICTION]
   Estimated Completion: 2026-02-15
   Margin:               +/- 5 days
-  Average Velocity:     3.5 tasks/week
-  Remaining Tasks:      12
+  Average Velocity:     3.5 activities/week
+  Remaining Activities: 12
   Confidence:           75%
 
 [RISK PREDICTION]
@@ -388,10 +388,10 @@ Zeus Prediction Analysis
       複数のタスクが相互依存しています
 
 [VELOCITY ANALYSIS]
-  Last 7 days:          4 tasks completed
-  Last 14 days:         7 tasks completed
-  Last 30 days:         15 tasks completed
-  Weekly Average:       3.5 tasks
+  Last 7 days:          4 activities completed
+  Last 14 days:         7 activities completed
+  Last 30 days:         15 activities completed
+  Weekly Average:       3.5 activities
   Trend:                Stable
 ============================================================
 ```

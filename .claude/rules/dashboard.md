@@ -250,7 +250,6 @@ UML アクティビティ図を表示するビュー。フルスクリーンキ�
 | EmptyState | データなし状態 | `$lib/components/ui/EmptyState.svelte` |
 | Toast | トースト通知 | `$lib/components/ui/Toast.svelte` |
 | ToastContainer | トーストコンテナ | `$lib/components/ui/ToastContainer.svelte` |
-| ContextMenu | コンテキストメニュー | `$lib/components/ui/ContextMenu.svelte` |
 | KeyboardHelp | ショートカットヘルプ | `$lib/components/ui/KeyboardHelp.svelte` |
 
 ### Store システム
