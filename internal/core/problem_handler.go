@@ -7,26 +7,26 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // ProblemHandler は ProblemEntity エンティティのハンドラー
-// 個別ファイル (problems/prob-NNN.yaml) で管理
+// 個別ファイル (problems/prob-{uuid}.yaml) で管理
 type ProblemHandler struct {
 	fileStore          FileStore
 	sanitizer          *Sanitizer
 	objectiveHandler   *ObjectiveHandler
 	deliverableHandler *DeliverableHandler
-	idCounterManager   *IDCounterManager
 }
 
 // NewProblemHandler は新しい ProblemHandler を作成
-func NewProblemHandler(fs FileStore, objHandler *ObjectiveHandler, delHandler *DeliverableHandler, idMgr *IDCounterManager) *ProblemHandler {
+func NewProblemHandler(fs FileStore, objHandler *ObjectiveHandler, delHandler *DeliverableHandler, _ *IDCounterManager) *ProblemHandler {
 	return &ProblemHandler{
 		fileStore:          fs,
 		sanitizer:          NewSanitizer(),
 		objectiveHandler:   objHandler,
 		deliverableHandler: delHandler,
-		idCounterManager:   idMgr,
 	}
 }
 
@@ -47,12 +47,8 @@ func (h *ProblemHandler) Add(ctx context.Context, name string, opts ...EntityOpt
 		return nil, fmt.Errorf("invalid title: %w", err)
 	}
 
-	// 次の ID を生成
-	nextNum, err := h.getNextIDNumber(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate ID: %w", err)
-	}
-	id := fmt.Sprintf("prob-%03d", nextNum)
+	// UUID 形式の ID を生成
+	id := h.generateID()
 
 	now := Now()
 	problem := &ProblemEntity{
@@ -227,33 +223,9 @@ func (h *ProblemHandler) Delete(ctx context.Context, id string) error {
 	return h.fileStore.Delete(ctx, filePath)
 }
 
-// getNextIDNumber は次の ID 番号を取得（O(1)）
-func (h *ProblemHandler) getNextIDNumber(ctx context.Context) (int, error) {
-	if h.idCounterManager != nil {
-		return h.idCounterManager.GetNextID(ctx, "problem")
-	}
-	// フォールバック: 従来の O(N) 方式
-	return h.getNextIDNumberLegacy(ctx)
-}
-
-// getNextIDNumberLegacy は従来の O(N) 方式で次の ID 番号を取得
-func (h *ProblemHandler) getNextIDNumberLegacy(ctx context.Context) (int, error) {
-	problems, err := h.getAllProblems(ctx)
-	if err != nil {
-		return 1, nil
-	}
-
-	maxNum := 0
-	for _, prob := range problems {
-		var num int
-		if _, err := fmt.Sscanf(prob.ID, "prob-%d", &num); err == nil {
-			if num > maxNum {
-				maxNum = num
-			}
-		}
-	}
-
-	return maxNum + 1, nil
+// generateID は UUID 形式の Problem ID を生成
+func (h *ProblemHandler) generateID() string {
+	return fmt.Sprintf("prob-%s", uuid.New().String()[:8])
 }
 
 // getAllProblems は全 Problem を取得

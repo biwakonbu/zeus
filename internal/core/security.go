@@ -29,25 +29,26 @@ func (e *ValidationError) Error() string {
 }
 
 // idPatterns は各エンティティタイプの ID パターン
+// 既存の連番形式と新しい UUID 形式の両方を許可
 var idPatterns = map[string]*regexp.Regexp{
-	"vision":        regexp.MustCompile(`^vision-[0-9]{3}$`),
-	"objective":     regexp.MustCompile(`^obj-[0-9]{3}$`),
-	"deliverable":   regexp.MustCompile(`^del-[0-9]{3}$`),
-	"consideration": regexp.MustCompile(`^con-[0-9]{3}$`),
-	"decision":      regexp.MustCompile(`^dec-[0-9]{3}$`),
-	"problem":       regexp.MustCompile(`^prob-[0-9]{3}$`),
-	"risk":          regexp.MustCompile(`^risk-[0-9]{3}$`),
-	"assumption":    regexp.MustCompile(`^assum-[0-9]{3}$`),
-	"constraint":    regexp.MustCompile(`^const-[0-9]{3}$`),
-	"quality":       regexp.MustCompile(`^qual-[0-9]{3}$`),
+	"vision":        regexp.MustCompile(`^vision-([0-9]{3}|[a-f0-9]{8})$`),
+	"objective":     regexp.MustCompile(`^obj-([0-9]{3}|[a-f0-9]{8})$`),
+	"deliverable":   regexp.MustCompile(`^del-([0-9]{3}|[a-f0-9]{8})$`),
+	"consideration": regexp.MustCompile(`^con-([0-9]{3}|[a-f0-9]{8})$`),
+	"decision":      regexp.MustCompile(`^dec-([0-9]{3}|[a-f0-9]{8})$`),
+	"problem":       regexp.MustCompile(`^prob-([0-9]{3}|[a-f0-9]{8})$`),
+	"risk":          regexp.MustCompile(`^risk-([0-9]{3}|[a-f0-9]{8})$`),
+	"assumption":    regexp.MustCompile(`^assum-([0-9]{3}|[a-f0-9]{8})$`),
+	"constraint":    regexp.MustCompile(`^const-([0-9]{3}|[a-f0-9]{8})$`),
+	"quality":       regexp.MustCompile(`^qual-([0-9]{3}|[a-f0-9]{8})$`),
 	// 既存の Task エンティティ（UUID ベース）
 	"task": regexp.MustCompile(`^task-[a-f0-9]{8}$`),
 	// UML UseCase エンティティ（UUID ベース）
 	"actor":     regexp.MustCompile(`^actor-[a-f0-9]{8}$`),
 	"usecase":   regexp.MustCompile(`^uc-[a-f0-9]{8}$`),
 	"subsystem": regexp.MustCompile(`^sub-[a-f0-9]{8}$`),
-	// UML Activity エンティティ（連番形式）
-	"activity": regexp.MustCompile(`^act-[0-9]{3}$`),
+	// UML Activity エンティティ（連番と UUID の両方を許可）
+	"activity": regexp.MustCompile(`^act-([0-9]{3}|[a-f0-9]{8})$`),
 }
 
 // entityDirectories はエンティティタイプとディレクトリのマッピング

@@ -8,7 +8,7 @@ description: プロジェクト全体をスキャンし、現在の状態を分�
 
 ## 概要
 
-Zeus プロジェクト（New Zeus Project）の 10概念モデル全体（Vision, Objective, Deliverable, Task, Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality）および Actor/UseCase/Subsystem/Activity を分析します。
+Zeus プロジェクト（New Zeus Project）の 10概念モデル全体（Vision, Objective, Deliverable, Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality）および Actor/UseCase/Subsystem/Activity を分析します。
 
 ## 入力
 
@@ -31,7 +31,7 @@ project:
   entities:
     objectives: 7
     deliverables: 4
-    tasks: 3
+    activities: 6
     considerations: 2
     decisions: 1
     problems: 3
@@ -42,7 +42,6 @@ project:
     actors: 5
     usecases: 8
     subsystems: 3
-    activities: 3
 
   # 参照整合性
   integrity:
@@ -72,14 +71,14 @@ project:
   wbs:
     max_depth: 3
     total_nodes: 15
-    orphan_tasks: []
+    orphan_activities: []
 
   # タイムライン
   timeline:
     project_start: "2026-01-01"
     project_end: "2026-03-31"
     critical_path_length: 5
-    overdue_tasks: []
+    overdue_activities: []
 ```
 
 ## 基本コマンド
@@ -107,8 +106,8 @@ zeus list objectives
 # Deliverable 一覧
 zeus list deliverables
 
-# Task 一覧
-zeus list tasks
+# Activity 一覧
+zeus list activities
 
 # Consideration 一覧（検討事項）
 zeus list considerations
@@ -139,9 +138,6 @@ zeus list usecases
 
 # Subsystem 一覧
 zeus list subsystems
-
-# Activity 一覧
-zeus list activities
 ```
 
 ## 分析・可視化
@@ -208,7 +204,7 @@ zeus uml show activity --id act-001
 | Actor | アクター定義 | `.zeus/actors.yaml` | 単一ファイル |
 | UseCase | ユースケース定義 | `.zeus/usecases/uc-NNN.yaml` | Objective 参照必須 |
 | Subsystem | サブシステム定義 | `.zeus/subsystems.yaml` | 単一ファイル、UseCase グルーピング |
-| Activity | アクティビティ図 | `.zeus/activities/act-NNN.yaml` | UseCase/Deliverable 参照可 |
+| Activity | アクティビティ（作業単位 + プロセス可視化） | `.zeus/activities/act-NNN.yaml` | Simple/Flow 2モード対応 |
 
 ### Activity と Deliverable の関係性
 
@@ -264,13 +260,13 @@ nodes:
 ### 循環参照検出
 - Objective の親子階層で循環を検出
 - UseCase の relations で循環を検出
+- Activity の dependencies で循環を検出
 
 ### Lint チェック
 - **ID フォーマット検証**: 全エンティティの ID が正しい形式か
-  - Objective: `obj-NNN`
-  - Deliverable: `del-NNN`
-  - Activity: `act-NNN`（連番形式）
-  - Task: `task-XXXXXXXX`（UUID形式）
+  - Objective: `obj-NNN` または `obj-XXXXXXXX`（UUID形式）
+  - Deliverable: `del-NNN` または `del-XXXXXXXX`（UUID形式）
+  - Activity: `act-NNN` または `act-XXXXXXXX`（UUID形式）
   - 他のエンティティも個別の形式で検証
 - **status/progress 整合性**: `progress=100` なら `status=completed` であるべき
 
@@ -279,7 +275,7 @@ nodes:
 ```bash
 # ダッシュボード起動後（デフォルト: localhost:8080）
 curl http://localhost:8080/api/status
-curl http://localhost:8080/api/tasks
+curl http://localhost:8080/api/activities
 curl http://localhost:8080/api/graph
 curl http://localhost:8080/api/predict
 curl http://localhost:8080/api/wbs
@@ -288,11 +284,10 @@ curl http://localhost:8080/api/actors
 curl http://localhost:8080/api/usecases
 curl http://localhost:8080/api/subsystems
 curl http://localhost:8080/api/uml/usecase
-curl http://localhost:8080/api/activities
 curl http://localhost:8080/api/uml/activity?id=act-001
 ```
 
 ## 関連スキル
 
-- zeus-task-suggest - 概念間の関連に基づくタスク提案
+- zeus-activity-suggest - 概念間の関連に基づく Activity 提案
 - zeus-risk-analysis - Risk/Problem/Assumption の詳細分析

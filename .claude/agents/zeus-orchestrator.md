@@ -60,10 +60,13 @@ zeus uml show activity                       # Activity 一覧
 zeus uml show activity --id act-001          # 特定 Activity 表示
 ```
 
-#### Activity（アクティビティ図）
+#### Activity（アクティビティ図/作業単位）
 ```bash
 zeus add activity "アクティビティ名" \
   --usecase <uc-id> \      # 任意（紐付け）
+  --priority high \        # high | medium | low
+  --assignee "担当者" \
+  --due 2026-01-31 \
   -d "説明"
 ```
 
@@ -129,10 +132,10 @@ zeus add deliverable "成果物名" \
   --acceptance-criteria "基準1,基準2"
 ```
 
-### Task
+### Activity（作業単位）
 ```bash
-zeus add task "タスク名" \
-  --parent <task-id> \
+zeus add activity "作業名" \
+  --parent <act-id> \
   --start 2026-01-20 \
   --due 2026-01-31 \
   --progress 0 \
@@ -208,7 +211,7 @@ zeus add quality "品質基準名" \
 zeus list vision        # Vision
 zeus list objectives    # Objective 一覧
 zeus list deliverables  # Deliverable 一覧
-zeus list tasks         # Task 一覧
+zeus list activities    # Activity 一覧
 zeus list considerations # Consideration 一覧
 zeus list decisions     # Decision 一覧
 zeus list problems      # Problem 一覧
@@ -218,7 +221,6 @@ zeus list constraints   # Constraint 一覧
 zeus list quality       # Quality 一覧
 zeus list actors        # Actor 一覧
 zeus list usecases      # UseCase 一覧
-zeus list activities    # Activity 一覧
 ```
 
 ## 参照整合性
@@ -237,15 +239,19 @@ zeus list activities    # Activity 一覧
 - Assumption → Objective/Deliverable
 - UseCase → Actor（actors[].actor_id）
 - UseCase → UseCase（relations[].target_id）
+- Activity → UseCase（usecase_id）
+- Activity → Deliverable（related_deliverables）
+- Activity → Activity（dependencies）
 
 ### 循環参照検出
 - Objective の親子階層で自動検出
+- Activity の依存関係で自動検出
 
 ## ダッシュボード API
 
 ```bash
 GET /api/status     # プロジェクト状態
-GET /api/tasks      # タスク一覧
+GET /api/activities # Activity 一覧
 GET /api/graph      # 依存関係グラフ
 GET /api/predict    # 予測分析
 GET /api/wbs        # WBS階層
@@ -254,7 +260,6 @@ GET /api/events     # SSE ストリーム
 GET /api/actors     # Actor 一覧
 GET /api/usecases   # UseCase 一覧
 GET /api/uml/usecase # ユースケース図（Mermaid）
-GET /api/activities  # Activity 一覧
 GET /api/uml/activity?id=X # アクティビティ図
 ```
 
@@ -267,5 +272,5 @@ GET /api/uml/activity?id=X # アクティビティ図
 ## 使用スキル
 
 - @zeus-project-scan - プロジェクトスキャン
-- @zeus-task-suggest - タスク提案
+- @zeus-activity-suggest - Activity 提案
 - @zeus-risk-analysis - リスク分析

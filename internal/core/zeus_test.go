@@ -19,7 +19,7 @@ func TestGenerateTaskID(t *testing.T) {
 
 	z := New(tmpDir)
 
-	// ID 生成テスト
+	// ID 生成テスト（レガシーメソッドのテスト）
 	id1 := z.generateTaskID()
 	id2 := z.generateTaskID()
 
@@ -48,7 +48,7 @@ func TestGenerateTaskIDUniqueness(t *testing.T) {
 
 	z := New(tmpDir)
 
-	// 1000個の ID を生成して重複がないか確認
+	// 1000個の ID を生成して重複がないか確認（レガシーメソッドのテスト）
 	ids := make(map[string]bool)
 	for i := 0; i < 1000; i++ {
 		id := z.generateTaskID()
@@ -149,7 +149,7 @@ func TestAddContextTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err = z.Add(ctx, "task", "test")
+	_, err = z.Add(ctx, "activity", "test")
 	if err == nil {
 		t.Error("expected error for cancelled context")
 	}
@@ -173,7 +173,7 @@ func TestListContextTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err = z.List(ctx, "task")
+	_, err = z.List(ctx, "activity")
 	if err == nil {
 		t.Error("expected error for cancelled context")
 	}
@@ -212,40 +212,40 @@ func TestZeusIntegration(t *testing.T) {
 		t.Errorf("expected 0 tasks, got %d", status.State.Summary.TotalTasks)
 	}
 
-	// Add task
-	addResult, err := z.Add(ctx, "task", "Test Task 1")
+	// Add activity
+	addResult, err := z.Add(ctx, "activity", "Test Activity 1")
 	if err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
 	if !addResult.Success {
 		t.Error("Add should succeed")
 	}
-	if addResult.Entity != "task" {
-		t.Errorf("expected entity 'task', got %q", addResult.Entity)
+	if addResult.Entity != "activity" {
+		t.Errorf("expected entity 'activity', got %q", addResult.Entity)
 	}
 
-	// List tasks
-	listResult, err := z.List(ctx, "tasks")
+	// List activities
+	listResult, err := z.List(ctx, "activities")
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
 	if listResult.Total != 1 {
-		t.Errorf("expected 1 task, got %d", listResult.Total)
+		t.Errorf("expected 1 activity, got %d", listResult.Total)
 	}
 
-	// Add another task
-	_, err = z.Add(ctx, "task", "Test Task 2")
+	// Add another activity
+	_, err = z.Add(ctx, "activity", "Test Activity 2")
 	if err != nil {
-		t.Fatalf("Add second task failed: %v", err)
+		t.Fatalf("Add second activity failed: %v", err)
 	}
 
 	// List again
-	listResult, err = z.List(ctx, "tasks")
+	listResult, err = z.List(ctx, "activities")
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
 	if listResult.Total != 2 {
-		t.Errorf("expected 2 tasks, got %d", listResult.Total)
+		t.Errorf("expected 2 activities, got %d", listResult.Total)
 	}
 }
 
@@ -456,18 +456,18 @@ func TestRestoreSnapshotIntegration(t *testing.T) {
 		t.Fatalf("Init failed: %v", err)
 	}
 
-	// タスクを追加
-	_, _ = z.Add(ctx, "task", "Task 1")
+	// Activity を追加
+	_, _ = z.Add(ctx, "activity", "Activity 1")
 
 	// スナップショット作成
-	snapshot, err := z.CreateSnapshot(ctx, "before-more-tasks")
+	snapshot, err := z.CreateSnapshot(ctx, "before-more-activities")
 	if err != nil {
 		t.Fatalf("CreateSnapshot failed: %v", err)
 	}
 
-	// さらにタスクを追加
-	_, _ = z.Add(ctx, "task", "Task 2")
-	_, _ = z.Add(ctx, "task", "Task 3")
+	// さらに Activity を追加
+	_, _ = z.Add(ctx, "activity", "Activity 2")
+	_, _ = z.Add(ctx, "activity", "Activity 3")
 
 	// スナップショットから復元
 	err = z.RestoreSnapshot(ctx, snapshot.Timestamp)
@@ -477,9 +477,9 @@ func TestRestoreSnapshotIntegration(t *testing.T) {
 
 	// 復元後の状態を確認（スナップショット時点のタスク数が復元される）
 	status, _ := z.Status(ctx)
-	// 注意: RestoreSnapshot は状態のみを復元し、タスクストア自体は変更しない
+	// 注意: RestoreSnapshot は状態のみを復元し、Activity ストア自体は変更しない
 	if status.State.Summary.TotalTasks != 1 {
-		// スナップショット時点では 1 タスク
+		// スナップショット時点では 1 Activity
 		t.Logf("Note: RestoreSnapshot restores state snapshot, tasks count in state: %d", status.State.Summary.TotalTasks)
 	}
 }
@@ -568,8 +568,8 @@ func TestExplain_ProjectWithContext(t *testing.T) {
 	}
 }
 
-// Explain タスクテスト
-func TestExplain_Task(t *testing.T) {
+// Explain Activity テスト
+func TestExplain_Activity(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "zeus-test")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -585,13 +585,13 @@ func TestExplain_Task(t *testing.T) {
 		t.Fatalf("Init failed: %v", err)
 	}
 
-	// タスクを追加
-	addResult, err := z.Add(ctx, "task", "Test Task")
+	// Activity を追加
+	addResult, err := z.Add(ctx, "activity", "Test Activity")
 	if err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
 
-	// タスク説明を取得
+	// Activity 説明を取得
 	result, err := z.Explain(ctx, addResult.ID, false)
 	if err != nil {
 		t.Fatalf("Explain failed: %v", err)
@@ -600,8 +600,8 @@ func TestExplain_Task(t *testing.T) {
 	if result.EntityID != addResult.ID {
 		t.Errorf("expected EntityID %q, got %q", addResult.ID, result.EntityID)
 	}
-	if result.EntityType != "task" {
-		t.Errorf("expected EntityType 'task', got %q", result.EntityType)
+	if result.EntityType != "activity" {
+		t.Errorf("expected EntityType 'activity', got %q", result.EntityType)
 	}
 }
 
@@ -664,9 +664,9 @@ func TestBuildDependencyGraph(t *testing.T) {
 		t.Fatalf("Init failed: %v", err)
 	}
 
-	// タスクを追加
-	_, _ = z.Add(ctx, "task", "Task 1")
-	_, _ = z.Add(ctx, "task", "Task 2")
+	// Activity を追加
+	_, _ = z.Add(ctx, "activity", "Activity 1")
+	_, _ = z.Add(ctx, "activity", "Activity 2")
 
 	// 依存関係グラフを構築
 	graph, err := z.BuildDependencyGraph(ctx)
@@ -745,9 +745,9 @@ func TestPredict(t *testing.T) {
 		t.Fatalf("Init failed: %v", err)
 	}
 
-	// タスクを追加
-	_, _ = z.Add(ctx, "task", "Task 1")
-	_, _ = z.Add(ctx, "task", "Task 2")
+	// Activity を追加
+	_, _ = z.Add(ctx, "activity", "Activity 1")
+	_, _ = z.Add(ctx, "activity", "Activity 2")
 
 	// 予測を実行
 	result, err := z.Predict(ctx, "all")
@@ -926,7 +926,7 @@ func TestGetDirectoryStructure(t *testing.T) {
 	}
 
 	// 必須ディレクトリが含まれているか確認
-	requiredDirs := []string{"config", "tasks", "state", "approvals/pending", "approvals/approved", "approvals/rejected"}
+	requiredDirs := []string{"config", "state", "approvals/pending", "approvals/approved", "approvals/rejected"}
 	for _, required := range requiredDirs {
 		found := false
 		for _, dir := range dirs {
@@ -1171,36 +1171,6 @@ func TestPathTraversalError(t *testing.T) {
 	// Is() 検証
 	if !err.Is(ErrPathTraversal) {
 		t.Error("PathTraversalError should match ErrPathTraversal")
-	}
-}
-
-// ===== task_handler オプション関数テスト =====
-
-// WithTaskDependencies テスト
-func TestWithTaskDependencies(t *testing.T) {
-	task := &Task{}
-	deps := []string{"task-1", "task-2"}
-
-	opt := WithTaskDependencies(deps)
-	opt(task)
-
-	if len(task.Dependencies) != 2 {
-		t.Errorf("expected 2 dependencies, got %d", len(task.Dependencies))
-	}
-	if task.Dependencies[0] != "task-1" {
-		t.Errorf("expected first dependency 'task-1', got %q", task.Dependencies[0])
-	}
-}
-
-// WithTaskApprovalLevel テスト
-func TestWithTaskApprovalLevel(t *testing.T) {
-	task := &Task{}
-
-	opt := WithTaskApprovalLevel(ApprovalApprove)
-	opt(task)
-
-	if task.ApprovalLevel != ApprovalApprove {
-		t.Errorf("expected approval level 'approve', got %q", task.ApprovalLevel)
 	}
 }
 

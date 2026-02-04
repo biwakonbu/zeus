@@ -18,7 +18,7 @@ Zeus の 10 概念モデルを使用して、プロジェクト全体を俯瞰�
 | **L2** | 要件定義 | Objective (親なし) | 「CLI操作性」「AI統合」「可視化」 |
 | **L3** | 機能グループ | Objective (子) | 「状態管理機能」「分析機能」 |
 | **L4** | 個別機能仕様 | Deliverable | 「status コマンド」「graph コマンド」 |
-| **L5** | 作業単位 | Task | 「バグ修正」「機能追加」（未完了のみ） |
+| **L5** | 作業単位 | Activity | 「バグ修正」「機能追加」（未完了のみ） |
 
 ## 階層間の関係
 
@@ -27,7 +27,7 @@ L1 Vision (1件・不変)
  └─ L2 Objective (要件・数件)
      └─ L3 Objective (機能グループ・親参照)
          └─ L4 Deliverable (個別仕様・Objective参照)
-             └─ L5 Task (作業・Deliverable または Objective 参照)
+             └─ L5 Activity (作業・Deliverable または Objective 参照)
 ```
 
 ## 各階層の特性
@@ -44,7 +44,7 @@ L1 Vision (1件・不変)
 
 | 観点 | 説明 | 例 |
 |------|------|-----|
-| **機能要件** | 「〜ができる」 | 「タスクを管理できる」 |
+| **機能要件** | 「〜ができる」 | 「Activity を管理できる」 |
 | **非機能要件** | 品質特性 | 「安全である」「高速である」 |
 | **ユーザー価値** | 提供価値 | 「俯瞰できる」「AI支援を受けられる」 |
 
@@ -55,7 +55,7 @@ L1 Vision (1件・不変)
 | Vision | L1 | プロダクトの理想像 |
 | Objective | L2, L3 | 要件・機能グループ |
 | Deliverable | L4 | 個別機能仕様・成果物 |
-| Task | L5 | 作業単位（未完了のみ） |
+| Activity | L5 | 作業単位（未完了のみ） |
 | Consideration | 意思決定プロセス | L2-L4 策定時の検討記録 |
 | Decision | 意思決定結果 | 要件・仕様確定の記録 |
 | Problem | リスク管理 | L2-L4 に紐付く課題 |
@@ -90,10 +90,10 @@ zeus add objective "機能グループ名" --parent obj-NNN --wbs "N.M" --progre
 zeus add deliverable "仕様名" --objective obj-NNN --format code --progress <0-100>
 ```
 
-### L5 Task（未完了作業）登録
+### L5 Activity（作業単位）登録
 
 ```bash
-zeus add task "作業名" --priority <high|medium|low> --wbs "N.M.L" -d "説明"
+zeus add activity "作業名" --priority <high|medium|low> --wbs "N.M.L" -d "説明"
 ```
 
 ## WBS 設計原則
@@ -108,5 +108,5 @@ zeus add task "作業名" --priority <high|medium|low> --wbs "N.M.L" -d "説明"
 ## 関連スキル
 
 - zeus-project-scan - プロジェクト状態のスキャン
-- zeus-task-suggest - タスク提案
+- zeus-activity-suggest - Activity 提案
 - zeus-risk-analysis - リスク分析

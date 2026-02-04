@@ -37,29 +37,6 @@ type TaskStats struct {
 	Pending    int `json:"pending"`
 }
 
-// TasksResponse はタスク一覧 API のレスポンス
-type TasksResponse struct {
-	Tasks []TaskItem `json:"tasks"`
-	Total int        `json:"total"`
-}
-
-// TaskItem はタスクアイテム
-type TaskItem struct {
-	ID           string   `json:"id"`
-	Title        string   `json:"title"`
-	Status       string   `json:"status"`
-	Priority     string   `json:"priority"`
-	Assignee     string   `json:"assignee"`
-	Dependencies []string `json:"dependencies"`
-
-	// Phase 6A: WBS・タイムライン機能用フィールド
-	ParentID  string `json:"parent_id,omitempty"`
-	StartDate string `json:"start_date,omitempty"`
-	DueDate   string `json:"due_date,omitempty"`
-	Progress  int    `json:"progress"`
-	WBSCode   string `json:"wbs_code,omitempty"`
-}
-
 // GraphResponse はグラフ API のレスポンス
 type GraphResponse struct {
 	Mermaid  string     `json:"mermaid"`
@@ -153,45 +130,6 @@ func (s *Server) handleAPIStatus(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 		PendingApprovals: status.PendingApprovals,
-	}
-
-	writeJSON(w, http.StatusOK, response)
-}
-
-// handleAPITasks はタスク一覧 API を処理
-func (s *Server) handleAPITasks(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "GET メソッドのみ許可されています")
-		return
-	}
-
-	ctx := r.Context()
-	result, err := s.zeus.List(ctx, "task")
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	tasks := make([]TaskItem, len(result.Items))
-	for i, t := range result.Items {
-		tasks[i] = TaskItem{
-			ID:           t.ID,
-			Title:        t.Title,
-			Status:       string(t.Status),
-			Priority:     string(t.Priority),
-			Assignee:     t.Assignee,
-			Dependencies: nonNilStrings(t.Dependencies),
-			ParentID:     t.ParentID,
-			StartDate:    t.StartDate,
-			DueDate:      t.DueDate,
-			Progress:     t.Progress,
-			WBSCode:      t.WBSCode,
-		}
-	}
-
-	response := TasksResponse{
-		Tasks: tasks,
-		Total: result.Total,
 	}
 
 	writeJSON(w, http.StatusOK, response)

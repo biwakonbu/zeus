@@ -21,8 +21,8 @@ paths:
 
 | モジュール | 責務 |
 |-----------|------|
-| GraphBuilder | タスク依存関係グラフの構築 |
-| DependencyGraph | グラフ構造、循環検出、統計計算、可視化出力、下流/上流タスク取得 |
+| GraphBuilder | Activity 依存関係グラフの構築 |
+| DependencyGraph | グラフ構造、循環検出、統計計算、可視化出力、下流/上流 Activity 取得 |
 | Predictor | 完了日予測、リスク分析、ベロシティ計算 |
 | WBSBuilder | WBS 階層構築、ParentID 循環参照検出 |
 | TimelineBuilder | タイムライン構築、クリティカルパス計算（CPM） |
@@ -79,9 +79,8 @@ zeus init 実行後、ターゲットプロジェクトに生成される構造:
 .zeus/
 ├── zeus.yaml              # プロジェクト定義（メイン）
 ├── config/                # 設定ファイル
-├── tasks/
-│   ├── active.yaml        # 進行中タスク
-│   └── backlog.yaml       # バックログ
+├── activities/            # Activity 管理
+│   └── act-NNN.yaml       # 個別 Activity
 ├── state/
 │   ├── current.yaml       # 現在の状態
 │   └── snapshots/         # 履歴スナップショット

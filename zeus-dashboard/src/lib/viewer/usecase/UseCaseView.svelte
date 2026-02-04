@@ -3,7 +3,7 @@
 	// ミニマルデザイン: キャンバスが主役、パネルはオーバーレイで必要時のみ表示
 	import { onMount, onDestroy } from 'svelte';
 	import type { UseCaseDiagramResponse, ActorItem, UseCaseItem, SubsystemItem } from '$lib/types/api';
-	import { fetchUseCaseDiagram, fetchSubsystems } from '$lib/api/client';
+	import { fetchUseCaseDiagram, fetchSubsystems, fetchActivities } from '$lib/api/client';
 	import { Icon, EmptyState, OverlayPanel } from '$lib/components/ui';
 	import { UseCaseEngine, type UseCaseEngineData } from './engine/UseCaseEngine';
 	import UseCaseListPanel from './UseCaseListPanel.svelte';
@@ -85,17 +85,22 @@
 	// サブシステムデータ
 	let subsystems: SubsystemItem[] = $state([]);
 
-	// データ取得（ユースケース図とサブシステムを並列取得）
+	// 直接取得した Activity データ（props からのフォールバック対応）
+	let fetchedActivities: ActivityItem[] = $state([]);
+
+	// データ取得（ユースケース図、サブシステム、Activity を並列取得）
 	async function loadData() {
 		loading = true;
 		error = null;
 		try {
-			const [diagramData, subsystemsResponse] = await Promise.all([
+			const [diagramData, subsystemsResponse, activitiesResponse] = await Promise.all([
 				fetchUseCaseDiagram(boundary || undefined),
-				fetchSubsystems()
+				fetchSubsystems(),
+				fetchActivities()
 			]);
 			data = diagramData;
 			subsystems = subsystemsResponse.subsystems || [];
+			fetchedActivities = activitiesResponse.activities || [];
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'データの取得に失敗しました';
 		} finally {
@@ -388,7 +393,7 @@
 							usecase={selectedUseCase}
 							actors={data.actors}
 							usecases={data.usecases}
-							{activities}
+							activities={fetchedActivities.length > 0 ? fetchedActivities : activities}
 							onClose={closeDetailPanel}
 						/>
 					</div>

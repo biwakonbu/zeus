@@ -7,25 +7,25 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // DecisionHandler は DecisionEntity エンティティのハンドラー
-// 個別ファイル (decisions/dec-NNN.yaml) で管理
+// 個別ファイル (decisions/dec-{uuid}.yaml) で管理
 // Decision はイミュータブル：一度作成されると更新不可
 type DecisionHandler struct {
 	fileStore            FileStore
 	sanitizer            *Sanitizer
 	considerationHandler *ConsiderationHandler
-	idCounterManager     *IDCounterManager
 }
 
 // NewDecisionHandler は新しい DecisionHandler を作成
-func NewDecisionHandler(fs FileStore, conHandler *ConsiderationHandler, idMgr *IDCounterManager) *DecisionHandler {
+func NewDecisionHandler(fs FileStore, conHandler *ConsiderationHandler, _ *IDCounterManager) *DecisionHandler {
 	return &DecisionHandler{
 		fileStore:            fs,
 		sanitizer:            NewSanitizer(),
 		considerationHandler: conHandler,
-		idCounterManager:     idMgr,
 	}
 }
 
@@ -47,12 +47,8 @@ func (h *DecisionHandler) Add(ctx context.Context, name string, opts ...EntityOp
 		return nil, fmt.Errorf("invalid title: %w", err)
 	}
 
-	// 次の ID を生成
-	nextNum, err := h.getNextIDNumber(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate ID: %w", err)
-	}
-	id := fmt.Sprintf("dec-%03d", nextNum)
+	// UUID 形式の ID を生成
+	id := h.generateID()
 
 	now := Now()
 	decision := &DecisionEntity{
@@ -159,33 +155,9 @@ func (h *DecisionHandler) Delete(ctx context.Context, id string) error {
 	return fmt.Errorf("decision is immutable: cannot delete decision %s (decisions are permanent records)", id)
 }
 
-// getNextIDNumber は次の ID 番号を取得（O(1)）
-func (h *DecisionHandler) getNextIDNumber(ctx context.Context) (int, error) {
-	if h.idCounterManager != nil {
-		return h.idCounterManager.GetNextID(ctx, "decision")
-	}
-	// フォールバック: 従来の O(N) 方式
-	return h.getNextIDNumberLegacy(ctx)
-}
-
-// getNextIDNumberLegacy は従来の O(N) 方式で次の ID 番号を取得
-func (h *DecisionHandler) getNextIDNumberLegacy(ctx context.Context) (int, error) {
-	decisions, err := h.getAllDecisions(ctx)
-	if err != nil {
-		return 1, nil
-	}
-
-	maxNum := 0
-	for _, dec := range decisions {
-		var num int
-		if _, err := fmt.Sscanf(dec.ID, "dec-%d", &num); err == nil {
-			if num > maxNum {
-				maxNum = num
-			}
-		}
-	}
-
-	return maxNum + 1, nil
+// generateID は UUID 形式の Decision ID を生成
+func (h *DecisionHandler) generateID() string {
+	return fmt.Sprintf("dec-%s", uuid.New().String()[:8])
 }
 
 // getAllDecisions は全 Decision を取得

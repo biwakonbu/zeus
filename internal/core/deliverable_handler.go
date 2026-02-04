@@ -7,24 +7,24 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // DeliverableHandler は DeliverableEntity エンティティのハンドラー
-// 個別ファイル (deliverables/del-NNN.yaml) で管理
+// 個別ファイル (deliverables/del-{uuid}.yaml) で管理
 type DeliverableHandler struct {
 	fileStore        FileStore
 	sanitizer        *Sanitizer
 	objectiveHandler *ObjectiveHandler
-	idCounterManager *IDCounterManager
 }
 
 // NewDeliverableHandler は新しい DeliverableHandler を作成
-func NewDeliverableHandler(fs FileStore, objHandler *ObjectiveHandler, idMgr *IDCounterManager) *DeliverableHandler {
+func NewDeliverableHandler(fs FileStore, objHandler *ObjectiveHandler, _ *IDCounterManager) *DeliverableHandler {
 	return &DeliverableHandler{
 		fileStore:        fs,
 		sanitizer:        NewSanitizer(),
 		objectiveHandler: objHandler,
-		idCounterManager: idMgr,
 	}
 }
 
@@ -45,12 +45,8 @@ func (h *DeliverableHandler) Add(ctx context.Context, name string, opts ...Entit
 		return nil, fmt.Errorf("invalid title: %w", err)
 	}
 
-	// 次の ID を生成
-	nextNum, err := h.getNextIDNumber(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate ID: %w", err)
-	}
-	id := fmt.Sprintf("del-%03d", nextNum)
+	// UUID 形式の ID を生成
+	id := h.generateID()
 
 	now := Now()
 	deliverable := &DeliverableEntity{
@@ -215,34 +211,9 @@ func (h *DeliverableHandler) Delete(ctx context.Context, id string) error {
 	return h.fileStore.Delete(ctx, filePath)
 }
 
-// getNextIDNumber は次の ID 番号を取得（O(1)）
-func (h *DeliverableHandler) getNextIDNumber(ctx context.Context) (int, error) {
-	if h.idCounterManager != nil {
-		return h.idCounterManager.GetNextID(ctx, "deliverable")
-	}
-	// フォールバック: 従来の O(N) 方式
-	return h.getNextIDNumberLegacy(ctx)
-}
-
-// getNextIDNumberLegacy は従来の O(N) 方式で次の ID 番号を取得
-func (h *DeliverableHandler) getNextIDNumberLegacy(ctx context.Context) (int, error) {
-	deliverables, err := h.getAllDeliverables(ctx)
-	if err != nil {
-		return 1, nil // 初回は 1
-	}
-
-	maxNum := 0
-	for _, del := range deliverables {
-		// del-NNN から番号を抽出
-		var num int
-		if _, err := fmt.Sscanf(del.ID, "del-%d", &num); err == nil {
-			if num > maxNum {
-				maxNum = num
-			}
-		}
-	}
-
-	return maxNum + 1, nil
+// generateID は UUID 形式の Deliverable ID を生成
+func (h *DeliverableHandler) generateID() string {
+	return fmt.Sprintf("del-%s", uuid.New().String()[:8])
 }
 
 // getAllDeliverables は全 Deliverable を取得

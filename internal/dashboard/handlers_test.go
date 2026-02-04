@@ -5,15 +5,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/biwakonbu/zeus/internal/core"
 )
 
-// setupTestZeusWithTask はテスト用の Zeus を作成し、タスクを追加する
-func setupTestZeusWithTask(t *testing.T) (*core.Zeus, string) {
+// setupTestZeusWithActivity はテスト用の Zeus を作成し、Activity を追加する
+func setupTestZeusWithActivity(t *testing.T) (*core.Zeus, string) {
 	t.Helper()
 
 	tmpDir := t.TempDir()
@@ -25,17 +23,17 @@ func setupTestZeusWithTask(t *testing.T) (*core.Zeus, string) {
 		t.Fatalf("Zeus の初期化に失敗: %v", err)
 	}
 
-	// テスト用タスクを追加
-	result, err := zeus.Add(ctx, "task", "Test Task")
+	// テスト用 Activity を追加
+	result, err := zeus.Add(ctx, "activity", "Test Activity")
 	if err != nil {
-		t.Fatalf("タスクの追加に失敗: %v", err)
+		t.Fatalf("Activity の追加に失敗: %v", err)
 	}
 
 	return zeus, result.ID
 }
 
-// setupTestZeusWithMultipleTasks はテスト用の Zeus を作成し、複数タスクを追加する
-func setupTestZeusWithMultipleTasks(t *testing.T) *core.Zeus {
+// setupTestZeusWithMultipleActivities はテスト用の Zeus を作成し、複数 Activity を追加する
+func setupTestZeusWithMultipleActivities(t *testing.T) *core.Zeus {
 	t.Helper()
 
 	tmpDir := t.TempDir()
@@ -47,10 +45,16 @@ func setupTestZeusWithMultipleTasks(t *testing.T) *core.Zeus {
 		t.Fatalf("Zeus の初期化に失敗: %v", err)
 	}
 
-	// 複数タスクを追加
-	_, _ = zeus.Add(ctx, "task", "Task 1")
-	_, _ = zeus.Add(ctx, "task", "Task 2")
-	_, _ = zeus.Add(ctx, "task", "Task 3")
+	// 複数 Activity を追加（エラーをチェック）
+	if _, err := zeus.Add(ctx, "activity", "Activity 1"); err != nil {
+		t.Fatalf("Activity 1 の追加に失敗: %v", err)
+	}
+	if _, err := zeus.Add(ctx, "activity", "Activity 2"); err != nil {
+		t.Fatalf("Activity 2 の追加に失敗: %v", err)
+	}
+	if _, err := zeus.Add(ctx, "activity", "Activity 3"); err != nil {
+		t.Fatalf("Activity 3 の追加に失敗: %v", err)
+	}
 
 	return zeus
 }
@@ -84,9 +88,9 @@ func TestHandleAPIWBS(t *testing.T) {
 	}
 }
 
-// TestHandleAPIWBS_WithTasks はタスクがある場合の WBS API テスト
-func TestHandleAPIWBS_WithTasks(t *testing.T) {
-	zeus := setupTestZeusWithMultipleTasks(t)
+// TestHandleAPIWBS_WithActivities は Activity がある場合の WBS API テスト
+func TestHandleAPIWBS_WithActivities(t *testing.T) {
+	zeus := setupTestZeusWithMultipleActivities(t)
 	server := NewServer(zeus, 0)
 
 	ts := httptest.NewServer(server.handler())
@@ -107,7 +111,7 @@ func TestHandleAPIWBS_WithTasks(t *testing.T) {
 		t.Fatalf("JSON のデコードに失敗: %v", err)
 	}
 
-	// Stats.TotalNodes が 3 以上
+	// Stats.TotalNodes が 3 以上（Activity 3 件を追加したため）
 	if result.Stats.TotalNodes < 3 {
 		t.Errorf("TotalNodes が正しくありません: got %d, want >= 3", result.Stats.TotalNodes)
 	}
@@ -168,7 +172,7 @@ func TestHandleAPITimeline(t *testing.T) {
 
 // TestHandleAPITimeline_WithTasks はタスクがある場合のタイムライン API テスト
 func TestHandleAPITimeline_WithTasks(t *testing.T) {
-	zeus := setupTestZeusWithMultipleTasks(t)
+	zeus := setupTestZeusWithMultipleActivities(t)
 	server := NewServer(zeus, 0)
 
 	ts := httptest.NewServer(server.handler())
@@ -216,13 +220,13 @@ func TestHandleAPITimeline_MethodNotAllowed(t *testing.T) {
 
 // TestHandleAPIDownstream は Downstream API の正常系テスト
 func TestHandleAPIDownstream(t *testing.T) {
-	zeus, taskID := setupTestZeusWithTask(t)
+	zeus, activityID := setupTestZeusWithActivity(t)
 	server := NewServer(zeus, 0)
 
 	ts := httptest.NewServer(server.handler())
 	defer ts.Close()
 
-	resp, err := http.Get(ts.URL + "/api/downstream?task_id=" + taskID)
+	resp, err := http.Get(ts.URL + "/api/downstream?task_id=" + activityID)
 	if err != nil {
 		t.Fatalf("リクエストに失敗: %v", err)
 	}
@@ -237,8 +241,8 @@ func TestHandleAPIDownstream(t *testing.T) {
 		t.Fatalf("JSON のデコードに失敗: %v", err)
 	}
 
-	if result.TaskID != taskID {
-		t.Errorf("TaskID が正しくありません: got %s, want %s", result.TaskID, taskID)
+	if result.TaskID != activityID {
+		t.Errorf("TaskID が正しくありません: got %s, want %s", result.TaskID, activityID)
 	}
 
 	// Downstream は nil ではなく空配列
@@ -348,24 +352,7 @@ func TestHandleAPIStatus_MethodNotAllowed(t *testing.T) {
 	}
 }
 
-// TestHandleAPITasks_MethodNotAllowed は POST 時の 405 エラーテスト
-func TestHandleAPITasks_MethodNotAllowed(t *testing.T) {
-	zeus := setupTestZeus(t)
-	server := NewServer(zeus, 0)
-
-	ts := httptest.NewServer(server.handler())
-	defer ts.Close()
-
-	resp, err := http.Post(ts.URL+"/api/tasks", "application/json", nil)
-	if err != nil {
-		t.Fatalf("リクエストに失敗: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusMethodNotAllowed {
-		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusMethodNotAllowed)
-	}
-}
+// Note: TestHandleAPITasks_MethodNotAllowed は /api/tasks 廃止に伴い削除
 
 // TestHandleAPIGraph_MethodNotAllowed は POST 時の 405 エラーテスト
 func TestHandleAPIGraph_MethodNotAllowed(t *testing.T) {
@@ -405,9 +392,9 @@ func TestHandleAPIPredict_MethodNotAllowed(t *testing.T) {
 	}
 }
 
-// TestHandleAPIStatus_WithTasks はタスクがある場合のステータス API テスト
-func TestHandleAPIStatus_WithTasks(t *testing.T) {
-	zeus := setupTestZeusWithMultipleTasks(t)
+// TestHandleAPIStatus_WithActivities は Activity がある場合のステータス API テスト
+func TestHandleAPIStatus_WithActivities(t *testing.T) {
+	zeus := setupTestZeusWithMultipleActivities(t)
 	server := NewServer(zeus, 0)
 
 	ts := httptest.NewServer(server.handler())
@@ -428,101 +415,18 @@ func TestHandleAPIStatus_WithTasks(t *testing.T) {
 		t.Fatalf("JSON のデコードに失敗: %v", err)
 	}
 
-	// タスク数が 3 以上
+	// Activity 数が 3 以上（TotalTasks フィールドは Activity 数を表す）
 	if result.State.Summary.TotalTasks < 3 {
 		t.Errorf("TotalTasks が正しくありません: got %d, want >= 3", result.State.Summary.TotalTasks)
 	}
 }
 
-// TestHandleAPITasks_WithTasks はタスクがある場合のタスク一覧 API テスト
-func TestHandleAPITasks_WithTasks(t *testing.T) {
-	zeus := setupTestZeusWithMultipleTasks(t)
-	server := NewServer(zeus, 0)
+// Note: TestHandleAPITasks_WithTasks と TestHandleAPITasks_DependenciesAlwaysArray は
+// /api/tasks 廃止に伴い削除。Activity API (/api/activities) を使用してください。
 
-	ts := httptest.NewServer(server.handler())
-	defer ts.Close()
-
-	resp, err := http.Get(ts.URL + "/api/tasks")
-	if err != nil {
-		t.Fatalf("リクエストに失敗: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusOK)
-	}
-
-	var result TasksResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		t.Fatalf("JSON のデコードに失敗: %v", err)
-	}
-
-	// タスク数が 3 以上
-	if result.Total < 3 {
-		t.Errorf("Total が正しくありません: got %d, want >= 3", result.Total)
-	}
-
-	// Tasks 配列の長さが一致
-	if len(result.Tasks) != result.Total {
-		t.Errorf("Tasks 配列の長さが Total と一致しません: got %d, want %d", len(result.Tasks), result.Total)
-	}
-}
-
-func TestHandleAPITasks_DependenciesAlwaysArray(t *testing.T) {
-	zeus := setupTestZeus(t)
-
-	// dependencies が省略されたタスクを直接 YAML に書き込み（過去データ/手編集の再現）
-	payload := []byte(`tasks:
-  - id: task-nodeps
-    title: Task without deps
-    status: pending
-    priority: medium
-    assignee: ""
-    approval_level: auto
-    created_at: "2026-01-01T00:00:00Z"
-    updated_at: "2026-01-01T00:00:00Z"
-`)
-	path := filepath.Join(zeus.ZeusPath, "tasks", "active.yaml")
-	if err := os.WriteFile(path, payload, 0o644); err != nil {
-		t.Fatalf("tasks/active.yaml の書き込みに失敗: %v", err)
-	}
-
-	server := NewServer(zeus, 0)
-
-	ts := httptest.NewServer(server.handler())
-	defer ts.Close()
-
-	resp, err := http.Get(ts.URL + "/api/tasks")
-	if err != nil {
-		t.Fatalf("リクエストに失敗: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusOK)
-	}
-
-	var result TasksResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		t.Fatalf("JSON のデコードに失敗: %v", err)
-	}
-
-	if len(result.Tasks) != 1 {
-		t.Fatalf("Tasks 数が正しくありません: got %d, want 1", len(result.Tasks))
-	}
-
-	if result.Tasks[0].Dependencies == nil {
-		t.Fatalf("dependencies が null になっています（フロントが join/length でクラッシュする）")
-	}
-
-	if len(result.Tasks[0].Dependencies) != 0 {
-		t.Fatalf("dependencies が空配列ではありません: got %v", result.Tasks[0].Dependencies)
-	}
-}
-
-// TestHandleAPIGraph_WithTasks はタスクがある場合のグラフ API テスト
+// TestHandleAPIGraph_WithActivities は Activity がある場合のグラフ API テスト
 func TestHandleAPIGraph_WithTasks(t *testing.T) {
-	zeus := setupTestZeusWithMultipleTasks(t)
+	zeus := setupTestZeusWithMultipleActivities(t)
 	server := NewServer(zeus, 0)
 
 	ts := httptest.NewServer(server.handler())
@@ -556,7 +460,7 @@ func TestHandleAPIGraph_WithTasks(t *testing.T) {
 
 // TestHandleAPIPredict_WithTasks はタスクがある場合の予測 API テスト
 func TestHandleAPIPredict_WithTasks(t *testing.T) {
-	zeus := setupTestZeusWithMultipleTasks(t)
+	zeus := setupTestZeusWithMultipleActivities(t)
 	server := NewServer(zeus, 0)
 
 	ts := httptest.NewServer(server.handler())

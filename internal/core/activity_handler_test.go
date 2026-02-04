@@ -793,9 +793,9 @@ func TestGenerateActivityIDFormat(t *testing.T) {
 		t.Errorf("expected ID to start with 'act-', got %q", id)
 	}
 
-	// 長さが正しいか (act- + 3桁 = 7文字)
-	if len(id) != 7 {
-		t.Errorf("expected ID length to be 7, got %d", len(id))
+	// 長さが正しいか (act- + 8桁UUID = 12文字)
+	if len(id) != 12 {
+		t.Errorf("expected ID length to be 12, got %d", len(id))
 	}
 }
 

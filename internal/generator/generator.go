@@ -92,7 +92,7 @@ func (g *Generator) GenerateSkills(ctx context.Context, projectName string) erro
 		template string
 	}{
 		{"zeus-project-scan", projectScanTemplate},
-		{"zeus-task-suggest", taskSuggestTemplate},
+		{"zeus-activity-suggest", activitySuggestTemplate},
 		{"zeus-risk-analysis", riskAnalysisTemplate},
 	}
 
@@ -233,10 +233,10 @@ zeus add deliverable "成果物名" \
   --acceptance-criteria "基準1,基準2"
 ` + "```" + `
 
-### Task
+### Activity
 ` + "```bash" + `
-zeus add task "タスク名" \
-  --parent <task-id> \
+zeus add activity "Activity 名" \
+  --parent <act-id> \
   --start 2026-01-20 \
   --due 2026-01-31 \
   --progress 0 \
@@ -312,7 +312,7 @@ zeus add quality "品質基準名" \
 zeus list vision        # Vision
 zeus list objectives    # Objective 一覧
 zeus list deliverables  # Deliverable 一覧
-zeus list tasks         # Task 一覧
+zeus list activities    # Activity 一覧
 zeus list considerations # Consideration 一覧
 zeus list decisions     # Decision 一覧
 zeus list problems      # Problem 一覧
@@ -343,7 +343,7 @@ zeus list quality       # Quality 一覧
 
 ` + "```bash" + `
 GET /api/status     # プロジェクト状態
-GET /api/tasks      # タスク一覧
+GET /api/activities # Activity 一覧
 GET /api/graph      # 依存関係グラフ
 GET /api/predict    # 予測分析
 GET /api/wbs        # WBS階層
@@ -360,7 +360,7 @@ GET /api/events     # SSE ストリーム
 ## 使用スキル
 
 - @zeus-project-scan - プロジェクトスキャン
-- @zeus-task-suggest - タスク提案
+- @zeus-activity-suggest - Activity 提案
 - @zeus-risk-analysis - リスク分析
 `
 
@@ -379,7 +379,7 @@ model: sonnet
 1. **Vision 策定**: プロジェクトの目指す姿を定義
 2. **Objective 設計**: Vision を達成するための目標を階層化
 3. **Deliverable 定義**: 各 Objective の成果物を明確化
-4. **WBS 作成**: タスクの分解と階層構造化
+4. **WBS 作成**: Activity の分解と階層構造化
 5. **タイムライン設計**: スケジュール策定、クリティカルパス分析
 6. **Constraint/Quality 設定**: 制約条件と品質基準の定義
 
@@ -447,25 +447,25 @@ zeus add quality "コード品質基準" \
 
 ## WBS階層の作成
 
-### タスク階層
+### Activity 階層
 
 ` + "```bash" + `
-# 親タスク
-zeus add task "Phase 1: 設計" --wbs 1
+# 親 Activity
+zeus add activity "Phase 1: 設計" --wbs 1
 
-# 子タスク（親の ID を指定）
-zeus add task "要件定義" --parent <親ID> --wbs 1.1
-zeus add task "アーキテクチャ設計" --parent <親ID> --wbs 1.2
+# 子 Activity（親の ID を指定）
+zeus add activity "要件定義" --parent <親ID> --wbs 1.1
+zeus add activity "アーキテクチャ設計" --parent <親ID> --wbs 1.2
 
-# 孫タスク
-zeus add task "DB設計" --parent <1.2のID> --wbs 1.2.1
-zeus add task "API設計" --parent <1.2のID> --wbs 1.2.2
+# 孫 Activity
+zeus add activity "DB設計" --parent <1.2のID> --wbs 1.2.1
+zeus add activity "API設計" --parent <1.2のID> --wbs 1.2.2
 ` + "```" + `
 
 ### タイムライン設計
 
 ` + "```bash" + `
-zeus add task "実装" \
+zeus add activity "実装" \
   --start 2026-01-20 \
   --due 2026-01-31 \
   --progress 0 \
@@ -497,16 +497,16 @@ zeus add decision "JWT認証を採用" \
 ## 依存関係の指定
 
 ` + "```yaml" + `
-# .zeus/tasks/task-xxx.yaml
+# .zeus/activities/act-xxx.yaml
 dependencies:
-  - task-design    # 設計完了後に開始
+  - act-design    # 設計完了後に開始
 ` + "```" + `
 
-## タスク追加オプション一覧
+## Activity 追加オプション一覧
 
 | オプション | 説明 | 例 |
 |-----------|------|-----|
-| ` + "`--parent <id>`" + ` | 親タスク/Objective ID | ` + "`--parent obj-001`" + ` |
+| ` + "`--parent <id>`" + ` | 親 Activity/Objective ID | ` + "`--parent obj-001`" + ` |
 | ` + "`--start <date>`" + ` | 開始日（ISO8601） | ` + "`--start 2026-01-20`" + ` |
 | ` + "`--due <date>`" + ` | 期限日（ISO8601） | ` + "`--due 2026-01-31`" + ` |
 | ` + "`--progress <0-100>`" + ` | 進捗率 | ` + "`--progress 50`" + ` |
@@ -517,9 +517,9 @@ dependencies:
 ## 計画の原則
 
 1. **Vision 起点**: 全ての計画は Vision から始める
-2. **階層的分解**: Vision → Objective → Deliverable → Task
+2. **階層的分解**: Vision → Objective → Deliverable → Activity
 3. **保守的な見積もり**: バッファを確保
-4. **段階的計画**: 大きなタスクは WBS で分割
+4. **段階的計画**: 大きな Activity は WBS で分割
 5. **制約の明確化**: Constraint を先に定義
 6. **品質基準の設定**: Quality を Deliverable に紐付け
 
@@ -569,7 +569,7 @@ model: sonnet
 
 ## 役割
 
-1. **進捗レビュー**: タスク・Objective の進捗を評価、予測分析の活用
+1. **進捗レビュー**: Activity・Objective の進捗を評価、予測分析の活用
 2. **品質チェック**: Quality メトリクス・ゲートによる品質判定
 3. **リスク評価**: Risk/Problem/Assumption の評価、クリティカルパス監視
 4. **参照整合性レビュー**: エンティティ間参照の健全性確認
@@ -599,10 +599,10 @@ model: sonnet
 
 ### リアルタイム監視
 - ` + "`zeus dashboard`" + ` - Webダッシュボードで監視
-  - タスクグラフ表示
+  - Activity グラフ表示
   - WBS階層ビュー
   - タイムライン・クリティカルパス表示
-  - 影響範囲ハイライト（下流/上流タスク）
+  - 影響範囲ハイライト（下流/上流 Activity）
 
 ## 10概念モデルレビュー
 
@@ -746,14 +746,14 @@ zeus doctor
 ## 進捗確認
 
 - 進捗率が正確に更新されているか
-- 遅延タスク・Objective が特定されているか
+- 遅延 Activity・Objective が特定されているか
 - ボトルネックが把握されているか
 
 ## レビュー基準
 
 1. **完了の定義**: Deliverable の acceptance_criteria を確認
 2. **品質基準**: Quality メトリクスを満たしているか
-3. **依存関係**: 後続タスク・Objective への影響
+3. **依存関係**: 後続 Activity・Objective への影響
 4. **意思決定の正当性**: Decision の rationale が適切か
 
 ## 承認レベル
@@ -808,7 +808,7 @@ zeus report --format markdown -o review-report.md
 
 - @zeus-project-scan - プロジェクトスキャン
 - @zeus-risk-analysis - リスク分析
-- @zeus-task-suggest - タスク提案
+- @zeus-activity-suggest - Activity 提案
 `
 
 // Skill Templates
@@ -918,8 +918,8 @@ zeus list objectives
 # Deliverable 一覧
 zeus list deliverables
 
-# Task 一覧
-zeus list tasks
+# Activity 一覧
+zeus list activities
 
 # Consideration 一覧（検討事項）
 zeus list considerations
@@ -1024,21 +1024,21 @@ curl http://localhost:8080/api/timeline
 
 ## 関連スキル
 
-- zeus-task-suggest - 概念間の関連に基づくタスク提案
+- zeus-activity-suggest - 概念間の関連に基づくActivity 提案
 - zeus-risk-analysis - Risk/Problem/Assumption の詳細分析
 `
 
-const taskSuggestTemplate = `---
-description: 現在の状態に基づいてタスクを提案するスキル
+const activitySuggestTemplate = `---
+description: 現在の状態に基づいて Activity を提案するスキル
 ---
 
-# zeus-task-suggest
+# zeus-activity-suggest
 
-現在の状態に基づいてタスクや改善案を提案するスキル。
+現在の状態に基づいてActivity や改善案を提案するスキル。
 
 ## 概要
 
-Zeus プロジェクト（{{.ProjectName}}）の 10概念モデル全体を分析し、次に取り組むべきタスクや改善案を提案します。
+Zeus プロジェクト（{{.ProjectName}}）の 10概念モデル全体を分析し、次に取り組むべき Activity や改善案を提案します。
 
 ## 実行方法
 
@@ -1063,8 +1063,8 @@ zeus suggest --force
 
 | タイプ | 説明 |
 |--------|------|
-| ` + "`new_task`" + ` | 新規タスクの追加提案 |
-| ` + "`priority_change`" + ` | タスク優先度の変更提案 |
+| ` + "`new_activity`" + ` | 新規 Activity の追加提案 |
+| ` + "`priority_change`" + ` | Activity 優先度の変更提案 |
 | ` + "`dependency`" + ` | 依存関係の追加・修正提案 |
 | ` + "`risk_mitigation`" + ` | リスク軽減策の提案 |
 
@@ -1074,8 +1074,8 @@ zeus suggest --force
 suggestions:
   - id: sugg-abc12345
     type: risk_mitigation
-    description: "3件のブロックされたタスクを解決する必要があります"
-    rationale: "ブロックされたタスクはプロジェクト全体の進行を妨げます"
+    description: "3件のブロックされた Activity を解決する必要があります"
+    rationale: "ブロックされた Activity はプロジェクト全体の進行を妨げます"
     impact: high
     status: pending
     created_at: "2026-01-19T10:00:00Z"
@@ -1106,7 +1106,7 @@ zeus apply --all --dry-run
 - Objective との紐付けチェック
 
 ### Problem 関連
-- 未解決 Problem への対応タスク提案
+- 未解決 Problem への対応Activity 提案
 - severity: high/critical の Problem 優先対応
 
 ### Risk 関連
@@ -1122,19 +1122,19 @@ zeus apply --all --dry-run
 
 ## WBS階層を考慮した提案
 
-- 親タスク/Objective の完了度に基づく子の優先度調整
-- 親が未設定のタスクに対する整理提案
+- 親 Activity/Objective の完了度に基づく子の優先度調整
+- 親が未設定の Activity に対する整理提案
 
 ## タイムライン最適化
 
-- クリティカルパス上のタスクの優先度向上
-- 期限切れタスク/Objective の警告
+- クリティカルパス上の Activity の優先度向上
+- 期限切れ Activity/Objective の警告
 - 依存関係のボトルネック特定
 
 ## 提案アルゴリズム
 
 1. 現在のプロジェクト状態を取得（` + "`zeus status`" + `）
-2. ブロックされたタスクを検出
+2. ブロックされた Activity を検出
 3. 高リスク項目（Risk, Problem）を分析
 4. WBS階層と依存関係を考慮
 5. 優先度に基づいて提案を生成
@@ -1264,7 +1264,7 @@ zeus add assumption "前提条件" \
 ### WBS・タイムラインリスク
 - クリティカルパス上の遅延
 - 依存関係のボトルネック
-- 期限超過タスクの累積
+- 期限超過 Activity の累積
 
 ## 対策優先度マトリクス
 
@@ -1315,5 +1315,5 @@ zeus apply <suggestion-id>
 ## 関連スキル
 
 - zeus-project-scan - プロジェクトスキャン
-- zeus-task-suggest - タスク提案
+- zeus-activity-suggest - Activity 提案
 `

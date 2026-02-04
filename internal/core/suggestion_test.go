@@ -62,7 +62,7 @@ func TestGenerateSuggestions_ManyPendingTasks(t *testing.T) {
 
 	// 6件以上の保留中タスクを追加（閾値は5）
 	for i := 1; i <= 7; i++ {
-		_, err := z.Add(ctx, "task", "Test Task")
+		_, err := z.Add(ctx, "activity", "Test Activity")
 		if err != nil {
 			t.Fatalf("Add failed: %v", err)
 		}
@@ -117,7 +117,7 @@ func TestGenerateSuggestions_ImpactFilter(t *testing.T) {
 
 	// 7件の保留中タスクを追加
 	for i := 1; i <= 7; i++ {
-		_, err := z.Add(ctx, "task", "Test Task")
+		_, err := z.Add(ctx, "activity", "Test Activity")
 		if err != nil {
 			t.Fatalf("Add failed: %v", err)
 		}
@@ -187,7 +187,7 @@ func TestApplySuggestion_DryRun(t *testing.T) {
 
 	// 7件のタスクを追加して提案を生成
 	for i := 1; i <= 7; i++ {
-		z.Add(ctx, "task", "Test Task")
+		z.Add(ctx, "activity", "Test Activity")
 	}
 
 	status, _ := z.Status(ctx)
@@ -242,7 +242,7 @@ func TestApplySuggestion_AllFlag(t *testing.T) {
 
 	// タスクを追加して提案を生成
 	for i := 1; i <= 7; i++ {
-		z.Add(ctx, "task", "Test Task")
+		z.Add(ctx, "activity", "Test Activity")
 	}
 
 	status, _ := z.Status(ctx)
@@ -394,7 +394,7 @@ func TestSuggestionValidate(t *testing.T) {
 				Impact:      ImpactMedium,
 			},
 			wantErr: true,
-			errMsg:  "new_task suggestion must have TaskData",
+			errMsg:  "new_task suggestion must have ActivityData or TaskData",
 		},
 		{
 			name: "priority change without target",
@@ -636,19 +636,22 @@ func TestApplySuggestion_NewTask(t *testing.T) {
 		t.Fatalf("Init failed: %v", err)
 	}
 
-	// 手動で new_task 提案を作成
+	// ActivityData を使用して new_task 提案を作成
+	now := Now()
 	suggestion := &Suggestion{
 		ID:          "sugg-new-task-1",
 		Type:        SuggestionNewTask,
-		Description: "Add new task for testing",
+		Description: "Add new activity for testing",
 		Impact:      ImpactMedium,
 		Status:      SuggestionPending,
-		TaskData: &Task{
-			ID:        "task-new-1",
-			Title:     "New Task from Suggestion",
-			Status:    TaskStatusPending,
-			CreatedAt: Now(),
-			UpdatedAt: Now(),
+		ActivityData: &ActivityEntity{
+			ID:     "act-a1b2c3d4", // UUID 形式（8桁16進数）
+			Title:  "New Activity from Suggestion",
+			Status: ActivityStatusDraft,
+			Metadata: Metadata{
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
 		},
 	}
 
@@ -670,21 +673,26 @@ func TestApplySuggestion_NewTask(t *testing.T) {
 		t.Errorf("expected 1 applied, got %d", result.Applied)
 	}
 
-	// タスクが追加されたか確認
-	var taskStore TaskStore
-	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-		t.Fatalf("failed to read tasks: %v", err)
+	// Activity が追加されたか確認
+	actHandler := z.GetActivityHandler()
+	if actHandler == nil {
+		t.Fatal("activity handler is nil")
+	}
+
+	listResult, err := actHandler.List(ctx, nil)
+	if err != nil {
+		t.Fatalf("failed to list activities: %v", err)
 	}
 
 	found := false
-	for _, task := range taskStore.Tasks {
-		if task.ID == "task-new-1" {
+	for _, item := range listResult.Items {
+		if item.Title == "New Activity from Suggestion" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Error("expected new task to be added")
+		t.Error("expected new activity to be added")
 	}
 }
 
@@ -705,21 +713,12 @@ func TestApplySuggestion_PriorityChange(t *testing.T) {
 		t.Fatalf("Init failed: %v", err)
 	}
 
-	// タスクを追加
-	_, err = z.Add(ctx, "task", "Test Task")
+	// Activity を追加
+	result, err := z.Add(ctx, "activity", "Test Activity")
 	if err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
-
-	// タスク ID を取得
-	var taskStore TaskStore
-	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-		t.Fatalf("failed to read tasks: %v", err)
-	}
-	if len(taskStore.Tasks) == 0 {
-		t.Fatal("no tasks found")
-	}
-	taskID := taskStore.Tasks[0].ID
+	activityID := result.ID
 
 	// priority_change 提案を作成
 	suggestion := &Suggestion{
@@ -728,7 +727,7 @@ func TestApplySuggestion_PriorityChange(t *testing.T) {
 		Description:  "Change priority to high",
 		Impact:       ImpactMedium,
 		Status:       SuggestionPending,
-		TargetTaskID: taskID,
+		TargetTaskID: activityID,
 		NewPriority:  "high",
 	}
 
@@ -741,27 +740,29 @@ func TestApplySuggestion_PriorityChange(t *testing.T) {
 	}
 
 	// 提案を適用
-	result, err := z.ApplySuggestion(ctx, suggestion.ID, false, false)
+	applyResult, err := z.ApplySuggestion(ctx, suggestion.ID, false, false)
 	if err != nil {
 		t.Fatalf("ApplySuggestion failed: %v", err)
 	}
 
-	if result.Applied != 1 {
-		t.Errorf("expected 1 applied, got %d", result.Applied)
+	if applyResult.Applied != 1 {
+		t.Errorf("expected 1 applied, got %d", applyResult.Applied)
 	}
 
-	// タスクの優先度が変更されたか確認
-	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-		t.Fatalf("failed to read tasks: %v", err)
+	// Activity の優先度が変更されたか確認
+	actHandler := z.GetActivityHandler()
+	activity, err := actHandler.Get(ctx, activityID)
+	if err != nil {
+		t.Fatalf("failed to get activity: %v", err)
 	}
 
-	for _, task := range taskStore.Tasks {
-		if task.ID == taskID {
-			if task.Priority != PriorityHigh {
-				t.Errorf("expected priority high, got %s", task.Priority)
-			}
-			break
-		}
+	actEntity, ok := activity.(*ActivityEntity)
+	if !ok {
+		t.Fatal("expected ActivityEntity")
+	}
+
+	if actEntity.Priority != ActivityPriorityHigh {
+		t.Errorf("expected priority high, got %s", actEntity.Priority)
 	}
 }
 
@@ -782,26 +783,17 @@ func TestApplySuggestion_Dependency(t *testing.T) {
 		t.Fatalf("Init failed: %v", err)
 	}
 
-	// 2つのタスクを追加
-	_, err = z.Add(ctx, "task", "Test Task 1")
+	// 2つの Activity を追加
+	result1, err := z.Add(ctx, "activity", "Test Activity 1")
 	if err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
-	_, err = z.Add(ctx, "task", "Test Task 2")
+	result2, err := z.Add(ctx, "activity", "Test Activity 2")
 	if err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
-
-	// タスク ID を取得
-	var taskStore TaskStore
-	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-		t.Fatalf("failed to read tasks: %v", err)
-	}
-	if len(taskStore.Tasks) < 2 {
-		t.Fatal("not enough tasks")
-	}
-	task1ID := taskStore.Tasks[0].ID
-	task2ID := taskStore.Tasks[1].ID
+	act1ID := result1.ID
+	act2ID := result2.ID
 
 	// dependency 提案を作成
 	suggestion := &Suggestion{
@@ -810,8 +802,8 @@ func TestApplySuggestion_Dependency(t *testing.T) {
 		Description:  "Add dependency",
 		Impact:       ImpactLow,
 		Status:       SuggestionPending,
-		TargetTaskID: task1ID,
-		Dependencies: []string{task2ID},
+		TargetTaskID: act1ID,
+		Dependencies: []string{act2ID},
 	}
 
 	// 提案をストアに保存
@@ -823,38 +815,40 @@ func TestApplySuggestion_Dependency(t *testing.T) {
 	}
 
 	// 提案を適用
-	result, err := z.ApplySuggestion(ctx, suggestion.ID, false, false)
+	applyResult, err := z.ApplySuggestion(ctx, suggestion.ID, false, false)
 	if err != nil {
 		t.Fatalf("ApplySuggestion failed: %v", err)
 	}
 
-	if result.Applied != 1 {
-		t.Errorf("expected 1 applied, got %d", result.Applied)
+	if applyResult.Applied != 1 {
+		t.Errorf("expected 1 applied, got %d", applyResult.Applied)
 	}
 
 	// 依存関係が追加されたか確認
-	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-		t.Fatalf("failed to read tasks: %v", err)
+	actHandler := z.GetActivityHandler()
+	activity, err := actHandler.Get(ctx, act1ID)
+	if err != nil {
+		t.Fatalf("failed to get activity: %v", err)
 	}
 
-	for _, task := range taskStore.Tasks {
-		if task.ID == task1ID {
-			found := false
-			for _, dep := range task.Dependencies {
-				if dep == task2ID {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Error("expected dependency to be added")
-			}
+	actEntity, ok := activity.(*ActivityEntity)
+	if !ok {
+		t.Fatal("expected ActivityEntity")
+	}
+
+	found := false
+	for _, dep := range actEntity.Dependencies {
+		if dep == act2ID {
+			found = true
 			break
 		}
 	}
+	if !found {
+		t.Error("expected dependency to be added")
+	}
 }
 
-// TestApplySuggestion_TargetTaskNotFound はターゲットタスクが見つからない場合をテスト
+// TestApplySuggestion_TargetTaskNotFound はターゲット Activity が見つからない場合をテスト
 func TestApplySuggestion_TargetTaskNotFound(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "zeus-test")
 	if err != nil {
@@ -871,14 +865,14 @@ func TestApplySuggestion_TargetTaskNotFound(t *testing.T) {
 		t.Fatalf("Init failed: %v", err)
 	}
 
-	// priority_change 提案を作成（存在しないタスク）
+	// priority_change 提案を作成（存在しない Activity）
 	suggestion := &Suggestion{
 		ID:           "sugg-priority-1",
 		Type:         SuggestionPriorityChange,
 		Description:  "Change priority to high",
 		Impact:       ImpactMedium,
 		Status:       SuggestionPending,
-		TargetTaskID: "nonexistent-task",
+		TargetTaskID: "act-nonexistent",
 		NewPriority:  "high",
 	}
 
@@ -902,8 +896,8 @@ func TestApplySuggestion_TargetTaskNotFound(t *testing.T) {
 	}
 }
 
-// TestApplySuggestion_NewTaskWithoutTaskData は TaskData がない new_task をテスト
-func TestApplySuggestion_NewTaskWithoutTaskData(t *testing.T) {
+// TestApplySuggestion_NewTaskWithoutActivityData は ActivityData がない new_task をテスト
+func TestApplySuggestion_NewTaskWithoutActivityData(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "zeus-test")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -919,14 +913,14 @@ func TestApplySuggestion_NewTaskWithoutTaskData(t *testing.T) {
 		t.Fatalf("Init failed: %v", err)
 	}
 
-	// new_task 提案を作成（TaskData なし）
+	// new_task 提案を作成（ActivityData なし、TaskData もなし）
 	suggestion := &Suggestion{
 		ID:          "sugg-new-task-1",
 		Type:        SuggestionNewTask,
-		Description: "Add new task",
+		Description: "Add new activity",
 		Impact:      ImpactMedium,
 		Status:      SuggestionPending,
-		// TaskData がない
+		// ActivityData も TaskData もなし
 	}
 
 	// 提案をストアに保存
@@ -943,7 +937,7 @@ func TestApplySuggestion_NewTaskWithoutTaskData(t *testing.T) {
 		t.Fatalf("ApplySuggestion failed: %v", err)
 	}
 
-	// TaskData がないので失敗
+	// ActivityData がないので失敗
 	if result.Failed != 1 {
 		t.Errorf("expected 1 failed, got %d", result.Failed)
 	}

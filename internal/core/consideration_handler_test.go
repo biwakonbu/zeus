@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/biwakonbu/zeus/internal/yaml"
@@ -574,21 +575,27 @@ func TestConsiderationHandler_IDSequence(t *testing.T) {
 
 	ctx := context.Background()
 
-	// 3件追加して ID が連番であることを確認
-	ids := []string{}
+	// 全ての ID がユニークでプレフィックスが正しいことを確認
+	seen := make(map[string]bool)
 	for i := 0; i < 3; i++ {
 		result, err := handler.Add(ctx, "検討事項")
 		if err != nil {
 			t.Fatalf("Add failed: %v", err)
 		}
-		ids = append(ids, result.ID)
+		if seen[result.ID] {
+			t.Errorf("duplicate ID found: %q", result.ID)
+		}
+		seen[result.ID] = true
+
+		// プレフィックスが正しいことを確認
+		if !strings.HasPrefix(result.ID, "con-") {
+			t.Errorf("Add() #%d ID = %q, expected prefix 'con-'", i+1, result.ID)
+		}
 	}
 
-	// ID が昇順であることを確認
-	for i := 1; i < len(ids); i++ {
-		if ids[i] <= ids[i-1] {
-			t.Errorf("IDs should be in ascending order: %v", ids)
-		}
+	// ID 数が正しいことを確認
+	if len(seen) != 3 {
+		t.Errorf("expected 3 unique IDs, got %d", len(seen))
 	}
 }
 

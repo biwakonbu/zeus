@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/biwakonbu/zeus/internal/yaml"
@@ -62,8 +63,8 @@ func TestRiskHandler_Add(t *testing.T) {
 	if !result.Success {
 		t.Error("Add() result.Success = false, want true")
 	}
-	if result.ID != "risk-001" {
-		t.Errorf("Add() result.ID = %q, want %q", result.ID, "risk-001")
+	if !strings.HasPrefix(result.ID, "risk-") {
+		t.Errorf("Add() result.ID = %q, expected prefix 'risk-'", result.ID)
 	}
 	if result.Entity != "risk" {
 		t.Errorf("Add() result.Entity = %q, want %q", result.Entity, "risk")
@@ -711,17 +712,27 @@ func TestRiskHandler_IDSequence(t *testing.T) {
 
 	ctx := context.Background()
 
-	// 連続追加で ID が順番に採番されることを確認
-	expectedIDs := []string{"risk-001", "risk-002", "risk-003"}
-
-	for i, expected := range expectedIDs {
+	// 全ての ID がユニークでプレフィックスが正しいことを確認
+	seen := make(map[string]bool)
+	for i := 0; i < 3; i++ {
 		result, err := handler.Add(ctx, "リスク"+string(rune('A'+i)))
 		if err != nil {
 			t.Fatalf("Add() #%d error = %v", i+1, err)
 		}
-		if result.ID != expected {
-			t.Errorf("Add() #%d ID = %q, want %q", i+1, result.ID, expected)
+		if seen[result.ID] {
+			t.Errorf("duplicate ID found: %q", result.ID)
 		}
+		seen[result.ID] = true
+
+		// プレフィックスが正しいことを確認
+		if !strings.HasPrefix(result.ID, "risk-") {
+			t.Errorf("Add() #%d ID = %q, expected prefix 'risk-'", i+1, result.ID)
+		}
+	}
+
+	// ID 数が正しいことを確認
+	if len(seen) != 3 {
+		t.Errorf("expected 3 unique IDs, got %d", len(seen))
 	}
 }
 

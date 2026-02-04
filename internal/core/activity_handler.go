@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+
+	"github.com/google/uuid"
 )
 
 // ActivityHandler はアクティビティエンティティのハンドラー
@@ -12,16 +14,14 @@ type ActivityHandler struct {
 	fileStore          FileStore
 	usecaseHandler     *UseCaseHandler
 	deliverableHandler *DeliverableHandler
-	idCounterManager   *IDCounterManager
 }
 
 // NewActivityHandler は ActivityHandler を生成
-func NewActivityHandler(fs FileStore, usecaseHandler *UseCaseHandler, deliverableHandler *DeliverableHandler, idMgr *IDCounterManager) *ActivityHandler {
+func NewActivityHandler(fs FileStore, usecaseHandler *UseCaseHandler, deliverableHandler *DeliverableHandler, _ *IDCounterManager) *ActivityHandler {
 	return &ActivityHandler{
 		fileStore:          fs,
 		usecaseHandler:     usecaseHandler,
 		deliverableHandler: deliverableHandler,
-		idCounterManager:   idMgr,
 	}
 }
 
@@ -598,13 +598,9 @@ func (h *ActivityHandler) AddTransition(ctx context.Context, activityID string, 
 	return h.fileStore.WriteYaml(ctx, filePath, &activity)
 }
 
-// generateActivityID はアクティビティ ID を生成（連番形式）
-func (h *ActivityHandler) generateActivityID(ctx context.Context) (string, error) {
-	counter, err := h.idCounterManager.GetNextID(ctx, "activity")
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("act-%03d", counter), nil
+// generateActivityID はアクティビティ ID を生成（UUID 形式）
+func (h *ActivityHandler) generateActivityID(_ context.Context) (string, error) {
+	return fmt.Sprintf("act-%s", uuid.New().String()[:8]), nil
 }
 
 // ===== EntityOption 関数群 =====

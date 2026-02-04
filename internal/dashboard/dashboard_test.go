@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -72,66 +70,8 @@ func TestServerStartShutdown(t *testing.T) {
 	}
 }
 
-func TestServerBroadcastAllUpdates_TaskDependenciesAlwaysArray(t *testing.T) {
-	zeus := setupTestZeus(t)
-
-	// dependencies が省略されたタスク（過去データ/手編集の再現）
-	payload := []byte(`tasks:
-  - id: task-nodeps
-    title: Task without deps
-    status: pending
-    priority: medium
-    assignee: ""
-    approval_level: auto
-    created_at: "2026-01-01T00:00:00Z"
-    updated_at: "2026-01-01T00:00:00Z"
-`)
-	path := filepath.Join(zeus.ZeusPath, "tasks", "active.yaml")
-	if err := os.WriteFile(path, payload, 0o644); err != nil {
-		t.Fatalf("tasks/active.yaml の書き込みに失敗: %v", err)
-	}
-
-	server := NewServer(zeus, 0)
-	client := server.Broadcaster().AddClient("test-client")
-	t.Cleanup(func() {
-		server.Broadcaster().RemoveClient("test-client")
-	})
-
-	server.BroadcastAllUpdates(context.Background())
-
-	timeout := time.After(1 * time.Second)
-	for {
-		select {
-		case ev := <-client.Events:
-			if ev.Type != EventTask {
-				continue
-			}
-
-			raw, err := json.Marshal(ev.Data)
-			if err != nil {
-				t.Fatalf("task イベントの JSON 変換に失敗: %v", err)
-			}
-
-			var result TasksResponse
-			if err := json.Unmarshal(raw, &result); err != nil {
-				t.Fatalf("task イベントの JSON デコードに失敗: %v", err)
-			}
-
-			if len(result.Tasks) != 1 {
-				t.Fatalf("Tasks 数が正しくありません: got %d, want 1", len(result.Tasks))
-			}
-			if result.Tasks[0].Dependencies == nil {
-				t.Fatalf("dependencies が null になっています（フロントが join/length でクラッシュする）")
-			}
-			if len(result.Tasks[0].Dependencies) != 0 {
-				t.Fatalf("dependencies が空配列ではありません: got %v", result.Tasks[0].Dependencies)
-			}
-			return
-		case <-timeout:
-			t.Fatalf("task イベントを受信できませんでした")
-		}
-	}
-}
+// Note: TestServerBroadcastAllUpdates_TaskDependenciesAlwaysArray は
+// Task 非推奨に伴い削除。Activity API を使用してください。
 
 func TestHandleAPIStatus(t *testing.T) {
 	zeus := setupTestZeus(t)
@@ -164,33 +104,8 @@ func TestHandleAPIStatus(t *testing.T) {
 	}
 }
 
-func TestHandleAPITasks(t *testing.T) {
-	zeus := setupTestZeus(t)
-	server := NewServer(zeus, 0)
-
-	ts := httptest.NewServer(server.handler())
-	defer ts.Close()
-
-	resp, err := http.Get(ts.URL + "/api/tasks")
-	if err != nil {
-		t.Fatalf("リクエストに失敗: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusOK)
-	}
-
-	var result TasksResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		t.Fatalf("JSON のデコードに失敗: %v", err)
-	}
-
-	// 初期状態ではタスクは空
-	if result.Tasks == nil {
-		t.Error("タスク配列が nil です")
-	}
-}
+// Note: TestHandleAPITasks は /api/tasks 非推奨に伴い削除。
+// Activity API (/api/activities) を使用してください。
 
 func TestHandleAPIGraph(t *testing.T) {
 	zeus := setupTestZeus(t)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/biwakonbu/zeus/internal/yaml"
@@ -149,8 +150,8 @@ func TestQualityHandler_Add(t *testing.T) {
 	if !result.Success {
 		t.Errorf("Add() Success = false, want true")
 	}
-	if result.ID != "qual-001" {
-		t.Errorf("Add() ID = %q, want %q", result.ID, "qual-001")
+	if !strings.HasPrefix(result.ID, "qual-") {
+		t.Errorf("Add() ID = %q, expected prefix 'qual-'", result.ID)
 	}
 	if result.Entity != "quality" {
 		t.Errorf("Add() Entity = %q, want %q", result.Entity, "quality")
@@ -853,9 +854,8 @@ func TestQualityHandler_IDSequence(t *testing.T) {
 	ctx := context.Background()
 	deliverableID := createTestDeliverable(t, delHandler, objHandler)
 
-	expectedIDs := []string{"qual-001", "qual-002", "qual-003"}
-
-	for i, expected := range expectedIDs {
+	seen := make(map[string]bool)
+	for i := 0; i < 3; i++ {
 		result, err := handler.Add(ctx, "品質基準",
 			WithQualityDeliverable(deliverableID),
 			WithQualityMetrics(defaultMetrics()),
@@ -864,9 +864,20 @@ func TestQualityHandler_IDSequence(t *testing.T) {
 			t.Fatalf("Add() %d failed: %v", i+1, err)
 		}
 
-		if result.ID != expected {
-			t.Errorf("Add() %d ID = %q, want %q", i+1, result.ID, expected)
+		if seen[result.ID] {
+			t.Errorf("duplicate ID found: %q", result.ID)
 		}
+		seen[result.ID] = true
+
+		// プレフィックスが正しいことを確認
+		if !strings.HasPrefix(result.ID, "qual-") {
+			t.Errorf("Add() %d ID = %q, expected prefix 'qual-'", i+1, result.ID)
+		}
+	}
+
+	// ID 数が正しいことを確認
+	if len(seen) != 3 {
+		t.Errorf("expected 3 unique IDs, got %d", len(seen))
 	}
 }
 

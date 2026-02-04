@@ -91,7 +91,6 @@ func New(projectPath string, opts ...Option) *Zeus {
 	}
 	if z.entityRegistry == nil {
 		z.entityRegistry = NewEntityRegistry()
-		z.entityRegistry.Register(NewTaskHandler(z.fileStore))
 
 		// 10 概念モデルのハンドラー登録（Phase 1）
 		z.entityRegistry.Register(NewVisionHandler(z.fileStore))
@@ -161,17 +160,8 @@ func (z *Zeus) Init(ctx context.Context) (*InitResult, error) {
 		return nil, err
 	}
 
-	// 初期タスクストアを作成
-	taskStore := &TaskStore{Tasks: []Task{}}
-	if err := z.fileStore.WriteYaml(ctx, "tasks/active.yaml", taskStore); err != nil {
-		return nil, err
-	}
-	if err := z.fileStore.WriteYaml(ctx, "tasks/backlog.yaml", taskStore); err != nil {
-		return nil, err
-	}
-
-	// 初期状態を記録
-	state := z.stateStore.CalculateState(taskStore.Tasks)
+	// 初期状態を記録（空の状態）
+	state := z.stateStore.CalculateState([]Task{})
 	if err := z.stateStore.SaveCurrentState(ctx, state); err != nil {
 		return nil, err
 	}
@@ -314,10 +304,14 @@ func (z *Zeus) List(ctx context.Context, entity string) (*ListResult, error) {
 		return nil, err
 	}
 
-	// "tasks" を "task" に正規化
+	// エンティティ名を正規化
 	normalizedEntity := entity
-	if normalizedEntity == "" || normalizedEntity == "tasks" {
-		normalizedEntity = "task"
+	switch normalizedEntity {
+	case "", "activities":
+		normalizedEntity = "activity"
+	case "tasks":
+		// 後方互換性: tasks も activity として扱う
+		normalizedEntity = "activity"
 	}
 
 	// EntityRegistry から適切なハンドラーを取得
@@ -406,8 +400,9 @@ func (z *Zeus) FileStore() FileStore {
 
 func (z *Zeus) getDirectoryStructure() []string {
 	// 全機能が使用可能な統一構造
+	// Note: tasks/ ディレクトリは非推奨。Activity を使用してください。
 	return []string{
-		"config", "tasks", "tasks/_archive", "state", "state/snapshots",
+		"config", "state", "state/snapshots",
 		"entities", "approvals/pending", "approvals/approved", "approvals/rejected",
 		"logs", "analytics", "backups",
 	}
@@ -436,17 +431,53 @@ func (z *Zeus) updateState(ctx context.Context) error {
 		return err
 	}
 
-	var taskStore TaskStore
-	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-		return err
+	// Activity から状態を計算（Task は非推奨、Activity に統合）
+	actHandler := z.GetActivityHandler()
+	if actHandler == nil {
+		state := z.stateStore.CalculateState([]Task{})
+		return z.stateStore.SaveCurrentState(ctx, state)
 	}
 
-	state := z.stateStore.CalculateState(taskStore.Tasks)
+	activities, err := actHandler.GetAllSimple(ctx)
+	if err != nil {
+		state := z.stateStore.CalculateState([]Task{})
+		return z.stateStore.SaveCurrentState(ctx, state)
+	}
+
+	// Activity を Task 形式に変換して状態計算
+	tasks := make([]Task, len(activities))
+	for i, act := range activities {
+		tasks[i] = Task{
+			ID:     act.ID,
+			Title:  act.Title,
+			Status: activityStatusToTaskStatus(act.Status),
+		}
+	}
+
+	state := z.stateStore.CalculateState(tasks)
 	return z.stateStore.SaveCurrentState(ctx, state)
 }
 
+// activityStatusToTaskStatus は ActivityStatus を TaskStatus に変換
+func activityStatusToTaskStatus(status ActivityStatus) TaskStatus {
+	switch status {
+	case ActivityStatusCompleted:
+		return TaskStatusCompleted
+	case ActivityStatusInProgress:
+		return TaskStatusInProgress
+	case ActivityStatusPending:
+		return TaskStatusPending
+	case ActivityStatusBlocked:
+		return TaskStatusBlocked
+	case ActivityStatusDraft, ActivityStatusActive, ActivityStatusDeprecated:
+		// Draft, Active, Deprecated は Pending として扱う
+		return TaskStatusPending
+	default:
+		return TaskStatusPending
+	}
+}
+
 // GenerateSuggestions はAI提案を生成
-// 注意: 現在はルールベースの簡易実装。Phase 3 で Claude Code AI 統合予定。
 func (z *Zeus) GenerateSuggestions(ctx context.Context, status *StatusResult, limit int, impactFilter string) ([]Suggestion, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -454,40 +485,46 @@ func (z *Zeus) GenerateSuggestions(ctx context.Context, status *StatusResult, li
 
 	suggestions := []Suggestion{}
 
-	// プロジェクト状態を分析（status から統計を取得可能な場合は再利用）
-	pendingTasks := status.State.Summary.Pending
-	blockedTasks := 0
+	// Activity から統計を計算
+	pendingActivities := 0
+	blockedActivities := 0
 
-	// ブロックされたタスク数はstateに含まれていないため、別途取得
-	var taskStore TaskStore
-	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err == nil {
-		for _, task := range taskStore.Tasks {
-			if task.Status == TaskStatusBlocked {
-				blockedTasks++
+	actHandler := z.GetActivityHandler()
+	if actHandler != nil {
+		activities, err := actHandler.GetAll(ctx)
+		if err == nil {
+			for _, act := range activities {
+				// Draft と Pending を保留中として扱う
+				if act.Status == ActivityStatusPending || act.Status == ActivityStatusDraft {
+					pendingActivities++
+				}
+				if act.Status == ActivityStatusBlocked {
+					blockedActivities++
+				}
 			}
 		}
 	}
 
-	// ブロックされたタスクがある場合、リスク対策を提案
-	if blockedTasks > 0 && (impactFilter == "" || impactFilter == "high") {
+	// ブロックされた Activity がある場合、リスク対策を提案
+	if blockedActivities > 0 && (impactFilter == "" || impactFilter == "high") {
 		suggestions = append(suggestions, Suggestion{
 			ID:          fmt.Sprintf("sugg-%s", uuid.New().String()[:8]),
 			Type:        SuggestionRiskMitigation,
-			Description: fmt.Sprintf("%d件のブロックされたタスクを解決する必要があります", blockedTasks),
-			Rationale:   "ブロックされたタスクはプロジェクト全体の進行を妨げます",
+			Description: fmt.Sprintf("%d件のブロックされたアクティビティを解決する必要があります", blockedActivities),
+			Rationale:   "ブロックされたアクティビティはプロジェクト全体の進行を妨げます",
 			Impact:      ImpactHigh,
 			Status:      SuggestionPending,
 			CreatedAt:   Now(),
 		})
 	}
 
-	// 保留中のタスクが多い場合、優先順位付けを提案
-	if pendingTasks > 5 && (impactFilter == "" || impactFilter == "medium") {
+	// 保留中のアクティビティが多い場合、優先順位付けを提案
+	if pendingActivities > 5 && (impactFilter == "" || impactFilter == "medium") {
 		suggestions = append(suggestions, Suggestion{
 			ID:          fmt.Sprintf("sugg-%s", uuid.New().String()[:8]),
 			Type:        SuggestionPriorityChange,
-			Description: "保留中のタスクが多いため、優先順位を明確にしましょう",
-			Rationale:   fmt.Sprintf("%d件のタスクが保留中です", pendingTasks),
+			Description: "保留中のアクティビティが多いため、優先順位を明確にしましょう",
+			Rationale:   fmt.Sprintf("%d件のアクティビティが保留中です", pendingActivities),
 			Impact:      ImpactMedium,
 			Status:      SuggestionPending,
 			CreatedAt:   Now(),
@@ -598,8 +635,15 @@ func (z *Zeus) ApplySuggestion(ctx context.Context, suggestionID string, applyAl
 		store.Suggestions[idx].Status = SuggestionApplied
 		store.Suggestions[idx].UpdatedAt = Now()
 
-		if suggestion.Type == SuggestionNewTask && suggestion.TaskData != nil {
-			result.CreatedTaskID = suggestion.TaskData.ID
+		// 作成された Activity ID を記録
+		if suggestion.Type == SuggestionNewTask {
+			if suggestion.ActivityData != nil {
+				result.CreatedActivityID = suggestion.ActivityData.ID
+				result.CreatedTaskID = suggestion.ActivityData.ID // 後方互換性
+			} else if suggestion.TaskData != nil {
+				// 後方互換性: TaskData から変換された場合
+				result.CreatedTaskID = suggestion.TaskData.ID
+			}
 		}
 
 		result.Applied++
@@ -648,7 +692,6 @@ func (z *Zeus) saveSuggestions(ctx context.Context, suggestions []Suggestion) er
 }
 
 // Explain はエンティティの詳細説明を生成
-// 注意: 現在はルールベースの簡易実装。Phase 3 で AI ベースに拡張予定。
 func (z *Zeus) Explain(ctx context.Context, entityID string, includeContext bool) (*ExplainResult, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -659,7 +702,12 @@ func (z *Zeus) Explain(ctx context.Context, entityID string, includeContext bool
 		return z.explainProject(ctx, includeContext)
 	}
 
-	// タスクIDの場合
+	// Activity IDの場合
+	if len(entityID) >= 4 && entityID[:4] == "act-" {
+		return z.explainActivity(ctx, entityID, includeContext)
+	}
+
+	// 後方互換性: タスクIDの場合も Activity として処理
 	if len(entityID) >= 5 && entityID[:5] == "task-" {
 		return z.explainTask(ctx, entityID, includeContext)
 	}
@@ -726,7 +774,7 @@ func (z *Zeus) explainProject(ctx context.Context, includeContext bool) (*Explai
 	return result, nil
 }
 
-// explainTask は特定タスクの説明を生成
+// explainTask は特定タスクの説明を生成（後方互換性用）
 func (z *Zeus) explainTask(ctx context.Context, taskID string, includeContext bool) (*ExplainResult, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -802,103 +850,190 @@ func (z *Zeus) explainTask(ctx context.Context, taskID string, includeContext bo
 	return result, nil
 }
 
+// explainActivity は特定 Activity の説明を生成
+func (z *Zeus) explainActivity(ctx context.Context, activityID string, includeContext bool) (*ExplainResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// Activity を取得
+	actHandler := z.GetActivityHandler()
+	if actHandler == nil {
+		return nil, fmt.Errorf("Activity handler が利用できません")
+	}
+
+	act, err := actHandler.Get(ctx, activityID)
+	if err != nil {
+		return nil, fmt.Errorf("Activity が見つかりません: %s", activityID)
+	}
+	activity, ok := act.(*ActivityEntity)
+	if !ok {
+		return nil, fmt.Errorf("Activity の型が不正です: %s", activityID)
+	}
+
+	// 要約を生成
+	summary := fmt.Sprintf("「%s」は現在 %s 状態の Activity です。",
+		activity.Title, activity.Status)
+
+	// 詳細を生成
+	details := ""
+	if activity.Description != "" {
+		details = activity.Description
+	}
+	if activity.EstimateHours > 0 {
+		details += fmt.Sprintf("\n見積もり工数: %.1f 時間", activity.EstimateHours)
+	}
+	if activity.ActualHours > 0 {
+		details += fmt.Sprintf("\n実績工数: %.1f 時間", activity.ActualHours)
+	}
+
+	result := &ExplainResult{
+		EntityID:    activityID,
+		EntityType:  "activity",
+		Summary:     summary,
+		Details:     details,
+		Context:     make(map[string]string),
+		Suggestions: []string{},
+	}
+
+	// コンテキスト情報を追加
+	if includeContext {
+		result.Context["status"] = string(activity.Status)
+		result.Context["created_at"] = activity.Metadata.CreatedAt
+		if activity.Assignee != "" {
+			result.Context["assignee"] = activity.Assignee
+		}
+		if len(activity.Dependencies) > 0 {
+			result.Context["dependencies"] = fmt.Sprintf("%v", activity.Dependencies)
+		}
+	}
+
+	// 改善提案を生成
+	if activity.Status == ActivityStatusBlocked {
+		result.Suggestions = append(result.Suggestions,
+			"この Activity はブロックされています。依存関係を確認してください。")
+	}
+	if activity.EstimateHours > 0 && activity.ActualHours > activity.EstimateHours*1.5 {
+		result.Suggestions = append(result.Suggestions,
+			"実績が見積もりを大幅に超過しています。タスク分割を検討してください。")
+	}
+
+	return result, nil
+}
+
 // applySuggestion は個別の提案を適用
+// Task/Activity 統合により、Activity を使用
 func (z *Zeus) applySuggestion(ctx context.Context, suggestion *Suggestion) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 
+	// ActivityHandler を取得
+	actHandler := z.GetActivityHandler()
+	if actHandler == nil {
+		return fmt.Errorf("Activity handler が利用できません")
+	}
+
 	switch suggestion.Type {
 	case SuggestionNewTask:
-		if suggestion.TaskData == nil {
-			return fmt.Errorf("new_task タイプの提案にタスクデータがありません")
+		// ActivityData を優先、なければ TaskData から変換（後方互換性）
+		var activity *ActivityEntity
+		if suggestion.ActivityData != nil {
+			activity = suggestion.ActivityData
+		} else if suggestion.TaskData != nil {
+			// TaskData から ActivityEntity に変換
+			activity = NewActivityFromTask(*suggestion.TaskData, suggestion.TaskData.ID)
+		} else {
+			return fmt.Errorf("new_task タイプの提案に Activity データがありません")
 		}
-		// タスクデータを検証
-		if err := suggestion.TaskData.Validate(); err != nil {
-			return fmt.Errorf("タスクデータが無効です: %w", err)
+
+		// Activity を追加
+		result, err := actHandler.Add(ctx, activity.Title,
+			WithActivityDescription(activity.Description),
+			WithActivityStatus(activity.Status),
+			WithActivityPriority(activity.Priority),
+			WithActivityAssignee(activity.Assignee),
+			WithActivityEstimateHours(activity.EstimateHours),
+			WithActivityActualHours(activity.ActualHours),
+			WithActivityDependencies(activity.Dependencies),
+			WithActivityParent(activity.ParentID),
+			WithActivityStartDate(activity.StartDate),
+			WithActivityDueDate(activity.DueDate),
+			WithActivityWBSCode(activity.WBSCode),
+			WithActivityProgress(activity.Progress),
+			WithActivityApprovalLevel(activity.ApprovalLevel),
+		)
+		if err != nil {
+			return fmt.Errorf("Activity の追加に失敗しました: %w", err)
 		}
-		// タスクを追加
-		var taskStore TaskStore
-		if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-			return fmt.Errorf("タスクストアの読み込みに失敗しました: %w", err)
-		}
-		taskStore.Tasks = append(taskStore.Tasks, *suggestion.TaskData)
-		if err := z.fileStore.WriteYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-			return fmt.Errorf("タスクストアの保存に失敗しました: %w", err)
+
+		// 生成された ID を suggestion に反映（レスポンス用）
+		if suggestion.ActivityData != nil {
+			suggestion.ActivityData.ID = result.ID
 		}
 		return nil
 
 	case SuggestionPriorityChange:
+		// TargetTaskID は Activity ID を指定（名前は後方互換性のため維持）
 		if suggestion.TargetTaskID == "" {
-			return fmt.Errorf("priority_change タイプにターゲットタスクIDがありません")
+			return fmt.Errorf("priority_change タイプにターゲット Activity ID がありません")
 		}
 		if suggestion.NewPriority == "" {
 			return fmt.Errorf("priority_change タイプに新しい優先度がありません")
 		}
-		// タスクストアを読み込み
-		var taskStore TaskStore
-		if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-			return fmt.Errorf("タスクストアの読み込みに失敗しました: %w", err)
-		}
-		// 対象タスクを検索して更新
-		found := false
-		for i := range taskStore.Tasks {
-			if taskStore.Tasks[i].ID == suggestion.TargetTaskID {
-				taskStore.Tasks[i].Priority = TaskPriority(suggestion.NewPriority)
-				taskStore.Tasks[i].UpdatedAt = Now()
-				found = true
-				break
-			}
-		}
-		if !found {
-			return fmt.Errorf("タスクが見つかりません: %s", suggestion.TargetTaskID)
-		}
-		if err := z.fileStore.WriteYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-			return fmt.Errorf("タスクストアの保存に失敗しました: %w", err)
+
+		// Activity を更新
+		err := actHandler.Update(ctx, suggestion.TargetTaskID, map[string]any{
+			"priority": suggestion.NewPriority,
+		})
+		if err != nil {
+			return fmt.Errorf("Activity の優先度更新に失敗しました: %w", err)
 		}
 		return nil
 
 	case SuggestionDependency:
+		// TargetTaskID は Activity ID を指定（名前は後方互換性のため維持）
 		if suggestion.TargetTaskID == "" {
-			return fmt.Errorf("dependency タイプにターゲットタスクIDがありません")
+			return fmt.Errorf("dependency タイプにターゲット Activity ID がありません")
 		}
 		if len(suggestion.Dependencies) == 0 {
 			return fmt.Errorf("dependency タイプに依存関係がありません")
 		}
-		// タスクストアを読み込み
-		var taskStore TaskStore
-		if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-			return fmt.Errorf("タスクストアの読み込みに失敗しました: %w", err)
+
+		// 対象 Activity を取得
+		actAny, err := actHandler.Get(ctx, suggestion.TargetTaskID)
+		if err != nil {
+			return fmt.Errorf("Activity が見つかりません: %s", suggestion.TargetTaskID)
 		}
-		// 対象タスクを検索して更新
-		found := false
-		for i := range taskStore.Tasks {
-			if taskStore.Tasks[i].ID == suggestion.TargetTaskID {
-				// 既存の依存関係に追加（重複を避ける）
-				existingDeps := make(map[string]bool)
-				for _, dep := range taskStore.Tasks[i].Dependencies {
-					existingDeps[dep] = true
-				}
-				for _, newDep := range suggestion.Dependencies {
-					if !existingDeps[newDep] {
-						taskStore.Tasks[i].Dependencies = append(taskStore.Tasks[i].Dependencies, newDep)
-					}
-				}
-				taskStore.Tasks[i].UpdatedAt = Now()
-				found = true
-				break
+		activity, ok := actAny.(*ActivityEntity)
+		if !ok {
+			return fmt.Errorf("Activity の型が不正です: %s", suggestion.TargetTaskID)
+		}
+
+		// 既存の依存関係に追加（重複を避ける）
+		existingDeps := make(map[string]bool)
+		for _, dep := range activity.Dependencies {
+			existingDeps[dep] = true
+		}
+		newDeps := make([]string, len(activity.Dependencies))
+		copy(newDeps, activity.Dependencies)
+		for _, newDep := range suggestion.Dependencies {
+			if !existingDeps[newDep] {
+				newDeps = append(newDeps, newDep)
 			}
 		}
-		if !found {
-			return fmt.Errorf("タスクが見つかりません: %s", suggestion.TargetTaskID)
-		}
-		if err := z.fileStore.WriteYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-			return fmt.Errorf("タスクストアの保存に失敗しました: %w", err)
+
+		// Activity を更新
+		err = actHandler.Update(ctx, suggestion.TargetTaskID, map[string]any{
+			"dependencies": newDeps,
+		})
+		if err != nil {
+			return fmt.Errorf("Activity の依存関係更新に失敗しました: %w", err)
 		}
 		return nil
 
 	case SuggestionRiskMitigation:
-		// リスク対策は情報提供のみ（タスク変更なし）
+		// リスク対策は情報提供のみ（Activity 変更なし）
 		// ユーザーへの警告として機能し、適用済みとしてマークされる
 		return nil
 
@@ -926,6 +1061,28 @@ func toAnalysisTaskInfo(tasks []Task) []analysis.TaskInfo {
 			Priority:      string(t.Priority),
 			Assignee:      t.Assignee,
 			EstimateHours: t.EstimateHours,
+		}
+	}
+	return result
+}
+
+// activityToAnalysisTaskInfo は Activity を analysis.TaskInfo に変換（後方互換性用）
+func activityToAnalysisTaskInfo(activities []ActivityEntity) []analysis.TaskInfo {
+	result := make([]analysis.TaskInfo, len(activities))
+	for i, a := range activities {
+		result[i] = analysis.TaskInfo{
+			ID:            a.ID,
+			Title:         a.Title,
+			Status:        string(a.Status),
+			Dependencies:  a.Dependencies,
+			ParentID:      a.ParentID,
+			StartDate:     a.StartDate,
+			DueDate:       a.DueDate,
+			Progress:      a.Progress,
+			WBSCode:       a.WBSCode,
+			Priority:      string(a.Priority),
+			Assignee:      a.Assignee,
+			EstimateHours: a.EstimateHours,
 		}
 	}
 	return result
@@ -1043,13 +1200,9 @@ func (z *Zeus) BuildDependencyGraph(ctx context.Context) (*analysis.DependencyGr
 		return nil, err
 	}
 
-	// タスク一覧を取得
-	var taskStore TaskStore
-	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-		return nil, fmt.Errorf("タスクの読み込みに失敗しました: %w", err)
-	}
-
-	if len(taskStore.Tasks) == 0 {
+	// Activity 一覧を取得
+	actHandler := z.GetActivityHandler()
+	if actHandler == nil {
 		return &analysis.DependencyGraph{
 			Nodes:    make(map[string]*analysis.GraphNode),
 			Edges:    []analysis.Edge{},
@@ -1059,8 +1212,29 @@ func (z *Zeus) BuildDependencyGraph(ctx context.Context) (*analysis.DependencyGr
 		}, nil
 	}
 
-	// core.Task を analysis.TaskInfo に変換
-	taskInfos := toAnalysisTaskInfo(taskStore.Tasks)
+	activities, err := actHandler.GetAll(ctx)
+	if err != nil {
+		return &analysis.DependencyGraph{
+			Nodes:    make(map[string]*analysis.GraphNode),
+			Edges:    []analysis.Edge{},
+			Cycles:   [][]string{},
+			Isolated: []string{},
+			Stats:    analysis.GraphStats{},
+		}, nil
+	}
+
+	if len(activities) == 0 {
+		return &analysis.DependencyGraph{
+			Nodes:    make(map[string]*analysis.GraphNode),
+			Edges:    []analysis.Edge{},
+			Cycles:   [][]string{},
+			Isolated: []string{},
+			Stats:    analysis.GraphStats{},
+		}, nil
+	}
+
+	// Activity を analysis.TaskInfo に変換
+	taskInfos := activityToAnalysisTaskInfo(activities)
 
 	// グラフを構築
 	builder := analysis.NewGraphBuilder(taskInfos)
@@ -1085,16 +1259,19 @@ func (z *Zeus) Predict(ctx context.Context, predType string) (*analysis.Analysis
 		history = []Snapshot{} // エラー時は空のスライス
 	}
 
-	// タスク一覧を取得
-	var taskStore TaskStore
-	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-		taskStore = TaskStore{Tasks: []Task{}}
+	// Activity 一覧を取得
+	var analysisTaskInfos []analysis.TaskInfo
+	actHandler := z.GetActivityHandler()
+	if actHandler != nil {
+		activities, err := actHandler.GetAll(ctx)
+		if err == nil {
+			analysisTaskInfos = activityToAnalysisTaskInfo(activities)
+		}
 	}
 
 	// 型変換
 	analysisState := toAnalysisProjectState(state)
 	analysisHistory := toAnalysisSnapshots(history)
-	analysisTaskInfos := toAnalysisTaskInfo(taskStore.Tasks)
 
 	// Predictor を作成
 	predictor := analysis.NewPredictor(analysisState, analysisHistory, analysisTaskInfos)
@@ -1199,13 +1376,9 @@ func (z *Zeus) BuildWBSTree(ctx context.Context) (*analysis.WBSTree, error) {
 		return nil, err
 	}
 
-	// タスク一覧を取得
-	var taskStore TaskStore
-	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-		return nil, fmt.Errorf("タスクの読み込みに失敗しました: %w", err)
-	}
-
-	if len(taskStore.Tasks) == 0 {
+	// Activity 一覧を取得
+	actHandler := z.GetActivityHandler()
+	if actHandler == nil {
 		return &analysis.WBSTree{
 			Roots:    []*analysis.WBSNode{},
 			MaxDepth: 0,
@@ -1213,8 +1386,25 @@ func (z *Zeus) BuildWBSTree(ctx context.Context) (*analysis.WBSTree, error) {
 		}, nil
 	}
 
-	// core.Task を analysis.TaskInfo に変換
-	taskInfos := toAnalysisTaskInfo(taskStore.Tasks)
+	activities, err := actHandler.GetAll(ctx)
+	if err != nil {
+		return &analysis.WBSTree{
+			Roots:    []*analysis.WBSNode{},
+			MaxDepth: 0,
+			Stats:    analysis.WBSStats{},
+		}, nil
+	}
+
+	if len(activities) == 0 {
+		return &analysis.WBSTree{
+			Roots:    []*analysis.WBSNode{},
+			MaxDepth: 0,
+			Stats:    analysis.WBSStats{},
+		}, nil
+	}
+
+	// Activity を analysis.TaskInfo に変換
+	taskInfos := activityToAnalysisTaskInfo(activities)
 
 	// WBSツリーを構築
 	builder := analysis.NewWBSBuilder(taskInfos)
@@ -1229,13 +1419,9 @@ func (z *Zeus) BuildTimeline(ctx context.Context) (*analysis.Timeline, error) {
 		return nil, err
 	}
 
-	// タスク一覧を取得
-	var taskStore TaskStore
-	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-		return nil, fmt.Errorf("タスクの読み込みに失敗しました: %w", err)
-	}
-
-	if len(taskStore.Tasks) == 0 {
+	// Activity 一覧を取得
+	actHandler := z.GetActivityHandler()
+	if actHandler == nil {
 		return &analysis.Timeline{
 			Items:        []analysis.TimelineItem{},
 			CriticalPath: []string{},
@@ -1243,8 +1429,25 @@ func (z *Zeus) BuildTimeline(ctx context.Context) (*analysis.Timeline, error) {
 		}, nil
 	}
 
-	// core.Task を analysis.TaskInfo に変換
-	taskInfos := toAnalysisTaskInfo(taskStore.Tasks)
+	activities, err := actHandler.GetAll(ctx)
+	if err != nil {
+		return &analysis.Timeline{
+			Items:        []analysis.TimelineItem{},
+			CriticalPath: []string{},
+			Stats:        analysis.TimelineStats{},
+		}, nil
+	}
+
+	if len(activities) == 0 {
+		return &analysis.Timeline{
+			Items:        []analysis.TimelineItem{},
+			CriticalPath: []string{},
+			Stats:        analysis.TimelineStats{},
+		}, nil
+	}
+
+	// Activity を analysis.TaskInfo に変換
+	taskInfos := activityToAnalysisTaskInfo(activities)
 
 	// タイムラインを構築
 	builder := analysis.NewTimelineBuilder(taskInfos)
@@ -1315,12 +1518,21 @@ func (z *Zeus) BuildWBSGraph(ctx context.Context) (*analysis.WBSTree, error) {
 		}
 	}
 
-	// 4. 全 Task を取得
-	var taskStore TaskStore
-	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-		taskStore = TaskStore{Tasks: []Task{}}
+	// 4. 全 Activity を取得（Task は Activity に統合されたため）
+	activities := []ActivityEntity{}
+	actFiles, err := z.fileStore.ListDir(ctx, "activities")
+	if err == nil {
+		for _, file := range actFiles {
+			if !hasYamlSuffix(file) {
+				continue
+			}
+			var act ActivityEntity
+			if err := z.fileStore.ReadYaml(ctx, filepath.Join("activities", file), &act); err == nil {
+				activities = append(activities, act)
+			}
+		}
 	}
-	taskInfos := toAnalysisTaskInfo(taskStore.Tasks)
+	taskInfos := activityToAnalysisTaskInfo(activities)
 
 	// 5. MultiEntityWBSBuilder で階層構造を構築
 	builder := analysis.NewMultiEntityWBSBuilder(vision, objectives, deliverables, taskInfos)

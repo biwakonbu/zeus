@@ -109,6 +109,23 @@ func (fm *FileManager) Exists(ctx context.Context, relativePath string) bool {
 	return err == nil
 }
 
+// DirExists はディレクトリが存在するか確認（Context対応）
+func (fm *FileManager) DirExists(ctx context.Context, relativePath string) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+
+	path, err := fm.ResolvePath(relativePath)
+	if err != nil {
+		return false
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}
+
 // ReadYaml は YAML ファイルを読み込む（Context対応）
 func (fm *FileManager) ReadYaml(ctx context.Context, relativePath string, v any) error {
 	if err := ctx.Err(); err != nil {

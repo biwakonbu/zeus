@@ -130,7 +130,7 @@ func (s *Server) handler() http.Handler {
 
 	// API エンドポイント（CORS 対応）
 	mux.HandleFunc("/api/status", s.corsMiddleware(s.handleAPIStatus))
-	mux.HandleFunc("/api/tasks", s.corsMiddleware(s.handleAPITasks))
+	// Note: /api/tasks は非推奨。Activity API (/api/activities) を使用してください。
 	mux.HandleFunc("/api/graph", s.corsMiddleware(s.handleAPIGraph))
 	mux.HandleFunc("/api/predict", s.corsMiddleware(s.handleAPIPredict))
 	mux.HandleFunc("/api/wbs", s.corsMiddleware(s.handleAPIWBS))
@@ -138,8 +138,6 @@ func (s *Server) handler() http.Handler {
 	mux.HandleFunc("/api/wbs/aggregated", s.corsMiddleware(s.handleAPIWBSAggregated))
 	mux.HandleFunc("/api/timeline", s.corsMiddleware(s.handleAPITimeline))
 	mux.HandleFunc("/api/downstream", s.corsMiddleware(s.handleAPIDownstream))
-	mux.HandleFunc("/api/metrics", s.corsMiddleware(s.handleAPIMetrics))
-	mux.HandleFunc("/api/bottlenecks", s.corsMiddleware(s.handleAPIBottlenecks))
 	mux.HandleFunc("/api/affinity", s.corsMiddleware(s.handleAPIAffinity)) // Phase 7: Affinity Canvas
 
 	// UML UseCase API エンドポイント
@@ -238,25 +236,7 @@ func (s *Server) BroadcastAllUpdates(ctx context.Context) {
 		s.broadcaster.BroadcastStatus(response)
 	}
 
-	// タスク
-	if result, err := s.zeus.List(ctx, "task"); err == nil {
-		tasks := make([]TaskItem, len(result.Items))
-		for i, t := range result.Items {
-			tasks[i] = TaskItem{
-				ID:           t.ID,
-				Title:        t.Title,
-				Status:       string(t.Status),
-				Priority:     string(t.Priority),
-				Assignee:     t.Assignee,
-				Dependencies: nonNilStrings(t.Dependencies),
-			}
-		}
-		response := TasksResponse{
-			Tasks: tasks,
-			Total: result.Total,
-		}
-		s.broadcaster.BroadcastTask(response)
-	}
+	// Note: Task ブロードキャストは非推奨。Activity API を使用してください。
 
 	// グラフ
 	if graph, err := s.zeus.BuildDependencyGraph(ctx); err == nil {

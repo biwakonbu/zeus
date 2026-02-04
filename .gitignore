@@ -2,12 +2,21 @@
 .round
 zeus
 *.exe
-.zeus/backups/
-.zeus/.local/
 *.log
 .DS_Store
 
-.zeus
+# Zeus - コミットしないファイル（一時/ローカルデータ）
+.zeus/backups/
+.zeus/.local/
+.zeus/logs/
+.zeus/analytics/
+.zeus/config/
+.zeus/entities/
+.zeus/state/snapshots/
+.zeus/approvals/
+
+# ID カウンターは UUID 統一後に不要となるため除外
+.zeus/id_counters.yaml
 
 # SvelteKit
 zeus-dashboard/node_modules/

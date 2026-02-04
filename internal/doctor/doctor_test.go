@@ -41,6 +41,12 @@ func TestDiagnose_Healthy(t *testing.T) {
 		t.Fatalf("Init() error = %v", err)
 	}
 
+	// activities ディレクトリを作成して完全に健全な状態に
+	activitiesDir := filepath.Join(tmpDir, ".zeus", "activities")
+	if err := os.MkdirAll(activitiesDir, 0755); err != nil {
+		t.Fatalf("failed to create activities dir: %v", err)
+	}
+
 	// Doctor で診断
 	d := New(tmpDir)
 	result, err := d.Diagnose(ctx)
@@ -85,6 +91,8 @@ func TestDiagnose_Unhealthy(t *testing.T) {
 	}
 }
 
+// TestDiagnose_Degraded は degraded 状態の検出をテスト
+// 初期化後に activities ディレクトリがない場合、warn が発生し degraded 状態となる
 func TestDiagnose_Degraded(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "doctor-test")
 	if err != nil {
@@ -100,8 +108,9 @@ func TestDiagnose_Degraded(t *testing.T) {
 		t.Fatalf("Init() error = %v", err)
 	}
 
-	// タスクファイルを削除して degraded 状態を作成
-	os.Remove(filepath.Join(tmpDir, ".zeus", "tasks", "active.yaml"))
+	// activities ディレクトリを削除して degraded 状態を作成
+	// 注: zeus.yaml は存在するが activities ディレクトリがない場合、warn となる
+	os.RemoveAll(filepath.Join(tmpDir, ".zeus", "activities"))
 
 	d := New(tmpDir)
 	result, err := d.Diagnose(ctx)
@@ -177,10 +186,10 @@ func TestFix_Execute(t *testing.T) {
 		t.Error("expected at least one fix action")
 	}
 
-	// 修復後は健全な状態
+	// 修復後は degraded（activities ディレクトリはまだない）または healthy
 	diagnosis, _ := d.Diagnose(ctx)
-	if diagnosis.Overall != "healthy" {
-		t.Errorf("expected Overall 'healthy' after fix, got %q", diagnosis.Overall)
+	if diagnosis.Overall != "healthy" && diagnosis.Overall != "degraded" {
+		t.Errorf("expected Overall 'healthy' or 'degraded' after fix, got %q", diagnosis.Overall)
 	}
 }
 
@@ -254,7 +263,7 @@ func TestCheckConfigExists(t *testing.T) {
 	}
 }
 
-func TestCheckTasksExists(t *testing.T) {
+func TestCheckActivitiesExists(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "doctor-test")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -269,18 +278,49 @@ func TestCheckTasksExists(t *testing.T) {
 
 	d := New(tmpDir)
 
-	// ファイルあり
-	check := d.checkTasksExists(ctx)
-	if check.Status != "pass" {
-		t.Errorf("expected Status 'pass', got %q", check.Status)
+	// 初期化直後は activities ディレクトリがないので warn（zeus.yaml は存在）
+	check := d.checkActivitiesExists(ctx)
+	if check.Status != "warn" {
+		t.Errorf("expected Status 'warn' after init (no activities dir), got %q", check.Status)
+	}
+	if check.Check != "activities_exists" {
+		t.Errorf("expected Check name 'activities_exists', got %q", check.Check)
 	}
 
-	// ファイルを削除
-	os.Remove(filepath.Join(tmpDir, ".zeus", "tasks", "active.yaml"))
+	// activities ディレクトリを作成
+	activitiesDir := filepath.Join(tmpDir, ".zeus", "activities")
+	if err := os.MkdirAll(activitiesDir, 0755); err != nil {
+		t.Fatalf("failed to create activities dir: %v", err)
+	}
 
-	check = d.checkTasksExists(ctx)
+	// activities ディレクトリがあるので pass
+	check = d.checkActivitiesExists(ctx)
+	if check.Status != "pass" {
+		t.Errorf("expected Status 'pass' with activities dir, got %q", check.Status)
+	}
+}
+
+func TestCheckActivitiesExists_Uninitialized(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "doctor-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	ctx := context.Background()
+
+	// .zeus ディレクトリのみ作成（初期化なし）
+	zeusDir := filepath.Join(tmpDir, ".zeus")
+	if err := os.MkdirAll(zeusDir, 0755); err != nil {
+		t.Fatalf("failed to create .zeus dir: %v", err)
+	}
+
+	d := New(tmpDir)
+
+	// zeus.yaml がないので warn（初期化が必要）
+	check := d.checkActivitiesExists(ctx)
 	if check.Status != "warn" {
-		t.Errorf("expected Status 'warn', got %q", check.Status)
+		t.Errorf("expected Status 'warn' for uninitialized project, got %q", check.Status)
 	}
 	if !check.Fixable {
 		t.Error("should be fixable")

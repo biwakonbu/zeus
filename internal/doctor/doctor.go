@@ -78,8 +78,8 @@ func (d *Doctor) Diagnose(ctx context.Context) (*DiagnosisResult, error) {
 	// 設定ファイル存在チェック
 	checks = append(checks, d.checkConfigExists(ctx))
 
-	// タスクファイル存在チェック
-	checks = append(checks, d.checkTasksExists(ctx))
+	// Activity ディレクトリ存在チェック
+	checks = append(checks, d.checkActivitiesExists(ctx))
 
 	// 状態ファイル存在チェック
 	checks = append(checks, d.checkStateExists(ctx))
@@ -161,27 +161,44 @@ func (d *Doctor) checkConfigExists(ctx context.Context) CheckResult {
 	}
 }
 
-func (d *Doctor) checkTasksExists(ctx context.Context) CheckResult {
-	if d.fileManager.Exists(ctx, "tasks/active.yaml") {
+func (d *Doctor) checkActivitiesExists(ctx context.Context) CheckResult {
+	// activities ディレクトリの存在をチェック
+	// ディレクトリが存在するか、zeus.yaml が存在すれば OK（初期化済み）
+	activitiesDirExists := d.fileManager.DirExists(ctx, "activities")
+	zeusConfigExists := d.fileManager.Exists(ctx, "zeus.yaml")
+
+	if activitiesDirExists {
 		return CheckResult{
-			Check:   "tasks_exists",
+			Check:   "activities_exists",
 			Status:  "pass",
-			Message: "Task files found",
+			Message: "Activities directory found",
 			Fixable: false,
 		}
 	}
 
+	if zeusConfigExists {
+		// zeus.yaml は存在するが activities ディレクトリがない場合
+		return CheckResult{
+			Check:   "activities_exists",
+			Status:  "warn",
+			Message: "Activities directory not found - run 'zeus add activity <name>' to create activities",
+			Fixable: true,
+			FixFunc: func(ctx context.Context) error {
+				// activities ディレクトリを作成
+				return d.fileManager.EnsureDir(ctx, "activities")
+			},
+		}
+	}
+
 	return CheckResult{
-		Check:   "tasks_exists",
+		Check:   "activities_exists",
 		Status:  "warn",
-		Message: "Task files missing",
+		Message: "Zeus project not initialized - run 'zeus init' to initialize",
 		Fixable: true,
 		FixFunc: func(ctx context.Context) error {
-			taskStore := &core.TaskStore{Tasks: []core.Task{}}
-			if err := d.fileManager.EnsureDir(ctx, "tasks"); err != nil {
-				return err
-			}
-			return d.fileManager.WriteYaml(ctx, "tasks/active.yaml", taskStore)
+			zeus := core.New(filepath.Dir(d.zeusPath))
+			_, err := zeus.Init(ctx)
+			return err
 		},
 	}
 }

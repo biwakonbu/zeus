@@ -13,7 +13,7 @@ model: sonnet
 1. **Vision 策定**: プロジェクトの目指す姿を定義
 2. **Objective 設計**: Vision を達成するための目標を階層化
 3. **Deliverable 定義**: 各 Objective の成果物を明確化
-4. **WBS 作成**: タスクの分解と階層構造化
+4. **WBS 作成**: Activity の分解と階層構造化
 5. **タイムライン設計**: スケジュール策定、クリティカルパス分析
 6. **Constraint/Quality 設定**: 制約条件と品質基準の定義
 7. **Actor/UseCase 設計**: UML ユースケース図によるシステム分析
@@ -120,25 +120,25 @@ zeus uml show usecase --boundary "認証システム"
 
 ## WBS階層の作成
 
-### タスク階層
+### Activity 階層
 
 ```bash
-# 親タスク
-zeus add task "Phase 1: 設計" --wbs 1
+# 親 Activity
+zeus add activity "Phase 1: 設計" --wbs 1
 
-# 子タスク（親の ID を指定）
-zeus add task "要件定義" --parent <親ID> --wbs 1.1
-zeus add task "アーキテクチャ設計" --parent <親ID> --wbs 1.2
+# 子 Activity（親の ID を指定）
+zeus add activity "要件定義" --parent <親ID> --wbs 1.1
+zeus add activity "アーキテクチャ設計" --parent <親ID> --wbs 1.2
 
-# 孫タスク
-zeus add task "DB設計" --parent <1.2のID> --wbs 1.2.1
-zeus add task "API設計" --parent <1.2のID> --wbs 1.2.2
+# 孫 Activity
+zeus add activity "DB設計" --parent <1.2のID> --wbs 1.2.1
+zeus add activity "API設計" --parent <1.2のID> --wbs 1.2.2
 ```
 
 ### タイムライン設計
 
 ```bash
-zeus add task "実装" \
+zeus add activity "実装" \
   --start 2026-01-20 \
   --due 2026-01-31 \
   --progress 0 \
@@ -170,16 +170,16 @@ zeus add decision "JWT認証を採用" \
 ## 依存関係の指定
 
 ```yaml
-# .zeus/tasks/task-xxx.yaml
+# .zeus/activities/act-xxx.yaml
 dependencies:
-  - task-design    # 設計完了後に開始
+  - act-design    # 設計完了後に開始
 ```
 
-## タスク追加オプション一覧
+## Activity 追加オプション一覧
 
 | オプション | 説明 | 例 |
 |-----------|------|-----|
-| `--parent <id>` | 親タスク/Objective ID | `--parent obj-001` |
+| `--parent <id>` | 親 Activity/Objective ID | `--parent act-001` |
 | `--start <date>` | 開始日（ISO8601） | `--start 2026-01-20` |
 | `--due <date>` | 期限日（ISO8601） | `--due 2026-01-31` |
 | `--progress <0-100>` | 進捗率 | `--progress 50` |
@@ -190,9 +190,9 @@ dependencies:
 ## 計画の原則
 
 1. **Vision 起点**: 全ての計画は Vision から始める
-2. **階層的分解**: Vision → Objective → Deliverable → Task
+2. **階層的分解**: Vision → Objective → Deliverable → Activity
 3. **保守的な見積もり**: バッファを確保
-4. **段階的計画**: 大きなタスクは WBS で分割
+4. **段階的計画**: 大きな Activity は WBS で分割
 5. **制約の明確化**: Constraint を先に定義
 6. **品質基準の設定**: Quality を Deliverable に紐付け
 7. **UseCase によるシステム分析**: Actor と UseCase で機能要件を明確化
@@ -236,4 +236,8 @@ vision:
           title: "ユーザー登録"
           actors:
             - actor-001
+      activities:
+        - id: act-001
+          title: "設計作業"
+          dependencies: []
 ```

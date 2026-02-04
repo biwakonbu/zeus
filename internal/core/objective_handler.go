@@ -7,22 +7,22 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // ObjectiveHandler は ObjectiveEntity エンティティのハンドラー
-// 個別ファイル (objectives/obj-NNN.yaml) で管理
+// 個別ファイル (objectives/obj-{uuid}.yaml) で管理
 type ObjectiveHandler struct {
-	fileStore        FileStore
-	sanitizer        *Sanitizer
-	idCounterManager *IDCounterManager
+	fileStore FileStore
+	sanitizer *Sanitizer
 }
 
 // NewObjectiveHandler は新しい ObjectiveHandler を作成
-func NewObjectiveHandler(fs FileStore, idMgr *IDCounterManager) *ObjectiveHandler {
+func NewObjectiveHandler(fs FileStore, _ *IDCounterManager) *ObjectiveHandler {
 	return &ObjectiveHandler{
-		fileStore:        fs,
-		sanitizer:        NewSanitizer(),
-		idCounterManager: idMgr,
+		fileStore: fs,
+		sanitizer: NewSanitizer(),
 	}
 }
 
@@ -43,12 +43,8 @@ func (h *ObjectiveHandler) Add(ctx context.Context, name string, opts ...EntityO
 		return nil, fmt.Errorf("invalid title: %w", err)
 	}
 
-	// 次の ID を生成
-	nextNum, err := h.getNextIDNumber(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate ID: %w", err)
-	}
-	id := fmt.Sprintf("obj-%03d", nextNum)
+	// UUID 形式の ID を生成
+	id := h.generateID()
 
 	now := Now()
 	objective := &ObjectiveEntity{
@@ -223,34 +219,9 @@ func (h *ObjectiveHandler) Delete(ctx context.Context, id string) error {
 	return h.fileStore.Delete(ctx, filePath)
 }
 
-// getNextIDNumber は次の ID 番号を取得（O(1)）
-func (h *ObjectiveHandler) getNextIDNumber(ctx context.Context) (int, error) {
-	if h.idCounterManager != nil {
-		return h.idCounterManager.GetNextID(ctx, "objective")
-	}
-	// フォールバック: 従来の O(N) 方式
-	return h.getNextIDNumberLegacy(ctx)
-}
-
-// getNextIDNumberLegacy は従来の O(N) 方式で次の ID 番号を取得
-func (h *ObjectiveHandler) getNextIDNumberLegacy(ctx context.Context) (int, error) {
-	objectives, err := h.getAllObjectives(ctx)
-	if err != nil {
-		return 1, nil // 初回は 1
-	}
-
-	maxNum := 0
-	for _, obj := range objectives {
-		// obj-NNN から番号を抽出
-		var num int
-		if _, err := fmt.Sscanf(obj.ID, "obj-%d", &num); err == nil {
-			if num > maxNum {
-				maxNum = num
-			}
-		}
-	}
-
-	return maxNum + 1, nil
+// generateID は UUID 形式の Objective ID を生成
+func (h *ObjectiveHandler) generateID() string {
+	return fmt.Sprintf("obj-%s", uuid.New().String()[:8])
 }
 
 // getAllObjectives は全 Objective を取得

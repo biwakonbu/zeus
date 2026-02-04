@@ -39,7 +39,7 @@ Zeus プロジェクトの E2E テストを実行するスキル。CLI コマン
 
 1. テスト用プロジェクトディレクトリを作成（`/tmp/zeus-e2e-test-XXXXXX`）
 2. `zeus init` で初期化
-3. サンプルタスクを追加
+3. サンプル Activity を追加
 
 ### Step 2: CLI テスト
 
@@ -51,9 +51,9 @@ Zeus プロジェクトの E2E テストを実行するスキル。CLI コマン
 # テスト対象コマンド例
 zeus init
 zeus status
-zeus add task "タスク A"
-zeus add task "タスク B" --parent <task-a-id>
-zeus list task
+zeus add activity "Activity A"
+zeus add activity "Activity B" --parent <act-a-id>
+zeus list activities
 zeus graph --format mermaid
 ```
 
@@ -128,16 +128,16 @@ window.__ZEUS__ = {
   "state": {
     "nodes": [
       {
-        "id": "task-001",
-        "name": "タスク A",
+        "id": "act-001",
+        "name": "Activity A",
         "x": 100,
         "y": 200,
-        "status": "pending",
+        "status": "draft",
         "progress": 0
       }
     ],
     "edges": [
-      { "from": "task-001", "to": "task-002" }
+      { "from": "act-001", "to": "act-002" }
     ],
     "viewport": {
       "zoom": 1.0,
@@ -186,13 +186,13 @@ Zeus E2E Test Suite
 
 CLI Tests:
   ✓ zeus init                    [PASS]
-  ✓ zeus add task                [PASS]
+  ✓ zeus add activity            [PASS]
   ✓ zeus status                  [PASS]
 
 Web Tests:
   ✓ Dashboard connection         [PASS]
   ✓ Graph state verification     [PASS]
-  ✓ Task selection               [PASS]
+  ✓ Activity selection           [PASS]
 
 Integration Tests:
   ✓ CLI → Web state sync         [PASS]
@@ -244,7 +244,7 @@ Summary: 7/7 tests passed
 
 - type: web
   action: click
-  selector: "[data-testid='task-node-001']"
+  selector: "[data-testid='activity-node-001']"
 
 - type: web
   action: snapshot

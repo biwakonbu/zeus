@@ -7,26 +7,26 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // AssumptionHandler は AssumptionEntity エンティティのハンドラー
-// 個別ファイル (assumptions/assum-NNN.yaml) で管理
+// 個別ファイル (assumptions/assum-{uuid}.yaml) で管理
 type AssumptionHandler struct {
 	fileStore          FileStore
 	sanitizer          *Sanitizer
 	objectiveHandler   *ObjectiveHandler
 	deliverableHandler *DeliverableHandler
-	idCounterManager   *IDCounterManager
 }
 
 // NewAssumptionHandler は新しい AssumptionHandler を作成
-func NewAssumptionHandler(fs FileStore, objHandler *ObjectiveHandler, delHandler *DeliverableHandler, idMgr *IDCounterManager) *AssumptionHandler {
+func NewAssumptionHandler(fs FileStore, objHandler *ObjectiveHandler, delHandler *DeliverableHandler, _ *IDCounterManager) *AssumptionHandler {
 	return &AssumptionHandler{
 		fileStore:          fs,
 		sanitizer:          NewSanitizer(),
 		objectiveHandler:   objHandler,
 		deliverableHandler: delHandler,
-		idCounterManager:   idMgr,
 	}
 }
 
@@ -47,12 +47,8 @@ func (h *AssumptionHandler) Add(ctx context.Context, name string, opts ...Entity
 		return nil, fmt.Errorf("invalid title: %w", err)
 	}
 
-	// 次の ID を生成
-	nextNum, err := h.getNextIDNumber(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate ID: %w", err)
-	}
-	id := fmt.Sprintf("assum-%03d", nextNum)
+	// UUID 形式の ID を生成
+	id := h.generateID()
 
 	now := Now()
 	assumption := &AssumptionEntity{
@@ -226,33 +222,9 @@ func (h *AssumptionHandler) Delete(ctx context.Context, id string) error {
 	return h.fileStore.Delete(ctx, filePath)
 }
 
-// getNextIDNumber は次の ID 番号を取得（O(1)）
-func (h *AssumptionHandler) getNextIDNumber(ctx context.Context) (int, error) {
-	if h.idCounterManager != nil {
-		return h.idCounterManager.GetNextID(ctx, "assumption")
-	}
-	// フォールバック: 従来の O(N) 方式
-	return h.getNextIDNumberLegacy(ctx)
-}
-
-// getNextIDNumberLegacy は従来の O(N) 方式で次の ID 番号を取得
-func (h *AssumptionHandler) getNextIDNumberLegacy(ctx context.Context) (int, error) {
-	assumptions, err := h.getAllAssumptions(ctx)
-	if err != nil {
-		return 1, nil
-	}
-
-	maxNum := 0
-	for _, assum := range assumptions {
-		var num int
-		if _, err := fmt.Sscanf(assum.ID, "assum-%d", &num); err == nil {
-			if num > maxNum {
-				maxNum = num
-			}
-		}
-	}
-
-	return maxNum + 1, nil
+// generateID は UUID 形式の Assumption ID を生成
+func (h *AssumptionHandler) generateID() string {
+	return fmt.Sprintf("assum-%s", uuid.New().String()[:8])
 }
 
 // getAllAssumptions は全 Assumption を取得

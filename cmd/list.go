@@ -16,8 +16,6 @@ var listCmd = &cobra.Command{
 	Long: `エンティティの一覧を表示します。
 
 対応エンティティ:
-  task           タスク（非推奨: Activity の使用を推奨）
-  tasks          タスク（複数形）
   vision         ビジョン
   objective(s)   目標
   deliverable(s) 成果物
@@ -31,11 +29,11 @@ var listCmd = &cobra.Command{
   subsystem(s)   サブシステム（ユースケース分類）
   activity(ies)  アクティビティ（作業単位 + プロセス可視化）
 
-エンティティを省略すると全タスクを表示します。
+エンティティを省略すると Activity 一覧を表示します。
 
 例:
-  zeus list              # 全タスクを表示
-  zeus list tasks        # タスク一覧
+  zeus list              # Activity 一覧を表示
+  zeus list activities   # アクティビティ一覧（モード表示付き）
   zeus list vision       # ビジョンを表示
   zeus list objectives   # 目標一覧
   zeus list deliverables # 成果物一覧
@@ -46,8 +44,7 @@ var listCmd = &cobra.Command{
   zeus list assumptions  # 前提条件一覧
   zeus list constraints  # 制約条件一覧
   zeus list quality      # 品質基準一覧
-  zeus list subsystems   # サブシステム一覧
-  zeus list activities   # アクティビティ一覧（モード表示付き）`,
+  zeus list subsystems   # サブシステム一覧`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runList,
 }
@@ -90,36 +87,33 @@ func runList(cmd *cobra.Command, args []string) error {
 		return listQualities(cmd, zeus)
 	case "subsystem", "subsystems":
 		return listSubsystems(cmd, zeus)
-	case "activity", "activities":
+	case "task", "tasks":
+		// Task は非推奨: Activity に誘導
+		return listTasksDeprecated(cmd)
+	case "", "activity", "activities":
+		// デフォルトは Activity 一覧
 		return listActivities(cmd, zeus)
 	default:
-		// Task（既存の振る舞い）
-		return listTasks(cmd, zeus, entity)
+		return fmt.Errorf("不明なエンティティ: %s", entity)
 	}
 }
 
-// listTasks は Task 一覧を表示
-func listTasks(cmd *cobra.Command, zeus *core.Zeus, entity string) error {
-	ctx := getContext(cmd)
-	result, err := zeus.List(ctx, entity)
-	if err != nil {
-		return err
-	}
-
-	cyan := color.New(color.FgCyan).SprintFunc()
+// listTasksDeprecated は非推奨メッセージを表示し、Activity への移行を案内
+func listTasksDeprecated(_ *cobra.Command) error {
 	yellow := color.New(color.FgYellow).SprintFunc()
+	cyan := color.New(color.FgCyan).SprintFunc()
 
-	fmt.Printf("%s (%d items)\n", cyan("Tasks"), result.Total)
+	fmt.Printf("%s Task エンティティは非推奨です\n", yellow("[非推奨]"))
 	fmt.Println("────────────────────────────────────────")
-
-	if result.Total > 0 {
-		fmt.Printf("%s Task は非推奨です。Activity の使用を推奨します。\n\n", yellow("[注意]"))
-	}
-
-	for _, task := range result.Items {
-		statusColor := getStatusColor(task.Status)
-		fmt.Printf("[%s] %s - %s\n", statusColor(string(task.Status)), task.ID, task.Title)
-	}
+	fmt.Println()
+	fmt.Printf("Task は Activity に統合されました。\n")
+	fmt.Println("Activity は Simple モード（作業追跡）と Flow モード（プロセス可視化）を提供します。")
+	fmt.Println()
+	fmt.Printf("代わりに以下のコマンドを使用してください:\n")
+	fmt.Printf("  %s  # Activity 一覧を表示\n", cyan("zeus list activities"))
+	fmt.Printf("  %s     # Activity を追加\n", cyan("zeus add activity \"タイトル\""))
+	fmt.Println()
+	fmt.Println("詳細は 'zeus help add' を参照してください。")
 
 	return nil
 }
@@ -239,19 +233,6 @@ func listDeliverables(cmd *cobra.Command, zeus *core.Zeus) error {
 	fmt.Println("\n詳細を見るには 'zeus status' を使用してください。")
 
 	return nil
-}
-
-func getStatusColor(status core.TaskStatus) func(a ...any) string {
-	switch status {
-	case core.TaskStatusCompleted:
-		return color.New(color.FgGreen).SprintFunc()
-	case core.TaskStatusInProgress:
-		return color.New(color.FgYellow).SprintFunc()
-	case core.TaskStatusBlocked:
-		return color.New(color.FgRed).SprintFunc()
-	default:
-		return color.New(color.FgWhite).SprintFunc()
-	}
 }
 
 // listConsiderations は Consideration 一覧を表示

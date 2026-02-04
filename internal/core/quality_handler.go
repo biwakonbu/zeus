@@ -7,24 +7,24 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // QualityHandler は QualityEntity エンティティのハンドラー
-// 個別ファイル (quality/qual-NNN.yaml) で管理
+// 個別ファイル (quality/qual-{uuid}.yaml) で管理
 type QualityHandler struct {
 	fileStore          FileStore
 	sanitizer          *Sanitizer
 	deliverableHandler *DeliverableHandler
-	idCounterManager   *IDCounterManager
 }
 
 // NewQualityHandler は新しい QualityHandler を作成
-func NewQualityHandler(fs FileStore, delHandler *DeliverableHandler, idMgr *IDCounterManager) *QualityHandler {
+func NewQualityHandler(fs FileStore, delHandler *DeliverableHandler, _ *IDCounterManager) *QualityHandler {
 	return &QualityHandler{
 		fileStore:          fs,
 		sanitizer:          NewSanitizer(),
 		deliverableHandler: delHandler,
-		idCounterManager:   idMgr,
 	}
 }
 
@@ -45,12 +45,8 @@ func (h *QualityHandler) Add(ctx context.Context, name string, opts ...EntityOpt
 		return nil, fmt.Errorf("invalid title: %w", err)
 	}
 
-	// 次の ID を生成
-	nextNum, err := h.getNextIDNumber(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate ID: %w", err)
-	}
-	id := fmt.Sprintf("qual-%03d", nextNum)
+	// UUID 形式の ID を生成
+	id := h.generateID()
 
 	now := Now()
 	quality := &QualityEntity{
@@ -203,33 +199,9 @@ func (h *QualityHandler) Delete(ctx context.Context, id string) error {
 	return h.fileStore.Delete(ctx, filePath)
 }
 
-// getNextIDNumber は次の ID 番号を取得（O(1)）
-func (h *QualityHandler) getNextIDNumber(ctx context.Context) (int, error) {
-	if h.idCounterManager != nil {
-		return h.idCounterManager.GetNextID(ctx, "quality")
-	}
-	// フォールバック: 従来の O(N) 方式
-	return h.getNextIDNumberLegacy(ctx)
-}
-
-// getNextIDNumberLegacy は従来の O(N) 方式で次の ID 番号を取得
-func (h *QualityHandler) getNextIDNumberLegacy(ctx context.Context) (int, error) {
-	qualities, err := h.getAllQualities(ctx)
-	if err != nil {
-		return 1, nil
-	}
-
-	maxNum := 0
-	for _, qual := range qualities {
-		var num int
-		if _, err := fmt.Sscanf(qual.ID, "qual-%d", &num); err == nil {
-			if num > maxNum {
-				maxNum = num
-			}
-		}
-	}
-
-	return maxNum + 1, nil
+// generateID は UUID 形式の Quality ID を生成
+func (h *QualityHandler) generateID() string {
+	return fmt.Sprintf("qual-%s", uuid.New().String()[:8])
 }
 
 // getAllQualities は全 Quality を取得

@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/biwakonbu/zeus/internal/yaml"
@@ -611,14 +612,22 @@ func TestDeliverableHandlerIDSequence(t *testing.T) {
 		ids[i] = result.ID
 	}
 
-	// ID が連続していることを確認
-	if ids[0] != "del-001" {
-		t.Errorf("expected first ID 'del-001', got %q", ids[0])
+	// 全ての ID がユニークであることを確認
+	seen := make(map[string]bool)
+	for i, id := range ids {
+		if seen[id] {
+			t.Errorf("duplicate ID found: %q", id)
+		}
+		seen[id] = true
+
+		// プレフィックスが正しいことを確認
+		if !strings.HasPrefix(id, "del-") {
+			t.Errorf("ID[%d] = %q, expected prefix 'del-'", i, id)
+		}
 	}
-	if ids[1] != "del-002" {
-		t.Errorf("expected second ID 'del-002', got %q", ids[1])
-	}
-	if ids[2] != "del-003" {
-		t.Errorf("expected third ID 'del-003', got %q", ids[2])
+
+	// ID 数が正しいことを確認
+	if len(seen) != 3 {
+		t.Errorf("expected 3 unique IDs, got %d", len(seen))
 	}
 }

@@ -7,26 +7,26 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // ConsiderationHandler は ConsiderationEntity エンティティのハンドラー
-// 個別ファイル (considerations/con-NNN.yaml) で管理
+// 個別ファイル (considerations/con-{uuid}.yaml) で管理
 type ConsiderationHandler struct {
 	fileStore          FileStore
 	sanitizer          *Sanitizer
 	objectiveHandler   *ObjectiveHandler
 	deliverableHandler *DeliverableHandler
-	idCounterManager   *IDCounterManager
 }
 
 // NewConsiderationHandler は新しい ConsiderationHandler を作成
-func NewConsiderationHandler(fs FileStore, objHandler *ObjectiveHandler, delHandler *DeliverableHandler, idMgr *IDCounterManager) *ConsiderationHandler {
+func NewConsiderationHandler(fs FileStore, objHandler *ObjectiveHandler, delHandler *DeliverableHandler, _ *IDCounterManager) *ConsiderationHandler {
 	return &ConsiderationHandler{
 		fileStore:          fs,
 		sanitizer:          NewSanitizer(),
 		objectiveHandler:   objHandler,
 		deliverableHandler: delHandler,
-		idCounterManager:   idMgr,
 	}
 }
 
@@ -47,12 +47,8 @@ func (h *ConsiderationHandler) Add(ctx context.Context, name string, opts ...Ent
 		return nil, fmt.Errorf("invalid title: %w", err)
 	}
 
-	// 次の ID を生成
-	nextNum, err := h.getNextIDNumber(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate ID: %w", err)
-	}
-	id := fmt.Sprintf("con-%03d", nextNum)
+	// UUID 形式の ID を生成
+	id := h.generateID()
 
 	now := Now()
 	consideration := &ConsiderationEntity{
@@ -264,33 +260,9 @@ func (h *ConsiderationHandler) checkDecisionReferences(ctx context.Context, cons
 	return "", nil // 参照なし
 }
 
-// getNextIDNumber は次の ID 番号を取得（O(1)）
-func (h *ConsiderationHandler) getNextIDNumber(ctx context.Context) (int, error) {
-	if h.idCounterManager != nil {
-		return h.idCounterManager.GetNextID(ctx, "consideration")
-	}
-	// フォールバック: 従来の O(N) 方式
-	return h.getNextIDNumberLegacy(ctx)
-}
-
-// getNextIDNumberLegacy は従来の O(N) 方式で次の ID 番号を取得
-func (h *ConsiderationHandler) getNextIDNumberLegacy(ctx context.Context) (int, error) {
-	considerations, err := h.getAllConsiderations(ctx)
-	if err != nil {
-		return 1, nil // 初回は 1
-	}
-
-	maxNum := 0
-	for _, con := range considerations {
-		var num int
-		if _, err := fmt.Sscanf(con.ID, "con-%d", &num); err == nil {
-			if num > maxNum {
-				maxNum = num
-			}
-		}
-	}
-
-	return maxNum + 1, nil
+// generateID は UUID 形式の Consideration ID を生成
+func (h *ConsiderationHandler) generateID() string {
+	return fmt.Sprintf("con-%s", uuid.New().String()[:8])
 }
 
 // getAllConsiderations は全 Consideration を取得

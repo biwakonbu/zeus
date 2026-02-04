@@ -56,7 +56,7 @@ make build-all          # 統合ビルド
 | UML UseCase | Actor, UseCase, シナリオ、PixiJS ビューワー | 完了 |
 | UML Activity | アクティビティ図、ノード/遷移、PixiJS ビューワー | 完了 |
 | UML Subsystem | サブシステム分類、UseCase グルーピング、境界描画 | 完了 |
-| Task/Activity 統合 | Task を Activity に統合、UnifiedGraph | 完了 |
+| Activity 拡張 | Simple/Flow モード、UnifiedGraph | 完了 |
 
 ## 実装済みコマンド
 
@@ -65,16 +65,14 @@ make build-all          # 統合ビルド
 zeus init                                       # プロジェクト初期化
 zeus status                                     # 状態表示
 zeus add <entity> <name> [options]              # エンティティ追加
-  # entity: task, vision, objective, deliverable, consideration, decision,
-  #         problem, risk, assumption, constraint, quality, actor, usecase,
-  #         subsystem, activity
+  # entity: vision, objective, deliverable, activity, consideration, decision,
+  #         problem, risk, assumption, constraint, quality, actor, usecase, subsystem
   # --parent <id>  --start <date>  --due <date>  --progress <0-100>  --wbs <code>
   # --statement <text>  --objective <id>  --format <type>  --subsystem <id>
   # Activity 用: --depends <ids>  --estimate <hours>  --assignee <name>  --priority <level>
 zeus list [entity]                              # 一覧表示
-  # entity: tasks, vision, objectives, deliverables, considerations, decisions,
-  #         problems, risks, assumptions, constraints, quality, actors, usecases,
-  #         subsystems, activities
+  # entity: vision, objectives, deliverables, activities, considerations, decisions,
+  #         problems, risks, assumptions, constraints, quality, actors, usecases, subsystems
 zeus doctor                                     # 診断（参照整合性・循環参照・Lint チェック含む）
 zeus fix [--dry-run]                            # 修復
 
@@ -124,12 +122,12 @@ zeus update-claude                              # Claude Code ファイル再生
 - `agents/zeus-planner.md` - WBS・タイムライン設計
 - `agents/zeus-reviewer.md` - 分析・レビュー
 - `skills/zeus-project-scan/SKILL.md` - プロジェクト状態取得
-- `skills/zeus-task-suggest/SKILL.md` - タスク提案
+- `skills/zeus-activity-suggest/SKILL.md` - Activity 提案
 - `skills/zeus-risk-analysis/SKILL.md` - リスク分析
 
 ## 10概念モデル
 
-Task ベースのシステムを拡張し、プロジェクト管理の本質的な概念を表現する 10 概念モデルを導入。
+プロジェクト管理の本質的な概念を表現する 10 概念モデル。
 
 ### Phase 1 実装済み（3概念）
 
@@ -163,20 +161,18 @@ Task ベースのシステムを拡張し、プロジェクト管理の本質的
 | Actor | アクター定義 | `.zeus/actors.yaml` | 単一ファイル |
 | UseCase | ユースケース定義 | `.zeus/usecases/uc-NNN.yaml` | Objective 参照必須 |
 | Subsystem | サブシステム定義 | `.zeus/subsystems.yaml` | 単一ファイル、UseCase グルーピング |
-| Activity | アクティビティ（作業単位 + プロセス可視化） | `.zeus/activities/act-NNN.yaml` | Task の後継、2 モード対応 |
+| Activity | アクティビティ（作業単位 + プロセス可視化） | `.zeus/activities/act-NNN.yaml` | Simple/Flow 2モード対応 |
 
-### Task/Activity 統合
+### Activity
 
-**決定事項（round discussion 20260204-172914_68b329）:**
-
-Task エンティティを非推奨とし、Activity に統合。Activity は「実行可能な作業単位」として 2 つのモードを持つ:
+Activity は「実行可能な作業単位」として 2 つのモードを持つ:
 
 | モード | 用途 | 判定条件 |
 |--------|------|----------|
-| Simple | 作業追跡（旧 Task 相当） | `len(Nodes) == 0` |
+| Simple | 作業追跡 | `len(Nodes) == 0` |
 | Flow | プロセス可視化（アクティビティ図） | `len(Nodes) > 0` |
 
-**Activity の拡張フィールド（Simple モード用）:**
+**Activity のフィールド（Simple モード用）:**
 - `dependencies`: 依存先 Activity ID
 - `parent_id`: 親 Activity ID
 - `estimate_hours`: 見積もり時間

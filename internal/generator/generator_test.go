@@ -58,7 +58,7 @@ func TestGenerateAll(t *testing.T) {
 	// スキルファイルが存在するか確認
 	skills := []string{
 		"zeus-project-scan/SKILL.md",
-		"zeus-task-suggest/SKILL.md",
+		"zeus-activity-suggest/SKILL.md",
 		"zeus-risk-analysis/SKILL.md",
 	}
 	for _, skill := range skills {
@@ -341,7 +341,7 @@ func TestGenerateAgents_FileContent(t *testing.T) {
 		},
 		{
 			file:     "zeus-planner.md",
-			contains: []string{"MyProject", "Planner", "zeus add task"},
+			contains: []string{"MyProject", "Planner", "zeus add activity"},
 		},
 		{
 			file:     "zeus-reviewer.md",
@@ -389,8 +389,8 @@ func TestGenerateSkills_FileContent(t *testing.T) {
 			contains: []string{"MyProject", "zeus-project-scan", "プロジェクト全体をスキャン"},
 		},
 		{
-			dir:      "zeus-task-suggest",
-			contains: []string{"MyProject", "zeus-task-suggest", "タスクを提案"},
+			dir:      "zeus-activity-suggest",
+			contains: []string{"MyProject", "zeus-activity-suggest", "Activity を提案"},
 		},
 		{
 			dir:      "zeus-risk-analysis",
@@ -470,7 +470,7 @@ func TestGenerateSkills_AllFiles(t *testing.T) {
 	// 全スキルファイルが存在し、空でないか確認
 	skills := []string{
 		"zeus-project-scan",
-		"zeus-task-suggest",
+		"zeus-activity-suggest",
 		"zeus-risk-analysis",
 	}
 

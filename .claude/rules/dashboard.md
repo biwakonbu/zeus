@@ -41,15 +41,14 @@ paths:
 ## API エンドポイント
 
 - `GET /api/status` - プロジェクト状態
-- `GET /api/tasks` - タスク一覧
+- `GET /api/activities` - Activity 一覧
 - `GET /api/graph` - 依存関係グラフ（Mermaid形式）
 - `GET /api/predict` - 予測分析結果
 - `GET /api/wbs` - WBS 階層構造
 - `GET /api/timeline` - タイムラインとクリティカルパス
-- `GET /api/downstream?task_id=X` - 下流・上流タスク取得
+- `GET /api/downstream?id=X` - 下流・上流 Activity 取得
 - `GET /api/events` - SSE ストリーム（リアルタイム更新）
 - `GET /api/affinity` - 機能間類似度マトリクス（Phase 7 で追加予定）
-- `POST /api/metrics` - メトリクス保存（Graph View 計測ログ）
 - `GET /api/actors` - Actor 一覧
 - `GET /api/usecases` - UseCase 一覧
 - `GET /api/subsystems` - Subsystem 一覧
@@ -61,10 +60,10 @@ paths:
 
 | 機能 | 説明 |
 |------|------|
-| タスクグラフ | PixiJS によるインタラクティブな依存関係グラフ表示 |
+| Activity グラフ | PixiJS によるインタラクティブな依存関係グラフ表示 |
 | ミニマップ | 全体像の把握と素早いナビゲーション |
 | フィルター | ステータス・優先度・担当者でフィルタリング |
-| タスク詳細 | タスク選択時に詳細パネル表示 |
+| Activity 詳細 | Activity 選択時に詳細パネル表示 |
 | リアルタイム更新 | SSE + ポーリングフォールバック |
 
 ## コマンドオプション
@@ -84,22 +83,9 @@ paths:
 
 ## 影響範囲可視化
 
-- 選択タスクの下流タスクを黄色でハイライト
-- 上流タスクを青色でハイライト
-- 選択タスクはオレンジ色で強調
-
-## メトリクス計測（Graph View）
-
-開発時やテスト時に Graph View の操作ログを収集する機能。
-
-**有効化方法:**
-- `http://localhost:5173/?metrics` でメトリクス収集を有効化
-- `?metricsAutoSave` を付けると `/api/metrics` に自動保存（テストモードは自動で有効）
-
-**出力:**
-- 画面右上の `DL` ボタンで `zeus-viewer-metrics-*.json` をダウンロード
-- 自動保存先: `.zeus/metrics/dashboard-metrics-<session>.jsonl`
-- 収集ログは `window.__VIEWER_METRICS__` にも格納され、ステータスバーに件数が表示される
+- 選択 Activity の下流 Activity を黄色でハイライト
+- 上流 Activity を青色でハイライト
+- 選択 Activity はオレンジ色で強調
 
 ## UseCaseView
 

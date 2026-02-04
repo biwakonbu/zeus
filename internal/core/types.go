@@ -206,10 +206,12 @@ type Suggestion struct {
 	CreatedAt   string           `yaml:"created_at"`
 	UpdatedAt   string           `yaml:"updated_at,omitempty"`
 	// タイプ固有のデータ
-	TargetTaskID string   `yaml:"target_task_id,omitempty"` // priority_change, dependency用
-	NewPriority  string   `yaml:"new_priority,omitempty"`   // priority_change用
-	Dependencies []string `yaml:"dependencies,omitempty"`   // dependency用
-	TaskData     *Task    `yaml:"task_data,omitempty"`      // new_task用
+	// 注意: TargetTaskID は後方互換性のために残しているが、Activity ID を指定する
+	TargetTaskID string            `yaml:"target_task_id,omitempty"` // priority_change, dependency用（Activity ID を指定）
+	NewPriority  string            `yaml:"new_priority,omitempty"`   // priority_change用
+	Dependencies []string          `yaml:"dependencies,omitempty"`   // dependency用
+	TaskData     *Task             `yaml:"task_data,omitempty"`      // new_task用（非推奨: ActivityData を使用）
+	ActivityData *ActivityEntity   `yaml:"activity_data,omitempty"`  // new_task用（推奨）
 }
 
 // SuggestionStore は提案ストア
@@ -219,12 +221,13 @@ type SuggestionStore struct {
 
 // ApplyResult は提案適用結果
 type ApplyResult struct {
-	Applied       int
-	Skipped       int
-	Failed        int
-	AppliedIDs    []string
-	FailedIDs     []string
-	CreatedTaskID string
+	Applied           int
+	Skipped           int
+	Failed            int
+	AppliedIDs        []string
+	FailedIDs         []string
+	CreatedTaskID     string // 非推奨: CreatedActivityID を使用
+	CreatedActivityID string // 作成された Activity の ID
 }
 
 // ExplainResult は説明結果
@@ -285,22 +288,30 @@ func (s *Suggestion) Validate() error {
 
 	switch s.Type {
 	case SuggestionNewTask:
-		if s.TaskData == nil {
-			return fmt.Errorf("new_task suggestion must have TaskData")
-		}
-		if err := s.TaskData.Validate(); err != nil {
-			return fmt.Errorf("invalid task data: %w", err)
+		// ActivityData を優先、なければ TaskData をチェック（後方互換性）
+		if s.ActivityData != nil {
+			if err := s.ActivityData.Validate(); err != nil {
+				return fmt.Errorf("invalid activity data: %w", err)
+			}
+		} else if s.TaskData != nil {
+			if err := s.TaskData.Validate(); err != nil {
+				return fmt.Errorf("invalid task data: %w", err)
+			}
+		} else {
+			return fmt.Errorf("new_task suggestion must have ActivityData or TaskData")
 		}
 	case SuggestionPriorityChange:
+		// TargetTaskID は Activity ID を指定（名前は後方互換性のため維持）
 		if s.TargetTaskID == "" {
-			return fmt.Errorf("priority_change suggestion must have TargetTaskID")
+			return fmt.Errorf("priority_change suggestion must have TargetTaskID (Activity ID)")
 		}
 		if s.NewPriority == "" {
 			return fmt.Errorf("priority_change suggestion must have NewPriority")
 		}
 	case SuggestionDependency:
+		// TargetTaskID は Activity ID を指定（名前は後方互換性のため維持）
 		if s.TargetTaskID == "" {
-			return fmt.Errorf("dependency suggestion must have TargetTaskID")
+			return fmt.Errorf("dependency suggestion must have TargetTaskID (Activity ID)")
 		}
 		if len(s.Dependencies) == 0 {
 			return fmt.Errorf("dependency suggestion must have at least one dependency")

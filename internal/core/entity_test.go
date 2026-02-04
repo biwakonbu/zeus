@@ -26,14 +26,14 @@ func TestEntityRegistry_Register(t *testing.T) {
 	z := New(tmpDir)
 	r := NewEntityRegistry()
 
-	// タスクハンドラーを登録
-	handler := NewTaskHandler(z.fileStore)
+	// Vision ハンドラーを登録
+	handler := NewVisionHandler(z.fileStore)
 	r.Register(handler)
 
 	// 登録されたか確認
-	h, ok := r.Get("task")
+	h, ok := r.Get("vision")
 	if !ok {
-		t.Error("task handler should be registered")
+		t.Error("vision handler should be registered")
 	}
 	if h == nil {
 		t.Error("retrieved handler should not be nil")
@@ -49,16 +49,16 @@ func TestEntityRegistry_Get(t *testing.T) {
 
 	z := New(tmpDir)
 	r := NewEntityRegistry()
-	handler := NewTaskHandler(z.fileStore)
+	handler := NewVisionHandler(z.fileStore)
 	r.Register(handler)
 
 	// 存在するタイプ
-	h, ok := r.Get("task")
+	h, ok := r.Get("vision")
 	if !ok {
 		t.Error("should find registered handler")
 	}
-	if h.Type() != "task" {
-		t.Errorf("expected type 'task', got %q", h.Type())
+	if h.Type() != "vision" {
+		t.Errorf("expected type 'vision', got %q", h.Type())
 	}
 
 	// 存在しないタイプ
@@ -85,15 +85,15 @@ func TestEntityRegistry_Types(t *testing.T) {
 	}
 
 	// ハンドラーを登録
-	handler := NewTaskHandler(z.fileStore)
+	handler := NewVisionHandler(z.fileStore)
 	r.Register(handler)
 
 	types = r.Types()
 	if len(types) != 1 {
 		t.Errorf("expected 1 type, got %d", len(types))
 	}
-	if types[0] != "task" {
-		t.Errorf("expected type 'task', got %q", types[0])
+	if types[0] != "vision" {
+		t.Errorf("expected type 'vision', got %q", types[0])
 	}
 }
 
@@ -108,8 +108,8 @@ func TestEntityRegistry_RegisterOverwrite(t *testing.T) {
 	r := NewEntityRegistry()
 
 	// 同じタイプを2回登録
-	handler1 := NewTaskHandler(z.fileStore)
-	handler2 := NewTaskHandler(z.fileStore)
+	handler1 := NewVisionHandler(z.fileStore)
+	handler2 := NewVisionHandler(z.fileStore)
 	r.Register(handler1)
 	r.Register(handler2)
 
