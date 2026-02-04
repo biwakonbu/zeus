@@ -78,7 +78,6 @@ var addCmd = &cobra.Command{
 	Long: `エンティティを追加します。
 
 対応エンティティ:
-  task          タスク（非推奨: Activity の使用を推奨）
   vision        プロジェクトビジョン
   objective     目標・マイルストーン
   deliverable   成果物
@@ -98,15 +97,6 @@ var addCmd = &cobra.Command{
   --description  説明
   --owner        オーナー
   --tags         タグ（カンマ区切り）
-
-タスク用オプション（非推奨: Activity を使用してください）:
-  --parent    親タスクのID（WBS階層構造用）
-  --start     開始日（ISO8601形式: 2026-01-17）
-  --due       期限日（ISO8601形式: 2026-01-31）
-  --progress  進捗率（0-100）
-  --wbs       WBSコード（例: 1.2.3）
-  --priority  優先度（high, medium, low）
-  --assignee  担当者名
 
 Activity 用オプション:
   --parent      親 Activity の ID
@@ -186,7 +176,6 @@ Subsystem 用オプション:
   --description   説明
 
 例:
-  zeus add task "設計ドキュメント作成"
   zeus add vision "AI駆動PM" --statement "AIと人間が協調するPM"
   zeus add objective "認証システム実装" --wbs 1.1 --due 2026-02-28
   zeus add deliverable "API設計書" --objective obj-001 --format document
@@ -316,8 +305,6 @@ func buildAddOptions(entity string) []core.EntityOption {
 	var opts []core.EntityOption
 
 	switch entity {
-	case "task":
-		opts = buildTaskOptions()
 	case "vision":
 		opts = buildVisionOptions()
 	case "objective":
@@ -346,46 +333,6 @@ func buildAddOptions(entity string) []core.EntityOption {
 		opts = buildSubsystemOptions()
 	case "activity":
 		opts = buildActivityOptions()
-	}
-
-	return opts
-}
-
-// buildTaskOptions は Task 用オプションを構築
-func buildTaskOptions() []core.EntityOption {
-	var opts []core.EntityOption
-
-	if addParentID != "" {
-		opts = append(opts, core.WithTaskParent(addParentID))
-	}
-	if addStartDate != "" {
-		opts = append(opts, core.WithTaskStartDate(addStartDate))
-	}
-	if addDueDate != "" {
-		opts = append(opts, core.WithTaskDueDate(addDueDate))
-	}
-	if addProgress > 0 {
-		opts = append(opts, core.WithTaskProgress(addProgress))
-	}
-	if addWBSCode != "" {
-		opts = append(opts, core.WithTaskWBSCode(addWBSCode))
-	}
-	if addPriority != "" {
-		var priority core.TaskPriority
-		switch addPriority {
-		case "high":
-			priority = core.PriorityHigh
-		case "medium":
-			priority = core.PriorityMedium
-		case "low":
-			priority = core.PriorityLow
-		default:
-			priority = core.PriorityMedium
-		}
-		opts = append(opts, core.WithTaskPriority(priority))
-	}
-	if addAssignee != "" {
-		opts = append(opts, core.WithTaskAssignee(addAssignee))
 	}
 
 	return opts
