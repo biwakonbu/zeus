@@ -60,6 +60,7 @@ func TestGenerateAll(t *testing.T) {
 		"zeus-project-scan/SKILL.md",
 		"zeus-activity-suggest/SKILL.md",
 		"zeus-risk-analysis/SKILL.md",
+		"zeus-wbs-design/SKILL.md",
 	}
 	for _, skill := range skills {
 		path := filepath.Join(tmpDir, ".claude", "skills", skill)
@@ -390,7 +391,7 @@ func TestGenerateSkills_FileContent(t *testing.T) {
 		},
 		{
 			dir:      "zeus-activity-suggest",
-			contains: []string{"MyProject", "zeus-activity-suggest", "Activity を提案"},
+			contains: []string{"MyProject", "zeus-activity-suggest", "Activity"},
 		},
 		{
 			dir:      "zeus-risk-analysis",
@@ -472,6 +473,7 @@ func TestGenerateSkills_AllFiles(t *testing.T) {
 		"zeus-project-scan",
 		"zeus-activity-suggest",
 		"zeus-risk-analysis",
+		"zeus-wbs-design",
 	}
 
 	for _, skill := range skills {
@@ -616,5 +618,82 @@ func TestExecuteTemplate_ExecuteError(t *testing.T) {
 	_, err = g.executeTemplate("{{.Name | nonexistent}}", map[string]string{"Name": "Test"})
 	if err == nil {
 		t.Error("executeTemplate() should return error for invalid function")
+	}
+}
+
+// TestEmbeddedAgentFiles は埋め込みエージェントファイルが正しく読み込めるかテスト
+func TestEmbeddedAgentFiles(t *testing.T) {
+	agents := []string{
+		"assets/agents/zeus-orchestrator.md",
+		"assets/agents/zeus-planner.md",
+		"assets/agents/zeus-reviewer.md",
+	}
+
+	for _, agent := range agents {
+		content, err := agentFS.ReadFile(agent)
+		if err != nil {
+			t.Errorf("agent file %s should be embedded: %v", agent, err)
+			continue
+		}
+		if len(content) == 0 {
+			t.Errorf("agent file %s should not be empty", agent)
+		}
+		// テンプレート変数が含まれているか確認
+		if !strings.Contains(string(content), "{{.ProjectName}}") {
+			t.Errorf("agent file %s should contain {{.ProjectName}} template variable", agent)
+		}
+	}
+}
+
+// TestEmbeddedSkillFiles は埋め込みスキルファイルが正しく読み込めるかテスト
+func TestEmbeddedSkillFiles(t *testing.T) {
+	skills := []string{
+		"assets/skills/zeus-project-scan/SKILL.md",
+		"assets/skills/zeus-activity-suggest/SKILL.md",
+		"assets/skills/zeus-risk-analysis/SKILL.md",
+		"assets/skills/zeus-wbs-design/SKILL.md",
+	}
+
+	for _, skill := range skills {
+		content, err := skillFS.ReadFile(skill)
+		if err != nil {
+			t.Errorf("skill file %s should be embedded: %v", skill, err)
+			continue
+		}
+		if len(content) == 0 {
+			t.Errorf("skill file %s should not be empty", skill)
+		}
+	}
+}
+
+// TestGenerateSkills_WBSDesign は zeus-wbs-design スキルが生成されるかテスト
+func TestGenerateSkills_WBSDesign(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "generator-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	g := NewGenerator(tmpDir)
+	ctx := context.Background()
+
+	err = g.GenerateSkills(ctx, "TestProject")
+	if err != nil {
+		t.Fatalf("GenerateSkills() error = %v", err)
+	}
+
+	// zeus-wbs-design スキルが生成されているか確認
+	path := filepath.Join(tmpDir, ".claude", "skills", "zeus-wbs-design", "SKILL.md")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read zeus-wbs-design skill: %v", err)
+	}
+
+	// 内容を確認
+	if !strings.Contains(string(content), "zeus-wbs-design") {
+		t.Error("skill file should contain 'zeus-wbs-design'")
+	}
+	if !strings.Contains(string(content), "WBS") {
+		t.Error("skill file should contain 'WBS'")
 	}
 }

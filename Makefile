@@ -1,11 +1,15 @@
-.PHONY: build clean test install dev dashboard-deps dashboard-dev dashboard-build build-all clean-dashboard storybook storybook-build
+.PHONY: build clean test install dev dashboard-deps dashboard-dev dashboard-build build-all clean-dashboard storybook storybook-build generate
 
 BINARY_NAME=zeus
 VERSION=1.0.0
 DASHBOARD_DIR=zeus-dashboard
 
-# Go ビルド
-build:
+# go generate を実行（.claude/ からテンプレートファイルをコピー）
+generate:
+	go generate ./internal/generator/...
+
+# Go ビルド（generate を先に実行）
+build: generate
 	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY_NAME) .
 
 clean:
