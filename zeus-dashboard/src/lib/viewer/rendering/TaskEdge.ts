@@ -1,5 +1,5 @@
 // タスク間のエッジ（依存関係）描画クラス
-// 3層構造（グロー → 外側 → コア）で電気回路風の発光感を表現
+// 2層構造（外側縁取り → コア）でシンプルに視認性を確保
 import { Graphics } from 'pixi.js';
 import { EDGE_COLORS, EDGE_WIDTHS } from '$lib/viewer/shared/constants';
 
@@ -15,8 +15,8 @@ export enum EdgeType {
 	Highlighted = 'highlighted'
 }
 
-// 矢印設定
-const ARROW_SIZE = 12;
+// 矢印設定（縮小: 12px → 8px）
+const ARROW_SIZE = 8;
 const ARROW_ANGLE = Math.PI / 6; // 30度
 
 /**
@@ -65,8 +65,8 @@ export class TaskEdge extends Graphics {
 	}
 
 	/**
-	 * エッジを描画（4層構造: 最外層グロー → グロー → 外側 → コア）
-	 * 電気回路風の発光感を表現
+	 * エッジを描画（2層構造: 外側縁取り → コア）
+	 * シンプルで視認性を確保
 	 */
 	draw(): void {
 		this.clear();
@@ -77,27 +77,17 @@ export class TaskEdge extends Graphics {
 		// ベジェ曲線のコントロールポイントを計算
 		const { cp1x, cp1y, cp2x, cp2y } = this.calculateControlPoints();
 
-		// Step 0: 最外層グロー（常時表示・広い範囲）
-		this.moveTo(this.fromX, this.fromY);
-		this.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, this.toX, this.toY);
-		this.stroke({ width: widths.outerGlow, color: style.outerGlow, alpha: style.outerGlowAlpha });
-
-		// Step 1: グロー層（中程度の範囲）
-		this.moveTo(this.fromX, this.fromY);
-		this.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, this.toX, this.toY);
-		this.stroke({ width: widths.glow, color: style.glow, alpha: style.glowAlpha * 0.5 });
-
-		// Step 2: 外側（縁取り）- 暗めの縁取りでコアを際立たせる
+		// Layer 1: 外側（縁取り）- 暗めの縁取りでコアを際立たせる
 		this.moveTo(this.fromX, this.fromY);
 		this.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, this.toX, this.toY);
 		this.stroke({ width: widths.outer, color: style.outer, alpha: 1.0 });
 
-		// Step 3: コア（内側）- 明るいコア線
+		// Layer 2: コア（内側）- 明るいコア線
 		this.moveTo(this.fromX, this.fromY);
 		this.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, this.toX, this.toY);
 		this.stroke({ width: widths.core, color: style.core, alpha: 1.0 });
 
-		// 矢印を描画（4層構造対応）
+		// 矢印を描画（2層構造対応）
 		this.drawArrow(cp2x, cp2y, this.toX, this.toY, style, widths);
 	}
 
@@ -134,7 +124,7 @@ export class TaskEdge extends Graphics {
 	}
 
 	/**
-	 * 矢印を描画（4層構造対応）
+	 * 矢印を描画（2層構造対応）
 	 */
 	private drawArrow(
 		fromX: number,
@@ -142,7 +132,7 @@ export class TaskEdge extends Graphics {
 		toX: number,
 		toY: number,
 		style: (typeof EDGE_COLORS)[keyof typeof EDGE_COLORS],
-		widths: (typeof EDGE_WIDTHS)[keyof typeof EDGE_WIDTHS]
+		_widths: (typeof EDGE_WIDTHS)[keyof typeof EDGE_WIDTHS]
 	): void {
 		// 方向ベクトルを計算
 		const dx = toX - fromX;
@@ -155,28 +145,14 @@ export class TaskEdge extends Graphics {
 		const arrowX2 = toX - ARROW_SIZE * Math.cos(angle + ARROW_ANGLE);
 		const arrowY2 = toY - ARROW_SIZE * Math.sin(angle + ARROW_ANGLE);
 
-		// Step 0: 最外層グロー（広い範囲）
-		this.moveTo(toX, toY);
-		this.lineTo(arrowX1, arrowY1);
-		this.lineTo(arrowX2, arrowY2);
-		this.closePath();
-		this.stroke({ width: 8, color: style.outerGlow, alpha: style.outerGlowAlpha });
-
-		// Step 1: グロー層（中程度）
-		this.moveTo(toX, toY);
-		this.lineTo(arrowX1, arrowY1);
-		this.moveTo(toX, toY);
-		this.lineTo(arrowX2, arrowY2);
-		this.stroke({ width: widths.outer + 4, color: style.glow, alpha: style.glowAlpha * 0.5 });
-
-		// Step 2: 外側（塗りつぶし三角形）
+		// Layer 1: 外側（塗りつぶし三角形）
 		this.moveTo(toX, toY);
 		this.lineTo(arrowX1, arrowY1);
 		this.lineTo(arrowX2, arrowY2);
 		this.closePath();
 		this.fill(style.outer);
 
-		// Step 3: コア（内側の明るい三角形）
+		// Layer 2: コア（内側の明るい三角形、70%スケール）
 		const innerScale = 0.7;
 		const innerArrowX1 = toX - ARROW_SIZE * innerScale * Math.cos(angle - ARROW_ANGLE);
 		const innerArrowY1 = toY - ARROW_SIZE * innerScale * Math.sin(angle - ARROW_ANGLE);

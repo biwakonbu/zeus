@@ -200,49 +200,36 @@ export const LAYOUT = {
 };
 
 /**
- * 遷移エッジ 4層スタイル（電気回路風・高コントラスト版）
+ * 遷移エッジ 2層スタイル（シンプル・視認性重視版）
  * - 背景 0x1a1a1a に対して明確に視認できるコントラスト
- * - 状態ごとに異なる発光感を表現
+ * - 状態ごとに異なる色で識別
  *
  * デザイン原則:
- * - Layer 0: 最外層グロー（広い、常時微弱）
- * - Layer 1: グロー層（中程度）
- * - Layer 2: 外側縁取り（暗い）
- * - Layer 3: コア（明るい中心線）
+ * - Layer 1: 外側縁取り（暗い）
+ * - Layer 2: コア（明るい中心線）
  */
 export const TRANSITION_EDGE_STYLE = {
 	normal: {
-		core: 0xdddddd, // より明るいコア
-		outer: 0x3a3a3a, // より明るい縁取り
-		glow: 0x888888, // より明るいグロー
-		glowAlpha: 0.6,
-		// 最外層グロー（常時表示）
-		outerGlow: 0x666666,
-		outerGlowAlpha: 0.15
+		core: 0xcccccc, // やや暗めのコア
+		outer: 0x555555 // 縁取り
 	},
 	hover: {
-		core: 0xffdd99, // より明るいオレンジ
-		outer: 0xff9533, // アクセント色の縁取り
-		glow: 0xff9533,
-		glowAlpha: 0.7,
-		outerGlow: 0xff9533,
-		outerGlowAlpha: 0.25
+		core: 0xffcc66, // 明るいオレンジ
+		outer: 0xff9533 // アクセント色の縁取り
 	},
 	selected: {
-		core: 0xffcc77, // より明るいオレンジ
-		outer: 0x4a2a00, // 暗い縁取り
-		glow: 0xff9533,
-		glowAlpha: 0.8,
-		outerGlow: 0xff9533,
-		outerGlowAlpha: 0.3
+		core: 0xffaa44, // オレンジコア
+		outer: 0x885522 // 暗いオレンジ縁取り
 	}
 } as const;
 
 /**
- * 遷移エッジ幅定義（4層構造対応・太めで視認性確保）
+ * 遷移エッジ幅定義（2層構造・細めでシンプル）
+ * - 描画回数: 4回 → 2回（50%削減）
+ * - 最大幅: 20px → 5px（75%削減）
  */
 export const TRANSITION_EDGE_WIDTHS = {
-	normal: { core: 3, outer: 7, glow: 12, outerGlow: 20 },
-	hover: { core: 3.5, outer: 8, glow: 14, outerGlow: 24 },
-	selected: { core: 4, outer: 9, glow: 16, outerGlow: 28 }
+	normal: { core: 1.5, outer: 3 },
+	hover: { core: 2, outer: 4 },
+	selected: { core: 2.5, outer: 5 }
 } as const;

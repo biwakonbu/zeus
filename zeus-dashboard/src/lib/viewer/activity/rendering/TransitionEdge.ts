@@ -1,5 +1,5 @@
 // TransitionEdge - UML アクティビティ図の遷移（矢印）描画クラス
-// 3層構造（グロー → 外側 → コア）で電気回路風の発光感を表現
+// 2層構造（外側縁取り → コア）でシンプルに視認性を確保
 import { Container, Graphics, Text } from 'pixi.js';
 import type { ActivityTransitionItem } from '$lib/types/api';
 import {
@@ -83,8 +83,8 @@ export class TransitionEdge extends Graphics {
 	}
 
 	/**
-	 * エッジを描画（4層構造: 最外層グロー → グロー → 外側 → コア）
-	 * 電気回路風の発光感を表現
+	 * エッジを描画（2層構造: 外側縁取り → コア）
+	 * シンプルで視認性を確保
 	 */
 	draw(): void {
 		this.clear();
@@ -100,23 +100,15 @@ export class TransitionEdge extends Graphics {
 		const useCurve = dx > TRANSITION_STYLE.curveThreshold && dy > 0;
 		const midY = (this.sourcePoint.y + this.targetPoint.y) / 2;
 
-		// Step 0: 最外層グロー（常時表示・広い範囲）
-		this.drawPath(useCurve, midY);
-		this.stroke({ width: widths.outerGlow, color: style.outerGlow, alpha: style.outerGlowAlpha });
-
-		// Step 1: グロー層（中程度の範囲）
-		this.drawPath(useCurve, midY);
-		this.stroke({ width: widths.glow, color: style.glow, alpha: style.glowAlpha * 0.5 });
-
-		// Step 2: 外側（縁取り）- 暗めの縁取りでコアを際立たせる
+		// Layer 1: 外側（縁取り）- 暗めの縁取りでコアを際立たせる
 		this.drawPath(useCurve, midY);
 		this.stroke({ width: widths.outer, color: style.outer, alpha: 1.0 });
 
-		// Step 3: コア（内側）- 明るいコア線
+		// Layer 2: コア（内側）- 明るいコア線
 		this.drawPath(useCurve, midY);
 		this.stroke({ width: widths.core, color: style.core, alpha: 1.0 });
 
-		// 矢印を描画（4層構造対応）
+		// 矢印を描画（2層構造対応）
 		this.drawArrow(style, widths);
 
 		// ガード条件ラベルを配置
@@ -146,13 +138,14 @@ export class TransitionEdge extends Graphics {
 	}
 
 	/**
-	 * 矢印を描画（4層構造対応）
+	 * 矢印を描画（2層構造対応）
 	 */
 	private drawArrow(
 		style: (typeof TRANSITION_EDGE_STYLE)[keyof typeof TRANSITION_EDGE_STYLE],
 		_widths: (typeof TRANSITION_EDGE_WIDTHS)[keyof typeof TRANSITION_EDGE_WIDTHS]
 	): void {
-		const arrowSize = TRANSITION_STYLE.arrowSize;
+		// 矢印サイズを縮小（12px → 8px）
+		const arrowSize = 8;
 		const arrowAngle = TRANSITION_STYLE.arrowAngle;
 		const dx = this.targetPoint.x - this.sourcePoint.x;
 		const dy = this.targetPoint.y - this.sourcePoint.y;
@@ -168,37 +161,21 @@ export class TransitionEdge extends Graphics {
 		const rightX = tipX - arrowSize * Math.cos(angle + arrowAngle);
 		const rightY = tipY - arrowSize * Math.sin(angle + arrowAngle);
 
-		// Step 0: 最外層グロー（広い範囲）
-		this.moveTo(tipX, tipY);
-		this.lineTo(leftX, leftY);
-		this.lineTo(rightX, rightY);
-		this.closePath();
-		this.stroke({ width: 8, color: style.outerGlow, alpha: style.outerGlowAlpha });
-
-		// Step 1: グロー層（中程度）
-		this.moveTo(tipX, tipY);
-		this.lineTo(leftX, leftY);
-		this.lineTo(rightX, rightY);
-		this.closePath();
-		this.stroke({ width: 5, color: style.glow, alpha: style.glowAlpha * 0.5 });
-
-		// Step 2: 縁取り（外側の暗い部分）
+		// Layer 1: 縁取り（外側の暗い部分）
 		this.moveTo(tipX, tipY);
 		this.lineTo(leftX, leftY);
 		this.lineTo(rightX, rightY);
 		this.closePath();
 		this.fill(style.outer);
 
-		// Step 3: コア（内側の明るい部分）
+		// Layer 2: コア（内側の明るい部分、70%スケール）
 		const innerScale = 0.7;
-		const innerTipX = tipX;
-		const innerTipY = tipY;
 		const innerLeftX = tipX - arrowSize * innerScale * Math.cos(angle - arrowAngle);
 		const innerLeftY = tipY - arrowSize * innerScale * Math.sin(angle - arrowAngle);
 		const innerRightX = tipX - arrowSize * innerScale * Math.cos(angle + arrowAngle);
 		const innerRightY = tipY - arrowSize * innerScale * Math.sin(angle + arrowAngle);
 
-		this.moveTo(innerTipX, innerTipY);
+		this.moveTo(tipX, tipY);
 		this.lineTo(innerLeftX, innerLeftY);
 		this.lineTo(innerRightX, innerRightY);
 		this.closePath();
