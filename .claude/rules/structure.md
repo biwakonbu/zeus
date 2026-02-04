@@ -31,6 +31,7 @@ zeus/
 │   │   ├── state.go          # 状態・スナップショット管理（Context対応）
 │   │   ├── approval.go       # 3段階承認システム（Context対応）
 │   │   ├── errors.go         # エラー定義
+│   │   ├── lint.go           # Lint チェック（ID形式、status/progress整合性）
 │   │   └── mocks/            # テスト用モック
 │   │       └── mock_file_store.go
 │   ├── analysis/             # 分析機能（Phase 4）

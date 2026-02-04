@@ -41,24 +41,29 @@ type Doctor struct {
 	zeusPath         string
 	fileManager      *yaml.FileManager
 	integrityChecker *core.IntegrityChecker
+	lintChecker      *core.LintChecker
 }
 
 // New は新しい Doctor を作成
 func New(projectPath string) *Doctor {
 	zeusPath := filepath.Join(projectPath, ".zeus")
+	fm := yaml.NewFileManager(zeusPath)
 	return &Doctor{
 		zeusPath:    zeusPath,
-		fileManager: yaml.NewFileManager(zeusPath),
+		fileManager: fm,
+		lintChecker: core.NewLintChecker(fm),
 	}
 }
 
 // NewWithIntegrity は IntegrityChecker を含む Doctor を作成
 func NewWithIntegrity(projectPath string, checker *core.IntegrityChecker) *Doctor {
 	zeusPath := filepath.Join(projectPath, ".zeus")
+	fm := yaml.NewFileManager(zeusPath)
 	return &Doctor{
 		zeusPath:         zeusPath,
-		fileManager:      yaml.NewFileManager(zeusPath),
+		fileManager:      fm,
 		integrityChecker: checker,
+		lintChecker:      core.NewLintChecker(fm),
 	}
 }
 
@@ -82,6 +87,11 @@ func (d *Doctor) Diagnose(ctx context.Context) (*DiagnosisResult, error) {
 	// 参照整合性チェック（IntegrityChecker が設定されている場合）
 	if d.integrityChecker != nil {
 		checks = append(checks, d.checkIntegrity(ctx)...)
+	}
+
+	// Lint チェック（LintChecker が設定されている場合）
+	if d.lintChecker != nil {
+		checks = append(checks, d.checkLint(ctx)...)
 	}
 
 	// 全体の健全性を計算
@@ -296,6 +306,87 @@ func (d *Doctor) checkIntegrity(ctx context.Context) []CheckResult {
 			Check:   "subsystem_reference",
 			Status:  "pass",
 			Message: "All UseCase subsystem references are valid",
+			Fixable: false,
+		})
+	}
+
+	return checks
+}
+
+// checkLint は Lint チェックを実行
+func (d *Doctor) checkLint(ctx context.Context) []CheckResult {
+	var checks []CheckResult
+
+	result, err := d.lintChecker.CheckAll(ctx)
+	if err != nil {
+		checks = append(checks, CheckResult{
+			Check:   "lint_check",
+			Status:  "fail",
+			Message: "Lint check failed: " + err.Error(),
+			Fixable: false,
+		})
+		return checks
+	}
+
+	// ID フォーマットエラー
+	if len(result.Errors) > 0 {
+		for _, lintErr := range result.Errors {
+			checks = append(checks, CheckResult{
+				Check:   "lint_id_format",
+				Status:  "fail",
+				Message: lintErr.Error(),
+				Fixable: false, // ID フォーマットエラーは自動修復不可
+			})
+		}
+	} else {
+		checks = append(checks, CheckResult{
+			Check:   "lint_id_format",
+			Status:  "pass",
+			Message: "All entity ID formats are valid",
+			Fixable: false,
+		})
+	}
+
+	// 警告を分類（status/progress 不整合とそれ以外）
+	var statusWarnings []*core.LintWarning
+	var otherWarnings []*core.LintWarning
+	for _, warn := range result.Warnings {
+		if warn.Field == "status" {
+			statusWarnings = append(statusWarnings, warn)
+		} else {
+			otherWarnings = append(otherWarnings, warn)
+		}
+	}
+
+	// status/progress 整合性警告
+	if len(statusWarnings) > 0 {
+		for _, warn := range statusWarnings {
+			checks = append(checks, CheckResult{
+				Check:   "lint_status_progress",
+				Status:  "warn",
+				Message: warn.Warning(),
+				Fixable: true, // status/progress 不整合は自動修復可能
+				FixFunc: func(ctx context.Context) error {
+					_, err := d.lintChecker.FixStatusProgressConsistency(ctx)
+					return err
+				},
+			})
+		}
+	} else {
+		checks = append(checks, CheckResult{
+			Check:   "lint_status_progress",
+			Status:  "pass",
+			Message: "All status/progress values are consistent",
+			Fixable: false,
+		})
+	}
+
+	// その他の警告（ディレクトリ読み取りエラーなど）
+	for _, warn := range otherWarnings {
+		checks = append(checks, CheckResult{
+			Check:   "lint_directory",
+			Status:  "warn",
+			Message: warn.Warning(),
 			Fixable: false,
 		})
 	}

@@ -46,8 +46,8 @@ var idPatterns = map[string]*regexp.Regexp{
 	"actor":     regexp.MustCompile(`^actor-[a-f0-9]{8}$`),
 	"usecase":   regexp.MustCompile(`^uc-[a-f0-9]{8}$`),
 	"subsystem": regexp.MustCompile(`^sub-[a-f0-9]{8}$`),
-	// UML Activity エンティティ（UUID ベース）
-	"activity": regexp.MustCompile(`^act-[a-f0-9]{8}$`),
+	// UML Activity エンティティ（連番形式）
+	"activity": regexp.MustCompile(`^act-[0-9]{3}$`),
 }
 
 // entityDirectories はエンティティタイプとディレクトリのマッピング

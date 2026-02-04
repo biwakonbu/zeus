@@ -71,7 +71,7 @@ zeus add <entity> <name> [options]              # エンティティ追加
 zeus list [entity]                              # 一覧表示
   # entity: tasks, vision, objectives, deliverables, considerations, decisions,
   #         problems, risks, assumptions, constraints, quality, actors, usecases, subsystems
-zeus doctor                                     # 診断（参照整合性・循環参照チェック含む）
+zeus doctor                                     # 診断（参照整合性・循環参照・Lint チェック含む）
 zeus fix [--dry-run]                            # 修復
 
 # 承認管理
@@ -155,7 +155,7 @@ Task ベースのシステムを拡張し、プロジェクト管理の本質的
 | Actor | アクター定義 | `.zeus/actors.yaml` | 単一ファイル |
 | UseCase | ユースケース定義 | `.zeus/usecases/uc-NNN.yaml` | Objective 参照必須 |
 | Subsystem | サブシステム定義 | `.zeus/subsystems.yaml` | 単一ファイル、UseCase グルーピング |
-| Activity | アクティビティ図 | `.zeus/activities/act-NNN.yaml` | UseCase 参照任意 |
+| Activity | アクティビティ図 | `.zeus/activities/act-NNN.yaml` | UseCase/Deliverable 参照可 |
 
 **Activity action name 記載ルール:**
 - 形式: `<目的語> + <動詞（体言止め）>`（例: `.zeus ディレクトリ作成`）
@@ -175,6 +175,10 @@ Task ベースのシステムを拡張し、プロジェクト管理の本質的
   - Activity → Deliverable（RelatedDeliverables、推奨）
   - Activity.Node → Deliverable（DeliverableIDs、任意）
 - 循環参照検出実装済み
+- **Lint チェック:**
+  - ID フォーマット検証（全エンティティ）
+  - status/progress 整合性（progress=100 → status=completed）
+  - 自動修正: `FixStatusProgressConsistency()` で不整合を一括修正可能
 - セキュリティ: ValidatePath, ValidateID, Sanitizer
 
 ### コードレビュー結果（Phase 2+3）

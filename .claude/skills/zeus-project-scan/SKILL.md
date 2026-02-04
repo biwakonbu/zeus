@@ -208,7 +208,35 @@ zeus uml show activity --id act-001
 | Actor | アクター定義 | `.zeus/actors.yaml` | 単一ファイル |
 | UseCase | ユースケース定義 | `.zeus/usecases/uc-NNN.yaml` | Objective 参照必須 |
 | Subsystem | サブシステム定義 | `.zeus/subsystems.yaml` | 単一ファイル、UseCase グルーピング |
-| Activity | アクティビティ図 | `.zeus/activities/act-NNN.yaml` | UseCase 参照任意 |
+| Activity | アクティビティ図 | `.zeus/activities/act-NNN.yaml` | UseCase/Deliverable 参照可 |
+
+### Activity と Deliverable の関係性
+
+Activity は成果物（Deliverable）との関連を 2 レベルで表現可能:
+
+**1. アクティビティレベル（`related_deliverables`）**
+- アクティビティ全体が関連する Deliverable を列挙
+- 推奨フィールド: このアクティビティがどの成果物に貢献するかを明示
+
+**2. ノードレベル（`nodes[].deliverable_ids`）**
+- 個別のアクションノードが生成/更新する Deliverable を列挙
+- 任意フィールド: 詳細なトレーサビリティが必要な場合に使用
+
+```yaml
+# Activity YAML 構造例
+id: act-001
+title: "ユーザー認証フロー"
+usecase_id: uc-001              # UseCase への参照（任意）
+related_deliverables:            # アクティビティレベルの Deliverable 参照（推奨）
+  - del-001
+  - del-002
+nodes:
+  - id: n1
+    type: action
+    name: "認証トークン生成"
+    deliverable_ids:             # ノードレベルの Deliverable 参照（任意）
+      - del-003
+```
 
 ## 参照整合性チェック
 
@@ -229,10 +257,22 @@ zeus uml show activity --id act-001
 - **UseCase → Actor**: `actors[].actor_id` の参照先確認
 - **UseCase → UseCase**: `relations[].target_id` の参照先確認
 - **UseCase → Subsystem**: `subsystem_id` の参照先確認（警告レベル）
+- **Activity → UseCase**: `usecase_id` の参照先確認（任意）
+- **Activity → Deliverable**: `related_deliverables` の参照先確認（推奨）
+- **Activity.Node → Deliverable**: `nodes[].deliverable_ids` の参照先確認（任意）
 
 ### 循環参照検出
 - Objective の親子階層で循環を検出
 - UseCase の relations で循環を検出
+
+### Lint チェック
+- **ID フォーマット検証**: 全エンティティの ID が正しい形式か
+  - Objective: `obj-NNN`
+  - Deliverable: `del-NNN`
+  - Activity: `act-NNN`（連番形式）
+  - Task: `task-XXXXXXXX`（UUID形式）
+  - 他のエンティティも個別の形式で検証
+- **status/progress 整合性**: `progress=100` なら `status=completed` であるべき
 
 ## ダッシュボード API
 

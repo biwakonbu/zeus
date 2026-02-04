@@ -185,7 +185,7 @@ func TestValidateID(t *testing.T) {
 		{"actor", "actor-12345678", false},
 		{"usecase", "uc-12345678", false},
 		{"subsystem", "sub-12345678", false},
-		{"activity", "act-12345678", false},
+		{"activity", "act-001", false},
 		// 無効なケース
 		{"task", "task-123", true},           // UUID短すぎ
 		{"objective", "obj-1", true},         // 番号短すぎ
@@ -226,7 +226,7 @@ func TestValidateID_AllEntityTypes(t *testing.T) {
 		{"actor", "actor-12345678"},
 		{"usecase", "uc-12345678"},
 		{"subsystem", "sub-12345678"},
-		{"activity", "act-12345678"},
+		{"activity", "act-001"},
 	}
 
 	for _, et := range entityTests {
@@ -298,7 +298,7 @@ func TestGetEntityFilePath(t *testing.T) {
 		{"quality", "qual-001", "quality/qual-001.yaml"},
 		{"task", "task-12345678", "tasks/task-12345678.yaml"},
 		{"usecase", "uc-12345678", "usecases/uc-12345678.yaml"},
-		{"activity", "act-12345678", "activities/act-12345678.yaml"},
+		{"activity", "act-001", "activities/act-001.yaml"},
 		// 単一ファイルエンティティ
 		{"vision", "vision-001", "vision.yaml"},
 		{"constraint", "const-001", "constraints.yaml"},

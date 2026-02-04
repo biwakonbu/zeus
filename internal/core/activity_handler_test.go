@@ -25,7 +25,8 @@ func setupActivityHandlerTest(t *testing.T) (*ActivityHandler, string, func()) {
 	}
 
 	fs := yaml.NewFileManager(zeusPath)
-	activityHandler := NewActivityHandler(fs, nil, nil)
+	idMgr := NewIDCounterManager(fs)
+	activityHandler := NewActivityHandler(fs, nil, nil, idMgr)
 
 	cleanup := func() {
 		os.RemoveAll(tmpDir)
@@ -235,7 +236,7 @@ func TestActivityHandlerGetNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	// 存在しない ID で取得（有効なフォーマット）
-	_, err := handler.Get(ctx, "act-00000000")
+	_, err := handler.Get(ctx, "act-999")
 	if err == nil {
 		t.Error("expected error for non-existent ID")
 	}
@@ -295,7 +296,7 @@ func TestActivityHandlerUpdateNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	// 存在しない ID で更新（有効なフォーマット）
-	err := handler.Update(ctx, "act-00000000", map[string]any{"title": "Test"})
+	err := handler.Update(ctx, "act-999", map[string]any{"title": "Test"})
 	if err == nil {
 		t.Error("expected error for non-existent ID")
 	}
@@ -341,7 +342,7 @@ func TestActivityHandlerDeleteNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	// 存在しない ID で削除（有効なフォーマット）
-	err := handler.Delete(ctx, "act-00000000")
+	err := handler.Delete(ctx, "act-999")
 	if err == nil {
 		t.Error("expected error for non-existent ID")
 	}
@@ -776,19 +777,25 @@ func TestGenerateActivityIDFormat(t *testing.T) {
 
 	zeusPath := tmpDir + "/.zeus"
 	fs := yaml.NewFileManager(zeusPath)
-	handler := NewActivityHandler(fs, nil, nil)
+	idMgr := NewIDCounterManager(fs)
+	handler := NewActivityHandler(fs, nil, nil, idMgr)
+
+	ctx := context.Background()
 
 	// ID 生成テスト
-	id := handler.generateActivityID()
+	id, err := handler.generateActivityID(ctx)
+	if err != nil {
+		t.Fatalf("failed to generate activity ID: %v", err)
+	}
 
 	// プレフィックスが正しいか
 	if len(id) < 4 || id[:4] != "act-" {
 		t.Errorf("expected ID to start with 'act-', got %q", id)
 	}
 
-	// 長さが正しいか (act- + 8文字)
-	if len(id) != 12 {
-		t.Errorf("expected ID length to be 12, got %d", len(id))
+	// 長さが正しいか (act- + 3桁 = 7文字)
+	if len(id) != 7 {
+		t.Errorf("expected ID length to be 7, got %d", len(id))
 	}
 }
 
@@ -801,7 +808,7 @@ func TestActivityEntityValidate(t *testing.T) {
 		{
 			name: "valid activity",
 			activity: ActivityEntity{
-				ID:     "act-12345678",
+				ID:     "act-001",
 				Title:  "Test Activity",
 				Status: ActivityStatusDraft,
 			},
@@ -818,7 +825,7 @@ func TestActivityEntityValidate(t *testing.T) {
 		{
 			name: "missing title",
 			activity: ActivityEntity{
-				ID:     "act-12345678",
+				ID:     "act-001",
 				Status: ActivityStatusDraft,
 			},
 			wantErr: true,
@@ -826,7 +833,7 @@ func TestActivityEntityValidate(t *testing.T) {
 		{
 			name: "invalid status",
 			activity: ActivityEntity{
-				ID:     "act-12345678",
+				ID:     "act-001",
 				Title:  "Test Activity",
 				Status: "invalid",
 			},
@@ -835,7 +842,7 @@ func TestActivityEntityValidate(t *testing.T) {
 		{
 			name: "empty status (defaults to draft)",
 			activity: ActivityEntity{
-				ID:     "act-12345678",
+				ID:     "act-001",
 				Title:  "Test Activity",
 				Status: "",
 			},
@@ -844,7 +851,7 @@ func TestActivityEntityValidate(t *testing.T) {
 		{
 			name: "valid with nodes",
 			activity: ActivityEntity{
-				ID:     "act-12345678",
+				ID:     "act-001",
 				Title:  "Test Activity",
 				Status: ActivityStatusDraft,
 				Nodes: []ActivityNode{
@@ -856,7 +863,7 @@ func TestActivityEntityValidate(t *testing.T) {
 		{
 			name: "invalid node - missing ID",
 			activity: ActivityEntity{
-				ID:     "act-12345678",
+				ID:     "act-001",
 				Title:  "Test Activity",
 				Status: ActivityStatusDraft,
 				Nodes: []ActivityNode{
@@ -868,7 +875,7 @@ func TestActivityEntityValidate(t *testing.T) {
 		{
 			name: "invalid node - invalid type",
 			activity: ActivityEntity{
-				ID:     "act-12345678",
+				ID:     "act-001",
 				Title:  "Test Activity",
 				Status: ActivityStatusDraft,
 				Nodes: []ActivityNode{
@@ -880,7 +887,7 @@ func TestActivityEntityValidate(t *testing.T) {
 		{
 			name: "valid with transitions",
 			activity: ActivityEntity{
-				ID:     "act-12345678",
+				ID:     "act-001",
 				Title:  "Test Activity",
 				Status: ActivityStatusDraft,
 				Nodes: []ActivityNode{
@@ -896,7 +903,7 @@ func TestActivityEntityValidate(t *testing.T) {
 		{
 			name: "invalid transition - missing ID",
 			activity: ActivityEntity{
-				ID:     "act-12345678",
+				ID:     "act-001",
 				Title:  "Test Activity",
 				Status: ActivityStatusDraft,
 				Transitions: []ActivityTransition{
@@ -908,7 +915,7 @@ func TestActivityEntityValidate(t *testing.T) {
 		{
 			name: "invalid transition - missing source",
 			activity: ActivityEntity{
-				ID:     "act-12345678",
+				ID:     "act-001",
 				Title:  "Test Activity",
 				Status: ActivityStatusDraft,
 				Transitions: []ActivityTransition{
@@ -920,7 +927,7 @@ func TestActivityEntityValidate(t *testing.T) {
 		{
 			name: "invalid transition - missing target",
 			activity: ActivityEntity{
-				ID:     "act-12345678",
+				ID:     "act-001",
 				Title:  "Test Activity",
 				Status: ActivityStatusDraft,
 				Transitions: []ActivityTransition{
@@ -932,7 +939,7 @@ func TestActivityEntityValidate(t *testing.T) {
 		{
 			name: "valid with usecase_id",
 			activity: ActivityEntity{
-				ID:        "act-12345678",
+				ID:        "act-001",
 				Title:     "Test Activity",
 				Status:    ActivityStatusDraft,
 				UseCaseID: "uc-12345678",
@@ -1166,9 +1173,10 @@ func setupActivityHandlerWithDeliverable(t *testing.T) (*ActivityHandler, *Deliv
 	}
 
 	fs := yaml.NewFileManager(zeusPath)
-	objHandler := NewObjectiveHandler(fs, nil)
-	delHandler := NewDeliverableHandler(fs, objHandler, nil)
-	actHandler := NewActivityHandler(fs, nil, delHandler)
+	idMgr := NewIDCounterManager(fs)
+	objHandler := NewObjectiveHandler(fs, idMgr)
+	delHandler := NewDeliverableHandler(fs, objHandler, idMgr)
+	actHandler := NewActivityHandler(fs, nil, delHandler, idMgr)
 
 	cleanup := func() {
 		os.RemoveAll(tmpDir)
