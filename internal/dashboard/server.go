@@ -152,6 +152,9 @@ func (s *Server) handler() http.Handler {
 	mux.HandleFunc("/api/activities", s.corsMiddleware(s.handleAPIActivities))
 	mux.HandleFunc("/api/uml/activity", s.corsMiddleware(s.handleAPIActivityDiagram))
 
+	// UnifiedGraph API エンドポイント（Task/Activity 統合）
+	mux.HandleFunc("/api/unified-graph", s.corsMiddleware(s.handleAPIUnifiedGraph))
+
 	mux.HandleFunc("/api/events", s.handleSSE) // SSE エンドポイント
 
 	// 静的ファイルを提供（本番モード）

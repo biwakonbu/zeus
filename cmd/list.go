@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -15,7 +16,7 @@ var listCmd = &cobra.Command{
 	Long: `エンティティの一覧を表示します。
 
 対応エンティティ:
-  task           タスク
+  task           タスク（非推奨: Activity の使用を推奨）
   tasks          タスク（複数形）
   vision         ビジョン
   objective(s)   目標
@@ -28,6 +29,7 @@ var listCmd = &cobra.Command{
   constraint(s)  制約条件
   quality        品質基準
   subsystem(s)   サブシステム（ユースケース分類）
+  activity(ies)  アクティビティ（作業単位 + プロセス可視化）
 
 エンティティを省略すると全タスクを表示します。
 
@@ -44,7 +46,8 @@ var listCmd = &cobra.Command{
   zeus list assumptions  # 前提条件一覧
   zeus list constraints  # 制約条件一覧
   zeus list quality      # 品質基準一覧
-  zeus list subsystems   # サブシステム一覧`,
+  zeus list subsystems   # サブシステム一覧
+  zeus list activities   # アクティビティ一覧（モード表示付き）`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runList,
 }
@@ -52,6 +55,7 @@ var listCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(listCmd)
 	listCmd.Flags().StringP("status", "s", "", "ステータスでフィルタ")
+	listCmd.Flags().StringP("mode", "m", "", "モードでフィルタ（Activity用: simple, flow）")
 }
 
 func runList(cmd *cobra.Command, args []string) error {
@@ -86,6 +90,8 @@ func runList(cmd *cobra.Command, args []string) error {
 		return listQualities(cmd, zeus)
 	case "subsystem", "subsystems":
 		return listSubsystems(cmd, zeus)
+	case "activity", "activities":
+		return listActivities(cmd, zeus)
 	default:
 		// Task（既存の振る舞い）
 		return listTasks(cmd, zeus, entity)
@@ -101,8 +107,14 @@ func listTasks(cmd *cobra.Command, zeus *core.Zeus, entity string) error {
 	}
 
 	cyan := color.New(color.FgCyan).SprintFunc()
+	yellow := color.New(color.FgYellow).SprintFunc()
+
 	fmt.Printf("%s (%d items)\n", cyan("Tasks"), result.Total)
 	fmt.Println("────────────────────────────────────────")
+
+	if result.Total > 0 {
+		fmt.Printf("%s Task は非推奨です。Activity の使用を推奨します。\n\n", yellow("[注意]"))
+	}
 
 	for _, task := range result.Items {
 		statusColor := getStatusColor(task.Status)
@@ -229,7 +241,7 @@ func listDeliverables(cmd *cobra.Command, zeus *core.Zeus) error {
 	return nil
 }
 
-func getStatusColor(status core.TaskStatus) func(a ...interface{}) string {
+func getStatusColor(status core.TaskStatus) func(a ...any) string {
 	switch status {
 	case core.TaskStatusCompleted:
 		return color.New(color.FgGreen).SprintFunc()
@@ -433,4 +445,147 @@ func listSubsystems(cmd *cobra.Command, zeus *core.Zeus) error {
 	}
 
 	return nil
+}
+
+// listActivities は Activity 一覧を表示（モード表示付き）
+func listActivities(cmd *cobra.Command, zeus *core.Zeus) error {
+	ctx := getContext(cmd)
+
+	// Activity ハンドラーを取得
+	actHandler := zeus.GetActivityHandler()
+	if actHandler == nil {
+		return fmt.Errorf("activity handler not found")
+	}
+
+	// モードフィルタを取得
+	modeFilter, _ := cmd.Flags().GetString("mode")
+
+	// 全 Activity を取得
+	var activities []core.ActivityEntity
+	var err error
+
+	switch modeFilter {
+	case "simple":
+		activities, err = actHandler.GetAllSimple(ctx)
+	case "flow":
+		activities, err = actHandler.GetAllFlow(ctx)
+	default:
+		activities, err = actHandler.GetAll(ctx)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	cyan := color.New(color.FgCyan).SprintFunc()
+	green := color.New(color.FgGreen).SprintFunc()
+	yellow := color.New(color.FgYellow).SprintFunc()
+	blue := color.New(color.FgBlue).SprintFunc()
+	red := color.New(color.FgRed).SprintFunc()
+	white := color.New(color.FgWhite).SprintFunc()
+
+	fmt.Printf("%s (%d items)\n", cyan("Activities"), len(activities))
+	fmt.Println("════════════════════════════════════════════════════════════════")
+
+	if len(activities) == 0 {
+		fmt.Println("アクティビティがありません。")
+		fmt.Println("'zeus add activity \"タイトル\"' で作成できます。")
+		fmt.Println("\nActivity は Task の後継として、作業追跡（Simple）と")
+		fmt.Println("プロセス可視化（Flow）の両方をサポートします。")
+		return nil
+	}
+
+	// 統計情報
+	var simpleCount, flowCount int
+	var completedCount, inProgressCount, blockedCount int
+	for _, act := range activities {
+		if act.IsSimple() {
+			simpleCount++
+		} else {
+			flowCount++
+		}
+		switch act.Status {
+		case core.ActivityStatusCompleted:
+			completedCount++
+		case core.ActivityStatusInProgress:
+			inProgressCount++
+		case core.ActivityStatusBlocked:
+			blockedCount++
+		}
+	}
+
+	fmt.Printf("Mode: %s Simple / %s Flow\n", blue(fmt.Sprintf("%d", simpleCount)), yellow(fmt.Sprintf("%d", flowCount)))
+	fmt.Printf("Status: %s Completed / %s In Progress / %s Blocked\n",
+		green(fmt.Sprintf("%d", completedCount)),
+		yellow(fmt.Sprintf("%d", inProgressCount)),
+		red(fmt.Sprintf("%d", blockedCount)))
+	fmt.Println("────────────────────────────────────────────────────────────────")
+
+	// Activity 一覧
+	for _, act := range activities {
+		// モードバッジ
+		var modeBadge string
+		if act.IsSimple() {
+			modeBadge = blue("[Simple]")
+		} else {
+			modeBadge = yellow("[Flow]")
+		}
+
+		// ステータスカラー
+		var statusColor func(a ...any) string
+		switch act.Status {
+		case core.ActivityStatusCompleted:
+			statusColor = green
+		case core.ActivityStatusInProgress:
+			statusColor = yellow
+		case core.ActivityStatusBlocked:
+			statusColor = red
+		case core.ActivityStatusPending:
+			statusColor = white
+		default:
+			statusColor = white
+		}
+
+		// 基本情報
+		fmt.Printf("%s %s %s - %s\n",
+			modeBadge,
+			statusColor(fmt.Sprintf("[%s]", act.Status)),
+			act.ID,
+			act.Title)
+
+		// 詳細情報（進捗、担当者、期限など）
+		var details []string
+		if act.Progress > 0 {
+			details = append(details, fmt.Sprintf("Progress: %d%%", act.Progress))
+		}
+		if act.Assignee != "" {
+			details = append(details, fmt.Sprintf("Assignee: %s", act.Assignee))
+		}
+		if act.DueDate != "" {
+			details = append(details, fmt.Sprintf("Due: %s", act.DueDate))
+		}
+		if act.EstimateHours > 0 {
+			details = append(details, fmt.Sprintf("Estimate: %.1fh", act.EstimateHours))
+		}
+		if len(act.Dependencies) > 0 {
+			details = append(details, fmt.Sprintf("Deps: %d", len(act.Dependencies)))
+		}
+		if act.UseCaseID != "" {
+			details = append(details, fmt.Sprintf("UseCase: %s", act.UseCaseID))
+		}
+
+		if len(details) > 0 {
+			fmt.Printf("         %s\n", white(joinDetails(details)))
+		}
+	}
+
+	fmt.Println("────────────────────────────────────────────────────────────────")
+	fmt.Println("詳細を見るには 'zeus graph --unified' を使用してください。")
+
+	return nil
+}
+
+// joinDetails は詳細情報を結合
+func joinDetails(details []string) string {
+	return strings.Join(details, " | ")
 }

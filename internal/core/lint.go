@@ -438,6 +438,13 @@ func (l *LintChecker) FixStatusProgressConsistency(ctx context.Context) (int, er
 	}
 	fixedCount += count
 
+	// Activity: progress=100 なら status=completed に修正
+	count, err = l.fixActivityStatusProgress(ctx)
+	if err != nil {
+		return fixedCount, err
+	}
+	fixedCount += count
+
 	return fixedCount, nil
 }
 
@@ -502,6 +509,41 @@ func (l *LintChecker) fixDeliverableStatusProgress(ctx context.Context) (int, er
 			del.Status = DeliverableStatusCompleted
 			del.Metadata.UpdatedAt = Now()
 			if err := l.fileStore.WriteYaml(ctx, filePath, &del); err != nil {
+				return fixedCount, err
+			}
+			fixedCount++
+		}
+	}
+
+	return fixedCount, nil
+}
+
+// fixActivityStatusProgress は Activity の status/progress 不整合を修正
+func (l *LintChecker) fixActivityStatusProgress(ctx context.Context) (int, error) {
+	fixedCount := 0
+
+	if !l.fileStore.Exists(ctx, "activities") {
+		return fixedCount, nil
+	}
+
+	files, err := l.fileStore.ListDir(ctx, "activities")
+	if err != nil {
+		return fixedCount, nil
+	}
+
+	for _, file := range files {
+		if !hasYamlSuffix(file) {
+			continue
+		}
+		var act ActivityEntity
+		filePath := filepath.Join("activities", file)
+		if err := l.fileStore.ReadYaml(ctx, filePath, &act); err != nil {
+			continue
+		}
+		if act.Progress == 100 && act.Status != ActivityStatusCompleted {
+			act.Status = ActivityStatusCompleted
+			act.Metadata.UpdatedAt = Now()
+			if err := l.fileStore.WriteYaml(ctx, filePath, &act); err != nil {
 				return fixedCount, err
 			}
 			fixedCount++

@@ -107,9 +107,10 @@ const METAL_EFFECT = {
 	bottomShadowAlpha: 0.10, // 0.15 → 0.10（下部影は最小限）
 	bottomShadowRatio: 0.40, // 0.3 → 0.40（60% 位置から開始）
 	// グロー設定（選択・ハイライト・クリティカルパス時に適用）
-	baseGlowAlpha: 0.12,
-	hoverGlowAlpha: 0.25,
-	selectedGlowAlpha: 0.4
+	// 依存グラフ視覚効果最適化 Phase 2: ノード数が多い場合の累積効果を抑制
+	baseGlowAlpha: 0.06,      // 0.12 → 0.06
+	hoverGlowAlpha: 0.12,     // 0.25 → 0.12
+	selectedGlowAlpha: 0.20   // 0.4 → 0.20
 } as const;
 
 // ハイライトタイプ

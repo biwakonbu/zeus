@@ -205,3 +205,171 @@ type VisionInfo struct {
 	Statement string // ステートメント
 	Status    string // ステータス
 }
+
+// ============================================================
+// UnifiedGraph 型定義 (Task/Activity 統合)
+// ============================================================
+
+// EntityType は統合グラフのエンティティタイプ
+type EntityType string
+
+const (
+	EntityTypeActivity    EntityType = "activity"
+	EntityTypeUseCase     EntityType = "usecase"
+	EntityTypeDeliverable EntityType = "deliverable"
+	EntityTypeObjective   EntityType = "objective"
+)
+
+// ActivityInfo は分析に必要な Activity 情報
+// core.ActivityEntity からの変換を前提とした軽量構造体
+type ActivityInfo struct {
+	ID           string   // Activity ID
+	Title        string   // タイトル
+	Status       string   // ステータス
+	Mode         string   // モード ("simple" or "flow")
+	Dependencies []string // 依存 Activity ID
+	ParentID     string   // 親 Activity ID
+	UseCaseID    string   // 関連 UseCase ID
+
+	// 作業管理フィールド
+	Progress      int      // 進捗率（0-100）
+	Priority      string   // 優先度
+	Assignee      string   // 担当者
+	WBSCode       string   // WBS コード
+	StartDate     string   // 開始日
+	DueDate       string   // 期限日
+	EstimateHours float64  // 見積もり時間
+	ActualHours   float64  // 実績時間
+
+	// 関連情報
+	RelatedDeliverables []string // 関連 Deliverable ID
+	CreatedAt           string   // 作成日時
+	UpdatedAt           string   // 更新日時
+}
+
+// UseCaseInfo は分析に必要な UseCase 情報
+type UseCaseInfo struct {
+	ID          string   // UseCase ID
+	Title       string   // タイトル
+	Status      string   // ステータス
+	ObjectiveID string   // 関連 Objective ID
+	SubsystemID string   // サブシステム ID
+	ActorIDs    []string // 関連 Actor ID
+}
+
+// UnifiedGraphNode は統合グラフのノード
+type UnifiedGraphNode struct {
+	ID         string     // ノード ID
+	Type       EntityType // エンティティタイプ
+	Title      string     // タイトル
+	Status     string     // ステータス
+	Progress   int        // 進捗率（該当する場合）
+	Priority   string     // 優先度（Activity のみ）
+	Assignee   string     // 担当者（Activity のみ）
+	Mode       string     // モード（Activity のみ: "simple" or "flow"）
+
+	// 関連情報
+	Parents  []string // 親ノード ID
+	Children []string // 子ノード ID
+	Depth    int      // ルートからの深さ
+}
+
+// UnifiedEdge は統合グラフのエッジ
+type UnifiedEdge struct {
+	From     string         // ソースノード ID
+	To       string         // ターゲットノード ID
+	Type     UnifiedEdgeType // エッジタイプ
+	Label    string         // ラベル（オプション）
+}
+
+// UnifiedEdgeType は統合グラフのエッジタイプ
+type UnifiedEdgeType string
+
+const (
+	EdgeTypeDependency  UnifiedEdgeType = "dependency"  // 依存関係
+	EdgeTypeParent      UnifiedEdgeType = "parent"      // 親子関係
+	EdgeTypeRelates     UnifiedEdgeType = "relates"     // 関連（Activity → UseCase/Deliverable）
+	EdgeTypeContributes UnifiedEdgeType = "contributes" // 貢献（UseCase → Objective）
+)
+
+// UnifiedGraph は統合グラフ
+type UnifiedGraph struct {
+	Nodes    map[string]*UnifiedGraphNode // ID をキーとするノードマップ
+	Edges    []UnifiedEdge                // エッジリスト
+	Cycles   [][]string                   // 循環依存（検出された場合）
+	Isolated []string                     // 孤立ノード
+	Stats    UnifiedGraphStats            // 統計情報
+}
+
+// UnifiedGraphStats は統合グラフの統計情報
+type UnifiedGraphStats struct {
+	TotalNodes          int            // 総ノード数
+	NodesByType         map[EntityType]int // タイプ別ノード数
+	TotalEdges          int            // 総エッジ数
+	EdgesByType         map[UnifiedEdgeType]int // タイプ別エッジ数
+	IsolatedCount       int            // 孤立ノード数
+	CycleCount          int            // 循環依存の数
+	MaxDepth            int            // 最大深さ
+	CompletedActivities int            // 完了 Activity 数
+	TotalActivities     int            // 総 Activity 数
+}
+
+// GraphFilter はグラフ表示のフィルタリングオプション
+type GraphFilter struct {
+	FocusID       string       // 中心ノード ID
+	FocusDepth    int          // 中心からの深さ（0 = 無制限）
+	IncludeTypes  []EntityType // 含めるエンティティタイプ
+	ExcludeTypes  []EntityType // 除外するエンティティタイプ
+	HideCompleted bool         // 完了済みを非表示
+	HideDraft     bool         // ドラフトを非表示
+	HideUnrelated bool         // 無関係ノードを非表示
+}
+
+// NewGraphFilter はデフォルトのフィルタを作成
+func NewGraphFilter() *GraphFilter {
+	return &GraphFilter{
+		FocusDepth:    0,
+		IncludeTypes:  []EntityType{},
+		ExcludeTypes:  []EntityType{},
+		HideCompleted: false,
+		HideDraft:     false,
+		HideUnrelated: false,
+	}
+}
+
+// WithFocus はフォーカスノードを設定
+func (f *GraphFilter) WithFocus(id string, depth int) *GraphFilter {
+	f.FocusID = id
+	f.FocusDepth = depth
+	return f
+}
+
+// WithIncludeTypes は含めるタイプを設定
+func (f *GraphFilter) WithIncludeTypes(types ...EntityType) *GraphFilter {
+	f.IncludeTypes = types
+	return f
+}
+
+// WithExcludeTypes は除外するタイプを設定
+func (f *GraphFilter) WithExcludeTypes(types ...EntityType) *GraphFilter {
+	f.ExcludeTypes = types
+	return f
+}
+
+// WithHideCompleted は完了済み非表示を設定
+func (f *GraphFilter) WithHideCompleted(hide bool) *GraphFilter {
+	f.HideCompleted = hide
+	return f
+}
+
+// WithHideDraft はドラフト非表示を設定
+func (f *GraphFilter) WithHideDraft(hide bool) *GraphFilter {
+	f.HideDraft = hide
+	return f
+}
+
+// WithHideUnrelated は無関係ノード非表示を設定
+func (f *GraphFilter) WithHideUnrelated(hide bool) *GraphFilter {
+	f.HideUnrelated = hide
+	return f
+}

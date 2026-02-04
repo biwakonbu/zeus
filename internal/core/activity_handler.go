@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 )
 
 // ActivityHandler はアクティビティエンティティのハンドラー
@@ -89,6 +90,20 @@ func (h *ActivityHandler) Add(ctx context.Context, name string, opts ...EntityOp
 		}
 	}
 
+	// 参照整合性チェック: ParentID（任意）
+	if activity.ParentID != "" {
+		if _, err := h.Get(ctx, activity.ParentID); err != nil {
+			return nil, fmt.Errorf("referenced parent activity not found: %s", activity.ParentID)
+		}
+	}
+
+	// 参照整合性チェック: Dependencies（任意）
+	for _, depID := range activity.Dependencies {
+		if _, err := h.Get(ctx, depID); err != nil {
+			return nil, fmt.Errorf("referenced dependency activity not found: %s", depID)
+		}
+	}
+
 	// バリデーション
 	if err := activity.Validate(); err != nil {
 		return nil, err
@@ -138,13 +153,7 @@ func (h *ActivityHandler) List(ctx context.Context, filter *ListFilter) (*ListRe
 			continue // 読み込み失敗はスキップ
 		}
 		// Task に変換（ListResult 互換性のため）
-		items = append(items, Task{
-			ID:        activity.ID,
-			Title:     activity.Title,
-			Status:    TaskStatus(activity.Status),
-			CreatedAt: activity.Metadata.CreatedAt,
-			UpdatedAt: activity.Metadata.UpdatedAt,
-		})
+		items = append(items, activity.ToTask())
 	}
 
 	return &ListResult{
@@ -213,8 +222,50 @@ func (h *ActivityHandler) Update(ctx context.Context, id string, update any) err
 		if usecaseID, exists := updateMap["usecase_id"].(string); exists {
 			activity.UseCaseID = usecaseID
 		}
-		if relatedDeliverables, exists := updateMap["related_deliverables"].([]string); exists {
-			activity.RelatedDeliverables = relatedDeliverables
+		if val, exists := updateMap["related_deliverables"]; exists {
+			if relatedDeliverables, ok := val.([]string); ok {
+				activity.RelatedDeliverables = relatedDeliverables
+			} else if val != nil {
+				return fmt.Errorf("related_deliverables must be []string, got %T", val)
+			}
+		}
+		// Task/Activity 統合: 新フィールドの更新
+		if val, exists := updateMap["dependencies"]; exists {
+			if dependencies, ok := val.([]string); ok {
+				activity.Dependencies = dependencies
+			} else if val != nil {
+				return fmt.Errorf("dependencies must be []string, got %T", val)
+			}
+		}
+		if parentID, exists := updateMap["parent_id"].(string); exists {
+			activity.ParentID = parentID
+		}
+		if estimateHours, exists := updateMap["estimate_hours"].(float64); exists {
+			activity.EstimateHours = estimateHours
+		}
+		if actualHours, exists := updateMap["actual_hours"].(float64); exists {
+			activity.ActualHours = actualHours
+		}
+		if assignee, exists := updateMap["assignee"].(string); exists {
+			activity.Assignee = assignee
+		}
+		if startDate, exists := updateMap["start_date"].(string); exists {
+			activity.StartDate = startDate
+		}
+		if dueDate, exists := updateMap["due_date"].(string); exists {
+			activity.DueDate = dueDate
+		}
+		if priority, exists := updateMap["priority"].(string); exists {
+			activity.Priority = ActivityPriority(priority)
+		}
+		if wbsCode, exists := updateMap["wbs_code"].(string); exists {
+			activity.WBSCode = wbsCode
+		}
+		if progress, exists := updateMap["progress"].(int); exists {
+			activity.Progress = progress
+		}
+		if approvalLevel, exists := updateMap["approval_level"].(string); exists {
+			activity.ApprovalLevel = ApprovalLevel(approvalLevel)
 		}
 	}
 
@@ -231,6 +282,20 @@ func (h *ActivityHandler) Update(ctx context.Context, id string, update any) err
 			if _, err := h.deliverableHandler.Get(ctx, delID); err != nil {
 				return fmt.Errorf("referenced deliverable not found in related_deliverables: %s", delID)
 			}
+		}
+	}
+
+	// 参照整合性チェック: ParentID（任意）
+	if activity.ParentID != "" {
+		if _, err := h.Get(ctx, activity.ParentID); err != nil {
+			return fmt.Errorf("referenced parent activity not found: %s", activity.ParentID)
+		}
+	}
+
+	// 参照整合性チェック: Dependencies（任意）
+	for _, depID := range activity.Dependencies {
+		if _, err := h.Get(ctx, depID); err != nil {
+			return fmt.Errorf("referenced dependency activity not found: %s", depID)
 		}
 	}
 
@@ -293,6 +358,143 @@ func (h *ActivityHandler) GetAll(ctx context.Context) ([]ActivityEntity, error) 
 	}
 
 	return activities, nil
+}
+
+// GetAllSimple は SimpleActivity モードのアクティビティのみを取得
+func (h *ActivityHandler) GetAllSimple(ctx context.Context) ([]ActivityEntity, error) {
+	activities, err := h.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]ActivityEntity, 0)
+	for _, a := range activities {
+		if a.IsSimple() {
+			result = append(result, a)
+		}
+	}
+	return result, nil
+}
+
+// GetAllFlow は FlowActivity モードのアクティビティのみを取得
+func (h *ActivityHandler) GetAllFlow(ctx context.Context) ([]ActivityEntity, error) {
+	activities, err := h.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]ActivityEntity, 0)
+	for _, a := range activities {
+		if a.IsFlow() {
+			result = append(result, a)
+		}
+	}
+	return result, nil
+}
+
+// DetectDependencyCycles は依存関係の循環を検出
+// 循環が検出された場合は循環するIDのリストを返す
+func (h *ActivityHandler) DetectDependencyCycles(ctx context.Context) ([][]string, error) {
+	activities, err := h.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// ID -> Activity のマップを作成
+	activityMap := make(map[string]*ActivityEntity)
+	for i := range activities {
+		activityMap[activities[i].ID] = &activities[i]
+	}
+
+	// 訪問状態: 0=未訪問, 1=訪問中, 2=訪問済み
+	visited := make(map[string]int)
+	var cycles [][]string
+
+	// 現在のパスを追跡
+	var path []string
+
+	var dfs func(id string) bool
+	dfs = func(id string) bool {
+		if visited[id] == 2 {
+			return false // 既に完了
+		}
+		if visited[id] == 1 {
+			// 循環検出
+			cycleStart := -1
+			for i, pid := range path {
+				if pid == id {
+					cycleStart = i
+					break
+				}
+			}
+			if cycleStart >= 0 {
+				cycle := make([]string, len(path)-cycleStart)
+				copy(cycle, path[cycleStart:])
+				cycle = append(cycle, id)
+				cycles = append(cycles, cycle)
+			}
+			return true
+		}
+
+		visited[id] = 1
+		path = append(path, id)
+
+		activity := activityMap[id]
+		if activity != nil {
+			for _, depID := range activity.Dependencies {
+				dfs(depID)
+			}
+			// ParentID も依存関係として扱う
+			if activity.ParentID != "" {
+				dfs(activity.ParentID)
+			}
+		}
+
+		path = path[:len(path)-1]
+		visited[id] = 2
+		return false
+	}
+
+	// 全アクティビティから DFS を開始
+	for id := range activityMap {
+		if visited[id] == 0 {
+			dfs(id)
+		}
+	}
+
+	return cycles, nil
+}
+
+// GetDependents は指定アクティビティに依存するアクティビティを取得
+func (h *ActivityHandler) GetDependents(ctx context.Context, id string) ([]ActivityEntity, error) {
+	activities, err := h.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]ActivityEntity, 0)
+	for _, a := range activities {
+		if slices.Contains(a.Dependencies, id) {
+			result = append(result, a)
+		}
+	}
+	return result, nil
+}
+
+// GetChildren は指定アクティビティの子アクティビティを取得
+func (h *ActivityHandler) GetChildren(ctx context.Context, parentID string) ([]ActivityEntity, error) {
+	activities, err := h.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]ActivityEntity, 0)
+	for _, a := range activities {
+		if a.ParentID == parentID {
+			result = append(result, a)
+		}
+	}
+	return result, nil
 }
 
 // AddNode はアクティビティにノードを追加
@@ -475,6 +677,107 @@ func WithActivityRelatedDeliverables(deliverableIDs []string) EntityOption {
 	return func(v any) {
 		if a, ok := v.(*ActivityEntity); ok {
 			a.RelatedDeliverables = deliverableIDs
+		}
+	}
+}
+
+// ===== Task/Activity 統合: 新規 EntityOption 関数群 =====
+
+// WithActivityDependencies は依存関係を設定
+func WithActivityDependencies(dependencies []string) EntityOption {
+	return func(v any) {
+		if a, ok := v.(*ActivityEntity); ok {
+			a.Dependencies = dependencies
+		}
+	}
+}
+
+// WithActivityParent は親 Activity ID を設定
+func WithActivityParent(parentID string) EntityOption {
+	return func(v any) {
+		if a, ok := v.(*ActivityEntity); ok {
+			a.ParentID = parentID
+		}
+	}
+}
+
+// WithActivityEstimateHours は見積もり時間を設定
+func WithActivityEstimateHours(hours float64) EntityOption {
+	return func(v any) {
+		if a, ok := v.(*ActivityEntity); ok {
+			a.EstimateHours = hours
+		}
+	}
+}
+
+// WithActivityActualHours は実績時間を設定
+func WithActivityActualHours(hours float64) EntityOption {
+	return func(v any) {
+		if a, ok := v.(*ActivityEntity); ok {
+			a.ActualHours = hours
+		}
+	}
+}
+
+// WithActivityAssignee は担当者を設定
+func WithActivityAssignee(assignee string) EntityOption {
+	return func(v any) {
+		if a, ok := v.(*ActivityEntity); ok {
+			a.Assignee = assignee
+		}
+	}
+}
+
+// WithActivityStartDate は開始日を設定
+func WithActivityStartDate(startDate string) EntityOption {
+	return func(v any) {
+		if a, ok := v.(*ActivityEntity); ok {
+			a.StartDate = startDate
+		}
+	}
+}
+
+// WithActivityDueDate は期限日を設定
+func WithActivityDueDate(dueDate string) EntityOption {
+	return func(v any) {
+		if a, ok := v.(*ActivityEntity); ok {
+			a.DueDate = dueDate
+		}
+	}
+}
+
+// WithActivityPriority は優先度を設定
+func WithActivityPriority(priority ActivityPriority) EntityOption {
+	return func(v any) {
+		if a, ok := v.(*ActivityEntity); ok {
+			a.Priority = priority
+		}
+	}
+}
+
+// WithActivityWBSCode は WBS コードを設定
+func WithActivityWBSCode(wbsCode string) EntityOption {
+	return func(v any) {
+		if a, ok := v.(*ActivityEntity); ok {
+			a.WBSCode = wbsCode
+		}
+	}
+}
+
+// WithActivityProgress は進捗率を設定
+func WithActivityProgress(progress int) EntityOption {
+	return func(v any) {
+		if a, ok := v.(*ActivityEntity); ok {
+			a.Progress = progress
+		}
+	}
+}
+
+// WithActivityApprovalLevel は承認レベルを設定
+func WithActivityApprovalLevel(level ApprovalLevel) EntityOption {
+	return func(v any) {
+		if a, ok := v.(*ActivityEntity); ok {
+			a.ApprovalLevel = level
 		}
 	}
 }

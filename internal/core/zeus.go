@@ -931,6 +931,54 @@ func toAnalysisTaskInfo(tasks []Task) []analysis.TaskInfo {
 	return result
 }
 
+// toAnalysisActivityInfo は core.ActivityEntity を analysis.ActivityInfo に変換
+func toAnalysisActivityInfo(activities []ActivityEntity) []analysis.ActivityInfo {
+	result := make([]analysis.ActivityInfo, len(activities))
+	for i, a := range activities {
+		result[i] = analysis.ActivityInfo{
+			ID:                  a.ID,
+			Title:               a.Title,
+			Status:              string(a.Status),
+			Mode:                string(a.Mode()),
+			Dependencies:        a.Dependencies,
+			ParentID:            a.ParentID,
+			UseCaseID:           a.UseCaseID,
+			Progress:            a.Progress,
+			Priority:            string(a.Priority),
+			Assignee:            a.Assignee,
+			WBSCode:             a.WBSCode,
+			StartDate:           a.StartDate,
+			DueDate:             a.DueDate,
+			EstimateHours:       a.EstimateHours,
+			ActualHours:         a.ActualHours,
+			RelatedDeliverables: a.RelatedDeliverables,
+			CreatedAt:           a.Metadata.CreatedAt,
+			UpdatedAt:           a.Metadata.UpdatedAt,
+		}
+	}
+	return result
+}
+
+// toAnalysisUseCaseInfo は core.UseCaseEntity を analysis.UseCaseInfo に変換
+func toAnalysisUseCaseInfo(usecases []UseCaseEntity) []analysis.UseCaseInfo {
+	result := make([]analysis.UseCaseInfo, len(usecases))
+	for i, u := range usecases {
+		actorIDs := make([]string, len(u.Actors))
+		for j, a := range u.Actors {
+			actorIDs[j] = a.ActorID
+		}
+		result[i] = analysis.UseCaseInfo{
+			ID:          u.ID,
+			Title:       u.Title,
+			Status:      string(u.Status),
+			ObjectiveID: u.ObjectiveID,
+			SubsystemID: u.SubsystemID,
+			ActorIDs:    actorIDs,
+		}
+	}
+	return result
+}
+
 // toAnalysisProjectState は core.ProjectState を analysis.ProjectState に変換
 func toAnalysisProjectState(state *ProjectState) *analysis.ProjectState {
 	return &analysis.ProjectState{
@@ -1304,5 +1352,111 @@ func (z *Zeus) UpdateClaudeFiles(ctx context.Context) error {
 		return fmt.Errorf("Claude Code ファイル生成に失敗: %w", err)
 	}
 
+	return nil
+}
+
+// ===== Task/Activity 統合: UnifiedGraph 機能 =====
+
+// BuildUnifiedGraph は統合グラフを構築
+// Activity, UseCase, Deliverable, Objective を統合した依存関係グラフを返す
+func (z *Zeus) BuildUnifiedGraph(ctx context.Context, filter *analysis.GraphFilter) (*analysis.UnifiedGraph, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// 1. 全 Activity を取得
+	activities := []ActivityEntity{}
+	actFiles, err := z.fileStore.ListDir(ctx, "activities")
+	if err == nil {
+		for _, file := range actFiles {
+			if !hasYamlSuffix(file) {
+				continue
+			}
+			var act ActivityEntity
+			if err := z.fileStore.ReadYaml(ctx, filepath.Join("activities", file), &act); err == nil {
+				activities = append(activities, act)
+			}
+		}
+	}
+
+	// 2. 全 UseCase を取得
+	usecases := []UseCaseEntity{}
+	ucFiles, err := z.fileStore.ListDir(ctx, "usecases")
+	if err == nil {
+		for _, file := range ucFiles {
+			if !hasYamlSuffix(file) {
+				continue
+			}
+			var uc UseCaseEntity
+			if err := z.fileStore.ReadYaml(ctx, filepath.Join("usecases", file), &uc); err == nil {
+				usecases = append(usecases, uc)
+			}
+		}
+	}
+
+	// 3. 全 Deliverable を取得
+	deliverables := []analysis.DeliverableInfo{}
+	delFiles, err := z.fileStore.ListDir(ctx, "deliverables")
+	if err == nil {
+		for _, file := range delFiles {
+			if !hasYamlSuffix(file) {
+				continue
+			}
+			var del DeliverableEntity
+			if err := z.fileStore.ReadYaml(ctx, filepath.Join("deliverables", file), &del); err == nil {
+				deliverables = append(deliverables, analysis.DeliverableInfo{
+					ID:          del.ID,
+					Title:       del.Title,
+					ObjectiveID: del.ObjectiveID,
+					Progress:    del.Progress,
+					Status:      string(del.Status),
+				})
+			}
+		}
+	}
+
+	// 4. 全 Objective を取得
+	objectives := []analysis.ObjectiveInfo{}
+	objFiles, err := z.fileStore.ListDir(ctx, "objectives")
+	if err == nil {
+		for _, file := range objFiles {
+			if !hasYamlSuffix(file) {
+				continue
+			}
+			var obj ObjectiveEntity
+			if err := z.fileStore.ReadYaml(ctx, filepath.Join("objectives", file), &obj); err == nil {
+				objectives = append(objectives, analysis.ObjectiveInfo{
+					ID:       obj.ID,
+					Title:    obj.Title,
+					WBSCode:  obj.WBSCode,
+					Progress: obj.Progress,
+					Status:   string(obj.Status),
+					ParentID: obj.ParentID,
+				})
+			}
+		}
+	}
+
+	// 5. UnifiedGraphBuilder で構築
+	builder := analysis.NewUnifiedGraphBuilder().
+		WithActivities(toAnalysisActivityInfo(activities)).
+		WithUseCases(toAnalysisUseCaseInfo(usecases)).
+		WithDeliverables(deliverables).
+		WithObjectives(objectives)
+
+	if filter != nil {
+		builder = builder.WithFilter(filter)
+	}
+
+	return builder.Build(), nil
+}
+
+// GetActivityHandler は ActivityHandler を返す
+func (z *Zeus) GetActivityHandler() *ActivityHandler {
+	if handler, ok := z.entityRegistry.Get("activity"); ok {
+		if activityHandler, ok := handler.(*ActivityHandler); ok {
+			return activityHandler
+		}
+	}
 	return nil
 }

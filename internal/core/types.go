@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -65,6 +66,7 @@ const (
 )
 
 // Task はタスク
+// Deprecated: Activity を使用してください
 type Task struct {
 	ID            string        `yaml:"id"`
 	Title         string        `yaml:"title"`
@@ -1377,17 +1379,44 @@ func (u *UseCaseEntity) GetTitle() string { return u.Title }
 
 // ============================================================
 // UML アクティビティ図型定義 (Activity)
+// Task/Activity 統合により、Activity が「実行可能な作業単位」として機能
 // ============================================================
 
 // === Activity ===
 
+// ActivityMode はアクティビティのモード（Task/Activity 統合）
+// SimpleActivity: 作業追跡（旧 Task 機能）
+// FlowActivity: プロセス可視化（従来の Activity 図機能）
+type ActivityMode string
+
+const (
+	ActivityModeSimple ActivityMode = "simple" // 作業追跡モード（len(Nodes) == 0）
+	ActivityModeFlow   ActivityMode = "flow"   // フロー可視化モード（len(Nodes) > 0）
+)
+
 // ActivityStatus はアクティビティの状態
+// Task/Activity 統合により、作業管理ステータスを追加
 type ActivityStatus string
 
 const (
+	// 従来のフロー用ステータス
 	ActivityStatusDraft      ActivityStatus = "draft"
 	ActivityStatusActive     ActivityStatus = "active"
 	ActivityStatusDeprecated ActivityStatus = "deprecated"
+	// 作業管理用ステータス（Task から移行）
+	ActivityStatusPending    ActivityStatus = "pending"     // 未着手
+	ActivityStatusInProgress ActivityStatus = "in_progress" // 進行中
+	ActivityStatusCompleted  ActivityStatus = "completed"   // 完了
+	ActivityStatusBlocked    ActivityStatus = "blocked"     // ブロック中
+)
+
+// ActivityPriority はアクティビティの優先度
+type ActivityPriority string
+
+const (
+	ActivityPriorityHigh   ActivityPriority = "high"
+	ActivityPriorityMedium ActivityPriority = "medium"
+	ActivityPriorityLow    ActivityPriority = "low"
 )
 
 // ActivityNodeType はアクティビティノードの種類
@@ -1407,7 +1436,7 @@ const (
 type ActivityNode struct {
 	ID             string           `yaml:"id"`
 	Type           ActivityNodeType `yaml:"type"`
-	Name           string           `yaml:"name,omitempty"`           // initial/final では不要
+	Name           string           `yaml:"name,omitempty"`            // initial/final では不要
 	DeliverableIDs []string         `yaml:"deliverable_ids,omitempty"` // 関連 Deliverable ID（任意）
 }
 
@@ -1421,6 +1450,7 @@ type ActivityTransition struct {
 
 // ActivityEntity はアクティビティ図エンティティ
 // activities/act-NNN.yaml で管理（個別ファイル）
+// Task/Activity 統合により、作業管理フィールドを追加
 type ActivityEntity struct {
 	ID                  string               `yaml:"id"`
 	Title               string               `yaml:"title"`
@@ -1431,6 +1461,49 @@ type ActivityEntity struct {
 	Nodes               []ActivityNode       `yaml:"nodes,omitempty"`
 	Transitions         []ActivityTransition `yaml:"transitions,omitempty"`
 	Metadata            Metadata             `yaml:"metadata"`
+
+	// === Task/Activity 統合: 作業管理フィールド ===
+	// 以下のフィールドは SimpleActivity（作業追跡）モードで使用
+
+	// 依存関係
+	Dependencies []string `yaml:"dependencies,omitempty"` // 依存先 Activity ID リスト
+	ParentID     string   `yaml:"parent_id,omitempty"`    // 親 Activity ID（階層化用）
+
+	// 工数管理
+	EstimateHours float64 `yaml:"estimate_hours,omitempty"` // 見積もり時間
+	ActualHours   float64 `yaml:"actual_hours,omitempty"`   // 実績時間
+
+	// 担当・スケジュール
+	Assignee  string `yaml:"assignee,omitempty"`   // 担当者
+	StartDate string `yaml:"start_date,omitempty"` // 開始日（ISO8601）
+	DueDate   string `yaml:"due_date,omitempty"`   // 期限日（ISO8601）
+
+	// 優先度・進捗
+	Priority ActivityPriority `yaml:"priority,omitempty"` // 優先度
+	WBSCode  string           `yaml:"wbs_code,omitempty"` // WBS番号（例: "1.2.3"）
+	Progress int              `yaml:"progress,omitempty"` // 進捗率（0-100）
+
+	// 承認
+	ApprovalLevel ApprovalLevel `yaml:"approval_level,omitempty"` // 承認レベル
+}
+
+// Mode は Activity のモードを返す
+// Nodes が存在する場合は FlowActivity、それ以外は SimpleActivity
+func (a *ActivityEntity) Mode() ActivityMode {
+	if len(a.Nodes) > 0 {
+		return ActivityModeFlow
+	}
+	return ActivityModeSimple
+}
+
+// IsSimple は SimpleActivity モードかどうかを返す
+func (a *ActivityEntity) IsSimple() bool {
+	return a.Mode() == ActivityModeSimple
+}
+
+// IsFlow は FlowActivity モードかどうかを返す
+func (a *ActivityEntity) IsFlow() bool {
+	return a.Mode() == ActivityModeFlow
 }
 
 // Validate は ActivityNode の妥当性を検証
@@ -1492,8 +1565,10 @@ func (a *ActivityEntity) Validate() error {
 	if a.Status == "" {
 		a.Status = ActivityStatusDraft
 	}
+	// ステータスのバリデーション（拡張版）
 	switch a.Status {
-	case ActivityStatusDraft, ActivityStatusActive, ActivityStatusDeprecated:
+	case ActivityStatusDraft, ActivityStatusActive, ActivityStatusDeprecated,
+		ActivityStatusPending, ActivityStatusInProgress, ActivityStatusCompleted, ActivityStatusBlocked:
 		// 有効
 	default:
 		return fmt.Errorf("invalid activity status: %s", a.Status)
@@ -1539,6 +1614,63 @@ func (a *ActivityEntity) Validate() error {
 			return fmt.Errorf("transition target not found: %s", trans.Target)
 		}
 	}
+
+	// === Task/Activity 統合: 追加バリデーション ===
+
+	// Progress は 0-100 の範囲
+	if a.Progress < 0 || a.Progress > 100 {
+		return fmt.Errorf("progress must be between 0 and 100, got %d", a.Progress)
+	}
+
+	// 自己参照の禁止（ParentID）
+	if a.ParentID != "" && a.ParentID == a.ID {
+		return fmt.Errorf("activity cannot be its own parent")
+	}
+
+	// 自己参照の禁止（Dependencies）
+	if slices.Contains(a.Dependencies, a.ID) {
+		return fmt.Errorf("activity cannot depend on itself")
+	}
+
+	// Dependencies の重複チェック
+	if len(a.Dependencies) > 0 {
+		depIDs := make(map[string]bool)
+		for _, id := range a.Dependencies {
+			if depIDs[id] {
+				return fmt.Errorf("duplicate dependency ID: %s", id)
+			}
+			depIDs[id] = true
+		}
+	}
+
+	// EstimateHours/ActualHours は非負
+	if a.EstimateHours < 0 {
+		return fmt.Errorf("estimate_hours must be non-negative, got %f", a.EstimateHours)
+	}
+	if a.ActualHours < 0 {
+		return fmt.Errorf("actual_hours must be non-negative, got %f", a.ActualHours)
+	}
+
+	// Priority のバリデーション
+	if a.Priority != "" {
+		switch a.Priority {
+		case ActivityPriorityHigh, ActivityPriorityMedium, ActivityPriorityLow:
+			// 有効
+		default:
+			return fmt.Errorf("invalid activity priority: %s", a.Priority)
+		}
+	}
+
+	// ApprovalLevel のバリデーション
+	if a.ApprovalLevel != "" {
+		switch a.ApprovalLevel {
+		case ApprovalAuto, ApprovalNotify, ApprovalApprove:
+			// 有効
+		default:
+			return fmt.Errorf("invalid approval level: %s", a.ApprovalLevel)
+		}
+	}
+
 	return nil
 }
 
@@ -1547,3 +1679,103 @@ func (a *ActivityEntity) GetID() string { return a.ID }
 
 // GetTitle は Entity インターフェースを実装（ActivityEntity）
 func (a *ActivityEntity) GetTitle() string { return a.Title }
+
+// ToTask は ActivityEntity を Task に変換（後方互換性用）
+// Deprecated: 将来のバージョンで削除予定
+func (a *ActivityEntity) ToTask() Task {
+	var priority TaskPriority
+	switch a.Priority {
+	case ActivityPriorityHigh:
+		priority = PriorityHigh
+	case ActivityPriorityMedium:
+		priority = PriorityMedium
+	case ActivityPriorityLow:
+		priority = PriorityLow
+	}
+
+	var status TaskStatus
+	switch a.Status {
+	case ActivityStatusPending:
+		status = TaskStatusPending
+	case ActivityStatusInProgress:
+		status = TaskStatusInProgress
+	case ActivityStatusCompleted:
+		status = TaskStatusCompleted
+	case ActivityStatusBlocked:
+		status = TaskStatusBlocked
+	default:
+		// フローステータスの場合はマッピング
+		if a.Status == ActivityStatusActive {
+			status = TaskStatusInProgress
+		} else {
+			status = TaskStatusPending
+		}
+	}
+
+	return Task{
+		ID:            a.ID,
+		Title:         a.Title,
+		Description:   a.Description,
+		Status:        status,
+		Priority:      priority,
+		Assignee:      a.Assignee,
+		EstimateHours: a.EstimateHours,
+		ActualHours:   a.ActualHours,
+		Dependencies:  a.Dependencies,
+		ApprovalLevel: a.ApprovalLevel,
+		CreatedAt:     a.Metadata.CreatedAt,
+		UpdatedAt:     a.Metadata.UpdatedAt,
+		ParentID:      a.ParentID,
+		StartDate:     a.StartDate,
+		DueDate:       a.DueDate,
+		Progress:      a.Progress,
+		WBSCode:       a.WBSCode,
+	}
+}
+
+// NewActivityFromTask は Task から ActivityEntity を生成（マイグレーション用）
+func NewActivityFromTask(t Task, newID string) *ActivityEntity {
+	var priority ActivityPriority
+	switch t.Priority {
+	case PriorityHigh:
+		priority = ActivityPriorityHigh
+	case PriorityMedium:
+		priority = ActivityPriorityMedium
+	case PriorityLow:
+		priority = ActivityPriorityLow
+	}
+
+	var status ActivityStatus
+	switch t.Status {
+	case TaskStatusPending:
+		status = ActivityStatusPending
+	case TaskStatusInProgress:
+		status = ActivityStatusInProgress
+	case TaskStatusCompleted:
+		status = ActivityStatusCompleted
+	case TaskStatusBlocked:
+		status = ActivityStatusBlocked
+	}
+
+	return &ActivityEntity{
+		ID:            newID,
+		Title:         t.Title,
+		Description:   t.Description,
+		Status:        status,
+		Dependencies:  t.Dependencies,
+		ParentID:      t.ParentID,
+		EstimateHours: t.EstimateHours,
+		ActualHours:   t.ActualHours,
+		Assignee:      t.Assignee,
+		StartDate:     t.StartDate,
+		DueDate:       t.DueDate,
+		Priority:      priority,
+		WBSCode:       t.WBSCode,
+		Progress:      t.Progress,
+		ApprovalLevel: t.ApprovalLevel,
+		Metadata: Metadata{
+			CreatedAt: t.CreatedAt,
+			UpdatedAt: t.UpdatedAt,
+		},
+	}
+}

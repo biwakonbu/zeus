@@ -64,6 +64,12 @@ var (
 	addActorRole     string
 	addUseCaseStatus string
 	addSubsystemID   string
+
+	// Activity 用（Task/Activity 統合）
+	addActivityDependencies []string
+	addActivityEstimate     float64
+	addActivityActualHours  float64
+	addActivityUseCaseID    string
 )
 
 var addCmd = &cobra.Command{
@@ -72,7 +78,7 @@ var addCmd = &cobra.Command{
 	Long: `エンティティを追加します。
 
 対応エンティティ:
-  task          タスク（既存）
+  task          タスク（非推奨: Activity の使用を推奨）
   vision        プロジェクトビジョン
   objective     目標・マイルストーン
   deliverable   成果物
@@ -86,13 +92,14 @@ var addCmd = &cobra.Command{
   actor         UML アクター
   usecase       UML ユースケース
   subsystem     UML サブシステム（ユースケース分類）
+  activity      アクティビティ（作業単位 + プロセス可視化）
 
 共通オプション:
   --description  説明
   --owner        オーナー
   --tags         タグ（カンマ区切り）
 
-タスク用オプション:
+タスク用オプション（非推奨: Activity を使用してください）:
   --parent    親タスクのID（WBS階層構造用）
   --start     開始日（ISO8601形式: 2026-01-17）
   --due       期限日（ISO8601形式: 2026-01-31）
@@ -100,6 +107,20 @@ var addCmd = &cobra.Command{
   --wbs       WBSコード（例: 1.2.3）
   --priority  優先度（high, medium, low）
   --assignee  担当者名
+
+Activity 用オプション:
+  --parent      親 Activity の ID
+  --depends     依存先 Activity ID（カンマ区切り、または複数回指定）
+  --usecase     紐づく UseCase の ID
+  --deliverable 紐づく Deliverable の ID
+  --start       開始日（ISO8601形式）
+  --due         期限日（ISO8601形式）
+  --estimate    見積もり時間（時間単位）
+  --actual      実績時間（時間単位）
+  --progress    進捗率（0-100）
+  --wbs         WBS コード
+  --priority    優先度（high, medium, low）
+  --assignee    担当者名
 
 Vision 用オプション:
   --statement         ビジョンステートメント
@@ -178,7 +199,9 @@ Subsystem 用オプション:
   zeus add quality "コードカバレッジ" --deliverable del-001 --metric "coverage:80:%" --metric "performance:100:ms"
   zeus add actor "管理者" --type human
   zeus add usecase "ログイン" --objective obj-001 --actor actor-001 --actor-role primary --subsystem sub-12345678
-  zeus add subsystem "認証システム" --description "ユーザー認証関連のユースケース"`,
+  zeus add subsystem "認証システム" --description "ユーザー認証関連のユースケース"
+  zeus add activity "API設計" --usecase uc-001 --estimate 8 --priority high --assignee "田中"
+  zeus add activity "エンドポイント実装" --depends act-001,act-002 --estimate 16 --due 2026-02-15`,
 	Args: cobra.ExactArgs(2),
 	RunE: runAdd,
 }
@@ -192,7 +215,7 @@ func init() {
 	addCmd.Flags().StringSliceVar(&addTags, "tags", nil, "タグ（カンマ区切り）")
 
 	// Phase 6A: タスク用フラグ
-	addCmd.Flags().StringVarP(&addParentID, "parent", "p", "", "親タスク/Objective ID")
+	addCmd.Flags().StringVarP(&addParentID, "parent", "p", "", "親タスク/Objective/Activity ID")
 	addCmd.Flags().StringVar(&addStartDate, "start", "", "開始日（ISO8601形式）")
 	addCmd.Flags().StringVar(&addDueDate, "due", "", "期限日（ISO8601形式）")
 	addCmd.Flags().IntVar(&addProgress, "progress", 0, "進捗率（0-100）")
@@ -240,6 +263,12 @@ func init() {
 	addCmd.Flags().StringVar(&addActorRole, "actor-role", "", "アクターのロール（primary, secondary）")
 	addCmd.Flags().StringVar(&addUseCaseStatus, "status", "", "ステータス（draft, active, deprecated）")
 	addCmd.Flags().StringVar(&addSubsystemID, "subsystem", "", "紐づくサブシステムの ID")
+
+	// Activity 用フラグ（Task/Activity 統合）
+	addCmd.Flags().StringSliceVar(&addActivityDependencies, "depends", nil, "依存先 Activity ID（カンマ区切り、または複数回指定）")
+	addCmd.Flags().Float64Var(&addActivityEstimate, "estimate", 0, "見積もり時間（時間単位）")
+	addCmd.Flags().Float64Var(&addActivityActualHours, "actual", 0, "実績時間（時間単位）")
+	addCmd.Flags().StringVar(&addActivityUseCaseID, "usecase", "", "紐づく UseCase の ID")
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
@@ -315,6 +344,8 @@ func buildAddOptions(entity string) []core.EntityOption {
 		opts = buildUseCaseOptions()
 	case "subsystem":
 		opts = buildSubsystemOptions()
+	case "activity":
+		opts = buildActivityOptions()
 	}
 
 	return opts
@@ -751,6 +782,99 @@ func buildSubsystemOptions() []core.EntityOption {
 	}
 	if len(addTags) > 0 {
 		opts = append(opts, core.WithSubsystemTags(addTags))
+	}
+
+	return opts
+}
+
+// buildActivityOptions は Activity 用オプションを構築（Task/Activity 統合）
+func buildActivityOptions() []core.EntityOption {
+	var opts []core.EntityOption
+
+	// 依存関係
+	if len(addActivityDependencies) > 0 {
+		opts = append(opts, core.WithActivityDependencies(addActivityDependencies))
+	}
+
+	// 親 Activity
+	if addParentID != "" {
+		opts = append(opts, core.WithActivityParent(addParentID))
+	}
+
+	// UseCase 参照
+	if addActivityUseCaseID != "" {
+		opts = append(opts, core.WithActivityUseCase(addActivityUseCaseID))
+	}
+
+	// Deliverable 参照
+	if addDeliverableID != "" {
+		opts = append(opts, core.WithActivityRelatedDeliverables([]string{addDeliverableID}))
+	}
+
+	// 見積もり時間
+	if addActivityEstimate > 0 {
+		opts = append(opts, core.WithActivityEstimateHours(addActivityEstimate))
+	}
+
+	// 実績時間
+	if addActivityActualHours > 0 {
+		opts = append(opts, core.WithActivityActualHours(addActivityActualHours))
+	}
+
+	// 開始日
+	if addStartDate != "" {
+		opts = append(opts, core.WithActivityStartDate(addStartDate))
+	}
+
+	// 期限日
+	if addDueDate != "" {
+		opts = append(opts, core.WithActivityDueDate(addDueDate))
+	}
+
+	// 進捗
+	if addProgress > 0 {
+		opts = append(opts, core.WithActivityProgress(addProgress))
+	}
+
+	// WBS コード
+	if addWBSCode != "" {
+		opts = append(opts, core.WithActivityWBSCode(addWBSCode))
+	}
+
+	// 優先度
+	if addPriority != "" {
+		var priority core.ActivityPriority
+		switch addPriority {
+		case "high":
+			priority = core.ActivityPriorityHigh
+		case "medium":
+			priority = core.ActivityPriorityMedium
+		case "low":
+			priority = core.ActivityPriorityLow
+		default:
+			priority = core.ActivityPriorityMedium
+		}
+		opts = append(opts, core.WithActivityPriority(priority))
+	}
+
+	// 担当者
+	if addAssignee != "" {
+		opts = append(opts, core.WithActivityAssignee(addAssignee))
+	}
+
+	// 説明
+	if addDescription != "" {
+		opts = append(opts, core.WithActivityDescription(addDescription))
+	}
+
+	// オーナー
+	if addOwner != "" {
+		opts = append(opts, core.WithActivityOwner(addOwner))
+	}
+
+	// タグ
+	if len(addTags) > 0 {
+		opts = append(opts, core.WithActivityTags(addTags))
 	}
 
 	return opts

@@ -46,62 +46,44 @@ export const COMMON_COLORS = {
 export type CommonColors = typeof COMMON_COLORS;
 
 /**
- * エッジ色定義（4層構造: 最外層グロー → グロー → 外側 → コア）
- * - 電気回路風の発光感を表現
+ * エッジ色定義（2層構造: 外側縁取り → コア）
+ * - シンプルで視認性重視の設計
  * - 背景 0x1a1a1a に対して高コントラストを確保
  *
  * デザイン原則:
- * - コア: 明るい白〜淡いオレンジで視認性を確保
+ * - コア: 明るい色で視認性を確保
  * - 外側: 暗い縁取りでコアを際立たせる
- * - グロー: 淡いハロー効果で電気配線感を演出
- * - 最外層グロー: 広い範囲の微弱グローで存在感を強調
  */
 export const EDGE_COLORS = {
 	normal: {
-		core: 0xdddddd, // より明るいコア（221, 221, 221）
-		outer: 0x3a3a3a, // より明るい縁取り
-		glow: 0x888888, // より明るいグロー
-		glowAlpha: 0.6, // 強化
-		// 最外層グロー（控えめな常時グロー）
-		outerGlow: 0x666666,
-		outerGlowAlpha: 0.07
+		core: 0xcccccc, // やや暗めのコア（204, 204, 204）
+		outer: 0x555555 // 縁取り
 	},
 	critical: {
-		core: 0xffcc77, // より明るいオレンジ
-		outer: 0x4a2a00, // 暗い縁取り
-		glow: 0xff9533,
-		glowAlpha: 0.7,
-		outerGlow: 0xff9533,
-		outerGlowAlpha: 0.10
+		core: 0xffaa44, // オレンジコア
+		outer: 0x885522 // 暗いオレンジ縁取り
 	},
 	blocked: {
-		core: 0xff9999, // より明るい赤
-		outer: 0x4a1a1a, // 暗い縁取り
-		glow: 0xff4444,
-		glowAlpha: 0.6,
-		outerGlow: 0xff4444,
-		outerGlowAlpha: 0.07
+		core: 0xff6666, // 赤コア
+		outer: 0x883333 // 暗い赤縁取り
 	},
 	highlighted: {
-		core: 0xffdd99, // より明るいオレンジ
-		outer: 0xff9533, // アクセント色の縁取り
-		glow: 0xff9533,
-		glowAlpha: 0.8,
-		outerGlow: 0xff9533,
-		outerGlowAlpha: 0.12
+		core: 0xffcc66, // 明るいオレンジ
+		outer: 0xff9533 // アクセント色
 	}
 } as const;
 
 /**
- * エッジ幅定義（4層構造対応）
- * - 太めの線で視認性を確保
- * - glow: 内側グロー幅、outerGlow: 最外層グロー幅
+ * エッジ幅定義（2層構造）
+ * - 細めの線でシンプルに
+ * - 描画回数: 4回 → 2回（50%削減）
+ * - 最大幅: 20px → 5px（75%削減）
  */
 export const EDGE_WIDTHS = {
-	normal: { core: 3, outer: 7, glow: 12, outerGlow: 20 },
-	critical: { core: 3.5, outer: 8, glow: 14, outerGlow: 24 },
-	blocked: { core: 3, outer: 7, glow: 12, outerGlow: 20 },
-	highlighted: { core: 4, outer: 9, glow: 16, outerGlow: 28 }
+	normal: { core: 1.5, outer: 3 },
+	critical: { core: 2, outer: 4 },
+	blocked: { core: 1.5, outer: 3 },
+	highlighted: { core: 2.5, outer: 5 }
 } as const;
 
 export type EdgeColors = typeof EDGE_COLORS;
