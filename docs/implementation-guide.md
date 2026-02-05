@@ -612,105 +612,85 @@ func (g *DependencyGraph) GetStatistics() GraphStatistics {
 package report
 
 import (
-    "fmt"
-    "strings"
-    "time"
+    "bytes"
+    "context"
+    "text/template"
 
     "github.com/biwakonbu/zeus/internal/analysis"
 )
 
-// ReportFormat はレポートの出力形式
-type ReportFormat string
+// ZeusConfig はレポート生成に必要な設定情報
+type ZeusConfig struct {
+    Project ProjectInfo
+}
 
-const (
-    FormatText     ReportFormat = "text"
-    FormatHTML     ReportFormat = "html"
-    FormatMarkdown ReportFormat = "markdown"
-)
+// ProjectInfo はプロジェクト情報
+type ProjectInfo struct {
+    ID          string
+    Name        string
+    Description string
+    StartDate   string
+}
 
-// ReportData はレポート生成に必要なデータ
-type ReportData struct {
-    ProjectName    string
-    ProjectDesc    string
-    StartDate      string
-    Tasks          []analysis.AnalysisTask
-    Graph          *analysis.DependencyGraph
-    Prediction     analysis.CompletionPrediction
-    Risk           analysis.RiskAnalysis
-    Velocity       analysis.VelocityAnalysis
+// ProjectState はプロジェクト状態
+type ProjectState struct {
+    Health  string
+    Summary SummaryStats
+}
+
+// SummaryStats はサマリー統計（Activity 統計）
+type SummaryStats struct {
+    TotalActivities int
+    Completed       int
+    InProgress      int
+    Pending         int
 }
 
 // Generator はレポートを生成
 type Generator struct {
-    data ReportData
+    config   *ZeusConfig
+    state    *ProjectState
+    analysis *analysis.AnalysisResult
 }
 
 // NewGenerator は新しい Generator を作成
-func NewGenerator(data ReportData) *Generator {
-    return &Generator{data: data}
-}
-
-// Generate はレポートを生成
-func (g *Generator) Generate(format ReportFormat) string {
-    switch format {
-    case FormatHTML:
-        return g.generateHTML()
-    case FormatMarkdown:
-        return g.generateMarkdown()
-    default:
-        return g.generateText()
+func NewGenerator(config *ZeusConfig, state *ProjectState, analysisResult *analysis.AnalysisResult) *Generator {
+    return &Generator{
+        config:   config,
+        state:    state,
+        analysis: analysisResult,
     }
 }
 
-func (g *Generator) generateText() string {
-    var sb strings.Builder
-
-    sb.WriteString("═══════════════════════════════════════════════════════════\n")
-    sb.WriteString("                    Zeus Project Report\n")
-    sb.WriteString("═══════════════════════════════════════════════════════════\n\n")
-
-    // プロジェクト概要
-    sb.WriteString(fmt.Sprintf("Project: %s\n", g.data.ProjectName))
-    sb.WriteString(fmt.Sprintf("Description: %s\n", g.data.ProjectDesc))
-    sb.WriteString(fmt.Sprintf("Generated: %s\n\n", time.Now().Format("2006-01-02 15:04")))
-
-    // ステータスサマリー
-    completed, inProgress, pending := g.countByStatus()
-
-    sb.WriteString("Status Summary\n")
-    sb.WriteString("─────────────────────────────────────────────────────────────\n")
-    sb.WriteString(fmt.Sprintf("  Completed:   %d\n", completed))
-    sb.WriteString(fmt.Sprintf("  In Progress: %d\n", inProgress))
-    sb.WriteString(fmt.Sprintf("  Pending:     %d\n", pending))
-
-    sb.WriteString("\n═══════════════════════════════════════════════════════════\n")
-
-    return sb.String()
+// ReportData はテンプレートに渡すデータ
+type ReportData struct {
+    Timestamp     string
+    ProjectName   string
+    Health        string
+    TaskStats     SummaryStats
+    HasGraph      bool
+    GraphMermaid  string
+    Recommendations []string
 }
 
-func (g *Generator) generateHTML() string {
-    // HTML テンプレートを使用した出力
-    // 実装は templates.go を参照
-    return generateHTMLReport(g.data)
-}
-
-func (g *Generator) generateMarkdown() string {
-    // Markdown テンプレートを使用した出力
-    return generateMarkdownReport(g.data)
-}
-
-func (g *Generator) countByStatus() (completed, inProgress, pending int) {
-    for _, t := range g.data.Tasks {
-        switch t.Status {
-        case "completed":
-            completed++
-        case "in_progress":
-            inProgress++
-        default:
-            pending++
-        }
+// GenerateText は TEXT 形式でレポートを生成
+func (g *Generator) GenerateText(ctx context.Context) (string, error) {
+    if err := ctx.Err(); err != nil {
+        return "", err
     }
-    return
+
+    data := g.buildReportData()
+    tmpl, err := template.New("text").Parse(TextTemplate)
+    if err != nil {
+        return "", err
+    }
+
+    var buf bytes.Buffer
+    if err := tmpl.Execute(&buf, data); err != nil {
+        return "", err
+    }
+
+    return buf.String(), nil
 }
 ```
 
