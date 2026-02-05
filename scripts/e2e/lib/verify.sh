@@ -98,10 +98,10 @@ export -f extract_edges extract_golden_edges
 # 実際の状態からカウントを抽出
 extract_counts() {
     local json="$1"
-    local task_count edge_count
+    local node_count edge_count
 
     # jq エラーハンドリング
-    task_count=$(echo "$json" | jq '.nodes | length' 2>/dev/null) || {
+    node_count=$(echo "$json" | jq '.nodes | length' 2>/dev/null) || {
         log_error "ノードのカウント抽出に失敗しました"
         return 1
     }
@@ -111,12 +111,12 @@ extract_counts() {
     }
 
     # null チェック
-    if [[ -z "$task_count" || -z "$edge_count" ]]; then
-        log_error "カウント値が空です: taskCount=$task_count, edgeCount=$edge_count"
+    if [[ -z "$node_count" || -z "$edge_count" ]]; then
+        log_error "カウント値が空です: nodeCount=$node_count, edgeCount=$edge_count"
         return 1
     fi
 
-    echo "{\"taskCount\": ${task_count}, \"edgeCount\": ${edge_count}}"
+    echo "{\"nodeCount\": ${node_count}, \"edgeCount\": ${edge_count}}"
 }
 
 # ゴールデンファイルからカウントを抽出
@@ -191,19 +191,19 @@ compare_counts() {
     actual_counts=$(extract_counts "$actual_json")
     expected_counts=$(extract_golden_counts "$golden_file")
 
-    local actual_task_count expected_task_count actual_edge_count expected_edge_count
+    local actual_node_count expected_node_count actual_edge_count expected_edge_count
 
-    actual_task_count=$(echo "$actual_counts" | jq '.taskCount')
-    expected_task_count=$(echo "$expected_counts" | jq '.taskCount')
+    actual_node_count=$(echo "$actual_counts" | jq '.nodeCount')
+    expected_node_count=$(echo "$expected_counts" | jq '.nodeCount')
     actual_edge_count=$(echo "$actual_counts" | jq '.edgeCount')
     expected_edge_count=$(echo "$expected_counts" | jq '.edgeCount')
 
     local passed=true
 
-    if [[ "$actual_task_count" == "$expected_task_count" ]]; then
-        log_success "タスク数: ${actual_task_count} == ${expected_task_count}"
+    if [[ "$actual_node_count" == "$expected_node_count" ]]; then
+        log_success "ノード数: ${actual_node_count} == ${expected_node_count}"
     else
-        log_error "タスク数: ${actual_task_count} != ${expected_task_count}"
+        log_error "ノード数: ${actual_node_count} != ${expected_node_count}"
         passed=false
     fi
 

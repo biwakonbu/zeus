@@ -6,12 +6,12 @@
     "description": "Web ダッシュボード グラフ状態の期待値"
   },
   "state": {
-    "taskCount": 3,
+    "nodeCount": 3,
     "edgeCount": 1,
     "nodes": {
       "_comment": "ノードの詳細は ID が UUID のため検証しない。数と構造のみ検証。",
       "count": 3,
-      "required_fields": ["id", "name", "x", "y", "status", "progress"]
+      "required_fields": ["id", "name", "x", "y", "status", "nodeType"]
     },
     "edges": {
       "_comment": "エッジの詳細は依存関係の存在のみ検証。",

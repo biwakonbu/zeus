@@ -44,8 +44,7 @@ zeus/
 │   │   └── approval.go       # 承認管理
 │   ├── analysis/             # 分析機能（Phase 4）
 │   │   ├── types.go          # 分析用型定義
-│   │   ├── graph.go          # 依存関係グラフ
-│   │   └── predict.go        # 予測分析
+│   │   └── graph.go          # 依存関係グラフ
 │   ├── report/               # レポート生成（Phase 4）
 │   │   ├── generator.go      # レポート生成ロジック
 │   │   └── templates.go      # 出力テンプレート
@@ -111,8 +110,6 @@ target-project/               # Zeus を適用するプロジェクト
 │       ├── zeus-suggest/
 │       │   └── SKILL.md
 │       ├── zeus-risk-analysis/
-│       │   └── SKILL.md
-│       ├── zeus-wbs-design/
 │       │   └── SKILL.md
 │       └── zeus-e2e-tester/
 │           └── SKILL.md
@@ -368,8 +365,6 @@ type AnalysisActivity struct {
     Status       string
     Priority     string
     Dependencies []string
-    EstimateHours float64
-    ActualHours   float64
     CreatedAt    time.Time
     CompletedAt  *time.Time
 }
@@ -609,221 +604,6 @@ func (g *DependencyGraph) GetStatistics() GraphStatistics {
 }
 ```
 
-### 6.3 internal/analysis/predict.go
-
-予測分析エンジンの実装です。
-
-```go
-package analysis
-
-import (
-    "math"
-    "time"
-)
-
-// Predictor は予測分析を実行
-type Predictor struct {
-    tasks []AnalysisTask
-}
-
-// NewPredictor は新しい Predictor を作成
-func NewPredictor(tasks []AnalysisTask) *Predictor {
-    return &Predictor{tasks: tasks}
-}
-
-// CompletionPrediction は完了日予測の結果
-type CompletionPrediction struct {
-    EstimatedDate    time.Time
-    ConfidenceMin    time.Time
-    ConfidenceMax    time.Time
-    RemainingTasks   int
-    AverageVelocity  float64
-}
-
-// PredictCompletion は完了日を予測
-func (p *Predictor) PredictCompletion() CompletionPrediction {
-    remaining := p.countRemainingTasks()
-    velocity := p.calculateVelocity()
-
-    if velocity <= 0 {
-        velocity = 1.0 // デフォルト値
-    }
-
-    daysRemaining := float64(remaining) / velocity
-    estimated := time.Now().AddDate(0, 0, int(daysRemaining))
-
-    // 信頼区間（±20%）
-    margin := daysRemaining * 0.2
-    minDays := time.Now().AddDate(0, 0, int(daysRemaining-margin))
-    maxDays := time.Now().AddDate(0, 0, int(daysRemaining+margin))
-
-    return CompletionPrediction{
-        EstimatedDate:   estimated,
-        ConfidenceMin:   minDays,
-        ConfidenceMax:   maxDays,
-        RemainingTasks:  remaining,
-        AverageVelocity: velocity,
-    }
-}
-
-// RiskLevel はリスクレベル
-type RiskLevel string
-
-const (
-    RiskLevelHigh   RiskLevel = "HIGH"
-    RiskLevelMedium RiskLevel = "MEDIUM"
-    RiskLevelLow    RiskLevel = "LOW"
-)
-
-// RiskFactor はリスク要因
-type RiskFactor struct {
-    Level       RiskLevel
-    Description string
-    Impact      string
-}
-
-// RiskAnalysis はリスク分析結果
-type RiskAnalysis struct {
-    OverallLevel RiskLevel
-    Factors      []RiskFactor
-}
-
-// AnalyzeRisk はリスクを分析
-func (p *Predictor) AnalyzeRisk() RiskAnalysis {
-    var factors []RiskFactor
-
-    // 見積精度の分析
-    accuracy := p.calculateEstimationAccuracy()
-    if accuracy < 0.5 {
-        factors = append(factors, RiskFactor{
-            Level:       RiskLevelHigh,
-            Description: "Estimation accuracy",
-            Impact:      fmt.Sprintf("%.0f%% of tasks exceeded estimates", (1-accuracy)*100),
-        })
-    } else if accuracy < 0.7 {
-        factors = append(factors, RiskFactor{
-            Level:       RiskLevelMedium,
-            Description: "Estimation accuracy",
-            Impact:      fmt.Sprintf("%.0f%% of tasks exceeded estimates", (1-accuracy)*100),
-        })
-    }
-
-    // 依存関係の複雑度
-    complexDeps := p.countComplexDependencies()
-    if complexDeps > 5 {
-        factors = append(factors, RiskFactor{
-            Level:       RiskLevelHigh,
-            Description: "Dependency complexity",
-            Impact:      fmt.Sprintf("%d tasks have 5+ dependencies", complexDeps),
-        })
-    } else if complexDeps > 2 {
-        factors = append(factors, RiskFactor{
-            Level:       RiskLevelMedium,
-            Description: "Dependency complexity",
-            Impact:      fmt.Sprintf("%d tasks have 5+ dependencies", complexDeps),
-        })
-    }
-
-    // 全体のリスクレベルを判定
-    overall := RiskLevelLow
-    for _, f := range factors {
-        if f.Level == RiskLevelHigh {
-            overall = RiskLevelHigh
-            break
-        }
-        if f.Level == RiskLevelMedium {
-            overall = RiskLevelMedium
-        }
-    }
-
-    return RiskAnalysis{
-        OverallLevel: overall,
-        Factors:      factors,
-    }
-}
-
-// VelocityAnalysis はベロシティ分析結果
-type VelocityAnalysis struct {
-    CurrentVelocity  float64
-    Trend            float64
-    SevenDayAverage  float64
-    ThirtyDayAverage float64
-}
-
-// AnalyzeVelocity はベロシティを分析
-func (p *Predictor) AnalyzeVelocity() VelocityAnalysis {
-    current := p.calculateVelocity()
-    sevenDay := p.calculateVelocityForDays(7)
-    thirtyDay := p.calculateVelocityForDays(30)
-
-    trend := current - sevenDay
-
-    return VelocityAnalysis{
-        CurrentVelocity:  current,
-        Trend:            trend,
-        SevenDayAverage:  sevenDay,
-        ThirtyDayAverage: thirtyDay,
-    }
-}
-
-// ヘルパー関数
-func (p *Predictor) countRemainingTasks() int {
-    count := 0
-    for _, t := range p.tasks {
-        if t.Status != "completed" {
-            count++
-        }
-    }
-    return count
-}
-
-func (p *Predictor) calculateVelocity() float64 {
-    return p.calculateVelocityForDays(7) // デフォルトは7日間
-}
-
-func (p *Predictor) calculateVelocityForDays(days int) float64 {
-    threshold := time.Now().AddDate(0, 0, -days)
-    completed := 0
-
-    for _, t := range p.tasks {
-        if t.CompletedAt != nil && t.CompletedAt.After(threshold) {
-            completed++
-        }
-    }
-
-    return float64(completed) / float64(days)
-}
-
-func (p *Predictor) calculateEstimationAccuracy() float64 {
-    accurate := 0
-    total := 0
-
-    for _, t := range p.tasks {
-        if t.Status == "completed" && t.EstimateHours > 0 {
-            total++
-            if t.ActualHours <= t.EstimateHours*1.2 { // 20%マージン
-                accurate++
-            }
-        }
-    }
-
-    if total == 0 {
-        return 1.0
-    }
-    return float64(accurate) / float64(total)
-}
-
-func (p *Predictor) countComplexDependencies() int {
-    count := 0
-    for _, t := range p.tasks {
-        if len(t.Dependencies) >= 5 {
-            count++
-        }
-    }
-    return count
-}
-```
-
 ## 7. レポートモジュールの実装（Phase 4）
 
 ### 7.1 internal/report/generator.go
@@ -894,37 +674,14 @@ func (g *Generator) generateText() string {
     sb.WriteString(fmt.Sprintf("Description: %s\n", g.data.ProjectDesc))
     sb.WriteString(fmt.Sprintf("Generated: %s\n\n", time.Now().Format("2006-01-02 15:04")))
 
-    // 進捗サマリー
+    // ステータスサマリー
     completed, inProgress, pending := g.countByStatus()
-    total := completed + inProgress + pending
-    progress := 0.0
-    if total > 0 {
-        progress = float64(completed) / float64(total) * 100
-    }
 
-    sb.WriteString("Progress Summary\n")
+    sb.WriteString("Status Summary\n")
     sb.WriteString("─────────────────────────────────────────────────────────────\n")
     sb.WriteString(fmt.Sprintf("  Completed:   %d\n", completed))
     sb.WriteString(fmt.Sprintf("  In Progress: %d\n", inProgress))
     sb.WriteString(fmt.Sprintf("  Pending:     %d\n", pending))
-    sb.WriteString(fmt.Sprintf("  Progress:    %.1f%%\n\n", progress))
-
-    // 予測
-    sb.WriteString("Predictions\n")
-    sb.WriteString("─────────────────────────────────────────────────────────────\n")
-    sb.WriteString(fmt.Sprintf("  Est. Completion: %s\n",
-        g.data.Prediction.EstimatedDate.Format("2006-01-02")))
-    sb.WriteString(fmt.Sprintf("  Velocity:        %.2f tasks/day\n\n",
-        g.data.Prediction.AverageVelocity))
-
-    // リスク
-    sb.WriteString("Risk Analysis\n")
-    sb.WriteString("─────────────────────────────────────────────────────────────\n")
-    sb.WriteString(fmt.Sprintf("  Overall Level: %s\n", g.data.Risk.OverallLevel))
-    for _, f := range g.data.Risk.Factors {
-        sb.WriteString(fmt.Sprintf("  [%s] %s - %s\n",
-            f.Level, f.Description, f.Impact))
-    }
 
     sb.WriteString("\n═══════════════════════════════════════════════════════════\n")
 
@@ -1151,47 +908,6 @@ func (h *Handlers) HandleGraph(w http.ResponseWriter, r *http.Request) {
     w.Write([]byte(graph.ToMermaid()))
 }
 
-// PredictResponse は予測 API のレスポンス
-type PredictResponse struct {
-    EstimatedCompletion string  `json:"estimated_completion"`
-    RemainingTasks      int     `json:"remaining_tasks"`
-    Velocity            float64 `json:"velocity"`
-    RiskLevel           string  `json:"risk_level"`
-    RiskFactors         []struct {
-        Level       string `json:"level"`
-        Description string `json:"description"`
-    } `json:"risk_factors"`
-}
-
-// HandlePredict は予測分析結果を返す
-func (h *Handlers) HandlePredict(w http.ResponseWriter, r *http.Request) {
-    zeus := core.New(h.projectPath)
-    pred, err := zeus.GetPrediction(r.Context())
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    resp := PredictResponse{
-        EstimatedCompletion: pred.Completion.EstimatedDate.Format("2006-01-02"),
-        RemainingTasks:      pred.Completion.RemainingTasks,
-        Velocity:            pred.Completion.AverageVelocity,
-        RiskLevel:           string(pred.Risk.OverallLevel),
-    }
-
-    for _, f := range pred.Risk.Factors {
-        resp.RiskFactors = append(resp.RiskFactors, struct {
-            Level       string `json:"level"`
-            Description string `json:"description"`
-        }{
-            Level:       string(f.Level),
-            Description: f.Description,
-        })
-    }
-
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(resp)
-}
 ```
 
 ### 8.3 internal/dashboard/static/index.html
@@ -1272,9 +988,8 @@ async function refresh() {
     try {
         await Promise.all([
             fetchStatus(),
-            fetchTasks(),
-            fetchGraph(),
-            fetchPredict()
+            fetchActivities(),
+            fetchGraph()
         ]);
         updateLastUpdated();
     } catch (error) {
@@ -1337,19 +1052,6 @@ async function fetchGraph() {
     const id = 'graph-' + Date.now();
     const { svg } = await mermaid.render(id, mermaidCode);
     container.innerHTML = svg;
-}
-
-// 予測を取得
-async function fetchPredict() {
-    const response = await fetch('/api/predict');
-    const data = await response.json();
-
-    document.getElementById('prediction-info').innerHTML = `
-        <p><strong>Est. Completion:</strong> ${data.estimated_completion}</p>
-        <p><strong>Remaining Tasks:</strong> ${data.remaining_tasks}</p>
-        <p><strong>Velocity:</strong> ${data.velocity.toFixed(2)} tasks/day</p>
-        <p><strong>Risk Level:</strong> <span class="risk-${data.risk_level.toLowerCase()}">${data.risk_level}</span></p>
-    `;
 }
 
 // 最終更新時刻を更新
@@ -1436,7 +1138,6 @@ make build
 | コマンド | 説明 |
 |---------|------|
 | `zeus graph` | 依存関係グラフ（text/dot/mermaid） |
-| `zeus predict` | 予測分析（完了日/リスク/ベロシティ） |
 | `zeus report` | レポート生成（text/html/markdown） |
 
 ### Phase 5: ダッシュボード - 完了
@@ -1445,14 +1146,12 @@ make build
 |---------|------|
 | `zeus dashboard` | Web ダッシュボード起動 |
 
-### Phase 6: WBS・タイムライン - 完了
+### Phase 6: 依存関係強化 - 完了
 
 | 機能 | 説明 |
 |------|------|
-| WBS 階層 | タスクの階層構造管理 |
-| タイムライン | 開始日・終了日の可視化 |
-| クリティカルパス | 依存関係に基づくクリティカルパス表示 |
-| 影響範囲可視化 | downstream 依存の表示 |
+| 階層構造 | Activity の階層構造管理 |
+| 影響範囲可視化 | downstream/upstream 依存の表示 |
 
 ### Phase 7: 外部連携 - 計画中
 

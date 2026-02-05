@@ -78,7 +78,6 @@ const COLORS = {
 	backgroundSelected: 0x4a4a4a,
 	border: 0x4a4a4a,
 	borderHighlight: 0xff9533,
-	borderCritical: 0xff9533,
 	text: 0xffffff,
 	textSecondary: 0xb8b8b8,
 	textMuted: 0x888888,
@@ -91,9 +90,6 @@ const COLORS = {
 		mid: 0xffcc00, // 34-66%: 黄色
 		high: 0x44dd44 // 67-100%: 緑
 	},
-	// クリティカルパス用
-	criticalGlow: 0xff9533,
-	slackBadge: 0x2d5a2d,
 	// 影響範囲ハイライト用
 	downstreamHighlight: 0xffcc00, // 下流タスク（黄色）
 	upstreamHighlight: 0x44aaff // 上流タスク（水色）
@@ -156,8 +152,6 @@ export class GraphNodeView extends Container {
 	private titleText: Text;
 	private progressBar: Graphics;
 	private metaText: Text;
-	private slackBadge: Graphics;
-	private slackText: Text;
 
 	private isHovered = false;
 	private isSelected = false;
@@ -170,10 +164,6 @@ export class GraphNodeView extends Container {
 
 	// 進捗率（0-100）- ステータスから推定
 	private progress: number;
-
-	// クリティカルパス・スラック情報
-	private isOnCriticalPath = false;
-	private slack: number | null = null;
 
 	// 影響範囲ハイライト
 	private highlightType: HighlightType = null;
@@ -216,12 +206,6 @@ export class GraphNodeView extends Container {
 			style: { fontSize: 10, fill: COLORS.textMuted, fontFamily: 'IBM Plex Mono, monospace' },
 			resolution: TEXT_RESOLUTION
 		});
-		this.slackBadge = new Graphics();
-		this.slackText = new Text({
-			text: '',
-			style: { fontSize: 9, fill: COLORS.text, fontFamily: 'IBM Plex Mono, monospace' },
-			resolution: TEXT_RESOLUTION
-		});
 
 		this.addChild(this.background);
 		this.addChild(this.statusIndicator);
@@ -231,8 +215,6 @@ export class GraphNodeView extends Container {
 		this.addChild(this.titleText);
 		this.addChild(this.progressBar);
 		this.addChild(this.metaText);
-		this.addChild(this.slackBadge);
-		this.addChild(this.slackText);
 
 		// インタラクション設定
 		this.eventMode = 'static';
@@ -310,7 +292,6 @@ export class GraphNodeView extends Container {
 		this.drawTypeIndicator();
 		this.drawTexts();
 		this.drawProgressBar();
-		this.drawSlackBadge();
 	}
 
 	/**
@@ -340,23 +321,20 @@ export class GraphNodeView extends Container {
 		} else if (this.highlightType === 'upstream') {
 			borderColor = COLORS.upstreamHighlight;
 			borderWidth = 3;
-		} else if (this.isOnCriticalPath) {
-			borderColor = COLORS.borderCritical;
-			borderWidth = 3;
 		}
 
 		// === 3層グロー ===
 
-		// 最外層グロー（選択・ハイライト・クリティカルパス時のみ）
+		// 最外層グロー（選択・ハイライト時のみ）
 		// Note: ホバー時は中間・内側グローのみ表示し、最外層グローは表示しない（視覚ノイズ軽減のため）
-		if (this.isSelected || this.highlightType || this.isOnCriticalPath) {
+		if (this.isSelected || this.highlightType) {
 			const baseGlowColor = typeColors.indicator;
 			this.background.roundRect(-8, -8, NODE_WIDTH + 16, NODE_HEIGHT + 16, CORNER_RADIUS + 8);
 			this.background.fill({ color: baseGlowColor, alpha: METAL_EFFECT.baseGlowAlpha });
 		}
 
 		// 中間・内側グロー（ホバー/選択/ハイライト時に強化）
-		if (this.isSelected || this.isHovered || this.highlightType || this.isOnCriticalPath) {
+		if (this.isSelected || this.isHovered || this.highlightType) {
 			let glowColor = borderColor;
 			let glowAlpha: number = METAL_EFFECT.hoverGlowAlpha;
 
@@ -367,8 +345,6 @@ export class GraphNodeView extends Container {
 					this.highlightType === 'downstream'
 						? COLORS.downstreamHighlight
 						: COLORS.upstreamHighlight;
-			} else if (this.isOnCriticalPath) {
-				glowColor = COLORS.criticalGlow;
 			}
 
 			// 中間グロー層
@@ -697,43 +673,6 @@ export class GraphNodeView extends Container {
 	}
 
 	/**
-	 * スラックバッジを描画
-	 */
-	private drawSlackBadge(): void {
-		this.slackBadge.clear();
-		this.slackText.visible = false;
-
-		// スラック表示条件: 値が設定されていて、Microレベル
-		if (this.slack === null || this.currentLOD !== LODLevel.Micro) {
-			this.slackBadge.visible = false;
-			return;
-		}
-
-		this.slackBadge.visible = true;
-		this.slackText.visible = true;
-
-		// バッジの位置（右上角）
-		const badgeX = NODE_WIDTH - 8;
-		const badgeY = -4;
-		const badgeWidth = 40;
-		const badgeHeight = 16;
-
-		// バッジの色（スラック0はオレンジ、それ以外は緑系）
-		const badgeColor = this.slack === 0 ? COLORS.criticalGlow : COLORS.slackBadge;
-
-		// バッジ背景
-		this.slackBadge.roundRect(badgeX - badgeWidth + 8, badgeY, badgeWidth, badgeHeight, 4);
-		this.slackBadge.fill(badgeColor);
-		this.slackBadge.stroke({ width: 1, color: 0x1a1a1a });
-
-		// スラック日数テキスト
-		const slackStr = this.slack === 0 ? 'CRIT' : `+${this.slack}d`;
-		this.slackText.text = slackStr;
-		this.slackText.x = badgeX - badgeWidth + 12;
-		this.slackText.y = badgeY + 3;
-	}
-
-	/**
 	 * LODレベルを設定（軽量化: visibility のみ切り替え）
 	 */
 	setLOD(level: LODLevel): void {
@@ -752,27 +691,18 @@ export class GraphNodeView extends Container {
 			this.titleText.visible = false;
 			this.metaText.visible = false;
 			this.progressBar.visible = false;
-			this.slackBadge.visible = false;
-			this.slackText.visible = false;
 		} else if (this.currentLOD === LODLevel.Meso) {
 			// メソレベル: IDのみ表示
 			this.idText.visible = true;
 			this.titleText.visible = false;
 			this.metaText.visible = false;
 			this.progressBar.visible = false;
-			this.slackBadge.visible = false;
-			this.slackText.visible = false;
 		} else {
 			// マイクロレベル: 全情報表示
 			this.idText.visible = true;
 			this.titleText.visible = true;
 			this.metaText.visible = true;
 			this.progressBar.visible = true;
-			// スラックバッジは値がある場合のみ
-			if (this.slack !== null) {
-				this.slackBadge.visible = true;
-				this.slackText.visible = true;
-			}
 		}
 	}
 
@@ -821,42 +751,6 @@ export class GraphNodeView extends Container {
 	}
 
 	/**
-	 * クリティカルパス状態を設定
-	 */
-	setCriticalPath(isOnCriticalPath: boolean): void {
-		if (this.isOnCriticalPath !== isOnCriticalPath) {
-			this.isOnCriticalPath = isOnCriticalPath;
-			this.draw();
-		}
-	}
-
-	/**
-	 * スラック（余裕日数）を設定
-	 * @param slack - スラック日数（null, または 0 以上の有限数値）
-	 */
-	setSlack(slack: number | null): void {
-		// null または undefined は常に許可
-		if (slack === null || slack === undefined) {
-			if (this.slack !== null) {
-				this.slack = null;
-				this.draw();
-			}
-			return;
-		}
-
-		// 無効な値（負数、Infinity, NaN）は無視してログ出力
-		if (!Number.isFinite(slack) || slack < 0) {
-			console.warn(`Invalid slack value for node ${this.graphNode.id}: ${slack}`);
-			return;
-		}
-
-		if (this.slack !== slack) {
-			this.slack = slack;
-			this.draw();
-		}
-	}
-
-	/**
 	 * 影響範囲ハイライトを設定
 	 * @param highlighted - ハイライト状態
 	 * @param type - ハイライトタイプ（'downstream' | 'upstream'）
@@ -874,20 +768,6 @@ export class GraphNodeView extends Container {
 	 */
 	getHighlightType(): HighlightType {
 		return this.highlightType;
-	}
-
-	/**
-	 * クリティカルパス上にあるかを取得
-	 */
-	isTaskOnCriticalPath(): boolean {
-		return this.isOnCriticalPath;
-	}
-
-	/**
-	 * スラック値を取得
-	 */
-	getSlack(): number | null {
-		return this.slack;
 	}
 
 	/**

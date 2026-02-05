@@ -6,12 +6,12 @@
     "description": "統合テスト - CLI → Web 同期後のグラフ状態"
   },
   "state": {
-    "taskCount": 3,
+    "nodeCount": 3,
     "edgeCount": 2,
     "nodes": {
-      "_comment": "設計 → 実装 → テスト の直列タスク",
+      "_comment": "設計 → 実装 → テスト の直列 Activity",
       "count": 3,
-      "required_fields": ["id", "name", "x", "y", "status", "progress"],
+      "required_fields": ["id", "name", "x", "y", "status", "nodeType"],
       "expected_names": ["設計フェーズ", "実装フェーズ", "テストフェーズ"]
     },
     "edges": {

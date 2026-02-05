@@ -151,10 +151,6 @@
 
 	let resizeObserver: ResizeObserver | null = null;
 
-	// クリティカルパス情報（Timeline 機能削除のため無効化）
-	let criticalPathIds: Set<string> = $state(new Set());
-	let showCriticalPath: boolean = $state(false); // 無効化
-	let isLoadingTimeline: boolean = $state(false);
 
 	// UI パネル表示状態（Header 連携用）
 	let showFilterPanel: boolean = $state(true);
@@ -417,14 +413,12 @@
 				__SELECTION_MANAGER__?: SelectionManager;
 				__FILTER_MANAGER__?: FilterManager;
 				__EDGE_FACTORY__?: EdgeFactory;
-				__CRITICAL_PATH_IDS__?: Set<string>;
 			};
 			win.__VIEWER_ENGINE__ = engine;
 			win.__NODE_MAP__ = nodeMap as Map<string, GraphNodeView>;
 			win.__SELECTION_MANAGER__ = selectionManager ?? undefined;
 			win.__FILTER_MANAGER__ = filterManager ?? undefined;
 			win.__EDGE_FACTORY__ = edgeFactory;
-			win.__CRITICAL_PATH_IDS__ = criticalPathIds;
 		}
 	});
 
@@ -441,7 +435,6 @@
 					getGraphState: () => unknown;
 					getSelectionState: () => unknown;
 					getFilterState: () => unknown;
-					getCriticalPathState: () => unknown;
 					isReady: () => boolean;
 					getVersion: () => string;
 				};
@@ -486,15 +479,8 @@
 					totalCount: graphNodes.length
 				}),
 
-				// クリティカルパス状態を返す
-				getCriticalPathState: () => ({
-					enabled: showCriticalPath,
-					criticalPathIds: Array.from(criticalPathIds),
-					criticalPathCount: criticalPathIds.size
-				}),
-
-				// 描画完了を待機（アニメーション中でなく、エンジンが初期化済み）
-				isReady: () => engine !== null && !isLoadingTimeline,
+				// 描画完了を待機（エンジンが初期化済み）
+				isReady: () => engine !== null,
 
 				// バージョン情報
 				getVersion: () => '0.1.0'
@@ -1329,26 +1315,12 @@
 			if (!currentHighlightedEdges.has(edgeKey)) {
 				const edge = edgeFactory.getAll().find((e) => e.getKey() === edgeKey);
 				if (edge) {
-					const fromId = edge.getFromId();
-					const toId = edge.getToId();
-					if (showCriticalPath && criticalPathIds.has(fromId) && criticalPathIds.has(toId)) {
-						edge.setType(EdgeType.Critical);
-					} else {
-						edge.setType(EdgeType.Normal);
-					}
+					edge.setType(EdgeType.Normal);
 				}
 			}
 		}
 
 		previousHighlightedEdges = currentHighlightedEdges;
-	}
-
-	/**
-	 * クリティカルパス表示を切り替え（Timeline 機能削除のため無効化）
-	 */
-	function toggleCriticalPath(): void {
-		// Timeline 機能が削除されたため、この関数は何もしない
-		// showCriticalPath は常に false
 	}
 
 	/**
@@ -1480,7 +1452,6 @@
 			onZoomIn: zoomIn,
 			onZoomOut: zoomOut,
 			onZoomReset: resetZoom,
-			onToggleCriticalPath: toggleCriticalPath,
 			onToggleFilterPanel: toggleFilterPanel,
 			onToggleLegend: toggleLegend,
 			onClearDependencyFilter: clearDependencyFilter
@@ -1497,7 +1468,6 @@
 			nodeCount: graphNodes.length,
 			visibleCount,
 			mode: isWBSMode ? 'wbs' : 'task',
-			showCriticalPath,
 			showFilterPanel,
 			showLegend,
 			hasDependencyFilter: dependencyFilterNodeId !== null,
@@ -1521,7 +1491,6 @@
 				graphNodes.length !== undefined ||
 				visibleCount !== undefined ||
 				isWBSMode !== undefined ||
-				showCriticalPath !== undefined ||
 				showFilterPanel !== undefined ||
 				showLegend !== undefined ||
 				dependencyFilterNodeId !== undefined)
@@ -1645,23 +1614,6 @@
 						<span>Blocked</span>
 					</div>
 				</div>
-				{#if showCriticalPath && criticalPathIds.size > 0}
-					<div class="legend-section">
-						<div class="legend-section-title">CRITICAL PATH</div>
-						<div class="legend-item">
-							<span class="legend-line critical"></span>
-							<span>Critical</span>
-						</div>
-						<div class="legend-item">
-							<span class="legend-badge slack-zero">CRIT</span>
-							<span>No Slack</span>
-						</div>
-						<div class="legend-item">
-							<span class="legend-badge slack-positive">+3d</span>
-							<span>Slack Days</span>
-						</div>
-					</div>
-				{/if}
 			</div>
 		</OverlayPanel>
 	{/if}
@@ -1807,33 +1759,6 @@
 
 	.legend-dot.task {
 		background-color: #888888; /* グレー - タスク */
-	}
-
-	.legend-line {
-		width: 16px;
-		height: 3px;
-		border-radius: 1px;
-	}
-
-	.legend-line.critical {
-		background-color: var(--accent-primary);
-	}
-
-	.legend-badge {
-		font-size: 8px;
-		padding: 1px 4px;
-		border-radius: 2px;
-		font-weight: 600;
-	}
-
-	.legend-badge.slack-zero {
-		background-color: var(--accent-primary);
-		color: var(--bg-primary);
-	}
-
-	.legend-badge.slack-positive {
-		background-color: #2d5a2d;
-		color: var(--text-primary);
 	}
 
 	/* インラインリセットボタン */

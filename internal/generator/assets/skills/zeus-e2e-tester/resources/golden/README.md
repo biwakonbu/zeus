@@ -138,7 +138,7 @@ JSON の構造が一致するかを再帰的にチェック。
 // 良い例：必要な情報のみ
 {
   "state": {
-    "taskCount": 3,
+    "nodeCount": 3,
     "edgeCount": 2
   }
 }

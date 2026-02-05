@@ -59,10 +59,6 @@
 		$graphViewState.onZoomReset?.();
 	}
 
-	function handleGraphToggleCriticalPath() {
-		$graphViewState.onToggleCriticalPath?.();
-	}
-
 	function handleGraphToggleFilterPanel() {
 		$graphViewState.onToggleFilterPanel?.();
 	}
@@ -172,17 +168,6 @@
 						title="凡例 (G)"
 					>
 						<Icon name="Info" size={16} />
-					</button>
-
-					<!-- クリティカルパストグル -->
-					<button
-						class="control-btn"
-						class:active={$graphViewState.showCriticalPath}
-						onclick={handleGraphToggleCriticalPath}
-						aria-label="クリティカルパス"
-						title="クリティカルパス (C)"
-					>
-						<Icon name="Zap" size={16} />
 					</button>
 
 					<!-- 依存関係フィルタークリア（条件付き表示） -->

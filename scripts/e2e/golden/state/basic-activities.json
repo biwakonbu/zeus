@@ -21,7 +21,7 @@
       { "from": "Task A", "to": "Task C" }
     ],
     "counts": {
-      "taskCount": 3,
+      "nodeCount": 3,
       "edgeCount": 1
     }
   }

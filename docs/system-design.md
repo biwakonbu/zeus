@@ -3,7 +3,7 @@
 ## 1. システム概要
 
 ### 1.1 ビジョン
-Zeusは、AIによるプロジェクトマネジメントを「神の視点」で俯瞰し、上流工程（方針立案からWBS化、タイムライン設計、仕様作成まで）を支援するCLIベースのシステムです。
+Zeusは、AIによるプロジェクトマネジメントを「神の視点」で俯瞰し、上流工程（方針立案から構造設計、仕様作成まで）を支援するCLIベースのシステムです。
 
 ### 1.2 コアコンセプト
 - **神の視点（Zeus View）**: プロジェクト全体を俯瞰し、依存関係、リソース配分、進捗を一元的に把握
@@ -102,16 +102,12 @@ Zeusは、AIによるプロジェクトマネジメントを「神の視点」�
 | モジュール | 責務 |
 |-----------|------|
 | types.go | 分析用型定義（core への依存を避けるため独立） |
-| GraphBuilder | タスク依存関係グラフの構築 |
-| DependencyGraph | グラフ構造、循環検出、統計計算、可視化出力、下流/上流タスク取得 |
-| Predictor | 完了日予測、リスク分析、ベロシティ計算 |
-| WBSBuilder | WBS 階層構築、ParentID 循環参照検出 |
-| TimelineBuilder | タイムライン構築、クリティカルパス計算（CPM） |
+| GraphBuilder | Activity 依存関係グラフの構築 |
+| DependencyGraph | グラフ構造、循環検出、統計計算、可視化出力、下流/上流 Activity 取得 |
 
 **設計ポイント:**
 - `analysis` パッケージは `core` からの import cycle を避けるため独自の型を定義
 - `core.Zeus` から `analysis` への変換関数で連携
-- WBS と依存関係グラフは独立した循環検出を持つ（ParentID vs Dependencies）
 
 #### 2.3.3 レポートパッケージ (internal/report/)
 
@@ -125,7 +121,7 @@ Zeusは、AIによるプロジェクトマネジメントを「神の視点」�
 | モジュール | 責務 |
 |-----------|------|
 | Server | HTTP サーバー管理、静的ファイル配信 |
-| Handlers | REST API ハンドラー（/api/status, /api/activities, /api/graph, /api/predict） |
+| Handlers | REST API ハンドラー（/api/status, /api/activities, /api/graph） |
 
 **設計ポイント:**
 - Go 標準ライブラリのみ使用（net/http, embed）
@@ -164,8 +160,6 @@ id: "act-001"
 title: "Design core data structure"
 status: "in_progress"
 assignee: "ai"
-estimate_hours: 8
-actual_hours: null
 dependencies: []
 approval_level: "auto"
 ```
@@ -275,23 +269,7 @@ zeus graph --format mermaid -o graph.md  # ファイル出力
 - クリティカルパスの強調表示
 - 統計情報（ノード数、エッジ数、平均依存数）
 
-#### 3.4.2 予測分析
-```bash
-zeus predict                  # 全予測を表示
-zeus predict completion       # 完了日予測のみ
-zeus predict risk             # リスク分析のみ
-zeus predict velocity         # ベロシティ分析のみ
-```
-
-**予測モデル:**
-
-| 予測種別 | アルゴリズム | 出力 |
-|---------|-------------|------|
-| 完了日予測 | 残タスク / ベロシティ | 予測完了日、信頼区間 |
-| リスク分析 | 見積精度、依存関係複雑度 | リスクレベル（high/medium/low）、要因 |
-| ベロシティ | 過去実績の移動平均 | タスク/日、トレンド |
-
-#### 3.4.3 レポート生成
+#### 3.4.2 レポート生成
 ```bash
 zeus report                           # テキスト形式で標準出力
 zeus report --format html             # HTML形式
@@ -301,11 +279,9 @@ zeus report --format html -o report.html  # ファイル出力
 
 **レポート内容:**
 1. プロジェクト概要
-2. 進捗サマリー（完了率、残タスク数）
-3. タスク一覧（ステータス別）
-4. 依存関係グラフ（Mermaid形式）
-5. 予測分析結果
-6. リスク・課題
+2. Activity 一覧（ステータス別）
+3. 依存関係グラフ（Mermaid形式）
+4. リスク・課題
 
 ### 3.5 Web ダッシュボード（Phase 5）
 
@@ -320,13 +296,10 @@ zeus dashboard --no-open      # ブラウザ自動起動を無効化
 
 | エンドポイント | メソッド | 説明 |
 |---------------|---------|------|
-| `/api/status` | GET | プロジェクト状態（名前、進捗率、健全性） |
+| `/api/status` | GET | プロジェクト状態（名前、健全性） |
 | `/api/activities` | GET | Activity 一覧（JSON配列） |
 | `/api/graph` | GET | 依存関係グラフ（Mermaid形式） |
-| `/api/predict` | GET | 予測分析結果 |
-| `/api/wbs` | GET | WBS 階層構造（Phase 6） |
-| `/api/timeline` | GET | タイムラインとクリティカルパス（Phase 6） |
-| `/api/downstream` | GET | 下流・上流 Activity 取得（Phase 6） |
+| `/api/downstream` | GET | 下流・上流 Activity 取得 |
 
 #### 3.5.3 Factorio 風ビューワー
 
@@ -419,110 +392,9 @@ zeus-dashboard/src/lib/viewer/
     └── FilterPanel.svelte     # フィルターパネル
 ```
 
-### 3.6 WBS・タイムライン機能（Phase 6）
+### 3.6 依存関係可視化
 
-#### 3.6.1 データモデル拡張
-
-Activity 型に以下のフィールドを追加（全て optional、後方互換性維持）:
-
-```yaml
-# Activity 定義の拡張フィールド
-activities:
-  - id: "act-001"
-    title: "Design core data structure"
-    # 既存フィールド...
-
-    # Phase 6 拡張フィールド
-    parent_id: "act-000"       # 親 Activity ID（WBS階層）
-    start_date: "2026-01-01"   # 開始日（ISO8601）
-    due_date: "2026-01-15"     # 期限日（ISO8601）
-    progress: 75               # 進捗率（0-100）
-    wbs_code: "1.2.3"          # WBS番号
-```
-
-#### 3.6.2 WBS 機能
-
-**コマンド:**
-```bash
-zeus add activity "子 Activity" --parent <parent-activity-id>
-```
-
-**API レスポンス（/api/wbs）:**
-```json
-{
-  "roots": [
-    {
-      "id": "act-001",
-      "title": "プロジェクト設計",
-      "wbs_code": "1",
-      "status": "in_progress",
-      "progress": 80,
-      "children": [
-        {
-          "id": "act-002",
-          "title": "要件定義",
-          "wbs_code": "1.1",
-          "status": "completed",
-          "progress": 100,
-          "children": []
-        }
-      ]
-    }
-  ],
-  "max_depth": 3,
-  "stats": {
-    "total_nodes": 15,
-    "root_count": 3,
-    "leaf_count": 10,
-    "avg_progress": 65.5,
-    "completed_pct": 40.0
-  }
-}
-```
-
-**循環参照検出:**
-- ParentID の循環参照を DFS アルゴリズムで検出
-- 検出時はエラーを返却（WBS 構築を中止）
-- Dependencies の循環検出とは独立して動作
-
-#### 3.6.3 タイムライン機能
-
-**API レスポンス（/api/timeline）:**
-```json
-{
-  "items": [
-    {
-      "activity_id": "act-001",
-      "title": "要件定義",
-      "start_date": "2026-01-01",
-      "end_date": "2026-01-15",
-      "progress": 100,
-      "status": "completed",
-      "is_on_critical_path": true,
-      "slack": 0,
-      "dependencies": []
-    }
-  ],
-  "critical_path": ["act-001", "act-003", "act-005"],
-  "project_start": "2026-01-01",
-  "project_end": "2026-03-31",
-  "total_duration": 90,
-  "stats": {
-    "total_activities": 20,
-    "activities_with_dates": 15,
-    "on_critical_path": 5,
-    "average_slack": 3.5,
-    "overdue_activities": 2
-  }
-}
-```
-
-**クリティカルパス計算:**
-- CPM（Critical Path Method）アルゴリズムを使用
-- 各 Activity の slack（余裕時間）を計算
-- クリティカルパス上の Activity は slack = 0
-
-#### 3.6.4 影響範囲可視化
+#### 3.6.1 影響範囲可視化
 
 **API レスポンス（/api/downstream?id=X）:**
 ```json
@@ -539,15 +411,15 @@ zeus add activity "子 Activity" --parent <parent-activity-id>
 - 上流 Activity を青色でハイライト
 - 選択 Activity はオレンジ色で強調
 
-#### 3.6.5 ビュー切り替え
+#### 3.6.2 ビュー切り替え
 
-ダッシュボードで 3 つのビューを切り替え可能:
+ダッシュボードで複数のビューを切り替え可能:
 
 | ビュー | 説明 | 主な用途 |
 |-------|------|---------|
 | Graph View | 依存関係グラフ（Factorio 風） | 依存関係の確認 |
-| WBS View | 階層構造ツリー | 作業分解の確認 |
-| Timeline View | ガントチャート風表示 | スケジュール確認 |
+| UseCase View | ユースケース図 | 機能の確認 |
+| Activity View | アクティビティ図 | プロセスの確認 |
 
 ### 3.7 フィードバックシステム
 
@@ -714,15 +586,13 @@ export async function projectScan(context) {
 5. 選択・フィルター機能
 6. ミニマップ
 
-### 9.8 Phase 6（WBS・タイムライン・依存関係強化）- 完了
-1. データモデル拡張（ParentID, StartDate, DueDate, Progress, WBSCode）
-2. WBS 階層構築・表示
-3. タイムライン・CPM 計算
-4. クリティカルパス表示
-5. ParentID 循環参照検出
-6. 影響範囲可視化（下流/上流タスクのハイライト）
-7. ビュー切り替え UI（Graph/WBS/Timeline）
-8. API エンドポイント（/api/wbs, /api/timeline, /api/downstream）
+### 9.8 Phase 6（依存関係強化）- 完了
+1. データモデル拡張（ParentID）
+2. 階層構築・表示
+3. ParentID 循環参照検出
+4. 影響範囲可視化（下流/上流 Activity のハイライト）
+5. ビュー切り替え UI（Graph/UseCase/Activity）
+6. API エンドポイント（/api/downstream）
 
 ### 9.9 Phase 7（外部連携）- 未実装
 1. Git 統合（コミット履歴との連携）
