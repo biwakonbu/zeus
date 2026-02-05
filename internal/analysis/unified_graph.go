@@ -157,6 +157,28 @@ func (b *UnifiedGraphBuilder) buildNodes(graph *UnifiedGraph) {
 	}
 }
 
+// addHierarchyEdge は階層関係のエッジを追加し、Parents/Children を更新する
+// 深さ計算（calculateDepth）に反映するため、階層関係では Parents/Children を更新する
+func (b *UnifiedGraphBuilder) addHierarchyEdge(graph *UnifiedGraph, childID, parentID string, edgeType UnifiedEdgeType, label string) {
+	childNode, childOk := graph.Nodes[childID]
+	parentNode, parentOk := graph.Nodes[parentID]
+	if !childOk || !parentOk {
+		return
+	}
+
+	edge := UnifiedEdge{
+		From:  childID,
+		To:    parentID,
+		Type:  edgeType,
+		Label: label,
+	}
+	graph.Edges = append(graph.Edges, edge)
+
+	// Parents/Children を更新（深さ計算に反映）
+	childNode.Parents = append(childNode.Parents, parentID)
+	parentNode.Children = append(parentNode.Children, childID)
+}
+
 // buildEdges はエッジを構築
 func (b *UnifiedGraphBuilder) buildEdges(graph *UnifiedGraph) {
 	// Activity の依存関係エッジ
@@ -188,20 +210,14 @@ func (b *UnifiedGraphBuilder) buildEdges(graph *UnifiedGraph) {
 			}
 		}
 
-		// Activity → UseCase 関連
+		// Activity → UseCase 関連（階層関係: Activity は UseCase の下に配置）
 		if a.UseCaseID != "" {
-			if _, exists := graph.Nodes[a.UseCaseID]; exists {
-				edge := UnifiedEdge{
-					From:  a.ID,
-					To:    a.UseCaseID,
-					Type:  EdgeTypeRelates,
-					Label: "implements",
-				}
-				graph.Edges = append(graph.Edges, edge)
-			}
+			b.addHierarchyEdge(graph, a.ID, a.UseCaseID, EdgeTypeRelates, "implements")
 		}
 
 		// Activity → Deliverable 関連
+		// NOTE: produces 関係は「成果物への出力」を示し、階層関係ではないため
+		// Parents/Children は更新しない（深さ計算に影響させない）
 		for _, delID := range a.RelatedDeliverables {
 			if _, exists := graph.Nodes[delID]; exists {
 				edge := UnifiedEdge{
@@ -215,33 +231,17 @@ func (b *UnifiedGraphBuilder) buildEdges(graph *UnifiedGraph) {
 		}
 	}
 
-	// UseCase → Objective 関連
+	// UseCase → Objective 関連（階層関係: UseCase は Objective の下に配置）
 	for _, u := range b.usecases {
 		if u.ObjectiveID != "" {
-			if _, exists := graph.Nodes[u.ObjectiveID]; exists {
-				edge := UnifiedEdge{
-					From:  u.ID,
-					To:    u.ObjectiveID,
-					Type:  EdgeTypeContributes,
-					Label: "contributes",
-				}
-				graph.Edges = append(graph.Edges, edge)
-			}
+			b.addHierarchyEdge(graph, u.ID, u.ObjectiveID, EdgeTypeContributes, "contributes")
 		}
 	}
 
-	// Deliverable → Objective 関連
+	// Deliverable → Objective 関連（階層関係: Deliverable は Objective の下に配置）
 	for _, d := range b.deliverables {
 		if d.ObjectiveID != "" {
-			if _, exists := graph.Nodes[d.ObjectiveID]; exists {
-				edge := UnifiedEdge{
-					From:  d.ID,
-					To:    d.ObjectiveID,
-					Type:  EdgeTypeContributes,
-					Label: "fulfills",
-				}
-				graph.Edges = append(graph.Edges, edge)
-			}
+			b.addHierarchyEdge(graph, d.ID, d.ObjectiveID, EdgeTypeContributes, "fulfills")
 		}
 	}
 

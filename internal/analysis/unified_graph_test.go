@@ -358,6 +358,104 @@ func TestUnifiedGraph_ToMermaid(t *testing.T) {
 	}
 }
 
+func TestUnifiedGraphBuilder_Build_DepthCalculation(t *testing.T) {
+	// Objective → UseCase → Activity の階層で深さが正しく計算されるか検証
+	objectives := []ObjectiveInfo{
+		{ID: "obj-001", Title: "Objective 1", Status: "active"},
+	}
+	usecases := []UseCaseInfo{
+		{ID: "uc-001", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
+	}
+	activities := []ActivityInfo{
+		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-001"},
+	}
+
+	graph := NewUnifiedGraphBuilder().
+		WithObjectives(objectives).
+		WithUseCases(usecases).
+		WithActivities(activities).
+		Build()
+
+	// Objective が深さ 0（ルート）
+	if graph.Nodes["obj-001"].Depth != 0 {
+		t.Errorf("expected obj-001 depth 0, got %d", graph.Nodes["obj-001"].Depth)
+	}
+	// UseCase が深さ 1
+	if graph.Nodes["uc-001"].Depth != 1 {
+		t.Errorf("expected uc-001 depth 1, got %d", graph.Nodes["uc-001"].Depth)
+	}
+	// Activity が深さ 2
+	if graph.Nodes["act-001"].Depth != 2 {
+		t.Errorf("expected act-001 depth 2, got %d", graph.Nodes["act-001"].Depth)
+	}
+}
+
+func TestUnifiedGraphBuilder_Build_DepthWithDeliverable(t *testing.T) {
+	// Objective → Deliverable の階層で深さが正しく計算されるか検証
+	objectives := []ObjectiveInfo{
+		{ID: "obj-001", Title: "Objective 1", Status: "active"},
+	}
+	deliverables := []DeliverableInfo{
+		{ID: "del-001", Title: "Deliverable 1", Status: "draft", ObjectiveID: "obj-001"},
+	}
+
+	graph := NewUnifiedGraphBuilder().
+		WithObjectives(objectives).
+		WithDeliverables(deliverables).
+		Build()
+
+	// Objective が深さ 0（ルート）
+	if graph.Nodes["obj-001"].Depth != 0 {
+		t.Errorf("expected obj-001 depth 0, got %d", graph.Nodes["obj-001"].Depth)
+	}
+	// Deliverable が深さ 1
+	if graph.Nodes["del-001"].Depth != 1 {
+		t.Errorf("expected del-001 depth 1, got %d", graph.Nodes["del-001"].Depth)
+	}
+}
+
+func TestUnifiedGraphBuilder_Build_DepthWithMultipleActivities(t *testing.T) {
+	// Activity 間の依存関係と UseCase 関連が組み合わさった場合の深さ計算
+	objectives := []ObjectiveInfo{
+		{ID: "obj-001", Title: "Objective 1", Status: "active"},
+	}
+	usecases := []UseCaseInfo{
+		{ID: "uc-001", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
+	}
+	activities := []ActivityInfo{
+		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-001"},
+		{ID: "act-002", Title: "Activity 2", Status: "active", UseCaseID: "uc-001", Dependencies: []string{"act-001"}},
+		{ID: "act-003", Title: "Activity 3", Status: "active", UseCaseID: "uc-001", Dependencies: []string{"act-002"}},
+	}
+
+	graph := NewUnifiedGraphBuilder().
+		WithObjectives(objectives).
+		WithUseCases(usecases).
+		WithActivities(activities).
+		Build()
+
+	// Objective が深さ 0
+	if graph.Nodes["obj-001"].Depth != 0 {
+		t.Errorf("expected obj-001 depth 0, got %d", graph.Nodes["obj-001"].Depth)
+	}
+	// UseCase が深さ 1
+	if graph.Nodes["uc-001"].Depth != 1 {
+		t.Errorf("expected uc-001 depth 1, got %d", graph.Nodes["uc-001"].Depth)
+	}
+	// Activity 1 が深さ 2（UseCase の子）
+	if graph.Nodes["act-001"].Depth != 2 {
+		t.Errorf("expected act-001 depth 2, got %d", graph.Nodes["act-001"].Depth)
+	}
+	// Activity 2 が深さ 3（Activity 1 に依存）
+	if graph.Nodes["act-002"].Depth != 3 {
+		t.Errorf("expected act-002 depth 3, got %d", graph.Nodes["act-002"].Depth)
+	}
+	// Activity 3 が深さ 4（Activity 2 に依存）
+	if graph.Nodes["act-003"].Depth != 4 {
+		t.Errorf("expected act-003 depth 4, got %d", graph.Nodes["act-003"].Depth)
+	}
+}
+
 func TestGraphFilter_Chaining(t *testing.T) {
 	filter := NewGraphFilter().
 		WithFocus("act-001", 2).
