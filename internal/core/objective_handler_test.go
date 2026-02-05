@@ -94,9 +94,6 @@ func TestObjectiveHandlerAddWithOptions(t *testing.T) {
 	result, err := handler.Add(ctx, "認証システム実装",
 		WithObjectiveDescription("JWT を使用した認証システムを実装"),
 		WithObjectiveStatus(ObjectiveStatusInProgress),
-		WithObjectiveWBSCode("1.1"),
-		WithObjectiveProgress(30),
-		WithObjectiveDueDate("2026-02-28"),
 		WithObjectiveOwner("test-user"),
 		WithObjectiveTags([]string{"backend", "security"}),
 	)
@@ -117,18 +114,6 @@ func TestObjectiveHandlerAddWithOptions(t *testing.T) {
 
 	if obj.Status != ObjectiveStatusInProgress {
 		t.Errorf("expected status 'in_progress', got %q", obj.Status)
-	}
-
-	if obj.WBSCode != "1.1" {
-		t.Errorf("expected WBS code '1.1', got %q", obj.WBSCode)
-	}
-
-	if obj.Progress != 30 {
-		t.Errorf("expected progress 30, got %d", obj.Progress)
-	}
-
-	if obj.DueDate != "2026-02-28" {
-		t.Errorf("expected due date '2026-02-28', got %q", obj.DueDate)
 	}
 
 	if obj.Owner != "test-user" {
@@ -329,7 +314,6 @@ func TestObjectiveHandlerUpdate(t *testing.T) {
 	// 更新
 	obj.Title = "Updated Title"
 	obj.Status = ObjectiveStatusCompleted
-	obj.Progress = 100
 	err = handler.Update(ctx, result.ID, obj)
 	if err != nil {
 		t.Fatalf("Update failed: %v", err)
@@ -348,10 +332,6 @@ func TestObjectiveHandlerUpdate(t *testing.T) {
 
 	if updated.Status != ObjectiveStatusCompleted {
 		t.Errorf("expected status 'completed', got %q", updated.Status)
-	}
-
-	if updated.Progress != 100 {
-		t.Errorf("expected progress 100, got %d", updated.Progress)
 	}
 }
 
@@ -497,25 +477,6 @@ func TestObjectiveHandlerDeleteWithChildren(t *testing.T) {
 	err = handler.Delete(ctx, parentResult.ID)
 	if err == nil {
 		t.Error("expected error when deleting parent with children")
-	}
-}
-
-func TestObjectiveHandlerProgressValidation(t *testing.T) {
-	handler, _, cleanup := setupObjectiveHandlerTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-
-	// 正常な進捗 (0-100)
-	result, err := handler.Add(ctx, "Valid Progress", WithObjectiveProgress(50))
-	if err != nil {
-		t.Fatalf("Add with valid progress failed: %v", err)
-	}
-
-	objAny, _ := handler.Get(ctx, result.ID)
-	obj := objAny.(*ObjectiveEntity)
-	if obj.Progress != 50 {
-		t.Errorf("expected progress 50, got %d", obj.Progress)
 	}
 }
 

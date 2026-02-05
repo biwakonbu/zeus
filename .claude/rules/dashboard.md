@@ -57,17 +57,13 @@ npm run format     # Prettier
 - `GET /api/status` - プロジェクト状態
 - `GET /api/activities` - Activity 一覧
 - `GET /api/graph` - 依存関係グラフ（Mermaid形式）
-- `GET /api/predict` - 予測分析結果
-- `GET /api/wbs` - WBS 階層構造
-- `GET /api/timeline` - タイムラインとクリティカルパス
-- `GET /api/downstream?id=X` - 下流・上流 Activity 取得
+- `GET /api/unified-graph` - 統合グラフ（Activity, UseCase, Deliverable, Objective）
 - `GET /api/events` - SSE ストリーム（リアルタイム更新）
-- `GET /api/affinity` - 機能間類似度マトリクス（Phase 7 で追加予定）
+- `GET /api/affinity` - 機能間類似度マトリクス
 - `GET /api/actors` - Actor 一覧
 - `GET /api/usecases` - UseCase 一覧
 - `GET /api/subsystems` - Subsystem 一覧
 - `GET /api/uml/usecase` - ユースケース図（Mermaid 形式）
-- `GET /api/activities` - Activity 一覧
 - `GET /api/uml/activity?id=X` - アクティビティ図（指定 ID のノード・遷移）
 
 ## ダッシュボード機能
@@ -89,17 +85,9 @@ npm run format     # Prettier
 ## ビュー切り替え
 
 - Graph View: 依存関係グラフ（Factorio 風）
-- WBS View: 階層構造ツリー
-- Timeline View: ガントチャート風表示
-- Affinity Canvas: 機能間関連性可視化（Phase 7 で追加予定、設計書: `docs/design/affinity-canvas.md`）
+- Affinity Canvas: 機能間関連性可視化
 - UseCaseView: UML ユースケース図（PixiJS ベース）
 - ActivityView: UML アクティビティ図（PixiJS ベース）
-
-## 影響範囲可視化
-
-- 選択 Activity の下流 Activity を黄色でハイライト
-- 上流 Activity を青色でハイライト
-- 選択 Activity はオレンジ色で強調
 
 ## UseCaseView
 

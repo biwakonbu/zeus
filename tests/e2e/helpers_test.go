@@ -201,9 +201,7 @@ func setupBasicProject(t *testing.T, dir string) map[string]string {
 	ids["vision"] = "vision-001"
 
 	// Objective 作成
-	result = runCommand(t, dir, "add", "objective", "Phase 1 目標",
-		"--wbs", "1.0",
-		"--due", "2026-03-31")
+	result = runCommand(t, dir, "add", "objective", "Phase 1 目標")
 	assertSuccess(t, result)
 	objID := extractEntityID(t, result, "obj-")
 	if objID == "" {

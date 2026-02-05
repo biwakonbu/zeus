@@ -1,6 +1,6 @@
 // 自動レイアウトエンジン
 import type { GraphNode } from '$lib/types/api';
-import { TaskNode } from '../rendering/TaskNode';
+import { GraphNodeView } from '../rendering/GraphNode';
 
 // レイアウト設定
 const HORIZONTAL_SPACING = 250; // ノード間の水平距離
@@ -51,8 +51,8 @@ export class LayoutEngine {
 	private cachedLayoutHash: string = '';
 
 	constructor() {
-		this.nodeWidth = TaskNode.getWidth();
-		this.nodeHeight = TaskNode.getHeight();
+		this.nodeWidth = GraphNodeView.getWidth();
+		this.nodeHeight = GraphNodeView.getHeight();
 	}
 
 	/**

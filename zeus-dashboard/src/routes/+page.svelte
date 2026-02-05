@@ -6,14 +6,21 @@
 	import { refreshAllData, currentView } from '$lib/stores';
 	import { setConnected, setDisconnected, setConnecting } from '$lib/stores/connection';
 	import { connectSSE, disconnectSSE } from '$lib/api/sse';
-	import { fetchWBSAsGraphData, fetchActivities } from '$lib/api/client';
-	import type { WBSGraphData, ActivityItem } from '$lib/types/api';
+	import { fetchActivities } from '$lib/api/client';
+	import type { ActivityItem, GraphNode, GraphEdge } from '$lib/types/api';
+
+	// グラフデータ型（GraphNode/Edge の組み合わせ）
+	interface GraphData {
+		nodes: GraphNode[];
+		edges: GraphEdge[];
+	}
 
 	let useSSE = $state(true);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
 
-	// WBS グラフデータ（Graph View 用）
-	let wbsGraphData: WBSGraphData | undefined = $state(undefined);
+	// グラフデータ（Graph View 用）- WBS 機能削除のため空の初期値
+	// 空のデータで初期化（ノード詳細パネル表示用）
+	let graphData = $state<GraphData>({ nodes: [], edges: [] });
 
 	// Activity データ（UseCase View の関連 Activity 表示用）
 	let activitiesData: ActivityItem[] = $state([]);
@@ -39,14 +46,7 @@
 			.then(() => {
 				setConnected();
 
-				// WBS データを取得（Graph View 用）
-				fetchWBSAsGraphData()
-					.then((data) => {
-						wbsGraphData = data;
-					})
-					.catch((err) => {
-						console.warn('WBS data fetch failed:', err);
-					});
+				// Note: WBS 機能は削除されたため、graphData は空のまま
 
 				// Activity データを取得（UseCase View の関連 Activity 表示用）
 				fetchActivities()
@@ -124,7 +124,7 @@
 <div class="viewer-container">
 	{#if $currentView === 'graph'}
 		<FactorioViewer
-			graphData={wbsGraphData}
+			{graphData}
 			{selectedTaskId}
 			onTaskSelect={handleTaskSelect}
 			onTaskHover={handleTaskHover}
@@ -137,8 +137,8 @@
 </div>
 
 <!-- 選択ノード詳細パネル（Graph View） -->
-{#if $currentView === 'graph' && selectedTaskId && wbsGraphData}
-	{@const selectedNode = wbsGraphData.nodes.find((n) => n.id === selectedTaskId)}
+{#if $currentView === 'graph' && selectedTaskId && graphData}
+	{@const selectedNode = graphData.nodes.find((n) => n.id === selectedTaskId)}
 	{#if selectedNode}
 		<div class="task-detail-panel">
 			<div class="panel-header">

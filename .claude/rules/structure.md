@@ -72,8 +72,8 @@ zeus/
 │   │   │   │   │   ├── LayoutEngine.ts    # 自動レイアウト
 │   │   │   │   │   └── SpatialIndex.ts    # Quadtree 空間インデックス
 │   │   │   │   ├── rendering/# 描画クラス
-│   │   │   │   │   ├── TaskNode.ts        # ノード描画（LOD対応）
-│   │   │   │   │   └── TaskEdge.ts        # エッジ描画
+│   │   │   │   │   ├── GraphNode.ts       # ノード描画（LOD対応）
+│   │   │   │   │   └── GraphEdge.ts       # エッジ描画
 │   │   │   │   ├── interaction/# インタラクション
 │   │   │   │   │   ├── SelectionManager.ts # 選択管理
 │   │   │   │   │   └── FilterManager.ts    # フィルター管理

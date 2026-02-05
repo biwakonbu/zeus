@@ -75,7 +75,7 @@ func TestUnifiedGraphBuilder_Build_Empty(t *testing.T) {
 func TestUnifiedGraphBuilder_Build_WithActivities(t *testing.T) {
 	builder := NewUnifiedGraphBuilder()
 	activities := []ActivityInfo{
-		{ID: "act-001", Title: "Activity 1", Status: "active", Mode: "simple", Progress: 50},
+		{ID: "act-001", Title: "Activity 1", Status: "active", Mode: "simple"},
 		{ID: "act-002", Title: "Activity 2", Status: "completed", Mode: "flow", Dependencies: []string{"act-001"}},
 	}
 	graph := builder.WithActivities(activities).Build()
@@ -97,9 +97,6 @@ func TestUnifiedGraphBuilder_Build_WithActivities(t *testing.T) {
 	}
 	if node1.Title != "Activity 1" {
 		t.Errorf("expected title 'Activity 1', got %s", node1.Title)
-	}
-	if node1.Progress != 50 {
-		t.Errorf("expected progress 50, got %d", node1.Progress)
 	}
 
 	// 依存関係エッジの検証
@@ -283,8 +280,8 @@ func TestUnifiedGraphBuilder_WithFilter_Focus(t *testing.T) {
 func TestUnifiedGraph_Stats(t *testing.T) {
 	builder := NewUnifiedGraphBuilder()
 	activities := []ActivityInfo{
-		{ID: "act-001", Title: "Activity 1", Status: "active", Progress: 50},
-		{ID: "act-002", Title: "Activity 2", Status: "completed", Progress: 100},
+		{ID: "act-001", Title: "Activity 1", Status: "active"},
+		{ID: "act-002", Title: "Activity 2", Status: "completed"},
 	}
 	usecases := []UseCaseInfo{
 		{ID: "uc-001", Title: "UseCase 1", Status: "active"},

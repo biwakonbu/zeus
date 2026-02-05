@@ -1,10 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import type {
 	GraphNode,
-	WBSResponse,
-	TimelineResponse,
-	TimelineItem,
-	DownstreamResponse,
 	StatusResponse,
 	Vision,
 	VisionResponse,
@@ -37,9 +33,7 @@ const mockGraphNodes: GraphNode[] = [
 		status: 'completed',
 		priority: 'high',
 		assignee: 'alice',
-		dependencies: [],
-		progress: 100,
-		wbs_code: '1'
+		dependencies: []
 	},
 	{
 		id: 'task-2',
@@ -48,9 +42,7 @@ const mockGraphNodes: GraphNode[] = [
 		status: 'completed',
 		priority: 'high',
 		assignee: 'bob',
-		dependencies: ['task-1'],
-		progress: 100,
-		wbs_code: '2'
+		dependencies: ['task-1']
 	},
 	{
 		id: 'task-3',
@@ -59,9 +51,7 @@ const mockGraphNodes: GraphNode[] = [
 		status: 'in_progress',
 		priority: 'high',
 		assignee: 'alice',
-		dependencies: ['task-2'],
-		progress: 60,
-		wbs_code: '3'
+		dependencies: ['task-2']
 	},
 	{
 		id: 'task-4',
@@ -70,9 +60,7 @@ const mockGraphNodes: GraphNode[] = [
 		status: 'in_progress',
 		priority: 'medium',
 		assignee: 'charlie',
-		dependencies: ['task-2'],
-		progress: 40,
-		wbs_code: '4'
+		dependencies: ['task-2']
 	},
 	{
 		id: 'task-5',
@@ -81,9 +69,7 @@ const mockGraphNodes: GraphNode[] = [
 		status: 'pending',
 		priority: 'medium',
 		assignee: 'bob',
-		dependencies: ['task-3', 'task-4'],
-		progress: 0,
-		wbs_code: '5'
+		dependencies: ['task-3', 'task-4']
 	},
 	{
 		id: 'task-6',
@@ -92,111 +78,9 @@ const mockGraphNodes: GraphNode[] = [
 		status: 'blocked',
 		priority: 'low',
 		assignee: 'alice',
-		dependencies: ['task-5'],
-		progress: 0,
-		wbs_code: '6'
+		dependencies: ['task-5']
 	}
 ];
-
-// モックデータ: WBS
-const mockWBS: WBSResponse = {
-	roots: [
-		{
-			id: 'task-1',
-			title: 'プロジェクト初期化',
-			wbs_code: '1',
-			status: 'completed',
-			progress: 100,
-			priority: 'high',
-			assignee: 'alice',
-			depth: 0,
-			children: [
-				{
-					id: 'task-2',
-					title: 'データベース設計',
-					wbs_code: '1.1',
-					status: 'completed',
-					progress: 100,
-					priority: 'high',
-					assignee: 'bob',
-					depth: 1,
-					children: [
-						{
-							id: 'task-3',
-							title: 'API 実装',
-							wbs_code: '1.1.1',
-							status: 'in_progress',
-							progress: 60,
-							priority: 'high',
-							assignee: 'alice',
-							depth: 2
-						},
-						{
-							id: 'task-4',
-							title: 'フロントエンド実装',
-							wbs_code: '1.1.2',
-							status: 'in_progress',
-							progress: 40,
-							priority: 'medium',
-							assignee: 'charlie',
-							depth: 2
-						}
-					]
-				}
-			]
-		}
-	],
-	max_depth: 3,
-	stats: {
-		total_nodes: 6,
-		root_count: 1,
-		leaf_count: 4,
-		max_depth: 3,
-		avg_progress: 50,
-		completed_pct: 33
-	}
-};
-
-// タイムラインアイテム用の日付データ
-const taskDates: Record<string, { start: string; end: string }> = {
-	'task-1': { start: '2024-01-01', end: '2024-01-05' },
-	'task-2': { start: '2024-01-06', end: '2024-01-10' },
-	'task-3': { start: '2024-01-11', end: '2024-01-20' },
-	'task-4': { start: '2024-01-11', end: '2024-01-25' },
-	'task-5': { start: '2024-01-26', end: '2024-02-01' },
-	'task-6': { start: '2024-02-02', end: '2024-02-05' }
-};
-
-// モックデータ: タイムライン
-const mockTimelineItems: TimelineItem[] = mockGraphNodes.map((node) => ({
-	task_id: node.id,
-	title: node.title,
-	start_date: taskDates[node.id]?.start || '2024-01-01',
-	end_date: taskDates[node.id]?.end || '2024-01-10',
-	progress: node.progress,
-	status: node.status as 'completed' | 'in_progress' | 'pending' | 'blocked',
-	priority: (node.priority || 'medium') as 'high' | 'medium' | 'low',
-	assignee: node.assignee || '',
-	is_on_critical_path: ['task-1', 'task-2', 'task-3', 'task-5', 'task-6'].includes(node.id),
-	slack: node.status === 'completed' ? null : Math.floor(Math.random() * 5),
-	dependencies: node.dependencies
-}));
-
-const mockTimeline: TimelineResponse = {
-	items: mockTimelineItems,
-	critical_path: ['task-1', 'task-2', 'task-3', 'task-5', 'task-6'],
-	project_start: '2024-01-01',
-	project_end: '2024-02-05',
-	total_duration: 36,
-	stats: {
-		total_activities: 6,
-		activities_with_dates: 6,
-		on_critical_path: 5,
-		average_slack: 2.5,
-		overdue_activities: 0,
-		completed_on_time: 2
-	}
-};
 
 // モックデータ: ステータス
 const mockStatus: StatusResponse = {
@@ -237,11 +121,7 @@ const mockObjectives: Objective[] = [
 		id: 'obj-001',
 		title: 'Phase 1: MVP 開発',
 		description: 'コア機能の実装と基盤構築',
-		wbs_code: '1.0',
 		status: 'completed',
-		progress: 100,
-		start_date: '2024-01-01',
-		due_date: '2024-01-31',
 		created_at: '2024-01-01T00:00:00Z',
 		updated_at: '2024-01-31T00:00:00Z'
 	},
@@ -249,12 +129,8 @@ const mockObjectives: Objective[] = [
 		id: 'obj-002',
 		title: 'Phase 2: 標準機能',
 		description: '承認システムとスナップショット機能',
-		wbs_code: '2.0',
 		status: 'in_progress',
-		progress: 60,
 		parent_id: 'obj-001',
-		start_date: '2024-02-01',
-		due_date: '2024-02-28',
 		created_at: '2024-02-01T00:00:00Z',
 		updated_at: '2024-02-15T00:00:00Z'
 	},
@@ -262,11 +138,7 @@ const mockObjectives: Objective[] = [
 		id: 'obj-003',
 		title: 'Phase 3: AI 統合',
 		description: 'Claude Code 連携と分析機能',
-		wbs_code: '3.0',
 		status: 'not_started',
-		progress: 0,
-		start_date: '2024-03-01',
-		due_date: '2024-03-31',
 		created_at: '2024-02-15T00:00:00Z',
 		updated_at: '2024-02-15T00:00:00Z'
 	}
@@ -538,37 +410,6 @@ const mockQuality: QualityItem[] = [
 
 // MSW ハンドラー
 export const handlers = [
-	// WBS
-	http.get('/api/wbs', () => {
-		return HttpResponse.json(mockWBS);
-	}),
-
-	// タイムライン
-	http.get('/api/timeline', () => {
-		return HttpResponse.json(mockTimeline);
-	}),
-
-	// 下流タスク
-	http.get('/api/downstream', ({ request }) => {
-		const url = new URL(request.url);
-		const taskId = url.searchParams.get('task_id') || 'task-1';
-
-		// 簡易的な下流・上流計算
-		const node = mockGraphNodes.find((n) => n.id === taskId);
-		const downstream = mockGraphNodes
-			.filter((n) => n.dependencies.includes(taskId))
-			.map((n) => n.id);
-		const upstream = node?.dependencies || [];
-
-		const response: DownstreamResponse = {
-			task_id: taskId,
-			downstream,
-			upstream,
-			count: downstream.length
-		};
-		return HttpResponse.json(response);
-	}),
-
 	// ステータス
 	http.get('/api/status', () => {
 		return HttpResponse.json(mockStatus);
@@ -593,39 +434,6 @@ export const handlers = [
 			},
 			cycles: [],
 			isolated: []
-		});
-	}),
-
-	// 予測
-	http.get('/api/predict', () => {
-		return HttpResponse.json({
-			completion: {
-				remaining_tasks: 4,
-				average_velocity: 1.5,
-				estimated_date: '2024-02-10',
-				confidence_level: 0.75,
-				margin_days: 5,
-				has_sufficient_data: true
-			},
-			risk: {
-				overall_level: 'medium',
-				factors: [
-					{
-						name: 'ブロッキングタスク',
-						description: '1件のタスクがブロックされています',
-						impact: 0.3
-					}
-				],
-				score: 0.4
-			},
-			velocity: {
-				last_7_days: 2,
-				last_14_days: 3,
-				last_30_days: 5,
-				weekly_average: 1.5,
-				trend: 'stable',
-				data_points: 10
-			}
 		});
 	}),
 

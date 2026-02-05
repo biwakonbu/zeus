@@ -58,9 +58,6 @@ func runSuggest(cmd *cobra.Command, args []string) error {
 		fmt.Printf("%d. [%s] %s\n", i+1, suggestion.Impact, suggestion.Description)
 		fmt.Printf("   理由: %s\n", suggestion.Rationale)
 		fmt.Printf("   ID: %s\n", suggestion.ID)
-		if suggestion.Type == "new_task" && suggestion.TaskData != nil {
-			fmt.Printf("   見積: %.1f時間\n", suggestion.TaskData.EstimateHours)
-		}
 		fmt.Println()
 	}
 

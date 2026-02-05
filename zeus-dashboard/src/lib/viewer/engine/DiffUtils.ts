@@ -35,13 +35,14 @@ export function createInitialState(): DiffDetectorState {
 }
 
 /**
- * タスクのデータハッシュを計算（ステータス、進捗等のみ）
+ * タスクのデータハッシュを計算（ステータス等のみ）
  *
  * 構造に関係しない属性のみを含める
+ * Note: progress フィールドは削除されたため、status のみで判定
  */
 export function computeTasksHash(tasks: GraphNode[]): string {
 	return tasks
-		.map((t) => `${t.id}:${t.status}:${t.progress ?? 0}:${t.priority ?? ''}:${t.assignee ?? ''}`)
+		.map((t) => `${t.id}:${t.status}:${t.priority ?? ''}:${t.assignee ?? ''}`)
 		.join('|');
 }
 

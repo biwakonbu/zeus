@@ -330,17 +330,6 @@ func WithObjectiveStatus(status ObjectiveStatus) EntityOption {
 	}
 }
 
-// WithObjectiveProgress は Objective の進捗を設定
-func WithObjectiveProgress(progress int) EntityOption {
-	return func(v any) {
-		if obj, ok := v.(*ObjectiveEntity); ok {
-			if progress >= 0 && progress <= 100 {
-				obj.Progress = progress
-			}
-		}
-	}
-}
-
 // WithObjectiveOwner は Objective のオーナーを設定
 func WithObjectiveOwner(owner string) EntityOption {
 	return func(v any) {
@@ -355,33 +344,6 @@ func WithObjectiveParent(parentID string) EntityOption {
 	return func(v any) {
 		if obj, ok := v.(*ObjectiveEntity); ok {
 			obj.ParentID = parentID
-		}
-	}
-}
-
-// WithObjectiveWBSCode は Objective の WBS コードを設定
-func WithObjectiveWBSCode(wbsCode string) EntityOption {
-	return func(v any) {
-		if obj, ok := v.(*ObjectiveEntity); ok {
-			obj.WBSCode = wbsCode
-		}
-	}
-}
-
-// WithObjectiveStartDate は Objective の開始日を設定
-func WithObjectiveStartDate(date string) EntityOption {
-	return func(v any) {
-		if obj, ok := v.(*ObjectiveEntity); ok {
-			obj.StartDate = date
-		}
-	}
-}
-
-// WithObjectiveDueDate は Objective の期限日を設定
-func WithObjectiveDueDate(date string) EntityOption {
-	return func(v any) {
-		if obj, ok := v.(*ObjectiveEntity); ok {
-			obj.DueDate = date
 		}
 	}
 }

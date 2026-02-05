@@ -163,20 +163,20 @@ zeus list [entity] [options]
 # 全エンティティを表示
 zeus list
 
-# タスクのみ表示
-zeus list task
+# Activity のみ表示
+zeus list activities
 
-# 進行中のタスクのみ
-zeus list task --status=in_progress
+# 進行中の Activity のみ
+zeus list activities --status=in_progress
 ```
 
 **出力例**
 ```
-Tasks (3 items)
+Activities (3 items)
 ────────────────────────────────────────
-[pending] task-001 - ドキュメント作成
-[in_progress] task-002 - 新機能の実装
-[completed] task-003 - バグ修正
+[pending] act-001 - ドキュメント作成
+[in_progress] act-002 - 新機能の実装
+[completed] act-003 - バグ修正
 ```
 
 **終了ステータス**
@@ -628,7 +628,7 @@ zeus apply --all --dry-run
 **出力例**
 ```
 [OK] 提案 sug-001 を適用しました
-   新規タスクID: task-xyz789
+   新規 Activity ID: act-xyz789
 ```
 
 **終了ステータス**
@@ -662,19 +662,19 @@ zeus explain <entity-id> [options]
 # プロジェクト全体の説明
 zeus explain project
 
-# 特定タスクの説明
-zeus explain task-001
+# 特定 Activity の説明
+zeus explain act-001
 
 # コンテキスト情報を含む
-zeus explain task-001 --context
+zeus explain act-001 --context
 ```
 
 **出力例**
 ```
 Zeus Explain
 ═══════════════════════════════════════════════════════════
-Entity: task-001
-Type:   task
+Entity: act-001
+Type:   activity
 
 Summary:
   このタスクはドキュメント作成に関するものです。
@@ -725,20 +725,20 @@ zeus graph -f mermaid -o deps.md
 ```
 Zeus Dependency Graph
 ============================================================
-task-001: ドキュメント作成
-├── task-002: レビュー
-└── task-003: 公開
+act-001: ドキュメント作成
+├── act-002: レビュー
+└── act-003: 公開
 
-task-004: 新機能実装 (独立)
+act-004: 新機能実装 (独立)
 ============================================================
 ```
 
 **出力例（mermaid）**
 ```mermaid
 graph TD
-    task-001[ドキュメント作成] --> task-002[レビュー]
-    task-001 --> task-003[公開]
-    task-004[新機能実装]
+    act-001[ドキュメント作成] --> act-002[レビュー]
+    act-001 --> act-003[公開]
+    act-004[新機能実装]
 ```
 
 **終了ステータス**
@@ -942,7 +942,7 @@ Phase 6 で追加された WBS 階層とタイムライン機能です。
 |---------------|---------|------|
 | `/api/wbs` | GET | WBS 階層データを取得 |
 | `/api/timeline` | GET | タイムラインデータを取得 |
-| `/api/downstream/<id>` | GET | 指定タスクの影響範囲（downstream 依存）を取得 |
+| `/api/downstream/<id>` | GET | 指定 Activity の影響範囲（downstream 依存）を取得 |
 
 **使用例**
 ```bash
@@ -952,8 +952,8 @@ curl http://localhost:8080/api/wbs | jq
 # タイムラインデータを取得
 curl http://localhost:8080/api/timeline | jq
 
-# 特定タスクの影響範囲を取得
-curl http://localhost:8080/api/downstream/task-001 | jq
+# 特定 Activity の影響範囲を取得
+curl http://localhost:8080/api/downstream/act-001 | jq
 ```
 
 **WBS レスポンス例**
@@ -961,10 +961,10 @@ curl http://localhost:8080/api/downstream/task-001 | jq
 {
   "nodes": [
     {
-      "id": "task-001",
-      "title": "親タスク",
+      "id": "act-001",
+      "title": "親 Activity",
       "wbs_code": "1",
-      "children": ["task-002", "task-003"]
+      "children": ["act-002", "act-003"]
     }
   ]
 }
@@ -975,8 +975,8 @@ curl http://localhost:8080/api/downstream/task-001 | jq
 {
   "items": [
     {
-      "id": "task-001",
-      "title": "タスク名",
+      "id": "act-001",
+      "title": "Activity 名",
       "start_date": "2026-01-15",
       "due_date": "2026-01-31",
       "progress": 50,
@@ -990,9 +990,9 @@ curl http://localhost:8080/api/downstream/task-001 | jq
 
 ## 3. データ型
 
-### 3.1 TaskStatus
+### 3.1 ActivityStatus
 
-タスクのステータスを表します。
+Activity のステータスを表します。
 
 | 値 | 説明 |
 |----|------|
@@ -1011,9 +1011,9 @@ curl http://localhost:8080/api/downstream/task-001 | jq
 | `notify` | 通知付き実行 |
 | `approve` | 事前承認必須 |
 
-### 3.3 TaskPriority
+### 3.3 ActivityPriority
 
-タスクの優先度を表します。
+Activity の優先度を表します。
 
 | 値 | 説明 |
 |----|------|
@@ -1038,7 +1038,7 @@ curl http://localhost:8080/api/downstream/task-001 | jq
 
 | 値 | 説明 |
 |----|------|
-| `new_task` | 新規タスクの追加 |
+| `new_activity` | 新規 Activity の追加 |
 | `priority_change` | 優先度の変更 |
 | `dependency` | 依存関係の追加 |
 | `risk_mitigation` | リスク対策 |
@@ -1127,17 +1127,17 @@ rationale: "提案の理由"
 impact: "high"                 # high|medium|low
 status: "pending"              # pending|applied|rejected
 created_at: "2026-01-15T10:00:00Z"
-# new_task の場合
-task_data:
-  title: "新規タスク"
+# new_activity の場合
+activity_data:
+  title: "新規 Activity"
   estimate_hours: 4.0
 # priority_change の場合
-target_task_id: "task-001"
+target_activity_id: "act-001"
 new_priority: "high"
 # dependency の場合
-target_task_id: "task-001"
+target_activity_id: "act-001"
 dependencies:
-  - "task-002"
+  - "act-002"
 ```
 
 ---

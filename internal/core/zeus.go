@@ -799,12 +799,6 @@ func (z *Zeus) explainActivity(ctx context.Context, activityID string, includeCo
 	if activity.Description != "" {
 		details = activity.Description
 	}
-	if activity.EstimateHours > 0 {
-		details += fmt.Sprintf("\n見積もり工数: %.1f 時間", activity.EstimateHours)
-	}
-	if activity.ActualHours > 0 {
-		details += fmt.Sprintf("\n実績工数: %.1f 時間", activity.ActualHours)
-	}
 
 	result := &ExplainResult{
 		EntityID:    activityID,
@@ -831,10 +825,6 @@ func (z *Zeus) explainActivity(ctx context.Context, activityID string, includeCo
 	if activity.Status == ActivityStatusBlocked {
 		result.Suggestions = append(result.Suggestions,
 			"この Activity はブロックされています。依存関係を確認してください。")
-	}
-	if activity.EstimateHours > 0 && activity.ActualHours > activity.EstimateHours*1.5 {
-		result.Suggestions = append(result.Suggestions,
-			"実績が見積もりを大幅に超過しています。タスク分割を検討してください。")
 	}
 
 	return result, nil
@@ -872,14 +862,8 @@ func (z *Zeus) applySuggestion(ctx context.Context, suggestion *Suggestion) erro
 			WithActivityStatus(activity.Status),
 			WithActivityPriority(activity.Priority),
 			WithActivityAssignee(activity.Assignee),
-			WithActivityEstimateHours(activity.EstimateHours),
-			WithActivityActualHours(activity.ActualHours),
 			WithActivityDependencies(activity.Dependencies),
 			WithActivityParent(activity.ParentID),
-			WithActivityStartDate(activity.StartDate),
-			WithActivityDueDate(activity.DueDate),
-			WithActivityWBSCode(activity.WBSCode),
-			WithActivityProgress(activity.Progress),
 			WithActivityApprovalLevel(activity.ApprovalLevel),
 		)
 		if err != nil {
@@ -968,18 +952,13 @@ func activityToAnalysisTaskInfo(activities []ActivityEntity) []analysis.TaskInfo
 	result := make([]analysis.TaskInfo, len(activities))
 	for i, a := range activities {
 		result[i] = analysis.TaskInfo{
-			ID:            a.ID,
-			Title:         a.Title,
-			Status:        string(a.Status),
-			Dependencies:  a.Dependencies,
-			ParentID:      a.ParentID,
-			StartDate:     a.StartDate,
-			DueDate:       a.DueDate,
-			Progress:      a.Progress,
-			WBSCode:       a.WBSCode,
-			Priority:      string(a.Priority),
-			Assignee:      a.Assignee,
-			EstimateHours: a.EstimateHours,
+			ID:           a.ID,
+			Title:        a.Title,
+			Status:       string(a.Status),
+			Dependencies: a.Dependencies,
+			ParentID:     a.ParentID,
+			Priority:     string(a.Priority),
+			Assignee:     a.Assignee,
 		}
 	}
 	return result
@@ -997,14 +976,8 @@ func toAnalysisActivityInfo(activities []ActivityEntity) []analysis.ActivityInfo
 			Dependencies:        a.Dependencies,
 			ParentID:            a.ParentID,
 			UseCaseID:           a.UseCaseID,
-			Progress:            a.Progress,
 			Priority:            string(a.Priority),
 			Assignee:            a.Assignee,
-			WBSCode:             a.WBSCode,
-			StartDate:           a.StartDate,
-			DueDate:             a.DueDate,
-			EstimateHours:       a.EstimateHours,
-			ActualHours:         a.ActualHours,
 			RelatedDeliverables: a.RelatedDeliverables,
 			CreatedAt:           a.Metadata.CreatedAt,
 			UpdatedAt:           a.Metadata.UpdatedAt,
@@ -1028,39 +1001,6 @@ func toAnalysisUseCaseInfo(usecases []UseCaseEntity) []analysis.UseCaseInfo {
 			ObjectiveID: u.ObjectiveID,
 			SubsystemID: u.SubsystemID,
 			ActorIDs:    actorIDs,
-		}
-	}
-	return result
-}
-
-// toAnalysisProjectState は core.ProjectState を analysis.ProjectState に変換
-func toAnalysisProjectState(state *ProjectState) *analysis.ProjectState {
-	return &analysis.ProjectState{
-		Health: string(state.Health),
-		Summary: analysis.SummaryStats{
-			TotalActivities: state.Summary.TotalActivities,
-			Completed:       state.Summary.Completed,
-			InProgress:      state.Summary.InProgress,
-			Pending:         state.Summary.Pending,
-		},
-	}
-}
-
-// toAnalysisSnapshots は core.Snapshot を analysis.Snapshot に変換
-func toAnalysisSnapshots(snapshots []Snapshot) []analysis.Snapshot {
-	result := make([]analysis.Snapshot, len(snapshots))
-	for i, s := range snapshots {
-		result[i] = analysis.Snapshot{
-			Timestamp: s.Timestamp,
-			State: analysis.ProjectState{
-				Health: string(s.State.Health),
-				Summary: analysis.SummaryStats{
-					TotalActivities: s.State.Summary.TotalActivities,
-					Completed:       s.State.Summary.Completed,
-					InProgress:      s.State.Summary.InProgress,
-					Pending:         s.State.Summary.Pending,
-				},
-			},
 		}
 	}
 	return result
@@ -1138,84 +1078,6 @@ func (z *Zeus) BuildDependencyGraph(ctx context.Context) (*analysis.DependencyGr
 	return builder.Build(ctx)
 }
 
-// Predict は予測分析を実行
-func (z *Zeus) Predict(ctx context.Context, predType string) (*analysis.AnalysisResult, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
-	// 現在の状態を取得
-	state, err := z.stateStore.GetCurrentState(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("状態の取得に失敗しました: %w", err)
-	}
-
-	// 履歴を取得
-	history, err := z.stateStore.GetHistory(ctx, 30) // 最大30件
-	if err != nil {
-		history = []Snapshot{} // エラー時は空のスライス
-	}
-
-	// Activity 一覧を取得
-	var analysisTaskInfos []analysis.TaskInfo
-	actHandler := z.GetActivityHandler()
-	if actHandler != nil {
-		activities, err := actHandler.GetAll(ctx)
-		if err == nil {
-			analysisTaskInfos = activityToAnalysisTaskInfo(activities)
-		}
-	}
-
-	// 型変換
-	analysisState := toAnalysisProjectState(state)
-	analysisHistory := toAnalysisSnapshots(history)
-
-	// Predictor を作成
-	predictor := analysis.NewPredictor(analysisState, analysisHistory, analysisTaskInfos)
-
-	result := &analysis.AnalysisResult{}
-
-	// 予測タイプに応じて分析を実行
-	switch predType {
-	case "completion":
-		completion, err := predictor.PredictCompletion(ctx)
-		if err != nil {
-			return nil, err
-		}
-		result.Completion = completion
-
-	case "risk":
-		risk, err := predictor.PredictRisk(ctx)
-		if err != nil {
-			return nil, err
-		}
-		result.Risk = risk
-
-	case "velocity":
-		velocity, err := predictor.CalculateVelocity(ctx)
-		if err != nil {
-			return nil, err
-		}
-		result.Velocity = velocity
-
-	case "all", "":
-		// 全ての予測を実行
-		completion, _ := predictor.PredictCompletion(ctx)
-		result.Completion = completion
-
-		risk, _ := predictor.PredictRisk(ctx)
-		result.Risk = risk
-
-		velocity, _ := predictor.CalculateVelocity(ctx)
-		result.Velocity = velocity
-
-	default:
-		return nil, fmt.Errorf("不明な予測タイプ: %s", predType)
-	}
-
-	return result, nil
-}
-
 // GenerateReport はレポートを生成
 func (z *Zeus) GenerateReport(ctx context.Context, format string) (string, error) {
 	if err := ctx.Err(); err != nil {
@@ -1234,16 +1096,15 @@ func (z *Zeus) GenerateReport(ctx context.Context, format string) (string, error
 		return "", fmt.Errorf("状態の取得に失敗しました: %w", err)
 	}
 
-	// 分析結果を取得
-	analysisResult, _ := z.Predict(ctx, "all")
+	// 分析結果を作成（グラフのみ）
+	var analysisResult *analysis.AnalysisResult
 
 	// グラフを取得（Markdown形式用）
 	if format == "markdown" {
 		graph, _ := z.BuildDependencyGraph(ctx)
-		if analysisResult == nil {
-			analysisResult = &analysis.AnalysisResult{}
+		analysisResult = &analysis.AnalysisResult{
+			Graph: graph,
 		}
-		analysisResult.Graph = graph
 	}
 
 	// 型変換
@@ -1263,177 +1124,6 @@ func (z *Zeus) GenerateReport(ctx context.Context, format string) (string, error
 	default:
 		return "", fmt.Errorf("不明なレポート形式: %s", format)
 	}
-}
-
-// ===== Phase 6B: WBS 機能 =====
-
-// BuildWBSTree はWBS階層ツリーを構築
-func (z *Zeus) BuildWBSTree(ctx context.Context) (*analysis.WBSTree, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
-	// Activity 一覧を取得
-	actHandler := z.GetActivityHandler()
-	if actHandler == nil {
-		return &analysis.WBSTree{
-			Roots:    []*analysis.WBSNode{},
-			MaxDepth: 0,
-			Stats:    analysis.WBSStats{},
-		}, nil
-	}
-
-	activities, err := actHandler.GetAll(ctx)
-	if err != nil {
-		return &analysis.WBSTree{
-			Roots:    []*analysis.WBSNode{},
-			MaxDepth: 0,
-			Stats:    analysis.WBSStats{},
-		}, nil
-	}
-
-	if len(activities) == 0 {
-		return &analysis.WBSTree{
-			Roots:    []*analysis.WBSNode{},
-			MaxDepth: 0,
-			Stats:    analysis.WBSStats{},
-		}, nil
-	}
-
-	// Activity を analysis.TaskInfo に変換
-	taskInfos := activityToAnalysisTaskInfo(activities)
-
-	// WBSツリーを構築
-	builder := analysis.NewWBSBuilder(taskInfos)
-	return builder.Build(ctx)
-}
-
-// ===== Phase 6C: タイムライン機能 =====
-
-// BuildTimeline はタイムラインを構築
-func (z *Zeus) BuildTimeline(ctx context.Context) (*analysis.Timeline, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
-	// Activity 一覧を取得
-	actHandler := z.GetActivityHandler()
-	if actHandler == nil {
-		return &analysis.Timeline{
-			Items:        []analysis.TimelineItem{},
-			CriticalPath: []string{},
-			Stats:        analysis.TimelineStats{},
-		}, nil
-	}
-
-	activities, err := actHandler.GetAll(ctx)
-	if err != nil {
-		return &analysis.Timeline{
-			Items:        []analysis.TimelineItem{},
-			CriticalPath: []string{},
-			Stats:        analysis.TimelineStats{},
-		}, nil
-	}
-
-	if len(activities) == 0 {
-		return &analysis.Timeline{
-			Items:        []analysis.TimelineItem{},
-			CriticalPath: []string{},
-			Stats:        analysis.TimelineStats{},
-		}, nil
-	}
-
-	// Activity を analysis.TaskInfo に変換
-	taskInfos := activityToAnalysisTaskInfo(activities)
-
-	// タイムラインを構築
-	builder := analysis.NewTimelineBuilder(taskInfos)
-	return builder.Build(ctx)
-}
-
-// BuildWBSGraph は 10概念モデル対応の WBS 階層ツリーを構築
-// Vision → Objective → Deliverable → Task の完全な階層構造を返す
-func (z *Zeus) BuildWBSGraph(ctx context.Context) (*analysis.WBSTree, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
-	// 1. Vision を取得
-	var vision *analysis.VisionInfo
-	var visionData Vision
-	if z.fileStore.Exists(ctx, "vision.yaml") {
-		if err := z.fileStore.ReadYaml(ctx, "vision.yaml", &visionData); err == nil {
-			vision = &analysis.VisionInfo{
-				ID:        visionData.ID,
-				Title:     visionData.Title,
-				Statement: visionData.Statement,
-				Status:    string(visionData.Status),
-			}
-		}
-	}
-
-	// 2. 全 Objective を取得（ディレクトリから直接読み込み）
-	objectives := []analysis.ObjectiveInfo{}
-	objFiles, err := z.fileStore.ListDir(ctx, "objectives")
-	if err == nil {
-		for _, file := range objFiles {
-			if !hasYamlSuffix(file) {
-				continue
-			}
-			var obj ObjectiveEntity
-			if err := z.fileStore.ReadYaml(ctx, filepath.Join("objectives", file), &obj); err == nil {
-				objectives = append(objectives, analysis.ObjectiveInfo{
-					ID:       obj.ID,
-					Title:    obj.Title,
-					WBSCode:  obj.WBSCode,
-					Progress: obj.Progress,
-					Status:   string(obj.Status),
-					ParentID: obj.ParentID,
-				})
-			}
-		}
-	}
-
-	// 3. 全 Deliverable を取得（ディレクトリから直接読み込み）
-	deliverables := []analysis.DeliverableInfo{}
-	delFiles, err := z.fileStore.ListDir(ctx, "deliverables")
-	if err == nil {
-		for _, file := range delFiles {
-			if !hasYamlSuffix(file) {
-				continue
-			}
-			var del DeliverableEntity
-			if err := z.fileStore.ReadYaml(ctx, filepath.Join("deliverables", file), &del); err == nil {
-				deliverables = append(deliverables, analysis.DeliverableInfo{
-					ID:          del.ID,
-					Title:       del.Title,
-					ObjectiveID: del.ObjectiveID,
-					Progress:    del.Progress,
-					Status:      string(del.Status),
-				})
-			}
-		}
-	}
-
-	// 4. 全 Activity を取得（Task は Activity に統合されたため）
-	activities := []ActivityEntity{}
-	actFiles, err := z.fileStore.ListDir(ctx, "activities")
-	if err == nil {
-		for _, file := range actFiles {
-			if !hasYamlSuffix(file) {
-				continue
-			}
-			var act ActivityEntity
-			if err := z.fileStore.ReadYaml(ctx, filepath.Join("activities", file), &act); err == nil {
-				activities = append(activities, act)
-			}
-		}
-	}
-	taskInfos := activityToAnalysisTaskInfo(activities)
-
-	// 5. MultiEntityWBSBuilder で階層構造を構築
-	builder := analysis.NewMultiEntityWBSBuilder(vision, objectives, deliverables, taskInfos)
-	return builder.Build(ctx)
 }
 
 // hasYamlSuffix は .yaml または .yml 拡張子を持つかチェック
@@ -1517,7 +1207,6 @@ func (z *Zeus) BuildUnifiedGraph(ctx context.Context, filter *analysis.GraphFilt
 					ID:          del.ID,
 					Title:       del.Title,
 					ObjectiveID: del.ObjectiveID,
-					Progress:    del.Progress,
 					Status:      string(del.Status),
 				})
 			}
@@ -1537,8 +1226,6 @@ func (z *Zeus) BuildUnifiedGraph(ctx context.Context, filter *analysis.GraphFilt
 				objectives = append(objectives, analysis.ObjectiveInfo{
 					ID:       obj.ID,
 					Title:    obj.Title,
-					WBSCode:  obj.WBSCode,
-					Progress: obj.Progress,
 					Status:   string(obj.Status),
 					ParentID: obj.ParentID,
 				})

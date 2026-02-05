@@ -98,7 +98,7 @@ zeus apply --all --dry-run
 1. 現在のプロジェクト状態を取得（`zeus status`）
 2. ブロックされた Activity を検出
 3. 高リスク項目（Risk, Problem）を分析
-4. WBS階層と依存関係を考慮
+4. 依存関係を考慮
 5. 優先度に基づいて提案を生成
 
 ## 保存先
@@ -108,4 +108,3 @@ zeus apply --all --dry-run
 ## 関連スキル
 
 - zeus-risk-analysis - リスク分析
-- zeus-wbs-design - WBS 階層設計

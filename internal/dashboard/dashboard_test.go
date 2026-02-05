@@ -135,33 +135,7 @@ func TestHandleAPIGraph(t *testing.T) {
 	}
 }
 
-func TestHandleAPIPredict(t *testing.T) {
-	zeus := setupTestZeus(t)
-	server := NewServer(zeus, 0)
-
-	ts := httptest.NewServer(server.handler())
-	defer ts.Close()
-
-	resp, err := http.Get(ts.URL + "/api/predict")
-	if err != nil {
-		t.Fatalf("リクエストに失敗: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("ステータスコードが正しくありません: got %d, want %d", resp.StatusCode, http.StatusOK)
-	}
-
-	var result PredictResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		t.Fatalf("JSON のデコードに失敗: %v", err)
-	}
-
-	// 予測結果が存在
-	if result.Completion == nil && result.Risk == nil && result.Velocity == nil {
-		t.Error("予測結果が全て nil です")
-	}
-}
+// Note: TestHandleAPIPredict は predict 機能削除に伴い削除
 
 func TestHandleIndex(t *testing.T) {
 	zeus := setupTestZeus(t)

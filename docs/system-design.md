@@ -157,18 +157,17 @@ settings:
   ai_provider: "claude-code"      # claude-code|gemini|codex
 ```
 
-#### 2.4.2 タスク定義
+#### 2.4.2 Activity 定義
 ```yaml
-# .zeus/tasks/active.yaml
-tasks:
-  - id: "task-001"
-    title: "Design core data structure"
-    status: "in_progress"
-    assignee: "ai"
-    estimate_hours: 8
-    actual_hours: null
-    dependencies: []
-    approval_level: "auto"
+# .zeus/activities/act-001.yaml
+id: "act-001"
+title: "Design core data structure"
+status: "in_progress"
+assignee: "ai"
+estimate_hours: 8
+actual_hours: null
+dependencies: []
+approval_level: "auto"
 ```
 
 #### 2.4.3 状態スナップショット

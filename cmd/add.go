@@ -11,13 +11,9 @@ import (
 
 // add コマンドのフラグ
 var (
-	addParentID  string
-	addStartDate string
-	addDueDate   string
-	addProgress  int
-	addWBSCode   string
-	addPriority  string
-	addAssignee  string
+	addParentID string
+	addPriority string
+	addAssignee string
 
 	// 10 概念モデル共通
 	addDescription string
@@ -35,6 +31,7 @@ var (
 
 	// Consideration 用
 	addDeliverableID string
+	addDueDate       string // Consideration 専用
 
 	// Decision 用
 	addConsiderationID string
@@ -67,8 +64,6 @@ var (
 
 	// Activity 用（Task/Activity 統合）
 	addActivityDependencies []string
-	addActivityEstimate     float64
-	addActivityActualHours  float64
 	addActivityUseCaseID    string
 )
 
@@ -103,12 +98,6 @@ Activity 用オプション:
   --depends     依存先 Activity ID（カンマ区切り、または複数回指定）
   --usecase     紐づく UseCase の ID
   --deliverable 紐づく Deliverable の ID
-  --start       開始日（ISO8601形式）
-  --due         期限日（ISO8601形式）
-  --estimate    見積もり時間（時間単位）
-  --actual      実績時間（時間単位）
-  --progress    進捗率（0-100）
-  --wbs         WBS コード
   --priority    優先度（high, medium, low）
   --assignee    担当者名
 
@@ -118,10 +107,6 @@ Vision 用オプション:
 
 Objective 用オプション:
   --parent    親 Objective の ID
-  --start     開始日
-  --due       期限日
-  --progress  進捗率（0-100）
-  --wbs       WBS コード
 
 Deliverable 用オプション:
   --objective           紐づく Objective の ID
@@ -177,7 +162,7 @@ Subsystem 用オプション:
 
 例:
   zeus add vision "AI駆動PM" --statement "AIと人間が協調するPM"
-  zeus add objective "認証システム実装" --wbs 1.1 --due 2026-02-28
+  zeus add objective "認証システム実装"
   zeus add deliverable "API設計書" --objective obj-001 --format document
   zeus add consideration "認証方式の選択" --objective obj-001
   zeus add decision "JWT認証を採用" --consideration con-001 --selected-opt-id opt-1 --selected-title "JWT" --rationale "セキュリティと拡張性"
@@ -189,8 +174,8 @@ Subsystem 用オプション:
   zeus add actor "管理者" --type human
   zeus add usecase "ログイン" --objective obj-001 --actor actor-001 --actor-role primary --subsystem sub-12345678
   zeus add subsystem "認証システム" --description "ユーザー認証関連のユースケース"
-  zeus add activity "API設計" --usecase uc-001 --estimate 8 --priority high --assignee "田中"
-  zeus add activity "エンドポイント実装" --depends act-001,act-002 --estimate 16 --due 2026-02-15`,
+  zeus add activity "API設計" --usecase uc-001 --priority high --assignee "田中"
+  zeus add activity "エンドポイント実装" --depends act-001,act-002`,
 	Args: cobra.ExactArgs(2),
 	RunE: runAdd,
 }
@@ -203,12 +188,8 @@ func init() {
 	addCmd.Flags().StringVar(&addOwner, "owner", "", "オーナー")
 	addCmd.Flags().StringSliceVar(&addTags, "tags", nil, "タグ（カンマ区切り）")
 
-	// Phase 6A: タスク用フラグ
+	// 共通フラグ
 	addCmd.Flags().StringVarP(&addParentID, "parent", "p", "", "親タスク/Objective/Activity ID")
-	addCmd.Flags().StringVar(&addStartDate, "start", "", "開始日（ISO8601形式）")
-	addCmd.Flags().StringVar(&addDueDate, "due", "", "期限日（ISO8601形式）")
-	addCmd.Flags().IntVar(&addProgress, "progress", 0, "進捗率（0-100）")
-	addCmd.Flags().StringVar(&addWBSCode, "wbs", "", "WBSコード（例: 1.2.3）")
 	addCmd.Flags().StringVar(&addPriority, "priority", "", "優先度（high, medium, low）")
 	addCmd.Flags().StringVar(&addAssignee, "assignee", "", "担当者名")
 
@@ -223,6 +204,7 @@ func init() {
 
 	// Consideration 用フラグ
 	addCmd.Flags().StringVar(&addDeliverableID, "deliverable", "", "紐づく Deliverable の ID")
+	addCmd.Flags().StringVar(&addDueDate, "due", "", "期限日（Consideration 用）")
 
 	// Decision 用フラグ
 	addCmd.Flags().StringVar(&addConsiderationID, "consideration", "", "紐づく Consideration の ID")
@@ -255,8 +237,6 @@ func init() {
 
 	// Activity 用フラグ（Task/Activity 統合）
 	addCmd.Flags().StringSliceVar(&addActivityDependencies, "depends", nil, "依存先 Activity ID（カンマ区切り、または複数回指定）")
-	addCmd.Flags().Float64Var(&addActivityEstimate, "estimate", 0, "見積もり時間（時間単位）")
-	addCmd.Flags().Float64Var(&addActivityActualHours, "actual", 0, "実績時間（時間単位）")
 	addCmd.Flags().StringVar(&addActivityUseCaseID, "usecase", "", "紐づく UseCase の ID")
 }
 
@@ -368,18 +348,6 @@ func buildObjectiveOptions() []core.EntityOption {
 	if addParentID != "" {
 		opts = append(opts, core.WithObjectiveParent(addParentID))
 	}
-	if addStartDate != "" {
-		opts = append(opts, core.WithObjectiveStartDate(addStartDate))
-	}
-	if addDueDate != "" {
-		opts = append(opts, core.WithObjectiveDueDate(addDueDate))
-	}
-	if addProgress > 0 {
-		opts = append(opts, core.WithObjectiveProgress(addProgress))
-	}
-	if addWBSCode != "" {
-		opts = append(opts, core.WithObjectiveWBSCode(addWBSCode))
-	}
 	if addOwner != "" {
 		opts = append(opts, core.WithObjectiveOwner(addOwner))
 	}
@@ -418,9 +386,6 @@ func buildDeliverableOptions() []core.EntityOption {
 	}
 	if len(addAcceptanceCriteria) > 0 {
 		opts = append(opts, core.WithDeliverableAcceptanceCriteria(addAcceptanceCriteria))
-	}
-	if addProgress > 0 {
-		opts = append(opts, core.WithDeliverableProgress(addProgress))
 	}
 	if addOwner != "" {
 		opts = append(opts, core.WithDeliverableOwner(addOwner))
@@ -756,36 +721,6 @@ func buildActivityOptions() []core.EntityOption {
 	// Deliverable 参照
 	if addDeliverableID != "" {
 		opts = append(opts, core.WithActivityRelatedDeliverables([]string{addDeliverableID}))
-	}
-
-	// 見積もり時間
-	if addActivityEstimate > 0 {
-		opts = append(opts, core.WithActivityEstimateHours(addActivityEstimate))
-	}
-
-	// 実績時間
-	if addActivityActualHours > 0 {
-		opts = append(opts, core.WithActivityActualHours(addActivityActualHours))
-	}
-
-	// 開始日
-	if addStartDate != "" {
-		opts = append(opts, core.WithActivityStartDate(addStartDate))
-	}
-
-	// 期限日
-	if addDueDate != "" {
-		opts = append(opts, core.WithActivityDueDate(addDueDate))
-	}
-
-	// 進捗
-	if addProgress > 0 {
-		opts = append(opts, core.WithActivityProgress(addProgress))
-	}
-
-	// WBS コード
-	if addWBSCode != "" {
-		opts = append(opts, core.WithActivityWBSCode(addWBSCode))
 	}
 
 	// 優先度

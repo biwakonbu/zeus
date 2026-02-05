@@ -199,7 +199,7 @@ zeus graph --format mermaid -o docs/dependencies.md
 
 | 形式 | 用途 | 出力例 |
 |------|------|--------|
-| text | CLI での簡易確認 | `TASK-001 --> TASK-002` |
+| text | CLI での簡易確認 | `act-001 --> act-002` |
 | dot | 画像生成（Graphviz） | digraph G {...} |
 | mermaid | ドキュメント埋め込み | ```mermaid graph TD ...``` |
 
@@ -209,7 +209,7 @@ zeus graph --format mermaid -o docs/dependencies.md
 zeus graph
 # 出力例:
 # Warning: Circular dependency detected!
-#   TASK-001 -> TASK-002 -> TASK-003 -> TASK-001
+#   act-001 -> act-002 -> act-003 -> act-001
 ```
 
 ### 4.2 予測分析（predict コマンド）
@@ -222,8 +222,8 @@ zeus predict completion
 # =====================
 # Estimated completion: 2024-03-15
 # Confidence interval: 2024-03-10 ~ 2024-03-20
-# Remaining activities: 12
-# Average velocity: 2.5 activities/day
+# Remaining Activities: 12
+# Average velocity: 2.5 Activities/day
 ```
 
 #### リスク分析
@@ -235,9 +235,9 @@ zeus predict risk
 # Overall risk level: MEDIUM
 #
 # Risk factors:
-#   [HIGH] Dependency complexity - 3 activities have 5+ dependencies
-#   [MEDIUM] Estimation accuracy - 30% of activities exceeded estimates
-#   [LOW] Scope creep - 2 new activities added this week
+#   [HIGH] Dependency complexity - 3 Activities have 5+ dependencies
+#   [MEDIUM] Estimation accuracy - 30% of Activities exceeded estimates
+#   [LOW] Scope creep - 2 new Activities added this week
 ```
 
 #### ベロシティ分析
@@ -246,10 +246,10 @@ zeus predict velocity
 # 出力例:
 # Velocity Analysis
 # =================
-# Current velocity: 2.5 activities/day
+# Current velocity: 2.5 Activities/day
 # Trend: +0.3 (improving)
-# 7-day average: 2.2 activities/day
-# 30-day average: 2.0 activities/day
+# 7-day average: 2.2 Activities/day
+# 30-day average: 2.0 Activities/day
 ```
 
 #### 全予測を一度に表示
@@ -286,8 +286,8 @@ zeus report --format markdown -o docs/STATUS.md
 
 #### レポート内容
 1. プロジェクト概要（名前、説明、開始日）
-2. 進捗サマリー（完了率、残タスク数）
-3. タスク一覧（ステータス別）
+2. 進捗サマリー（完了率、残 Activity 数）
+3. Activity 一覧（ステータス別）
 4. 依存関係グラフ（Mermaid形式、HTML/Markdownのみ）
 5. 予測分析結果
 6. リスク・課題
@@ -333,8 +333,8 @@ kill $(lsof -t -i:8080)
 | 機能 | 説明 |
 |------|------|
 | プロジェクト概要 | 名前、説明、進捗率、健全性をカード表示 |
-| タスク統計 | 完了/進行中/保留の内訳 |
-| タスク一覧 | テーブル形式、ステータス色分け |
+| Activity 統計 | 完了/進行中/保留の内訳 |
+| Activity 一覧 | テーブル形式、ステータス色分け |
 | 依存関係グラフ | Mermaid.js でインタラクティブ表示 |
 | 予測分析 | 完了日、リスク、ベロシティ |
 | 自動更新 | 5秒間隔で最新データを取得 |
@@ -451,7 +451,7 @@ zeus dashboard &
 
 # Step 2: ブラウザで確認しながら作業
 #   - プロジェクト概要を確認
-#   - タスク進捗を監視
+#   - Activity 進捗を監視
 #   - 依存関係グラフでボトルネックを特定
 
 # Step 3: 作業完了後に停止
@@ -485,7 +485,7 @@ zeus status
 - 読み取り操作
 - 計算処理
 - レポート生成
-- 完了タスクのアーカイブ
+- 完了 Activity のアーカイブ
 
 ### 7.2 notify（通知付き実行）
 実行後に通知される操作:
@@ -498,7 +498,7 @@ zeus status
 - マイルストーン変更
 - リソースアサイン
 - スコープ変更
-- 3タスク以上に影響する変更
+- 3 Activity 以上に影響する変更
 - 信頼度70%未満のAI提案
 
 ## 8. トラブルシューティング
@@ -668,7 +668,7 @@ dashboard:
 | Snapshot | 特定時点の状態保存 |
 | Health | プロジェクトの健全性指標 |
 | Graph | 依存関係グラフ |
-| Velocity | タスク完了速度 |
+| Velocity | Activity 完了速度 |
 | Dashboard | Webベースの管理画面 |
 
 ## 12. サポート

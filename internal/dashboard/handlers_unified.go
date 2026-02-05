@@ -20,7 +20,6 @@ type UnifiedGraphNodeItem struct {
 	Status   string `json:"status"`
 	Depth    int    `json:"depth"`
 	Mode     string `json:"mode,omitempty"`
-	Progress int    `json:"progress,omitempty"`
 	Assignee string `json:"assignee,omitempty"`
 	Priority string `json:"priority,omitempty"`
 
@@ -171,7 +170,6 @@ func convertUnifiedGraphToResponse(graph *analysis.UnifiedGraph, filter *analysi
 			Status:   node.Status,
 			Depth:    node.Depth,
 			Mode:     node.Mode,
-			Progress: node.Progress,
 			Assignee: node.Assignee,
 			Priority: node.Priority,
 			Parents:  node.Parents,

@@ -10,10 +10,9 @@ import (
 type EventType string
 
 const (
-	EventStatus     EventType = "status"
-	EventApproval   EventType = "approval"
-	EventGraph      EventType = "graph"
-	EventPrediction EventType = "prediction"
+	EventStatus   EventType = "status"
+	EventApproval EventType = "approval"
+	EventGraph    EventType = "graph"
 )
 
 // SSEEvent は SSE で送信するイベント
@@ -99,14 +98,6 @@ func (b *SSEBroadcaster) BroadcastStatus(data interface{}) {
 func (b *SSEBroadcaster) BroadcastGraph(data interface{}) {
 	b.Broadcast(SSEEvent{
 		Type: EventGraph,
-		Data: data,
-	})
-}
-
-// BroadcastPrediction は予測更新を配信
-func (b *SSEBroadcaster) BroadcastPrediction(data interface{}) {
-	b.Broadcast(SSEEvent{
-		Type: EventPrediction,
 		Data: data,
 	})
 }

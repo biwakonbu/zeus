@@ -17,34 +17,6 @@ TASK SUMMARY
   In Progress: {{.TaskStats.InProgress}}
   Pending:     {{.TaskStats.Pending}}
 
-{{if .HasPrediction}}
-PREDICTIONS
------------
-  Estimated Completion: {{.Completion.EstimatedDate}}{{if .Completion.MarginDays}} (+/- {{.Completion.MarginDays}} days){{end}}
-  Average Velocity:     {{printf "%.1f" .Completion.AverageVelocity}} tasks/week
-  Confidence:           {{.Completion.ConfidenceLevel}}%
-{{end}}
-
-{{if .HasRisk}}
-RISK ASSESSMENT
----------------
-  Overall Risk Level: {{.Risk.OverallLevel}}
-  Risk Score:         {{.Risk.Score}}/100
-{{if .Risk.Factors}}
-  Factors:
-{{range .Risk.Factors}}    - {{.Name}}: {{.Description}} (Impact: {{.Impact}}/10)
-{{end}}{{end}}
-{{end}}
-
-{{if .HasVelocity}}
-VELOCITY TRENDS
----------------
-  Last 7 days:  {{.Velocity.Last7Days}} tasks completed
-  Last 14 days: {{.Velocity.Last14Days}} tasks completed
-  Last 30 days: {{.Velocity.Last30Days}} tasks completed
-  Trend:        {{.Velocity.Trend}}
-{{end}}
-
 {{if .Recommendations}}
 RECOMMENDATIONS
 ---------------
@@ -117,9 +89,6 @@ const HTMLTemplate = `<!DOCTYPE html>
         .health-good { color: var(--success-color); }
         .health-fair { color: var(--warning-color); }
         .health-poor { color: var(--danger-color); }
-        .risk-low { color: var(--success-color); }
-        .risk-medium { color: var(--warning-color); }
-        .risk-high { color: var(--danger-color); }
         .progress-bar {
             background: #e0e0e0;
             border-radius: 10px;
@@ -131,14 +100,6 @@ const HTMLTemplate = `<!DOCTYPE html>
             height: 100%;
             background: var(--success-color);
             transition: width 0.3s;
-        }
-        .factor-list { list-style: none; }
-        .factor-list li {
-            padding: 10px;
-            margin: 5px 0;
-            background: var(--background-color);
-            border-radius: 5px;
-            border-left: 4px solid var(--warning-color);
         }
         .recommendations li {
             padding: 8px 0;
@@ -188,74 +149,6 @@ const HTMLTemplate = `<!DOCTYPE html>
             {{end}}
         </div>
 
-        {{if .HasPrediction}}
-        <div class="card">
-            <h2>Predictions</h2>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="value" style="font-size: 1.5rem;">{{.Completion.EstimatedDate}}</div>
-                    <div class="label">Estimated Completion{{if .Completion.MarginDays}} (+/- {{.Completion.MarginDays}} days){{end}}</div>
-                </div>
-                <div class="stat-item">
-                    <div class="value">{{printf "%.1f" .Completion.AverageVelocity}}</div>
-                    <div class="label">Tasks/Week</div>
-                </div>
-                <div class="stat-item">
-                    <div class="value">{{.Completion.ConfidenceLevel}}%</div>
-                    <div class="label">Confidence</div>
-                </div>
-            </div>
-        </div>
-        {{end}}
-
-        {{if .HasRisk}}
-        <div class="card">
-            <h2>Risk Assessment</h2>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="value risk-{{.RiskClass}}">{{.Risk.OverallLevel}}</div>
-                    <div class="label">Risk Level</div>
-                </div>
-                <div class="stat-item">
-                    <div class="value">{{.Risk.Score}}/100</div>
-                    <div class="label">Risk Score</div>
-                </div>
-            </div>
-            {{if .Risk.Factors}}
-            <h3 style="margin-top: 20px; margin-bottom: 10px;">Risk Factors</h3>
-            <ul class="factor-list">
-                {{range .Risk.Factors}}
-                <li><strong>{{.Name}}</strong>: {{.Description}} (Impact: {{.Impact}}/10)</li>
-                {{end}}
-            </ul>
-            {{end}}
-        </div>
-        {{end}}
-
-        {{if .HasVelocity}}
-        <div class="card">
-            <h2>Velocity Trends</h2>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="value">{{.Velocity.Last7Days}}</div>
-                    <div class="label">Last 7 Days</div>
-                </div>
-                <div class="stat-item">
-                    <div class="value">{{.Velocity.Last14Days}}</div>
-                    <div class="label">Last 14 Days</div>
-                </div>
-                <div class="stat-item">
-                    <div class="value">{{.Velocity.Last30Days}}</div>
-                    <div class="label">Last 30 Days</div>
-                </div>
-                <div class="stat-item">
-                    <div class="value">{{.Velocity.Trend}}</div>
-                    <div class="label">Trend</div>
-                </div>
-            </div>
-        </div>
-        {{end}}
-
         {{if .Recommendations}}
         <div class="card">
             <h2>Recommendations</h2>
@@ -297,45 +190,6 @@ const MarkdownTemplate = `# Zeus Project Report
 ## Dependency Graph
 
 {{.GraphMermaid}}
-{{end}}
-
-{{if .HasPrediction}}
-## Predictions
-
-- **Estimated Completion:** {{.Completion.EstimatedDate}}{{if .Completion.MarginDays}} (+/- {{.Completion.MarginDays}} days){{end}}
-- **Average Velocity:** {{printf "%.1f" .Completion.AverageVelocity}} tasks/week
-- **Confidence:** {{.Completion.ConfidenceLevel}}%
-{{if not .Completion.HasSufficientData}}
-> Note: Limited historical data available. Predictions may be less accurate.
-{{end}}
-{{end}}
-
-{{if .HasRisk}}
-## Risk Assessment
-
-**Overall Risk Level:** {{.Risk.OverallLevel}}
-**Risk Score:** {{.Risk.Score}}/100
-
-{{if .Risk.Factors}}
-### Risk Factors
-
-| Factor | Description | Impact |
-|--------|-------------|--------|
-{{range .Risk.Factors}}| {{.Name}} | {{.Description}} | {{.Impact}}/10 |
-{{end}}
-{{end}}
-{{end}}
-
-{{if .HasVelocity}}
-## Velocity Trends
-
-| Period | Tasks Completed |
-|--------|-----------------|
-| Last 7 days | {{.Velocity.Last7Days}} |
-| Last 14 days | {{.Velocity.Last14Days}} |
-| Last 30 days | {{.Velocity.Last30Days}} |
-
-**Trend:** {{.Velocity.Trend}}
 {{end}}
 
 {{if .Recommendations}}

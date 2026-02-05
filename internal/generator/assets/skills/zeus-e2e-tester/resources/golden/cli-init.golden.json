@@ -23,7 +23,6 @@
     ".claude/agents/zeus-reviewer.md",
     ".claude/skills/zeus-suggest/SKILL.md",
     ".claude/skills/zeus-risk-analysis/SKILL.md",
-    ".claude/skills/zeus-wbs-design/SKILL.md",
     ".claude/skills/zeus-e2e-tester/SKILL.md"
   ],
   "zeus_yaml_schema": {

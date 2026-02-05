@@ -19,7 +19,13 @@
 
 <script lang="ts">
 	import { fn } from '@storybook/test';
-	import type { GraphNode, WBSGraphData } from '$lib/types/api';
+	import type { GraphNode, GraphEdge } from '$lib/types/api';
+
+	// グラフデータ型
+	interface GraphData {
+		nodes: GraphNode[];
+		edges: GraphEdge[];
+	}
 
 	// Action ハンドラー
 	const handleTaskSelect = fn();
@@ -34,8 +40,7 @@
 			status: 'completed',
 			priority: 'high',
 			assignee: 'alice',
-			dependencies: [],
-			progress: 100
+			dependencies: []
 		},
 		{
 			id: 'task-2',
@@ -44,8 +49,7 @@
 			status: 'completed',
 			priority: 'high',
 			assignee: 'bob',
-			dependencies: ['task-1'],
-			progress: 100
+			dependencies: ['task-1']
 		},
 		{
 			id: 'task-3',
@@ -54,8 +58,7 @@
 			status: 'in_progress',
 			priority: 'high',
 			assignee: 'alice',
-			dependencies: ['task-2'],
-			progress: 60
+			dependencies: ['task-2']
 		},
 		{
 			id: 'task-4',
@@ -64,8 +67,7 @@
 			status: 'pending',
 			priority: 'medium',
 			assignee: 'charlie',
-			dependencies: ['task-2'],
-			progress: 0
+			dependencies: ['task-2']
 		},
 		{
 			id: 'task-5',
@@ -74,8 +76,7 @@
 			status: 'blocked',
 			priority: 'high',
 			assignee: 'bob',
-			dependencies: ['task-3', 'task-4'],
-			progress: 0
+			dependencies: ['task-3', 'task-4']
 		}
 	];
 
@@ -89,8 +90,7 @@
 			status: 'completed',
 			priority: 'high',
 			assignee: 'alice',
-			dependencies: [],
-			progress: 100
+			dependencies: []
 		},
 		// レイヤー2
 		{
@@ -100,8 +100,7 @@
 			status: 'completed',
 			priority: 'high',
 			assignee: 'bob',
-			dependencies: ['t1'],
-			progress: 100
+			dependencies: ['t1']
 		},
 		{
 			id: 't3',
@@ -110,8 +109,7 @@
 			status: 'completed',
 			priority: 'medium',
 			assignee: 'charlie',
-			dependencies: ['t1'],
-			progress: 100
+			dependencies: ['t1']
 		},
 		// レイヤー3
 		{
@@ -121,8 +119,7 @@
 			status: 'completed',
 			priority: 'high',
 			assignee: 'alice',
-			dependencies: ['t2'],
-			progress: 100
+			dependencies: ['t2']
 		},
 		{
 			id: 't5',
@@ -131,8 +128,7 @@
 			status: 'in_progress',
 			priority: 'medium',
 			assignee: 'charlie',
-			dependencies: ['t2'],
-			progress: 75
+			dependencies: ['t2']
 		},
 		{
 			id: 't6',
@@ -141,8 +137,7 @@
 			status: 'completed',
 			priority: 'medium',
 			assignee: 'bob',
-			dependencies: ['t2', 't3'],
-			progress: 100
+			dependencies: ['t2', 't3']
 		},
 		// レイヤー4
 		{
@@ -152,8 +147,7 @@
 			status: 'in_progress',
 			priority: 'high',
 			assignee: 'alice',
-			dependencies: ['t4'],
-			progress: 45
+			dependencies: ['t4']
 		},
 		{
 			id: 't8',
@@ -162,8 +156,7 @@
 			status: 'pending',
 			priority: 'high',
 			assignee: 'charlie',
-			dependencies: ['t4', 't5'],
-			progress: 0
+			dependencies: ['t4', 't5']
 		},
 		{
 			id: 't9',
@@ -172,8 +165,7 @@
 			status: 'in_progress',
 			priority: 'medium',
 			assignee: 'bob',
-			dependencies: ['t6'],
-			progress: 80
+			dependencies: ['t6']
 		},
 		// レイヤー5
 		{
@@ -183,8 +175,7 @@
 			status: 'pending',
 			priority: 'high',
 			assignee: 'alice',
-			dependencies: ['t7', 't8'],
-			progress: 0
+			dependencies: ['t7', 't8']
 		},
 		{
 			id: 't11',
@@ -193,8 +184,7 @@
 			status: 'blocked',
 			priority: 'medium',
 			assignee: 'bob',
-			dependencies: ['t7'],
-			progress: 0
+			dependencies: ['t7']
 		},
 		// レイヤー6
 		{
@@ -204,8 +194,7 @@
 			status: 'pending',
 			priority: 'high',
 			assignee: 'bob',
-			dependencies: ['t10', 't9'],
-			progress: 0
+			dependencies: ['t10', 't9']
 		},
 		{
 			id: 't13',
@@ -214,8 +203,7 @@
 			status: 'pending',
 			priority: 'high',
 			assignee: 'charlie',
-			dependencies: ['t10'],
-			progress: 0
+			dependencies: ['t10']
 		},
 		// レイヤー7
 		{
@@ -225,8 +213,7 @@
 			status: 'pending',
 			priority: 'medium',
 			assignee: 'bob',
-			dependencies: ['t12', 't13'],
-			progress: 0
+			dependencies: ['t12', 't13']
 		},
 		// レイヤー8
 		{
@@ -236,16 +223,15 @@
 			status: 'pending',
 			priority: 'high',
 			assignee: 'alice',
-			dependencies: ['t14'],
-			progress: 0
+			dependencies: ['t14']
 		}
 	];
 
 	// 空のノード
 	const emptyNodes: GraphNode[] = [];
 
-	// GraphNode 配列を WBSGraphData に変換するヘルパー
-	function toGraphData(nodes: GraphNode[]): WBSGraphData {
+	// GraphNode 配列を GraphData に変換するヘルパー
+	function toGraphData(nodes: GraphNode[]): GraphData {
 		const edges = nodes.flatMap((node) =>
 			node.dependencies.map((dep) => ({ from: dep, to: node.id }))
 		);
@@ -331,11 +317,11 @@
 <!-- 全ステータスのノード -->
 <Story name="AllStatuses">
 	{@const allStatusNodes: GraphNode[] = [
-		{ id: 'completed-1', title: '完了タスク 1', node_type: 'task', status: 'completed', priority: 'high', assignee: 'alice', dependencies: [], progress: 100 },
-		{ id: 'completed-2', title: '完了タスク 2', node_type: 'task', status: 'completed', priority: 'medium', assignee: 'bob', dependencies: ['completed-1'], progress: 100 },
-		{ id: 'in_progress-1', title: '進行中タスク', node_type: 'task', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['completed-2'], progress: 50 },
-		{ id: 'pending-1', title: '未着手タスク', node_type: 'task', status: 'pending', priority: 'medium', assignee: 'alice', dependencies: ['completed-2'], progress: 0 },
-		{ id: 'blocked-1', title: 'ブロック中タスク', node_type: 'task', status: 'blocked', priority: 'high', assignee: 'bob', dependencies: ['in_progress-1', 'pending-1'], progress: 0 }
+		{ id: 'completed-1', title: '完了タスク 1', node_type: 'task', status: 'completed', priority: 'high', assignee: 'alice', dependencies: [] },
+		{ id: 'completed-2', title: '完了タスク 2', node_type: 'task', status: 'completed', priority: 'medium', assignee: 'bob', dependencies: ['completed-1'] },
+		{ id: 'in_progress-1', title: '進行中タスク', node_type: 'task', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['completed-2'] },
+		{ id: 'pending-1', title: '未着手タスク', node_type: 'task', status: 'pending', priority: 'medium', assignee: 'alice', dependencies: ['completed-2'] },
+		{ id: 'blocked-1', title: 'ブロック中タスク', node_type: 'task', status: 'blocked', priority: 'high', assignee: 'bob', dependencies: ['in_progress-1', 'pending-1'] }
 	]}
 	<div style="height: 500px; background: var(--bg-primary);">
 		<FactorioViewer
@@ -379,13 +365,7 @@
 					status: statuses[statusIdx],
 					priority: priorities[node % 3],
 					assignee: assignees[node % 5],
-					dependencies: deps,
-					progress:
-						statuses[statusIdx] === 'completed'
-							? 100
-							: statuses[statusIdx] === 'in_progress'
-								? Math.floor(Math.random() * 80) + 10
-								: 0
+					dependencies: deps
 				});
 			}
 		}
@@ -401,23 +381,23 @@
 	</div>
 </Story>
 
-<!-- WBS グラフ（階層表示） -->
+<!-- WBS グラフ（階層表示）- Note: WBS 機能削除後も node_type でタイプ分類は可能 -->
 <Story name="WBSGraph">
 	{@const wbsNodes: GraphNode[] = [
 		// Vision
-		{ id: 'vision-1', title: 'プロジェクト管理の革新', node_type: 'vision', status: 'in_progress', priority: 'high', dependencies: [], progress: 50 },
+		{ id: 'vision-1', title: 'プロジェクト管理の革新', node_type: 'vision', status: 'in_progress', priority: 'high', dependencies: [] },
 		// Objectives
-		{ id: 'obj-1', title: 'Phase 1: MVP 開発', node_type: 'objective', status: 'completed', priority: 'high', dependencies: ['vision-1'], progress: 100, wbs_code: '1.0' },
-		{ id: 'obj-2', title: 'Phase 2: 標準機能', node_type: 'objective', status: 'in_progress', priority: 'high', dependencies: ['vision-1'], progress: 60, wbs_code: '2.0' },
-		{ id: 'obj-3', title: 'Phase 3: AI 統合', node_type: 'objective', status: 'pending', priority: 'medium', dependencies: ['vision-1'], progress: 0, wbs_code: '3.0' },
+		{ id: 'obj-1', title: 'Phase 1: MVP 開発', node_type: 'objective', status: 'completed', priority: 'high', dependencies: ['vision-1'] },
+		{ id: 'obj-2', title: 'Phase 2: 標準機能', node_type: 'objective', status: 'in_progress', priority: 'high', dependencies: ['vision-1'] },
+		{ id: 'obj-3', title: 'Phase 3: AI 統合', node_type: 'objective', status: 'pending', priority: 'medium', dependencies: ['vision-1'] },
 		// Deliverables
-		{ id: 'del-1', title: 'CLI ツール', node_type: 'deliverable', status: 'completed', priority: 'high', assignee: 'alice', dependencies: ['obj-1'], progress: 100 },
-		{ id: 'del-2', title: 'ダッシュボード', node_type: 'deliverable', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['obj-2'], progress: 75 },
+		{ id: 'del-1', title: 'CLI ツール', node_type: 'deliverable', status: 'completed', priority: 'high', assignee: 'alice', dependencies: ['obj-1'] },
+		{ id: 'del-2', title: 'ダッシュボード', node_type: 'deliverable', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['obj-2'] },
 		// Tasks
-		{ id: 'task-1', title: 'CLI 基盤実装', node_type: 'task', status: 'completed', priority: 'high', assignee: 'alice', dependencies: ['del-1'], progress: 100 },
-		{ id: 'task-2', title: 'YAML パーサー', node_type: 'task', status: 'completed', priority: 'high', assignee: 'bob', dependencies: ['del-1'], progress: 100 },
-		{ id: 'task-3', title: 'UI 実装', node_type: 'task', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['del-2'], progress: 60 },
-		{ id: 'task-4', title: 'API 連携', node_type: 'task', status: 'pending', priority: 'medium', assignee: 'bob', dependencies: ['del-2'], progress: 0 }
+		{ id: 'task-1', title: 'CLI 基盤実装', node_type: 'task', status: 'completed', priority: 'high', assignee: 'alice', dependencies: ['del-1'] },
+		{ id: 'task-2', title: 'YAML パーサー', node_type: 'task', status: 'completed', priority: 'high', assignee: 'bob', dependencies: ['del-1'] },
+		{ id: 'task-3', title: 'UI 実装', node_type: 'task', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['del-2'] },
+		{ id: 'task-4', title: 'API 連携', node_type: 'task', status: 'pending', priority: 'medium', assignee: 'bob', dependencies: ['del-2'] }
 	]}
 	<div style="height: 700px; background: var(--bg-primary);">
 		<FactorioViewer

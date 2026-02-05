@@ -1,7 +1,7 @@
-// タスクノードの描画クラス（WBS 全ノードタイプ対応）
+// グラフノードの描画クラス（WBS 全ノードタイプ対応）
 import { Container, Graphics, Text } from 'pixi.js';
 import type { FederatedPointerEvent } from 'pixi.js';
-import type { EntityStatus, Priority, GraphNode, GraphNodeType } from '$lib/types/api';
+import type { GraphNode, GraphNodeType } from '$lib/types/api';
 
 // ノードサイズ定数
 const NODE_WIDTH = 200;
@@ -137,7 +137,7 @@ export enum LODLevel {
 }
 
 /**
- * TaskNode - WBS ノード（Vision, Objective, Deliverable, Task）の視覚的表現
+ * GraphNodeView - WBS ノード（Vision, Objective, Deliverable, Task）の視覚的表現
  *
  * 責務:
  * - ノードのグラフィカル表示
@@ -145,7 +145,7 @@ export enum LODLevel {
  * - インタラクション（クリック、ホバー）
  * - LOD（詳細度）に応じた表示切り替え
  */
-export class TaskNode extends Container {
+export class GraphNodeView extends Container {
 	private graphNode: GraphNode;
 	private nodeType: GraphNodeType;
 	private background: Graphics;
@@ -164,11 +164,11 @@ export class TaskNode extends Container {
 	private currentLOD: LODLevel = LODLevel.Micro;
 
 	// イベントコールバック
-	private onClickCallback?: (node: TaskNode, event?: FederatedPointerEvent) => void;
-	private onHoverCallback?: (node: TaskNode, isHovered: boolean) => void;
-	private onContextMenuCallback?: (node: TaskNode, event: FederatedPointerEvent) => void;
+	private onClickCallback?: (node: GraphNodeView, event?: FederatedPointerEvent) => void;
+	private onHoverCallback?: (node: GraphNodeView, isHovered: boolean) => void;
+	private onContextMenuCallback?: (node: GraphNodeView, event: FederatedPointerEvent) => void;
 
-	// 進捗率（0-100）
+	// 進捗率（0-100）- ステータスから推定
 	private progress: number;
 
 	// クリティカルパス・スラック情報
@@ -183,8 +183,8 @@ export class TaskNode extends Container {
 
 		this.graphNode = data;
 		this.nodeType = this.graphNode.node_type;
-		this.progress =
-			this.graphNode.progress ?? this.estimateProgressFromStatus(this.graphNode.status);
+		// 進捗率はステータスから推定（progress フィールドは削除済み）
+		this.progress = this.estimateProgressFromStatus(this.graphNode.status);
 
 		// コンポーネント初期化
 		this.background = new Graphics();
@@ -242,10 +242,10 @@ export class TaskNode extends Container {
 		this.on('pointerout', () => this.handleHover(false));
 		this.on('pointertap', (e: FederatedPointerEvent) => this.handleClick(e));
 		this.on('pointerdown', (e: FederatedPointerEvent) => {
-			console.log('[TaskNode] pointerdown event, button:', e.button);
+			console.log('[GraphNodeView] pointerdown event, button:', e.button);
 			// 右クリック（button === 2）を検出
 			if (e.button === 2) {
-				console.log('[TaskNode] Right-click detected!');
+				console.log('[GraphNodeView] Right-click detected!');
 				this.handleContextMenu(e);
 			}
 		});
@@ -526,8 +526,8 @@ export class TaskNode extends Container {
 
 		this.idText.visible = true;
 
-		// ID テキスト（上部）- WBS コードがあれば優先表示
-		const displayId = this.graphNode.wbs_code || this.graphNode.id;
+		// ID テキスト（上部）
+		const displayId = this.graphNode.id;
 		const maxIdChars = Math.floor(contentWidth / 7); // 等幅フォントで概算
 		const shortId =
 			displayId.length > maxIdChars ? displayId.substring(0, maxIdChars - 2) + '..' : displayId;
@@ -815,8 +815,8 @@ export class TaskNode extends Container {
 	updateData(data: GraphNode): void {
 		this.graphNode = data;
 		this.nodeType = this.graphNode.node_type;
-		this.progress =
-			this.graphNode.progress ?? this.estimateProgressFromStatus(this.graphNode.status);
+		// 進捗率はステータスから推定（progress フィールドは削除済み）
+		this.progress = this.estimateProgressFromStatus(this.graphNode.status);
 		this.draw();
 	}
 
@@ -898,14 +898,6 @@ export class TaskNode extends Container {
 	}
 
 	/**
-	 * 後方互換: タスクIDを取得
-	 * @deprecated getNodeId を使用してください
-	 */
-	getTaskId(): string {
-		return this.graphNode.id;
-	}
-
-	/**
 	 * GraphNode データを取得
 	 */
 	getGraphNode(): GraphNode {
@@ -936,15 +928,18 @@ export class TaskNode extends Container {
 	/**
 	 * イベントリスナーを設定
 	 */
-	onClick(callback: (node: TaskNode, event?: FederatedPointerEvent) => void): void {
+	onClick(callback: (node: GraphNodeView, event?: FederatedPointerEvent) => void): void {
 		this.onClickCallback = callback;
 	}
 
-	onHover(callback: (node: TaskNode, isHovered: boolean) => void): void {
+	onHover(callback: (node: GraphNodeView, isHovered: boolean) => void): void {
 		this.onHoverCallback = callback;
 	}
 
-	onContextMenu(callback: (node: TaskNode, event: FederatedPointerEvent) => void): void {
+	onContextMenu(callback: (node: GraphNodeView, event: FederatedPointerEvent) => void): void {
 		this.onContextMenuCallback = callback;
 	}
 }
+
+// 後方互換性のためのエイリアス
+export { GraphNodeView as TaskNode };

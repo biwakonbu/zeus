@@ -364,42 +364,8 @@ func (d *Doctor) checkLint(ctx context.Context) []CheckResult {
 		})
 	}
 
-	// 警告を分類（status/progress 不整合とそれ以外）
-	var statusWarnings []*core.LintWarning
-	var otherWarnings []*core.LintWarning
-	for _, warn := range result.Warnings {
-		if warn.Field == "status" {
-			statusWarnings = append(statusWarnings, warn)
-		} else {
-			otherWarnings = append(otherWarnings, warn)
-		}
-	}
-
-	// status/progress 整合性警告
-	if len(statusWarnings) > 0 {
-		for _, warn := range statusWarnings {
-			checks = append(checks, CheckResult{
-				Check:   "lint_status_progress",
-				Status:  "warn",
-				Message: warn.Warning(),
-				Fixable: true, // status/progress 不整合は自動修復可能
-				FixFunc: func(ctx context.Context) error {
-					_, err := d.lintChecker.FixStatusProgressConsistency(ctx)
-					return err
-				},
-			})
-		}
-	} else {
-		checks = append(checks, CheckResult{
-			Check:   "lint_status_progress",
-			Status:  "pass",
-			Message: "All status/progress values are consistent",
-			Fixable: false,
-		})
-	}
-
 	// その他の警告（ディレクトリ読み取りエラーなど）
-	for _, warn := range otherWarnings {
+	for _, warn := range result.Warnings {
 		checks = append(checks, CheckResult{
 			Check:   "lint_directory",
 			Status:  "warn",

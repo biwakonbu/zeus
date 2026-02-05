@@ -72,10 +72,7 @@ func TestObjectiveManagement(t *testing.T) {
 	runCommand(t, dir, "init")
 
 	// Objective 追加
-	result := runCommand(t, dir, "add", "objective", "認証システム実装",
-		"--wbs", "1.1",
-		"--due", "2026-02-28",
-		"--progress", "0")
+	result := runCommand(t, dir, "add", "objective", "認証システム実装")
 	assertSuccess(t, result)
 	assertOutputContains(t, result, "Added objective")
 
@@ -88,8 +85,7 @@ func TestObjectiveManagement(t *testing.T) {
 	assertOutputContains(t, result, "1 items")
 
 	// 2つ目の Objective 追加
-	result = runCommand(t, dir, "add", "objective", "API設計",
-		"--wbs", "1.2")
+	result = runCommand(t, dir, "add", "objective", "API設計")
 	assertSuccess(t, result)
 
 	result = runCommand(t, dir, "list", "objectives")
@@ -106,8 +102,7 @@ func TestObjectiveHierarchy(t *testing.T) {
 	runCommand(t, dir, "init")
 
 	// 親 Objective 追加
-	result := runCommand(t, dir, "add", "objective", "システム開発",
-		"--wbs", "1.0")
+	result := runCommand(t, dir, "add", "objective", "システム開発")
 	assertSuccess(t, result)
 	parentID := extractEntityID(t, result, "obj-")
 	if parentID == "" {
@@ -116,8 +111,7 @@ func TestObjectiveHierarchy(t *testing.T) {
 
 	// 子 Objective 追加
 	result = runCommand(t, dir, "add", "objective", "バックエンド開発",
-		"--parent", parentID,
-		"--wbs", "1.1")
+		"--parent", parentID)
 	assertSuccess(t, result)
 	assertOutputContains(t, result, "Added objective")
 
@@ -136,8 +130,7 @@ func TestObjectiveCyclicReference(t *testing.T) {
 	runCommand(t, dir, "init")
 
 	// 親 Objective を作成
-	result := runCommand(t, dir, "add", "objective", "親Objective",
-		"--wbs", "1.0")
+	result := runCommand(t, dir, "add", "objective", "親Objective")
 	assertSuccess(t, result)
 	parentID := extractEntityID(t, result, "obj-")
 	if parentID == "" {
@@ -146,8 +139,7 @@ func TestObjectiveCyclicReference(t *testing.T) {
 
 	// 子 Objective を作成（親を参照）
 	result = runCommand(t, dir, "add", "objective", "子Objective",
-		"--parent", parentID,
-		"--wbs", "1.1")
+		"--parent", parentID)
 	assertSuccess(t, result)
 	childID := extractEntityID(t, result, "obj-")
 	if childID == "" {
@@ -168,8 +160,7 @@ func TestDeliverableManagement(t *testing.T) {
 	// 基本プロジェクトセットアップ（Vision + Objective）
 	runCommand(t, dir, "init")
 	runCommand(t, dir, "add", "vision", "テストビジョン")
-	result := runCommand(t, dir, "add", "objective", "Phase 1",
-		"--wbs", "1.0")
+	result := runCommand(t, dir, "add", "objective", "Phase 1")
 	assertSuccess(t, result)
 	objID := extractEntityID(t, result, "obj-")
 	if objID == "" {

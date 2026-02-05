@@ -260,7 +260,7 @@ func (e *FileNotFoundError) Error() string {
 // matchPattern は簡易的なパターンマッチング
 func matchPattern(pattern, path string) bool {
 	// 簡易実装: * のみサポート
-	// 例: "tasks/*.yaml" は "tasks/active.yaml" にマッチ
+	// 例: "activities/*.yaml" は "activities/act-001.yaml" にマッチ
 	if len(pattern) == 0 {
 		return len(path) == 0
 	}

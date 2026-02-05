@@ -29,7 +29,6 @@ var graphCmd = &cobra.Command{
 
 モード:
   (デフォルト)   - タスク依存関係グラフ
-  --wbs         - 10概念モデル全体のWBS階層を表示
   --unified     - 統合グラフ（Activity, UseCase, Deliverable, Objective）
 
 フィルタオプション（--unified モード時のみ）:
@@ -43,7 +42,6 @@ var graphCmd = &cobra.Command{
   zeus graph                           # TEXT形式で標準出力
   zeus graph --format=dot              # DOT形式で標準出力
   zeus graph -f mermaid -o deps.md     # Mermaid形式でファイル出力
-  zeus graph --wbs                     # WBS階層を表示
   zeus graph --unified                 # 統合グラフを表示
   zeus graph --unified --focus act-001 # act-001 を中心に表示
   zeus graph --unified --types activity,deliverable  # Activity と Deliverable のみ`,
@@ -53,7 +51,6 @@ var graphCmd = &cobra.Command{
 var (
 	graphFormat       string
 	graphOutput       string
-	graphWBS          bool
 	graphUnified      bool
 	graphFocus        string
 	graphDepth        int
@@ -66,7 +63,6 @@ func init() {
 	rootCmd.AddCommand(graphCmd)
 	graphCmd.Flags().StringVarP(&graphFormat, "format", "f", "text", "出力形式 (text|dot|mermaid)")
 	graphCmd.Flags().StringVarP(&graphOutput, "output", "o", "", "出力ファイル（省略時は標準出力）")
-	graphCmd.Flags().BoolVar(&graphWBS, "wbs", false, "10概念モデル全体のWBS階層を表示")
 	graphCmd.Flags().BoolVar(&graphUnified, "unified", false, "統合グラフ（Activity, UseCase, Deliverable, Objective）を表示")
 	graphCmd.Flags().StringVar(&graphFocus, "focus", "", "フォーカスするエンティティID")
 	graphCmd.Flags().IntVar(&graphDepth, "depth", 0, "フォーカスからの深さ（0=無制限）")
@@ -82,11 +78,6 @@ func runGraph(cmd *cobra.Command, args []string) error {
 	// --unified フラグ: 統合グラフを表示
 	if graphUnified {
 		return runUnifiedGraph(ctx, zeus)
-	}
-
-	// --wbs フラグ: WBS 階層を表示
-	if graphWBS {
-		return runWBSGraph(ctx, zeus)
 	}
 
 	// 通常モード: タスク依存関係グラフを表示
@@ -222,51 +213,6 @@ func runUnifiedGraph(ctx context.Context, zeus *core.Zeus) error {
 	fmt.Printf("  Total Edges: %d\n", graph.Stats.TotalEdges)
 	if graph.Stats.TotalActivities > 0 {
 		fmt.Printf("  Activities: %d/%d completed\n", graph.Stats.CompletedActivities, graph.Stats.TotalActivities)
-	}
-
-	return nil
-}
-
-// runWBSGraph は WBS 階層グラフを出力
-func runWBSGraph(ctx context.Context, zeus *core.Zeus) error {
-	wbsTree, err := zeus.BuildWBSGraph(ctx)
-	if err != nil {
-		return fmt.Errorf("WBS構築失敗: %w", err)
-	}
-
-	// ノードがない場合
-	if wbsTree.Stats.TotalNodes == 0 {
-		cyan := color.New(color.FgCyan).SprintFunc()
-		fmt.Println(cyan("Zeus WBS Structure"))
-		fmt.Println("============================================================")
-		fmt.Println("[INFO] エンティティがありません。")
-		fmt.Println("============================================================")
-		return nil
-	}
-
-	// 形式に応じて出力を生成
-	var output string
-	switch graphFormat {
-	case "text":
-		output = wbsTree.ToText()
-	case "mermaid":
-		output = wbsTree.ToMermaid()
-	case "dot":
-		// WBS は DOT 形式をサポートしていないため text にフォールバック
-		fmt.Println("[INFO] WBS は DOT 形式をサポートしていません。TEXT 形式で出力します。")
-		output = wbsTree.ToText()
-	default:
-		return fmt.Errorf("不明な出力形式: %s (text, mermaid のいずれかを指定してください)", graphFormat)
-	}
-
-	// 出力先に応じて出力
-	if graphOutput != "" {
-		if err := os.WriteFile(graphOutput, []byte(output), 0644); err != nil {
-			return fmt.Errorf("ファイル出力失敗: %w", err)
-		}
-		fmt.Printf("[SUCCESS] WBS を %s に出力しました。\n", graphOutput)
-	} else {
-		fmt.Print(output)
 	}
 
 	return nil

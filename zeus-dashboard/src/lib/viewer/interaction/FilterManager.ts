@@ -48,13 +48,6 @@ export class FilterManager {
 	}
 
 	/**
-	 * @deprecated setNodes を使用してください
-	 */
-	setTasks(nodes: GraphNode[]): void {
-		this.setNodes(nodes);
-	}
-
-	/**
 	 * フィルター条件を設定
 	 */
 	setCriteria(criteria: FilterCriteria): void {
@@ -158,13 +151,6 @@ export class FilterManager {
 	 */
 	getVisibleNodes(): GraphNode[] {
 		return this.nodes.filter((n) => this.visibleIds.has(n.id));
-	}
-
-	/**
-	 * @deprecated getVisibleNodes を使用してください
-	 */
-	getVisibleTasks(): GraphNode[] {
-		return this.getVisibleNodes();
 	}
 
 	/**

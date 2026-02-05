@@ -69,19 +69,6 @@ type ReportData struct {
 	InProgressPercent int
 	PendingPercent    int
 
-	// 予測
-	HasPrediction bool
-	Completion    *analysis.CompletionPrediction
-
-	// リスク
-	HasRisk   bool
-	Risk      *analysis.RiskPrediction
-	RiskClass string
-
-	// ベロシティ
-	HasVelocity bool
-	Velocity    *analysis.VelocityReport
-
 	// グラフ
 	HasGraph     bool
 	GraphMermaid string
@@ -180,23 +167,6 @@ func (g *Generator) buildReportData() *ReportData {
 		data.PendingPercent = int(float64(g.state.Summary.Pending) / total * 100)
 	}
 
-	// 分析結果を追加
-	if g.analysis != nil {
-		if g.analysis.Completion != nil {
-			data.HasPrediction = true
-			data.Completion = g.analysis.Completion
-		}
-		if g.analysis.Risk != nil {
-			data.HasRisk = true
-			data.Risk = g.analysis.Risk
-			data.RiskClass = strings.ToLower(string(g.analysis.Risk.OverallLevel))
-		}
-		if g.analysis.Velocity != nil {
-			data.HasVelocity = true
-			data.Velocity = g.analysis.Velocity
-		}
-	}
-
 	// 推奨事項を生成
 	data.Recommendations = g.generateRecommendations()
 
@@ -215,26 +185,6 @@ func (g *Generator) generateRecommendations() []string {
 	case "Fair":
 		recommendations = append(recommendations,
 			"Project health is fair. Focus on completing in-progress tasks.")
-	}
-
-	// リスク要因に基づく推奨
-	if g.analysis != nil && g.analysis.Risk != nil {
-		for _, factor := range g.analysis.Risk.Factors {
-			switch factor.Name {
-			case "Blocked Tasks":
-				recommendations = append(recommendations,
-					"Resolve blocked tasks to improve project flow.")
-			case "High WIP":
-				recommendations = append(recommendations,
-					"Consider limiting work in progress to improve focus and throughput.")
-			case "Low Completion Rate":
-				recommendations = append(recommendations,
-					"Break down large tasks into smaller, manageable pieces.")
-			case "Stalled Progress":
-				recommendations = append(recommendations,
-					"Review team capacity and identify blockers preventing progress.")
-			}
-		}
 	}
 
 	// 保留タスクが多い場合

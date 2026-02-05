@@ -1,4 +1,4 @@
-// タスク間のエッジ（依存関係）描画クラス
+// ノード間のエッジ（依存関係）描画クラス
 // 2層構造（外側縁取り → コア）でシンプルに視認性を確保
 import { Graphics } from 'pixi.js';
 import { EDGE_COLORS, EDGE_WIDTHS } from '$lib/viewer/shared/constants';
@@ -20,14 +20,14 @@ const ARROW_SIZE = 8;
 const ARROW_ANGLE = Math.PI / 6; // 30度
 
 /**
- * TaskEdge - タスク間の依存関係を視覚化
+ * GraphEdge - ノード間の依存関係を視覚化
  *
  * 責務:
  * - 2つのノード間のエッジを描画
  * - エッジタイプに応じたスタイリング
  * - 曲線パスの計算（交差を減らす）
  */
-export class TaskEdge extends Graphics {
+export class GraphEdge extends Graphics {
 	private fromId: string;
 	private toId: string;
 	private edgeType: EdgeType = EdgeType.Normal;
@@ -191,28 +191,31 @@ export class TaskEdge extends Graphics {
 	 * このエッジのキーを取得
 	 */
 	getKey(): string {
-		return TaskEdge.createKey(this.fromId, this.toId);
+		return GraphEdge.createKey(this.fromId, this.toId);
 	}
 }
 
+// 後方互換性のためのエイリアス
+export { GraphEdge as TaskEdge };
+
 /**
- * エッジファクトリー - 複数のエッジを効率的に管理
+ * EdgeFactory - 複数のエッジを効率的に管理
  * ノード→エッジのインデックスにより O(1) でエッジを取得可能
  */
 export class EdgeFactory {
-	private edges: Map<string, TaskEdge> = new Map();
+	private edges: Map<string, GraphEdge> = new Map();
 	// ノードID → 関連するエッジキーのセット（高速検索用インデックス）
 	private nodeToEdges: Map<string, Set<string>> = new Map();
 
 	/**
 	 * エッジを作成または取得
 	 */
-	getOrCreate(fromId: string, toId: string): TaskEdge {
-		const key = TaskEdge.createKey(fromId, toId);
+	getOrCreate(fromId: string, toId: string): GraphEdge {
+		const key = GraphEdge.createKey(fromId, toId);
 
 		let edge = this.edges.get(key);
 		if (!edge) {
-			edge = new TaskEdge(fromId, toId);
+			edge = new GraphEdge(fromId, toId);
 			this.edges.set(key, edge);
 
 			// インデックスを更新
@@ -251,8 +254,8 @@ export class EdgeFactory {
 	/**
 	 * エッジを取得
 	 */
-	get(fromId: string, toId: string): TaskEdge | undefined {
-		const key = TaskEdge.createKey(fromId, toId);
+	get(fromId: string, toId: string): GraphEdge | undefined {
+		const key = GraphEdge.createKey(fromId, toId);
 		return this.edges.get(key);
 	}
 
@@ -260,7 +263,7 @@ export class EdgeFactory {
 	 * エッジを削除
 	 */
 	remove(fromId: string, toId: string): boolean {
-		const key = TaskEdge.createKey(fromId, toId);
+		const key = GraphEdge.createKey(fromId, toId);
 		const edge = this.edges.get(key);
 		if (edge) {
 			// インデックスから削除
@@ -277,7 +280,7 @@ export class EdgeFactory {
 	/**
 	 * 全エッジを取得
 	 */
-	getAll(): TaskEdge[] {
+	getAll(): GraphEdge[] {
 		return Array.from(this.edges.values());
 	}
 
@@ -295,11 +298,11 @@ export class EdgeFactory {
 	/**
 	 * ノードに関連する全エッジを取得（O(1) インデックス検索）
 	 */
-	getEdgesForNode(nodeId: string): TaskEdge[] {
+	getEdgesForNode(nodeId: string): GraphEdge[] {
 		const edgeKeys = this.nodeToEdges.get(nodeId);
 		if (!edgeKeys) return [];
 
-		const result: TaskEdge[] = [];
+		const result: GraphEdge[] = [];
 		for (const key of edgeKeys) {
 			const edge = this.edges.get(key);
 			if (edge) {

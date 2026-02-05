@@ -37,7 +37,6 @@ func runUpdateClaude(cmd *cobra.Command, args []string) error {
 	fmt.Println("    .claude/agents/zeus-reviewer.md")
 	fmt.Println("    .claude/skills/zeus-suggest/SKILL.md")
 	fmt.Println("    .claude/skills/zeus-risk-analysis/SKILL.md")
-	fmt.Println("    .claude/skills/zeus-wbs-design/SKILL.md")
 	fmt.Println("    .claude/skills/zeus-e2e-tester/SKILL.md")
 
 	return nil

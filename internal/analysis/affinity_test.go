@@ -200,8 +200,8 @@ func TestAffinityCalculator_ParentChildEdges(t *testing.T) {
 	// 親子関係のエッジを検索
 	parentChildEdges := 0
 	for _, edge := range result.Edges {
-		for _, t := range edge.Types {
-			if t == AffinityParentChild {
+		for _, et := range edge.Types {
+			if et == AffinityParentChild {
 				parentChildEdges++
 				break
 			}
@@ -232,8 +232,8 @@ func TestAffinityCalculator_TaskParentChildEdges(t *testing.T) {
 	// 親子関係のエッジをカウント
 	parentChildEdges := 0
 	for _, edge := range result.Edges {
-		for _, t := range edge.Types {
-			if t == AffinityParentChild {
+		for _, et := range edge.Types {
+			if et == AffinityParentChild {
 				parentChildEdges++
 				break
 			}
@@ -324,39 +324,7 @@ func TestAffinityCalculator_SiblingEdges_Deliverables(t *testing.T) {
 	}
 }
 
-// ===== WBS 隣接関係テスト =====
-
-func TestAffinityCalculator_WBSAdjacentEdges(t *testing.T) {
-	tasks := []TaskInfo{
-		{ID: "task-001", Title: "タスク1", WBSCode: "1.1"},
-		{ID: "task-002", Title: "タスク2", WBSCode: "1.2"},
-		{ID: "task-003", Title: "タスク3", WBSCode: "1.3"},
-	}
-
-	calc := NewAffinityCalculator(VisionInfo{}, nil, nil, tasks, nil, nil)
-	ctx := context.Background()
-
-	result, err := calc.Calculate(ctx)
-	if err != nil {
-		t.Fatalf("Calculate failed: %v", err)
-	}
-
-	// WBS隣接関係のエッジをカウント
-	wbsAdjacentEdges := 0
-	for _, edge := range result.Edges {
-		for _, t := range edge.Types {
-			if t == AffinityWBSAdjacent {
-				wbsAdjacentEdges++
-				break
-			}
-		}
-	}
-
-	// 1.1-1.2 と 1.2-1.3 の隣接関係
-	if wbsAdjacentEdges < 2 {
-		t.Errorf("expected at least 2 WBS adjacent edges, got %d", wbsAdjacentEdges)
-	}
-}
+// Note: WBS 隣接関係テストは WBS 機能削除に伴い削除
 
 // ===== 参照関係テスト =====
 
@@ -636,7 +604,6 @@ func TestAffinityType_String(t *testing.T) {
 	}{
 		{AffinityParentChild, "parent-child"},
 		{AffinitySibling, "sibling"},
-		{AffinityWBSAdjacent, "wbs-adjacent"},
 		{AffinityReference, "reference"},
 		{AffinityCategory, "category"},
 	}
@@ -686,10 +653,10 @@ func TestAffinityCalculator_ComplexScenario(t *testing.T) {
 	}
 
 	objectives := []ObjectiveInfo{
-		{ID: "obj-001", Title: "目標1", WBSCode: "1"},
-		{ID: "obj-002", Title: "目標2", WBSCode: "2"},
-		{ID: "obj-003", Title: "子目標1-1", ParentID: "obj-001", WBSCode: "1.1"},
-		{ID: "obj-004", Title: "子目標1-2", ParentID: "obj-001", WBSCode: "1.2"},
+		{ID: "obj-001", Title: "目標1"},
+		{ID: "obj-002", Title: "目標2"},
+		{ID: "obj-003", Title: "子目標1-1", ParentID: "obj-001"},
+		{ID: "obj-004", Title: "子目標1-2", ParentID: "obj-001"},
 	}
 
 	deliverables := []DeliverableInfo{
@@ -698,9 +665,9 @@ func TestAffinityCalculator_ComplexScenario(t *testing.T) {
 	}
 
 	tasks := []TaskInfo{
-		{ID: "task-001", Title: "タスク1", WBSCode: "1.1.1"},
-		{ID: "task-002", Title: "タスク2", WBSCode: "1.1.2", ParentID: "task-001"},
-		{ID: "task-003", Title: "タスク3", WBSCode: "1.2.1"},
+		{ID: "task-001", Title: "タスク1"},
+		{ID: "task-002", Title: "タスク2", ParentID: "task-001"},
+		{ID: "task-003", Title: "タスク3"},
 	}
 
 	quality := []QualityInfo{
@@ -727,8 +694,8 @@ func TestAffinityCalculator_ComplexScenario(t *testing.T) {
 	// 様々なタイプのエッジが生成されていることを確認
 	edgeTypes := make(map[AffinityType]int)
 	for _, edge := range result.Edges {
-		for _, t := range edge.Types {
-			edgeTypes[t]++
+		for _, et := range edge.Types {
+			edgeTypes[et]++
 		}
 	}
 

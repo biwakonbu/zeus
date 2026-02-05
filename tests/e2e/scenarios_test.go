@@ -250,11 +250,6 @@ func TestAnalysisFlow(t *testing.T) {
 	result := runCommand(t, dir, "graph")
 	assertSuccess(t, result)
 
-	// predict
-	result = runCommand(t, dir, "predict")
-	assertSuccess(t, result)
-	assertOutputContains(t, result, "Zeus Prediction Analysis")
-
 	// report
 	result = runCommand(t, dir, "report")
 	assertSuccess(t, result)
@@ -275,25 +270,6 @@ func TestGraphFormats(t *testing.T) {
 			runCommand(t, dir, "add", "activity", "Activity 1")
 
 			result := runCommand(t, dir, "graph", "--format="+format)
-			assertSuccess(t, result)
-		})
-	}
-}
-
-// TestPredictTypes は予測の各タイプをテストする
-func TestPredictTypes(t *testing.T) {
-	types := []string{"completion", "risk", "velocity", "all"}
-
-	for _, predType := range types {
-		predType := predType
-		t.Run(predType, func(t *testing.T) {
-			t.Parallel()
-			dir := setupTempDir(t)
-			defer cleanupTempDir(t, dir)
-
-			runCommand(t, dir, "init")
-
-			result := runCommand(t, dir, "predict", predType)
 			assertSuccess(t, result)
 		})
 	}
@@ -535,18 +511,6 @@ func TestInvalidReportFormat(t *testing.T) {
 	assertFailure(t, result)
 }
 
-// TestInvalidPredictType は不正な予測タイプをテストする
-func TestInvalidPredictType(t *testing.T) {
-	t.Parallel()
-	dir := setupTempDir(t)
-	defer cleanupTempDir(t, dir)
-
-	runCommand(t, dir, "init")
-
-	result := runCommand(t, dir, "predict", "invalid")
-	assertFailure(t, result)
-}
-
 // =============================================================================
 // エッジケース
 // =============================================================================
@@ -565,9 +529,6 @@ func TestEmptyProject(t *testing.T) {
 	assertOutputContains(t, result, "0 items")
 
 	result = runCommand(t, dir, "graph")
-	assertSuccess(t, result)
-
-	result = runCommand(t, dir, "predict")
 	assertSuccess(t, result)
 
 	result = runCommand(t, dir, "report")

@@ -115,7 +115,6 @@ func TestDeliverableHandlerAddWithOptions(t *testing.T) {
 		WithDeliverableObjective(objResult.ID),
 		WithDeliverableFormat(DeliverableFormatDocument),
 		WithDeliverableStatus(DeliverableStatusInProgress),
-		WithDeliverableProgress(50),
 		WithDeliverableAcceptanceCriteria([]string{"全エンドポイントを網羅", "レスポンス形式を定義"}),
 		WithDeliverableOwner("test-user"),
 		WithDeliverableTags([]string{"docs", "api"}),
@@ -145,10 +144,6 @@ func TestDeliverableHandlerAddWithOptions(t *testing.T) {
 
 	if del.Status != DeliverableStatusInProgress {
 		t.Errorf("expected status 'in_progress', got %q", del.Status)
-	}
-
-	if del.Progress != 50 {
-		t.Errorf("expected progress 50, got %d", del.Progress)
 	}
 
 	if len(del.AcceptanceCriteria) != 2 {
@@ -342,7 +337,6 @@ func TestDeliverableHandlerUpdate(t *testing.T) {
 	// 更新
 	del.Title = "Updated Title"
 	del.Status = DeliverableStatusCompleted
-	del.Progress = 100
 	err = handler.Update(ctx, result.ID, del)
 	if err != nil {
 		t.Fatalf("Update failed: %v", err)
@@ -361,10 +355,6 @@ func TestDeliverableHandlerUpdate(t *testing.T) {
 
 	if updated.Status != DeliverableStatusCompleted {
 		t.Errorf("expected status 'completed', got %q", updated.Status)
-	}
-
-	if updated.Progress != 100 {
-		t.Errorf("expected progress 100, got %d", updated.Progress)
 	}
 }
 

@@ -19,12 +19,6 @@ Zeus プロジェクト（{{.ProjectName}}）の Risk, Problem, Assumption エ�
 # Risk エンティティ一覧
 zeus list risks
 
-# リスク予測分析
-zeus predict risk
-
-# 全予測分析
-zeus predict all
-
 # 参照整合性チェック
 zeus doctor
 
@@ -113,10 +107,9 @@ zeus add assumption "前提条件" \
 - 孤立エンティティ
 - 参照先不明
 
-### WBS・タイムラインリスク
-- クリティカルパス上の遅延
+### 依存関係リスク
 - 依存関係のボトルネック
-- 期限超過 Activity の累積
+- ブロックされた Activity の累積
 
 ## 対策優先度マトリクス
 
@@ -144,27 +137,22 @@ zeus list risks
 zeus list problems
 zeus list assumptions
 
-# 4. リスク分析
-zeus predict risk
-
-# 5. 対策提案取得
+# 4. 対策提案取得
 zeus suggest --impact high
 
-# 6. 対策適用
+# 5. 対策適用
 zeus apply <suggestion-id>
 ```
 
 ## 分析結果の活用
 
 1. `zeus list risks` でリスク一覧確認
-2. `zeus predict risk` でリスクスコア分析
-3. `zeus doctor` で参照整合性チェック
-4. `zeus graph` で依存関係を可視化
-5. `zeus dashboard` でリアルタイム監視
-6. `zeus suggest` で対策提案を取得
-7. `zeus apply <id>` で対策を適用
+2. `zeus doctor` で参照整合性チェック
+3. `zeus graph` で依存関係を可視化
+4. `zeus dashboard` でリアルタイム監視
+5. `zeus suggest` で対策提案を取得
+6. `zeus apply <id>` で対策を適用
 
 ## 関連スキル
 
 - zeus-suggest - 提案生成
-- zeus-wbs-design - WBS 階層設計

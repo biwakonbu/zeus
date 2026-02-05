@@ -105,7 +105,6 @@ func (b *UnifiedGraphBuilder) buildNodes(graph *UnifiedGraph) {
 			Type:     EntityTypeActivity,
 			Title:    a.Title,
 			Status:   a.Status,
-			Progress: a.Progress,
 			Priority: a.Priority,
 			Assignee: a.Assignee,
 			Mode:     a.Mode,
@@ -135,7 +134,6 @@ func (b *UnifiedGraphBuilder) buildNodes(graph *UnifiedGraph) {
 			Type:     EntityTypeDeliverable,
 			Title:    d.Title,
 			Status:   d.Status,
-			Progress: d.Progress,
 			Parents:  []string{},
 			Children: []string{},
 		}
@@ -149,7 +147,6 @@ func (b *UnifiedGraphBuilder) buildNodes(graph *UnifiedGraph) {
 			Type:     EntityTypeObjective,
 			Title:    o.Title,
 			Status:   o.Status,
-			Progress: o.Progress,
 			Parents:  []string{},
 			Children: []string{},
 		}
@@ -284,7 +281,7 @@ func (b *UnifiedGraphBuilder) applyFilter(graph *UnifiedGraph) {
 
 		// 完了済みフィルタ
 		if b.filter.HideCompleted {
-			if node.Status == "completed" || node.Progress == 100 {
+			if node.Status == "completed" {
 				toRemove[id] = true
 				continue
 			}
@@ -528,7 +525,7 @@ func (b *UnifiedGraphBuilder) calculateStats(graph *UnifiedGraph) {
 		stats.NodesByType[node.Type]++
 		if node.Type == EntityTypeActivity {
 			stats.TotalActivities++
-			if node.Status == "completed" || node.Progress == 100 {
+			if node.Status == "completed" {
 				stats.CompletedActivities++
 			}
 		}
@@ -581,9 +578,6 @@ func (g *UnifiedGraph) ToText() string {
 	for _, id := range ids {
 		node := g.Nodes[id]
 		fmt.Fprintf(&sb, "[%s] %s (%s) - %s", node.Type, node.ID, node.Title, node.Status)
-		if node.Progress > 0 {
-			fmt.Fprintf(&sb, " %d%%", node.Progress)
-		}
 		if node.Assignee != "" {
 			fmt.Fprintf(&sb, " @%s", node.Assignee)
 		}
@@ -647,9 +641,6 @@ func (g *UnifiedGraph) ToDot() string {
 		}
 
 		label := fmt.Sprintf("%s\\n%s", node.ID, node.Title)
-		if node.Progress > 0 {
-			label += fmt.Sprintf("\\n%d%%", node.Progress)
-		}
 
 		fmt.Fprintf(&sb, "  \"%s\" [label=\"%s\", style=\"%s\", fillcolor=\"%s\"];\n",
 			id, label, style, color)

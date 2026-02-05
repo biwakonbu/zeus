@@ -2,7 +2,7 @@
 // 楕円形でユースケースを表現し、ステータスに応じた背景色とラベル表示を行う
 import { Container, Graphics, Text, TextStyle, CanvasTextMetrics } from 'pixi.js';
 import type { FederatedPointerEvent } from 'pixi.js';
-import type { UseCaseItem, UseCaseStatus } from '$lib/types/api';
+import type { UseCaseItem } from '$lib/types/api';
 import { TEXT_RESOLUTION, COMMON_COLORS, USECASE_SIZE, USECASE_STATUS_STYLES } from './constants';
 
 // パディング（ID表示用）

@@ -97,7 +97,6 @@ func (g *Generator) GenerateSkills(ctx context.Context, projectName string) erro
 	skills := []string{
 		"zeus-suggest",
 		"zeus-risk-analysis",
-		"zeus-wbs-design",
 		"zeus-e2e-tester",
 	}
 

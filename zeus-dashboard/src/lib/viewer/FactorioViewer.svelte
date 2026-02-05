@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import type { EntityStatus, Priority, GraphNode, WBSGraphData, TimelineItem } from '$lib/types/api';
-	import { fetchTimeline } from '$lib/api/client';
+	import type { EntityStatus, Priority, GraphNode, GraphEdge } from '$lib/types/api';
 	import { ViewerEngine, type Viewport } from './engine/ViewerEngine';
 	import { LayoutEngine, type NodePosition } from './engine/LayoutEngine';
 	import { SpatialIndex } from './engine/SpatialIndex';
-	import { TaskNode, LODLevel } from './rendering/TaskNode';
-	import { EdgeFactory, EdgeType } from './rendering/TaskEdge';
+	import { GraphNodeView, LODLevel } from './rendering/GraphNode';
+	import { EdgeFactory, EdgeType } from './rendering/GraphEdge';
 	import { SelectionManager } from './interaction/SelectionManager';
 	import { FilterManager, type FilterCriteria } from './interaction/FilterManager';
 	import Minimap from './ui/Minimap.svelte';
@@ -16,9 +15,15 @@
 	import { Container, Graphics } from 'pixi.js';
 	import type { FederatedPointerEvent } from 'pixi.js';
 
+	// グラフデータ型（GraphNode/Edge の組み合わせ）
+	interface GraphData {
+		nodes: GraphNode[];
+		edges: GraphEdge[];
+	}
+
 	// Props
 	interface Props {
-		graphData?: WBSGraphData; // GraphNode/Edge データ
+		graphData?: GraphData; // GraphNode/Edge データ
 		selectedTaskId?: string | null;
 		onTaskSelect?: (taskId: string | null) => void;
 		onTaskHover?: (taskId: string | null) => void;
@@ -43,7 +48,7 @@
 	let selectionManager: SelectionManager | null = null;
 	let filterManager: FilterManager | null = null;
 
-	let nodeMap: Map<string, TaskNode> = new Map();
+	let nodeMap: Map<string, GraphNodeView> = new Map();
 	let edgeFactory: EdgeFactory = new EdgeFactory();
 	let engineReady = $state(false); // エンジン初期化完了フラグ（$effect の依存関係用）
 	let positions: Map<string, NodePosition> = $state(new Map());
@@ -60,13 +65,11 @@
 
 	/**
 	 * ノードリストのハッシュを計算（浅い比較用）
+	 * Note: progress フィールドは削除されたため、status のみで判定
 	 */
 	function computeNodesHash(nodeList: GraphNode[]): string {
 		return nodeList
-			.map(
-				(n) =>
-					`${n.id}:${n.status}:${n.progress ?? 0}:${n.priority ?? ''}:${n.assignee ?? ''}:${n.node_type}`
-			)
+			.map((n) => `${n.id}:${n.status}:${n.priority ?? ''}:${n.assignee ?? ''}:${n.node_type}`)
 			.join('|');
 	}
 
@@ -148,12 +151,10 @@
 
 	let resizeObserver: ResizeObserver | null = null;
 
-	// クリティカルパス情報
+	// クリティカルパス情報（Timeline 機能削除のため無効化）
 	let criticalPathIds: Set<string> = $state(new Set());
-	let timelineItems: Map<string, TimelineItem> = $state(new Map());
-	let showCriticalPath: boolean = $state(true);
+	let showCriticalPath: boolean = $state(false); // 無効化
 	let isLoadingTimeline: boolean = $state(false);
-	let timelineLoadError: string | null = $state(null);
 
 	// UI パネル表示状態（Header 連携用）
 	let showFilterPanel: boolean = $state(true);
@@ -412,14 +413,14 @@
 		if ((import.meta.env.DEV || import.meta.env.MODE === 'test') && engine) {
 			const win = window as Window & {
 				__VIEWER_ENGINE__?: ViewerEngine;
-				__NODE_MAP__?: Map<string, TaskNode>;
+				__NODE_MAP__?: Map<string, GraphNodeView>;
 				__SELECTION_MANAGER__?: SelectionManager;
 				__FILTER_MANAGER__?: FilterManager;
 				__EDGE_FACTORY__?: EdgeFactory;
 				__CRITICAL_PATH_IDS__?: Set<string>;
 			};
 			win.__VIEWER_ENGINE__ = engine;
-			win.__NODE_MAP__ = nodeMap;
+			win.__NODE_MAP__ = nodeMap as Map<string, GraphNodeView>;
 			win.__SELECTION_MANAGER__ = selectionManager ?? undefined;
 			win.__FILTER_MANAGER__ = filterManager ?? undefined;
 			win.__EDGE_FACTORY__ = edgeFactory;
@@ -455,7 +456,6 @@
 						x: Math.round(n.x),
 						y: Math.round(n.y),
 						status: n.getGraphNode().status,
-						progress: n.getGraphNode().progress ?? 0,
 						nodeType: n.getNodeType()
 					})),
 					edges: edgeFactory.getAll().map((e) => ({
@@ -598,11 +598,11 @@
 
 				// TaskNode を検索（親をたどる）
 				let target: Container | null = hitObject;
-				while (target && !(target instanceof TaskNode)) {
+				while (target && !(target instanceof GraphNodeView)) {
 					target = target.parent as Container | null;
 				}
 
-				if (target instanceof TaskNode) {
+				if (target instanceof GraphNodeView) {
 					console.log('[ContextMenu] Right-click on node:', target.getNodeId());
 					handleNodeContextMenu(target, null as unknown as FederatedPointerEvent);
 				}
@@ -619,10 +619,6 @@
 		resizeObserver?.disconnect();
 
 		// タイマーをクリア
-		if (timelineLoadTimer) {
-			clearTimeout(timelineLoadTimer);
-			timelineLoadTimer = null;
-		}
 		if (hoverDebounceTimer) {
 			clearTimeout(hoverDebounceTimer);
 			hoverDebounceTimer = null;
@@ -642,9 +638,6 @@
 		// Store をリセット
 		resetGraphViewState();
 	});
-
-	// タイムライン読み込みのデバウンス用タイマー
-	let timelineLoadTimer: ReturnType<typeof setTimeout> | null = null;
 
 	// ノードが変更されたら再レンダリング
 	// NOTE: Svelte 5 の $effect は条件分岐内でのみ読み取られた変数を追跡しない
@@ -667,193 +660,9 @@
 				// 構造変更 - フルレンダリング
 				renderGraphNodes(currentNodes);
 			}
-
-			// タイムラインデータの読み込みをデバウンス（500ms）- Task モードのみ
-			if (!isWBSMode) {
-				if (timelineLoadTimer) {
-					clearTimeout(timelineLoadTimer);
-				}
-				timelineLoadTimer = setTimeout(() => {
-					loadTimelineData();
-					timelineLoadTimer = null;
-				}, 500);
-			}
 		}
 	});
 
-	/**
-	 * タイムラインデータを読み込み、クリティカルパス情報を更新
-	 */
-	async function loadTimelineData(): Promise<void> {
-		if (isLoadingTimeline) return; // 既に読み込み中の場合はスキップ
-
-		const timelineStart = nowMs();
-		let result: 'ok' | 'invalid' | 'error' = 'ok';
-		let itemsCount = 0;
-		let validItems = 0;
-		let invalidItems = 0;
-		let criticalCount = 0;
-		let errorMessage: string | null = null;
-
-		isLoadingTimeline = true;
-		timelineLoadError = null;
-
-		try {
-			const timeline = await fetchTimeline();
-
-			// レスポンスの検証
-			if (!timeline) {
-				console.debug('Timeline response is empty');
-				timelineLoadError = 'Timeline data is empty';
-				result = 'invalid';
-				errorMessage = timelineLoadError;
-				resetCriticalPath();
-				return;
-			}
-
-			// critical_path は配列として存在する必要がある
-			if (!Array.isArray(timeline.critical_path)) {
-				const errMsg = 'Invalid timeline response: critical_path is not an array';
-				console.warn(errMsg);
-				timelineLoadError = errMsg;
-				result = 'invalid';
-				errorMessage = errMsg;
-				resetCriticalPath();
-				return;
-			}
-
-			// items は配列として存在する必要がある
-			if (!Array.isArray(timeline.items)) {
-				const errMsg = 'Invalid timeline response: items is not an array';
-				console.warn(errMsg);
-				timelineLoadError = errMsg;
-				result = 'invalid';
-				errorMessage = errMsg;
-				resetCriticalPath();
-				return;
-			}
-
-			itemsCount = timeline.items.length;
-
-			// クリティカルパスのIDセットを更新（文字列型チェック）
-			const validCriticalPaths = timeline.critical_path.filter((id) => typeof id === 'string');
-			criticalPathIds = new Set(validCriticalPaths);
-			criticalCount = validCriticalPaths.length;
-
-			// タイムラインアイテムをマップに格納（スラック値を検証）
-			const itemMap = new Map<string, TimelineItem>();
-			for (const item of timeline.items) {
-				// 必須フィールドの存在確認
-				if (!item.task_id || typeof item.task_id !== 'string') {
-					console.warn('Invalid timeline item: missing or invalid task_id', item);
-					invalidItems++;
-					continue;
-				}
-
-				// スラック値のバリデーション（null, undefined, 非負整数のみ許可）
-				if (item.slack !== null && item.slack !== undefined) {
-					if (typeof item.slack !== 'number' || item.slack < 0 || !Number.isFinite(item.slack)) {
-						console.warn(`Invalid slack value for task ${item.task_id}:`, item.slack);
-						item.slack = null;
-					}
-				}
-
-				itemMap.set(item.task_id, item);
-				validItems++;
-			}
-			timelineItems = itemMap;
-			timelineLoadError = null;
-
-			// ノードとエッジにクリティカルパス情報を適用
-			applyCriticalPathInfo();
-		} catch (error) {
-			// API エラーや予期しないエラーをログに記録
-			const errMsg = error instanceof Error ? error.message : 'Unknown error loading timeline data';
-			console.warn('Error loading timeline data:', error);
-			timelineLoadError = errMsg;
-			result = 'error';
-			errorMessage = errMsg;
-			resetCriticalPath();
-		} finally {
-			isLoadingTimeline = false;
-			logMetrics(
-				'timeline.load',
-				timelineStart,
-				{
-					result,
-					items: itemsCount,
-					validItems,
-					invalidItems,
-					criticalPath: criticalCount,
-					error: errorMessage
-				},
-				true
-			);
-		}
-	}
-
-	/**
-	 * クリティカルパス情報をリセット
-	 */
-	function resetCriticalPath(): void {
-		criticalPathIds = new Set();
-		timelineItems = new Map();
-
-		// ノードとエッジをリセット
-		for (const node of nodeMap.values()) {
-			node.setCriticalPath(false);
-			node.setSlack(null);
-		}
-		for (const edge of edgeFactory.getAll()) {
-			if (edge.getToId() && edge.getFromId()) {
-				edge.setType(EdgeType.Normal);
-			}
-		}
-	}
-
-	/**
-	 * クリティカルパス情報をノードとエッジに適用
-	 */
-	function applyCriticalPathInfo(): void {
-		if (!showCriticalPath) {
-			// クリティカルパス表示がオフの場合はクリア
-			for (const node of nodeMap.values()) {
-				node.setCriticalPath(false);
-				node.setSlack(null);
-			}
-			for (const edge of edgeFactory.getAll()) {
-				if (edge.getToId() && edge.getFromId()) {
-					edge.setType(EdgeType.Normal);
-				}
-			}
-			return;
-		}
-
-		// ノードにクリティカルパス・スラック情報を設定
-		for (const [id, node] of nodeMap) {
-			const isOnCritical = criticalPathIds.has(id);
-			node.setCriticalPath(isOnCritical);
-
-			// スラック値を設定
-			const timelineItem = timelineItems.get(id);
-			if (timelineItem) {
-				node.setSlack(timelineItem.slack);
-			} else {
-				node.setSlack(null);
-			}
-		}
-
-		// エッジにクリティカルパス情報を設定
-		for (const edge of edgeFactory.getAll()) {
-			const fromId = edge.getFromId();
-			const toId = edge.getToId();
-
-			// 両端がクリティカルパス上にある場合、エッジもクリティカル
-			if (criticalPathIds.has(fromId) && criticalPathIds.has(toId)) {
-				edge.setType(EdgeType.Critical);
-			}
-		}
-	}
 
 	/**
 	 * 既存ノードのデータを更新（差分更新 - レイアウト再計算なし）
@@ -970,9 +779,9 @@
 			const pos = positions.get(gn.id);
 			if (!pos) continue;
 
-			const node = new TaskNode(gn); // GraphNode を渡す
-			node.x = pos.x - TaskNode.getWidth() / 2;
-			node.y = pos.y - TaskNode.getHeight() / 2;
+			const node = new GraphNodeView(gn); // GraphNode を渡す
+			node.x = pos.x - GraphNodeView.getWidth() / 2;
+			node.y = pos.y - GraphNodeView.getHeight() / 2;
 
 			// イベントハンドラ
 			node.onClick((n, e) => handleNodeClick(n, e));
@@ -990,8 +799,8 @@
 				id: gn.id,
 				x: node.x,
 				y: node.y,
-				width: TaskNode.getWidth(),
-				height: TaskNode.getHeight()
+				width: GraphNodeView.getWidth(),
+				height: GraphNodeView.getHeight()
 			});
 		}
 
@@ -1177,10 +986,10 @@
 	/**
 	 * ノードクリック処理
 	 */
-	function handleNodeClick(node: TaskNode, event?: FederatedPointerEvent): void {
+	function handleNodeClick(node: GraphNodeView, event?: FederatedPointerEvent): void {
 		if (!selectionManager) return;
 
-		const taskId = node.getTaskId();
+		const taskId = node.getNodeId();
 		// FederatedPointerEvent から nativeEvent 経由でキー情報を取得
 		const nativeEvent = event?.nativeEvent as PointerEvent | undefined;
 		const isMulti = nativeEvent?.ctrlKey || nativeEvent?.metaKey || nativeEvent?.shiftKey;
@@ -1203,8 +1012,8 @@
 	/**
 	 * ノードホバー処理（デバウンス付き）
 	 */
-	async function handleNodeHover(node: TaskNode, isHovered: boolean): Promise<void> {
-		const taskId = isHovered ? node.getTaskId() : null;
+	async function handleNodeHover(node: GraphNodeView, isHovered: boolean): Promise<void> {
+		const taskId = isHovered ? node.getNodeId() : null;
 		hoveredTaskId = taskId;
 		onTaskHover?.(taskId);
 
@@ -1267,7 +1076,7 @@
 	 * ノード右クリック処理 - 依存関係フィルター
 	 * フロントエンドの edges データを使用して依存関係を計算
 	 */
-	function handleNodeContextMenu(node: TaskNode, _event: FederatedPointerEvent | null): void {
+	function handleNodeContextMenu(node: GraphNodeView, _event: FederatedPointerEvent | null): void {
 		console.log('[ContextMenu] Right-click detected on node:', node.getNodeId());
 		const nodeId = node.getNodeId();
 
@@ -1360,8 +1169,8 @@
 		for (const [nodeId, pos] of newPositions) {
 			const node = nodeMap.get(nodeId);
 			if (node) {
-				node.x = pos.x - TaskNode.getWidth() / 2;
-				node.y = pos.y - TaskNode.getHeight() / 2;
+				node.x = pos.x - GraphNodeView.getWidth() / 2;
+				node.y = pos.y - GraphNodeView.getHeight() / 2;
 			}
 		}
 
@@ -1401,10 +1210,10 @@
 			maxY = -Infinity;
 
 		for (const pos of posMap.values()) {
-			minX = Math.min(minX, pos.x - TaskNode.getWidth() / 2);
-			maxX = Math.max(maxX, pos.x + TaskNode.getWidth() / 2);
-			minY = Math.min(minY, pos.y - TaskNode.getHeight() / 2);
-			maxY = Math.max(maxY, pos.y + TaskNode.getHeight() / 2);
+			minX = Math.min(minX, pos.x - GraphNodeView.getWidth() / 2);
+			maxX = Math.max(maxX, pos.x + GraphNodeView.getWidth() / 2);
+			minY = Math.min(minY, pos.y - GraphNodeView.getHeight() / 2);
+			maxY = Math.max(maxY, pos.y + GraphNodeView.getHeight() / 2);
 		}
 
 		if (posMap.size > 0) {
@@ -1419,10 +1228,10 @@
 			for (const [nodeId, pos] of posMap) {
 				spatialIndex.insert({
 					id: nodeId,
-					x: pos.x - TaskNode.getWidth() / 2,
-					y: pos.y - TaskNode.getHeight() / 2,
-					width: TaskNode.getWidth(),
-					height: TaskNode.getHeight()
+					x: pos.x - GraphNodeView.getWidth() / 2,
+					y: pos.y - GraphNodeView.getHeight() / 2,
+					width: GraphNodeView.getWidth(),
+					height: GraphNodeView.getHeight()
 				});
 			}
 		}
@@ -1535,11 +1344,11 @@
 	}
 
 	/**
-	 * クリティカルパス表示を切り替え
+	 * クリティカルパス表示を切り替え（Timeline 機能削除のため無効化）
 	 */
 	function toggleCriticalPath(): void {
-		showCriticalPath = !showCriticalPath;
-		applyCriticalPathInfo();
+		// Timeline 機能が削除されたため、この関数は何もしない
+		// showCriticalPath は常に false
 	}
 
 	/**

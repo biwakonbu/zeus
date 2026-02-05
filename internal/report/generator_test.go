@@ -14,7 +14,6 @@ func TestNewGenerator(t *testing.T) {
 			ID:          "test-project",
 			Name:        "Test Project",
 			Description: "A test project",
-			StartDate:   "2024-01-01",
 		},
 	}
 
@@ -292,80 +291,6 @@ func TestGenerator_BuildReportData(t *testing.T) {
 	}
 }
 
-func TestGenerator_BuildReportData_WithAnalysis(t *testing.T) {
-	config := &ZeusConfig{
-		Project: ProjectInfo{Name: "Analysis Test"},
-	}
-
-	state := &ProjectState{
-		Health: "Fair",
-		Summary: SummaryStats{
-			TotalActivities: 10,
-			Completed:       3,
-			InProgress:      4,
-			Pending:         3,
-		},
-	}
-
-	analysisResult := &analysis.AnalysisResult{
-		Completion: &analysis.CompletionPrediction{
-			RemainingTasks:  7,
-			AverageVelocity: 2.5,
-			EstimatedDate:   "2024-02-15",
-			ConfidenceLevel: 70,
-			MarginDays:      5,
-		},
-		Risk: &analysis.RiskPrediction{
-			OverallLevel: analysis.RiskMedium,
-			Score:        45,
-			Factors: []analysis.RiskFactor{
-				{Name: "High WIP", Impact: 5},
-			},
-		},
-		Velocity: &analysis.VelocityReport{
-			Last7Days:     5,
-			Last14Days:    8,
-			Last30Days:    15,
-			WeeklyAverage: 3.75,
-			Trend:         analysis.TrendStable,
-		},
-	}
-
-	generator := NewGenerator(config, state, analysisResult)
-	data := generator.buildReportData()
-
-	// 予測データの確認
-	if !data.HasPrediction {
-		t.Error("expected HasPrediction=true")
-	}
-
-	if data.Completion == nil {
-		t.Error("expected Completion to be set")
-	}
-
-	// リスクデータの確認
-	if !data.HasRisk {
-		t.Error("expected HasRisk=true")
-	}
-
-	if data.Risk == nil {
-		t.Error("expected Risk to be set")
-	}
-
-	if data.RiskClass != "medium" {
-		t.Errorf("expected RiskClass='medium', got '%s'", data.RiskClass)
-	}
-
-	// ベロシティデータの確認
-	if !data.HasVelocity {
-		t.Error("expected HasVelocity=true")
-	}
-
-	if data.Velocity == nil {
-		t.Error("expected Velocity to be set")
-	}
-}
-
 func TestGenerator_GenerateRecommendations_PoorHealth(t *testing.T) {
 	config := &ZeusConfig{Project: ProjectInfo{Name: "Test"}}
 	state := &ProjectState{
@@ -451,53 +376,6 @@ func TestGenerator_GenerateRecommendations_LargeBacklog(t *testing.T) {
 	}
 }
 
-func TestGenerator_GenerateRecommendations_WithRiskFactors(t *testing.T) {
-	config := &ZeusConfig{Project: ProjectInfo{Name: "Test"}}
-	state := &ProjectState{
-		Health: "Good",
-		Summary: SummaryStats{
-			TotalActivities: 10,
-			Completed:       5,
-			InProgress:      3,
-			Pending:         2,
-		},
-	}
-
-	analysisResult := &analysis.AnalysisResult{
-		Risk: &analysis.RiskPrediction{
-			OverallLevel: analysis.RiskMedium,
-			Score:        50,
-			Factors: []analysis.RiskFactor{
-				{Name: "Blocked Tasks", Impact: 7},
-				{Name: "High WIP", Impact: 5},
-			},
-		},
-	}
-
-	generator := NewGenerator(config, state, analysisResult)
-	recommendations := generator.generateRecommendations()
-
-	// リスク要因に基づく推奨事項を確認
-	foundBlockedRec := false
-	foundWIPRec := false
-	for _, rec := range recommendations {
-		if strings.Contains(rec, "blocked") {
-			foundBlockedRec = true
-		}
-		if strings.Contains(rec, "work in progress") || strings.Contains(rec, "WIP") {
-			foundWIPRec = true
-		}
-	}
-
-	if !foundBlockedRec {
-		t.Error("expected recommendation for blocked tasks")
-	}
-
-	if !foundWIPRec {
-		t.Error("expected recommendation for high WIP")
-	}
-}
-
 func TestGenerator_GenerateRecommendations_NoDuplicates(t *testing.T) {
 	config := &ZeusConfig{Project: ProjectInfo{Name: "Test"}}
 	state := &ProjectState{
@@ -510,16 +388,7 @@ func TestGenerator_GenerateRecommendations_NoDuplicates(t *testing.T) {
 		},
 	}
 
-	analysisResult := &analysis.AnalysisResult{
-		Risk: &analysis.RiskPrediction{
-			Factors: []analysis.RiskFactor{
-				{Name: "Blocked Tasks", Impact: 7},
-				{Name: "Blocked Tasks", Impact: 7}, // 重複
-			},
-		},
-	}
-
-	generator := NewGenerator(config, state, analysisResult)
+	generator := NewGenerator(config, state, nil)
 	recommendations := generator.generateRecommendations()
 
 	// 重複がないことを確認

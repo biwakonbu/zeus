@@ -25,12 +25,10 @@ type AffinityResponse struct {
 
 // AffinityNodeResponse はノードレスポンス
 type AffinityNodeResponse struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Type     string `json:"type"`
-	WBSCode  string `json:"wbs_code"`
-	Progress int    `json:"progress"`
-	Status   string `json:"status"`
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	Type   string `json:"type"`
+	Status string `json:"status"`
 }
 
 // AffinityEdgeResponse はエッジレスポンス
@@ -53,7 +51,6 @@ type AffinityClusterResponse struct {
 type AffinityWeightsResponse struct {
 	ParentChild float64 `json:"parent_child"`
 	Sibling     float64 `json:"sibling"`
-	WBSAdjacent float64 `json:"wbs_adjacent"`
 	Reference   float64 `json:"reference"`
 	Category    float64 `json:"category"`
 }
@@ -125,12 +122,10 @@ func (s *Server) handleAPIAffinity(w http.ResponseWriter, r *http.Request) {
 	nodes := make([]AffinityNodeResponse, len(result.Nodes))
 	for i, n := range result.Nodes {
 		nodes[i] = AffinityNodeResponse{
-			ID:       n.ID,
-			Title:    n.Title,
-			Type:     n.Type,
-			WBSCode:  n.WBSCode,
-			Progress: n.Progress,
-			Status:   n.Status,
+			ID:     n.ID,
+			Title:  n.Title,
+			Type:   n.Type,
+			Status: n.Status,
 		}
 	}
 
@@ -165,7 +160,6 @@ func (s *Server) handleAPIAffinity(w http.ResponseWriter, r *http.Request) {
 		Weights: AffinityWeightsResponse{
 			ParentChild: result.Weights.ParentChild,
 			Sibling:     result.Weights.Sibling,
-			WBSAdjacent: result.Weights.WBSAdjacent,
 			Reference:   result.Weights.Reference,
 			Category:    result.Weights.Category,
 		},
@@ -237,21 +231,16 @@ func (s *Server) loadAffinityDataParallel(ctx context.Context) (
 				completedAt = t.UpdatedAt
 			}
 			result = append(result, analysis.TaskInfo{
-				ID:            t.ID,
-				Title:         t.Title,
-				Status:        string(t.Status),
-				Dependencies:  t.Dependencies,
-				ParentID:      t.ParentID,
-				StartDate:     t.StartDate,
-				DueDate:       t.DueDate,
-				Progress:      t.Progress,
-				WBSCode:       t.WBSCode,
-				Priority:      string(t.Priority),
-				Assignee:      t.Assignee,
-				EstimateHours: t.EstimateHours,
-				CreatedAt:     t.CreatedAt,
-				UpdatedAt:     t.UpdatedAt,
-				CompletedAt:   completedAt,
+				ID:           t.ID,
+				Title:        t.Title,
+				Status:       string(t.Status),
+				Dependencies: t.Dependencies,
+				ParentID:     t.ParentID,
+				Priority:     string(t.Priority),
+				Assignee:     t.Assignee,
+				CreatedAt:    t.CreatedAt,
+				UpdatedAt:    t.UpdatedAt,
+				CompletedAt:  completedAt,
 			})
 		}
 		mu.Lock()
@@ -285,8 +274,6 @@ func (s *Server) loadAffinityDataParallel(ctx context.Context) (
 					info := analysis.ObjectiveInfo{
 						ID:        obj.ID,
 						Title:     obj.Title,
-						WBSCode:   obj.WBSCode,
-						Progress:  obj.Progress,
 						Status:    string(obj.Status),
 						ParentID:  obj.ParentID,
 						CreatedAt: obj.Metadata.CreatedAt,
@@ -331,7 +318,6 @@ func (s *Server) loadAffinityDataParallel(ctx context.Context) (
 						ID:          del.ID,
 						Title:       del.Title,
 						ObjectiveID: del.ObjectiveID,
-						Progress:    del.Progress,
 						Status:      string(del.Status),
 						CreatedAt:   del.Metadata.CreatedAt,
 						UpdatedAt:   del.Metadata.UpdatedAt,

@@ -4,6 +4,7 @@ zeus
 *.exe
 *.log
 .DS_Store
+logs/
 
 # Zeus - コミットしないファイル（一時/ローカルデータ）
 .zeus/backups/

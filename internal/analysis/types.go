@@ -1,5 +1,5 @@
 // Package analysis は Zeus の高度な分析機能を提供する。
-// グラフ分析、予測、リスク評価などの機能を含む。
+// グラフ分析などの機能を含む。
 package analysis
 
 // TaskInfo は分析に必要なタスク情報
@@ -10,15 +10,10 @@ type TaskInfo struct {
 	Status       string   // ステータス ("pending", "in_progress", "completed", "blocked")
 	Dependencies []string // 依存タスクID
 
-	// Phase 6A: WBS・タイムライン機能用フィールド
-	ParentID      string  // 親タスクID
-	StartDate     string  // 開始日（ISO8601）
-	DueDate       string  // 期限日（ISO8601）
-	Progress      int     // 進捗率（0-100）
-	WBSCode       string  // WBS番号（例: "1.2.3"）
-	Priority      string  // 優先度 ("high", "medium", "low")
-	Assignee      string  // 担当者
-	EstimateHours float64 // 見積もり時間
+	// 依存関係
+	ParentID string // 親タスクID
+	Priority string // 優先度 ("high", "medium", "low")
+	Assignee string // 担当者
 
 	// 陳腐化分析用フィールド
 	CreatedAt   string // 作成日時（ISO8601）
@@ -78,65 +73,9 @@ type GraphStats struct {
 	MaxDepth         int // 最大深さ
 }
 
-// CompletionPrediction は完了日予測
-type CompletionPrediction struct {
-	RemainingTasks    int     // 残タスク数
-	AverageVelocity   float64 // 平均ベロシティ (tasks/week)
-	EstimatedDate     string  // 予測完了日 (ISO8601)
-	ConfidenceLevel   int     // 信頼度 (0-100%)
-	MarginDays        int     // 誤差範囲 (+/- days)
-	HasSufficientData bool    // 十分なデータがあるか
-}
-
-// RiskPrediction はリスク予測
-type RiskPrediction struct {
-	OverallLevel RiskLevel    // 全体リスクレベル
-	Factors      []RiskFactor // リスク要因リスト
-	Score        int          // リスクスコア (0-100)
-}
-
-// RiskLevel はリスクレベル
-type RiskLevel string
-
-const (
-	RiskLow    RiskLevel = "Low"
-	RiskMedium RiskLevel = "Medium"
-	RiskHigh   RiskLevel = "High"
-)
-
-// RiskFactor はリスク要因
-type RiskFactor struct {
-	Name        string // 要因名
-	Description string // 説明
-	Impact      int    // 影響度 (1-10)
-}
-
-// VelocityReport はベロシティレポート
-type VelocityReport struct {
-	Last7Days     int           // 過去7日間の完了タスク数
-	Last14Days    int           // 過去14日間の完了タスク数
-	Last30Days    int           // 過去30日間の完了タスク数
-	WeeklyAverage float64       // 週平均ベロシティ
-	Trend         VelocityTrend // トレンド
-	DataPoints    int           // 分析に使用したデータポイント数
-}
-
-// VelocityTrend はベロシティのトレンド
-type VelocityTrend string
-
-const (
-	TrendIncreasing VelocityTrend = "Increasing"
-	TrendStable     VelocityTrend = "Stable"
-	TrendDecreasing VelocityTrend = "Decreasing"
-	TrendUnknown    VelocityTrend = "Unknown"
-)
-
 // AnalysisResult は全分析結果を集約
 type AnalysisResult struct {
-	Graph      *DependencyGraph      // 依存関係グラフ
-	Completion *CompletionPrediction // 完了日予測
-	Risk       *RiskPrediction       // リスク予測
-	Velocity   *VelocityReport       // ベロシティレポート
+	Graph *DependencyGraph // 依存関係グラフ
 }
 
 // GraphFormat はグラフ出力形式
@@ -157,16 +96,6 @@ const (
 	ReportFormatMarkdown ReportFormat = "markdown"
 )
 
-// PredictType は予測タイプ
-type PredictType string
-
-const (
-	PredictCompletion PredictType = "completion"
-	PredictRisk       PredictType = "risk"
-	PredictVelocity   PredictType = "velocity"
-	PredictAll        PredictType = "all"
-)
-
 // Activity ステータス定数
 const (
 	TaskStatusPending    = "pending"
@@ -179,8 +108,6 @@ const (
 type ObjectiveInfo struct {
 	ID        string // Objective ID
 	Title     string // タイトル
-	WBSCode   string // WBS コード
-	Progress  int    // 進捗率
 	Status    string // ステータス
 	ParentID  string // 親 Objective ID（L3 の場合）
 	CreatedAt string // 作成日時（ISO8601）
@@ -192,7 +119,6 @@ type DeliverableInfo struct {
 	ID          string // Deliverable ID
 	Title       string // タイトル
 	ObjectiveID string // 紐づく Objective ID
-	Progress    int    // 進捗率
 	Status      string // ステータス
 	CreatedAt   string // 作成日時（ISO8601）
 	UpdatedAt   string // 更新日時（ISO8601）
@@ -261,14 +187,8 @@ type ActivityInfo struct {
 	UseCaseID    string   // 関連 UseCase ID
 
 	// 作業管理フィールド
-	Progress      int     // 進捗率（0-100）
-	Priority      string  // 優先度
-	Assignee      string  // 担当者
-	WBSCode       string  // WBS コード
-	StartDate     string  // 開始日
-	DueDate       string  // 期限日
-	EstimateHours float64 // 見積もり時間
-	ActualHours   float64 // 実績時間
+	Priority string // 優先度
+	Assignee string // 担当者
 
 	// 関連情報
 	RelatedDeliverables []string // 関連 Deliverable ID
@@ -292,7 +212,6 @@ type UnifiedGraphNode struct {
 	Type     EntityType // エンティティタイプ
 	Title    string     // タイトル
 	Status   string     // ステータス
-	Progress int        // 進捗率（該当する場合）
 	Priority string     // 優先度（Activity のみ）
 	Assignee string     // 担当者（Activity のみ）
 	Mode     string     // モード（Activity のみ: "simple" or "flow"）

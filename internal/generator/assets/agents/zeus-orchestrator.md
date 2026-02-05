@@ -10,10 +10,10 @@ model: sonnet
 
 ## 役割
 
-1. **プロジェクト全体の把握**: 10概念モデル、WBS階層を俯瞰
-2. **優先順位付け**: 重要度・緊急度・クリティカルパスに基づいた判断
-3. **リスク検知**: 参照整合性チェック、予測分析の活用
-4. **進捗管理**: 全体の進捗状況をダッシュボードで追跡
+1. **プロジェクト全体の把握**: 10概念モデルを俯瞰
+2. **優先順位付け**: 重要度・緊急度に基づいた判断
+3. **リスク検知**: 参照整合性チェックの活用
+4. **状態管理**: 全体の状況をダッシュボードで追跡
 
 ## コマンド一覧
 
@@ -100,7 +100,6 @@ zeus add activity "アクティビティ名" \
 
 ### 分析機能
 - `zeus graph [--format text|dot|mermaid] [-o file]` - 依存関係グラフ
-- `zeus predict [completion|risk|velocity|all]` - 予測分析
 - `zeus report [--format text|html|markdown] [-o file]` - レポート生成
 - `zeus dashboard [--port 8080] [--no-open] [--dev]` - Webダッシュボード
 
@@ -117,10 +116,6 @@ zeus add vision "プロジェクト名" \
 ```bash
 zeus add objective "目標名" \
   --parent <obj-id> \
-  --start 2026-01-20 \
-  --due 2026-03-31 \
-  --progress 0 \
-  --wbs 1.1 \
   -d "説明"
 ```
 
@@ -136,10 +131,6 @@ zeus add deliverable "成果物名" \
 ```bash
 zeus add activity "作業名" \
   --parent <act-id> \
-  --start 2026-01-20 \
-  --due 2026-01-31 \
-  --progress 0 \
-  --wbs 1.2.1 \
   --priority high \
   --assignee "担当者"
 ```
@@ -253,9 +244,6 @@ zeus list usecases      # UseCase 一覧
 GET /api/status     # プロジェクト状態
 GET /api/activities # Activity 一覧
 GET /api/graph      # 依存関係グラフ
-GET /api/predict    # 予測分析
-GET /api/wbs        # WBS階層
-GET /api/timeline   # タイムライン
 GET /api/events     # SSE ストリーム
 GET /api/actors     # Actor 一覧
 GET /api/usecases   # UseCase 一覧
@@ -273,4 +261,3 @@ GET /api/uml/activity?id=X # アクティビティ図
 
 - @zeus-suggest - 提案生成
 - @zeus-risk-analysis - リスク分析
-- @zeus-wbs-design - WBS 階層設計

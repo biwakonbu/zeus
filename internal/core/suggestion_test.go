@@ -312,17 +312,6 @@ func TestTaskValidate(t *testing.T) {
 			errMsg:  "item status is required",
 		},
 		{
-			name: "negative estimate hours",
-			task: ListItem{
-				ID:            "task-1",
-				Title:         "Test Task",
-				Status:        ItemStatusPending,
-				EstimateHours: -5,
-			},
-			wantErr: true,
-			errMsg:  "estimate_hours must be non-negative",
-		},
-		{
 			name: "invalid approval level",
 			task: ListItem{
 				ID:            "task-1",

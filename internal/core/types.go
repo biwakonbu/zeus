@@ -73,17 +73,11 @@ type ListItem struct {
 	Status        ItemStatus    `yaml:"status"`
 	Priority      ItemPriority  `yaml:"priority,omitempty"`
 	Assignee      string        `yaml:"assignee,omitempty"`
-	EstimateHours float64       `yaml:"estimate_hours,omitempty"`
-	ActualHours   float64       `yaml:"actual_hours,omitempty"`
 	Dependencies  []string      `yaml:"dependencies"`
 	ApprovalLevel ApprovalLevel `yaml:"approval_level"`
 	CreatedAt     string        `yaml:"created_at"`
 	UpdatedAt     string        `yaml:"updated_at"`
 	ParentID      string        `yaml:"parent_id,omitempty"`
-	StartDate     string        `yaml:"start_date,omitempty"`
-	DueDate       string        `yaml:"due_date,omitempty"`
-	Progress      int           `yaml:"progress,omitempty"`
-	WBSCode       string        `yaml:"wbs_code,omitempty"`
 }
 
 // HealthStatus は健全性ステータス
@@ -243,21 +237,11 @@ func (t *ListItem) Validate() error {
 	if t.Status == "" {
 		return fmt.Errorf("item status is required")
 	}
-	if t.EstimateHours < 0 {
-		return fmt.Errorf("estimate_hours must be non-negative, got %f", t.EstimateHours)
-	}
-	if t.ActualHours < 0 {
-		return fmt.Errorf("actual_hours must be non-negative, got %f", t.ActualHours)
-	}
 	if t.ApprovalLevel != "" &&
 		t.ApprovalLevel != ApprovalAuto &&
 		t.ApprovalLevel != ApprovalNotify &&
 		t.ApprovalLevel != ApprovalApprove {
 		return fmt.Errorf("invalid approval level: %s", t.ApprovalLevel)
-	}
-	// Progress は 0-100 の範囲
-	if t.Progress < 0 || t.Progress > 100 {
-		return fmt.Errorf("progress must be between 0 and 100, got %d", t.Progress)
 	}
 	// 自己参照の禁止
 	if t.ParentID != "" && t.ParentID == t.ID {
@@ -368,12 +352,8 @@ type ObjectiveEntity struct {
 	Title       string          `yaml:"title"`
 	Description string          `yaml:"description,omitempty"`
 	Status      ObjectiveStatus `yaml:"status"`
-	Progress    int             `yaml:"progress"`
 	Owner       string          `yaml:"owner,omitempty"`
 	ParentID    string          `yaml:"parent_id,omitempty"` // 親 Objective ID（階層化用）
-	WBSCode     string          `yaml:"wbs_code,omitempty"`
-	StartDate   string          `yaml:"start_date,omitempty"`
-	DueDate     string          `yaml:"due_date,omitempty"`
 	Tags        []string        `yaml:"tags,omitempty"`
 	Metadata    Metadata        `yaml:"metadata"`
 }
@@ -411,7 +391,6 @@ type DeliverableEntity struct {
 	Format             DeliverableFormat `yaml:"format"`
 	AcceptanceCriteria []string          `yaml:"acceptance_criteria,omitempty"`
 	Status             DeliverableStatus `yaml:"status"`
-	Progress           int               `yaml:"progress"`
 	Metadata           Metadata          `yaml:"metadata"`
 }
 
@@ -462,9 +441,6 @@ func (o *ObjectiveEntity) Validate() error {
 	default:
 		return fmt.Errorf("invalid objective status: %s", o.Status)
 	}
-	if o.Progress < 0 || o.Progress > 100 {
-		return fmt.Errorf("progress must be between 0 and 100, got %d", o.Progress)
-	}
 	// 自己参照の禁止
 	if o.ParentID != "" && o.ParentID == o.ID {
 		return fmt.Errorf("objective cannot be its own parent")
@@ -505,9 +481,6 @@ func (d *DeliverableEntity) Validate() error {
 		// 有効
 	default:
 		return fmt.Errorf("invalid deliverable status: %s", d.Status)
-	}
-	if d.Progress < 0 || d.Progress > 100 {
-		return fmt.Errorf("progress must be between 0 and 100, got %d", d.Progress)
 	}
 	return nil
 }
@@ -1472,19 +1445,11 @@ type ActivityEntity struct {
 	Dependencies []string `yaml:"dependencies,omitempty"` // 依存先 Activity ID リスト
 	ParentID     string   `yaml:"parent_id,omitempty"`    // 親 Activity ID（階層化用）
 
-	// 工数管理
-	EstimateHours float64 `yaml:"estimate_hours,omitempty"` // 見積もり時間
-	ActualHours   float64 `yaml:"actual_hours,omitempty"`   // 実績時間
+	// 担当
+	Assignee string `yaml:"assignee,omitempty"` // 担当者
 
-	// 担当・スケジュール
-	Assignee  string `yaml:"assignee,omitempty"`   // 担当者
-	StartDate string `yaml:"start_date,omitempty"` // 開始日（ISO8601）
-	DueDate   string `yaml:"due_date,omitempty"`   // 期限日（ISO8601）
-
-	// 優先度・進捗
+	// 優先度
 	Priority ActivityPriority `yaml:"priority,omitempty"` // 優先度
-	WBSCode  string           `yaml:"wbs_code,omitempty"` // WBS番号（例: "1.2.3"）
-	Progress int              `yaml:"progress,omitempty"` // 進捗率（0-100）
 
 	// 承認
 	ApprovalLevel ApprovalLevel `yaml:"approval_level,omitempty"` // 承認レベル
@@ -1620,11 +1585,6 @@ func (a *ActivityEntity) Validate() error {
 
 	// === Task/Activity 統合: 追加バリデーション ===
 
-	// Progress は 0-100 の範囲
-	if a.Progress < 0 || a.Progress > 100 {
-		return fmt.Errorf("progress must be between 0 and 100, got %d", a.Progress)
-	}
-
 	// 自己参照の禁止（ParentID）
 	if a.ParentID != "" && a.ParentID == a.ID {
 		return fmt.Errorf("activity cannot be its own parent")
@@ -1644,14 +1604,6 @@ func (a *ActivityEntity) Validate() error {
 			}
 			depIDs[id] = true
 		}
-	}
-
-	// EstimateHours/ActualHours は非負
-	if a.EstimateHours < 0 {
-		return fmt.Errorf("estimate_hours must be non-negative, got %f", a.EstimateHours)
-	}
-	if a.ActualHours < 0 {
-		return fmt.Errorf("actual_hours must be non-negative, got %f", a.ActualHours)
 	}
 
 	// Priority のバリデーション
@@ -1721,17 +1673,11 @@ func (a *ActivityEntity) ToListItem() ListItem {
 		Status:        status,
 		Priority:      priority,
 		Assignee:      a.Assignee,
-		EstimateHours: a.EstimateHours,
-		ActualHours:   a.ActualHours,
 		Dependencies:  a.Dependencies,
 		ApprovalLevel: a.ApprovalLevel,
 		CreatedAt:     a.Metadata.CreatedAt,
 		UpdatedAt:     a.Metadata.UpdatedAt,
 		ParentID:      a.ParentID,
-		StartDate:     a.StartDate,
-		DueDate:       a.DueDate,
-		Progress:      a.Progress,
-		WBSCode:       a.WBSCode,
 	}
 }
 
@@ -1766,14 +1712,8 @@ func NewActivityFromListItem(t ListItem, newID string) *ActivityEntity {
 		Status:        status,
 		Dependencies:  t.Dependencies,
 		ParentID:      t.ParentID,
-		EstimateHours: t.EstimateHours,
-		ActualHours:   t.ActualHours,
 		Assignee:      t.Assignee,
-		StartDate:     t.StartDate,
-		DueDate:       t.DueDate,
 		Priority:      priority,
-		WBSCode:       t.WBSCode,
-		Progress:      t.Progress,
 		ApprovalLevel: t.ApprovalLevel,
 		Metadata: Metadata{
 			CreatedAt: t.CreatedAt,

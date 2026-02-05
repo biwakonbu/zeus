@@ -14,19 +14,16 @@ type AffinityType string
 const (
 	AffinityParentChild AffinityType = "parent-child"
 	AffinitySibling     AffinityType = "sibling"
-	AffinityWBSAdjacent AffinityType = "wbs-adjacent"
 	AffinityReference   AffinityType = "reference"
 	AffinityCategory    AffinityType = "category"
 )
 
 // AffinityNode はアフィニティキャンバス用のノード
 type AffinityNode struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Type     string `json:"type"`
-	WBSCode  string `json:"wbs_code"`
-	Progress int    `json:"progress"`
-	Status   string `json:"status"`
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	Type   string `json:"type"`
+	Status string `json:"status"`
 }
 
 // AffinityEdge はノード間の関連
@@ -42,7 +39,6 @@ type AffinityEdge struct {
 type AffinityWeights struct {
 	ParentChild float64 `json:"parent_child"`
 	Sibling     float64 `json:"sibling"`
-	WBSAdjacent float64 `json:"wbs_adjacent"`
 	Reference   float64 `json:"reference"`
 	Category    float64 `json:"category"`
 }
@@ -221,48 +217,40 @@ func (ac *AffinityCalculator) buildNodes() []AffinityNode {
 	// Vision
 	if ac.vision.Title != "" {
 		nodes = append(nodes, AffinityNode{
-			ID:       "vision",
-			Title:    ac.vision.Title,
-			Type:     "vision",
-			WBSCode:  "",
-			Progress: 0,
-			Status:   ac.vision.Status,
+			ID:     "vision",
+			Title:  ac.vision.Title,
+			Type:   "vision",
+			Status: ac.vision.Status,
 		})
 	}
 
 	// Objectives
 	for _, obj := range ac.objectives {
 		nodes = append(nodes, AffinityNode{
-			ID:       obj.ID,
-			Title:    obj.Title,
-			Type:     "objective",
-			WBSCode:  obj.WBSCode,
-			Progress: obj.Progress,
-			Status:   obj.Status,
+			ID:     obj.ID,
+			Title:  obj.Title,
+			Type:   "objective",
+			Status: obj.Status,
 		})
 	}
 
 	// Deliverables
 	for _, del := range ac.deliverables {
 		nodes = append(nodes, AffinityNode{
-			ID:       del.ID,
-			Title:    del.Title,
-			Type:     "deliverable",
-			WBSCode:  "",
-			Progress: del.Progress,
-			Status:   del.Status,
+			ID:     del.ID,
+			Title:  del.Title,
+			Type:   "deliverable",
+			Status: del.Status,
 		})
 	}
 
 	// Tasks
 	for _, task := range ac.tasks {
 		nodes = append(nodes, AffinityNode{
-			ID:       task.ID,
-			Title:    task.Title,
-			Type:     "task",
-			WBSCode:  task.WBSCode,
-			Progress: task.Progress,
-			Status:   task.Status,
+			ID:     task.ID,
+			Title:  task.Title,
+			Type:   "task",
+			Status: task.Status,
 		})
 	}
 
@@ -286,17 +274,6 @@ func (ac *AffinityCalculator) detectAllEdges() []AffinityEdge {
 
 	// 兄弟関係
 	for _, e := range ac.detectSibling() {
-		key := e.Source + "-" + e.Target
-		if existing, ok := edgeMap[key]; ok {
-			existing.Types = append(existing.Types, e.Types...)
-		} else {
-			edgeCopy := e
-			edgeMap[key] = &edgeCopy
-		}
-	}
-
-	// WBS 隣接
-	for _, e := range ac.detectWBSAdjacent() {
 		key := e.Source + "-" + e.Target
 		if existing, ok := edgeMap[key]; ok {
 			existing.Types = append(existing.Types, e.Types...)
@@ -452,75 +429,6 @@ func (ac *AffinityCalculator) createSiblingEdges(ids []string, parentID string) 
 	return edges
 }
 
-// detectWBSAdjacent は WBS 隣接関係を検出
-func (ac *AffinityCalculator) detectWBSAdjacent() []AffinityEdge {
-	edges := []AffinityEdge{}
-
-	// WBS コードを持つノードを収集
-	type wbsNode struct {
-		id   string
-		code string
-	}
-	wbsNodes := []wbsNode{}
-
-	for _, obj := range ac.objectives {
-		if obj.WBSCode != "" {
-			wbsNodes = append(wbsNodes, wbsNode{id: obj.ID, code: obj.WBSCode})
-		}
-	}
-	for _, task := range ac.tasks {
-		if task.WBSCode != "" {
-			wbsNodes = append(wbsNodes, wbsNode{id: task.ID, code: task.WBSCode})
-		}
-	}
-
-	// WBS コードでソート
-	sort.Slice(wbsNodes, func(i, j int) bool {
-		return wbsNodes[i].code < wbsNodes[j].code
-	})
-
-	// 隣接判定
-	for i := 0; i < len(wbsNodes)-1; i++ {
-		if ac.isWBSAdjacent(wbsNodes[i].code, wbsNodes[i+1].code) {
-			edges = append(edges, AffinityEdge{
-				Source: wbsNodes[i].id,
-				Target: wbsNodes[i+1].id,
-				Types:  []AffinityType{AffinityWBSAdjacent},
-				Reason: "WBS コードが隣接",
-			})
-		}
-	}
-
-	return edges
-}
-
-// isWBSAdjacent は 2 つの WBS コードが隣接しているか判定
-func (ac *AffinityCalculator) isWBSAdjacent(code1, code2 string) bool {
-	parts1 := strings.Split(code1, ".")
-	parts2 := strings.Split(code2, ".")
-
-	// 同じ深さでない場合は隣接しない
-	if len(parts1) != len(parts2) {
-		return false
-	}
-
-	// 最後の部分以外が同じで、最後の部分が連続している
-	for i := 0; i < len(parts1)-1; i++ {
-		if parts1[i] != parts2[i] {
-			return false
-		}
-	}
-
-	// 最後の部分の数値を比較
-	num1, err1 := strconv.Atoi(parts1[len(parts1)-1])
-	num2, err2 := strconv.Atoi(parts2[len(parts2)-1])
-	if err1 != nil || err2 != nil {
-		return false
-	}
-
-	return num2-num1 == 1
-}
-
 // detectReference は参照関係を検出
 func (ac *AffinityCalculator) detectReference() []AffinityEdge {
 	edges := []AffinityEdge{}
@@ -567,7 +475,6 @@ func (ac *AffinityCalculator) CalculateWeights() AffinityWeights {
 		return AffinityWeights{
 			ParentChild: 1.0,
 			Sibling:     0.7,
-			WBSAdjacent: 0.4,
 			Reference:   0.5,
 			Category:    0.3,
 		}
@@ -576,15 +483,6 @@ func (ac *AffinityCalculator) CalculateWeights() AffinityWeights {
 	// 参照関係の比率
 	refCount := len(ac.quality) + len(ac.risks)
 	refRatio := float64(refCount) / float64(totalEntities)
-
-	// WBS の深さ
-	maxDepth := 0
-	for _, obj := range ac.objectives {
-		depth := len(strings.Split(obj.WBSCode, "."))
-		if depth > maxDepth {
-			maxDepth = depth
-		}
-	}
 
 	// 平均兄弟数
 	objDeliverables := make(map[string]int)
@@ -609,11 +507,6 @@ func (ac *AffinityCalculator) CalculateWeights() AffinityWeights {
 		siblingWeight = 0.8
 	}
 
-	wbsWeight := 0.3 + (float64(maxDepth) * 0.1)
-	if wbsWeight > 0.6 {
-		wbsWeight = 0.6
-	}
-
 	refWeight := 0.4 + (refRatio * 0.3)
 	if refWeight > 0.7 {
 		refWeight = 0.7
@@ -622,7 +515,6 @@ func (ac *AffinityCalculator) CalculateWeights() AffinityWeights {
 	return AffinityWeights{
 		ParentChild: 1.0,
 		Sibling:     siblingWeight,
-		WBSAdjacent: wbsWeight,
 		Reference:   refWeight,
 		Category:    0.3,
 	}
@@ -638,8 +530,6 @@ func (ac *AffinityCalculator) calculateScores(edges []AffinityEdge, weights Affi
 				score += weights.ParentChild
 			case AffinitySibling:
 				score += weights.Sibling
-			case AffinityWBSAdjacent:
-				score += weights.WBSAdjacent
 			case AffinityReference:
 				score += weights.Reference
 			case AffinityCategory:
@@ -714,4 +604,32 @@ func (ac *AffinityCalculator) calculateStats(nodes []AffinityNode, edges []Affin
 		ClusterCount:   len(clusters),
 		AvgConnections: avgConnections,
 	}
+}
+
+// isWBSAdjacent は 2 つの WBS コードが隣接しているか判定
+// Note: WBS 機能は削除されましたが、互換性のため関数を残しています
+func (ac *AffinityCalculator) isWBSAdjacent(code1, code2 string) bool {
+	parts1 := strings.Split(code1, ".")
+	parts2 := strings.Split(code2, ".")
+
+	// 同じ深さでない場合は隣接しない
+	if len(parts1) != len(parts2) {
+		return false
+	}
+
+	// 最後の部分以外が同じで、最後の部分が連続している
+	for i := 0; i < len(parts1)-1; i++ {
+		if parts1[i] != parts2[i] {
+			return false
+		}
+	}
+
+	// 最後の部分の数値を比較
+	num1, err1 := strconv.Atoi(parts1[len(parts1)-1])
+	num2, err2 := strconv.Atoi(parts2[len(parts2)-1])
+	if err1 != nil || err2 != nil {
+		return false
+	}
+
+	return num2-num1 == 1
 }

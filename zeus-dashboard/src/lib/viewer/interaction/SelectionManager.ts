@@ -35,13 +35,6 @@ export class SelectionManager {
 	}
 
 	/**
-	 * @deprecated setNodes を使用してください
-	 */
-	setTasks(nodes: GraphNode[]): void {
-		this.setNodes(nodes);
-	}
-
-	/**
 	 * 単一選択（トグル）
 	 */
 	toggleSelect(taskId: string, multi = false): void {

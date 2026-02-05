@@ -8,6 +8,7 @@ Zeus は「神の視点」でプロジェクト管理を支援する AI 駆動�
 - 人間中心: AI は提案者、人間が最終決定者
 - シンプルな初期化: 単一の `zeus init` コマンドで全機能を利用可能
 - Git 親和性: 全データがテキストで差分追跡可能
+- 構造可視化特化: 進捗管理は対象外（Jira, Linear 等と棲み分け）
 
 ## 技術スタック
 
@@ -47,9 +48,8 @@ make build-all          # 統合ビルド
 | Phase 2 (Standard) | pending, approve, reject, snapshot, history | 完了 |
 | Phase 2.5-2.7 | セキュリティ、DI/Context、suggest/apply | 完了 |
 | Phase 3 (AI統合) | Claude Code 連携、explain | 完了 |
-| Phase 4 (分析) | graph, predict, report | 完了 |
+| Phase 4 (分析) | graph, report | 完了 |
 | Phase 5 (ダッシュボード) | Factorio風ビューワー、SSE | 完了 |
-| Phase 6 (WBS・タイムライン) | WBS階層、クリティカルパス、影響範囲可視化 | 完了 |
 | Phase 7 (Affinity Canvas) | 機能間関連性可視化、フォースダイレクテッド | 完了 |
 | 10概念モデル Phase 1 | Vision, Objective, Deliverable, 参照整合性 | 完了 |
 | 10概念モデル Phase 2+3 | Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality | 完了 (M1-M3対応推奨) |
@@ -57,6 +57,8 @@ make build-all          # 統合ビルド
 | UML Activity | アクティビティ図、ノード/遷移、PixiJS ビューワー | 完了 |
 | UML Subsystem | サブシステム分類、UseCase グルーピング、境界描画 | 完了 |
 | Activity 拡張 | Simple/Flow モード、UnifiedGraph | 完了 |
+
+> **Note:** Phase 6 (WBS・タイムライン) は v2.0 で削除されました。詳細は `docs/specs/remove-progress-features/` を参照。
 
 ## 実装済みコマンド
 
@@ -67,9 +69,8 @@ zeus status                                     # 状態表示
 zeus add <entity> <name> [options]              # エンティティ追加
   # entity: vision, objective, deliverable, activity, consideration, decision,
   #         problem, risk, assumption, constraint, quality, actor, usecase, subsystem
-  # --parent <id>  --start <date>  --due <date>  --progress <0-100>  --wbs <code>
-  # --statement <text>  --objective <id>  --format <type>  --subsystem <id>
-  # Activity 用: --depends <ids>  --estimate <hours>  --assignee <name>  --priority <level>
+  # --parent <id>  --statement <text>  --objective <id>  --format <type>  --subsystem <id>
+  # Activity 用: --depends <ids>  --assignee <name>  --priority <level>
 zeus list [entity]                              # 一覧表示
   # entity: vision, objectives, deliverables, activities, considerations, decisions,
   #         problems, risks, assumptions, constraints, quality, actors, usecases, subsystems
@@ -93,8 +94,6 @@ zeus graph [--format text|dot|mermaid] [-o file]    # 依存関係グラフ
 zeus graph --unified                                 # 統合グラフ（Activity, UseCase, Deliverable, Objective）
 zeus graph --unified --focus act-001 --depth 3      # 指定 ID を中心に表示
 zeus graph --unified --types activity,deliverable   # タイプでフィルタ
-zeus graph --wbs                                    # WBS 階層を表示
-zeus predict [completion|risk|velocity|all]         # 予測分析
 zeus report [--format text|html|markdown] [-o file] # レポート生成
 zeus dashboard [--port 8080] [--no-open] [--dev]    # Web ダッシュボード
 
@@ -119,11 +118,10 @@ zeus update-claude                              # Claude Code ファイル再生
 
 **生成ファイル:**
 - `agents/zeus-orchestrator.md` - 全コマンド一覧
-- `agents/zeus-planner.md` - WBS・タイムライン設計
+- `agents/zeus-planner.md` - 設計支援
 - `agents/zeus-reviewer.md` - 分析・レビュー
 - `skills/zeus-suggest/SKILL.md` - 提案生成
 - `skills/zeus-risk-analysis/SKILL.md` - リスク分析
-- `skills/zeus-wbs-design/SKILL.md` - WBS 階層設計
 
 ## 10概念モデル
 
@@ -177,14 +175,9 @@ Activity は「実行可能な作業単位」として 2 つのモードを持�
 **Activity のフィールド（Simple モード用）:**
 - `dependencies`: 依存先 Activity ID
 - `parent_id`: 親 Activity ID
-- `estimate_hours`: 見積もり時間
-- `actual_hours`: 実績時間
 - `assignee`: 担当者
-- `start_date`: 開始日
-- `due_date`: 期限日
 - `priority`: 優先度（high/medium/low）
-- `wbs_code`: WBS コード
-- `progress`: 進捗率（0-100）
+- `status`: 状態（pending, in_progress, completed, blocked）
 
 **UnifiedGraph:**
 
@@ -223,8 +216,6 @@ zeus graph --unified --hide-completed          # 完了済みを非表示
 - 循環参照検出実装済み
 - **Lint チェック:**
   - ID フォーマット検証（全エンティティ）
-  - status/progress 整合性（progress=100 → status=completed）
-  - 自動修正: `FixStatusProgressConsistency()` で不整合を一括修正可能
 - セキュリティ: ValidatePath, ValidateID, Sanitizer
 
 ## ドキュメント
@@ -235,6 +226,7 @@ zeus graph --unified --hide-completed          # 完了済みを非表示
 - `docs/detailed-design.md` - 10概念モデル詳細設計
 - `docs/design/affinity-canvas.md` - Affinity Canvas 設計書（Phase 7）
 - `docs/security.md` - セキュリティ実装ガイド
+- `docs/specs/remove-progress-features/` - 進捗管理機能削除の経緯
 
 ## 詳細情報
 

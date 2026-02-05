@@ -39,7 +39,7 @@ vi.mock('pixi.js', () => ({
 }));
 
 // モック後にインポート
-import { EdgeFactory, TaskEdge } from '../../rendering/TaskEdge';
+import { EdgeFactory, GraphEdge } from '../../rendering/GraphEdge';
 
 describe('EdgeFactory パフォーマンステスト', () => {
 	let factory: EdgeFactory;
@@ -255,11 +255,11 @@ describe('EdgeFactory パフォーマンステスト', () => {
 		});
 	});
 
-	describe('TaskEdge 静的メソッド', () => {
+	describe('GraphEdge 静的メソッド', () => {
 		it('createKey が一意のキーを生成する', () => {
-			const key1 = TaskEdge.createKey('a', 'b');
-			const key2 = TaskEdge.createKey('b', 'a');
-			const key3 = TaskEdge.createKey('a', 'b');
+			const key1 = GraphEdge.createKey('a', 'b');
+			const key2 = GraphEdge.createKey('b', 'a');
+			const key3 = GraphEdge.createKey('a', 'b');
 
 			expect(key1).toBe('a-->b');
 			expect(key2).toBe('b-->a');

@@ -461,12 +461,12 @@ func TestLintWarning_Warning(t *testing.T) {
 		EntityType: "objective",
 		EntityID:   "obj-001",
 		Field:      "status",
-		Message:    "progress=100 but status is not completed",
+		Message:    "status should be completed",
 		Suggested:  "completed",
 		Actual:     "in_progress",
 	}
 
-	expected := "[objective] obj-001.status: progress=100 but status is not completed (suggested: completed, actual: in_progress)"
+	expected := "[objective] obj-001.status: status should be completed (suggested: completed, actual: in_progress)"
 	if lintWarn.Warning() != expected {
 		t.Errorf("expected warning message %q, got %q", expected, lintWarn.Warning())
 	}
@@ -510,132 +510,4 @@ func TestLintChecker_ConstraintFileNotExists(t *testing.T) {
 	}
 }
 
-// ===== Activity status/progress 整合性テスト =====
-
-func TestLintChecker_ActivityStatusProgressConsistency(t *testing.T) {
-	checker, zeusPath, cleanup := setupLintCheckerTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-	fs := yaml.NewFileManager(zeusPath)
-
-	// activities ディレクトリを作成
-	if err := fs.EnsureDir(ctx, "activities"); err != nil {
-		t.Fatalf("EnsureDir activities failed: %v", err)
-	}
-
-	// progress=100 だが status が completed でない Activity を作成
-	act := &ActivityEntity{
-		ID:       "act-00000001",
-		Title:    "テストアクティビティ",
-		Status:   ActivityStatusInProgress, // progress=100 なのに in_progress
-		Progress: 100,
-		Metadata: Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-	}
-	if err := fs.WriteYaml(ctx, "activities/act-00000001.yaml", act); err != nil {
-		t.Fatalf("Write activity failed: %v", err)
-	}
-
-	// Lint チェック実行
-	warnings := checker.CheckStatusProgressConsistency(ctx)
-
-	if len(warnings) != 1 {
-		t.Errorf("expected 1 warning for Activity status/progress mismatch, got %d", len(warnings))
-	}
-
-	// 警告内容確認
-	if len(warnings) > 0 {
-		warn := warnings[0]
-		if warn.EntityType != "activity" {
-			t.Errorf("expected entity type 'activity', got %q", warn.EntityType)
-		}
-		if warn.EntityID != "act-00000001" {
-			t.Errorf("expected entity ID 'act-00000001', got %q", warn.EntityID)
-		}
-		if warn.Field != "status" {
-			t.Errorf("expected field 'status', got %q", warn.Field)
-		}
-	}
-}
-
-func TestLintChecker_ActivityStatusProgressConsistent(t *testing.T) {
-	checker, zeusPath, cleanup := setupLintCheckerTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-	fs := yaml.NewFileManager(zeusPath)
-
-	// activities ディレクトリを作成
-	if err := fs.EnsureDir(ctx, "activities"); err != nil {
-		t.Fatalf("EnsureDir activities failed: %v", err)
-	}
-
-	// progress=100 で status も completed の Activity を作成
-	act := &ActivityEntity{
-		ID:       "act-00000001",
-		Title:    "完了アクティビティ",
-		Status:   ActivityStatusCompleted,
-		Progress: 100,
-		Metadata: Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-	}
-	if err := fs.WriteYaml(ctx, "activities/act-00000001.yaml", act); err != nil {
-		t.Fatalf("Write activity failed: %v", err)
-	}
-
-	// Lint チェック実行
-	warnings := checker.CheckStatusProgressConsistency(ctx)
-
-	if len(warnings) != 0 {
-		t.Errorf("expected 0 warnings for consistent Activity, got %d", len(warnings))
-	}
-}
-
-func TestLintChecker_FixActivityStatusProgress(t *testing.T) {
-	checker, zeusPath, cleanup := setupLintCheckerTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-	fs := yaml.NewFileManager(zeusPath)
-
-	// activities ディレクトリを作成
-	if err := fs.EnsureDir(ctx, "activities"); err != nil {
-		t.Fatalf("EnsureDir activities failed: %v", err)
-	}
-
-	// progress=100 だが status が completed でない Activity を作成
-	act := &ActivityEntity{
-		ID:       "act-00000001",
-		Title:    "テストアクティビティ",
-		Status:   ActivityStatusInProgress,
-		Progress: 100,
-		Metadata: Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-	}
-	if err := fs.WriteYaml(ctx, "activities/act-00000001.yaml", act); err != nil {
-		t.Fatalf("Write activity failed: %v", err)
-	}
-
-	// 修正実行
-	count, err := checker.FixStatusProgressConsistency(ctx)
-	if err != nil {
-		t.Fatalf("FixStatusProgressConsistency failed: %v", err)
-	}
-
-	if count != 1 {
-		t.Errorf("expected 1 fix, got %d", count)
-	}
-
-	// 修正後のチェック
-	warnings := checker.CheckStatusProgressConsistency(ctx)
-	if len(warnings) != 0 {
-		t.Errorf("expected 0 warnings after fix, got %d", len(warnings))
-	}
-
-	// ファイルが実際に修正されたか確認
-	var fixedAct ActivityEntity
-	if err := fs.ReadYaml(ctx, "activities/act-00000001.yaml", &fixedAct); err != nil {
-		t.Fatalf("Read fixed activity failed: %v", err)
-	}
-	if fixedAct.Status != ActivityStatusCompleted {
-		t.Errorf("expected status 'completed', got %q", fixedAct.Status)
-	}
-}
+// Note: Activity status/progress 整合性テストは progress 機能削除に伴い削除

@@ -10,9 +10,9 @@ model: sonnet
 
 ## 役割
 
-1. **進捗レビュー**: Activity・Objective の進捗を評価、予測分析の活用
+1. **状態レビュー**: Activity・Objective の状態を評価
 2. **品質チェック**: Quality メトリクス・ゲートによる品質判定
-3. **リスク評価**: Risk/Problem/Assumption の評価、クリティカルパス監視
+3. **リスク評価**: Risk/Problem/Assumption の評価
 4. **参照整合性レビュー**: エンティティ間参照の健全性確認
 5. **Decision 監査**: 意思決定のイミュータブル性と妥当性確認
 6. **Actor/UseCase レビュー**: UML ユースケース図の整合性確認
@@ -33,17 +33,11 @@ model: sonnet
 
 ### 分析ツール
 - `zeus graph [--format text|dot|mermaid]` - 依存関係グラフ表示
-- `zeus predict completion` - 完了日予測
-- `zeus predict risk` - リスク分析
-- `zeus predict velocity` - ベロシティ分析
-- `zeus predict all` - 全予測分析
 - `zeus report [--format text|html|markdown]` - プロジェクトレポート生成
 
 ### リアルタイム監視
 - `zeus dashboard` - Webダッシュボードで監視
   - Activity グラフ表示
-  - WBS階層ビュー
-  - タイムライン・クリティカルパス表示
   - 影響範囲ハイライト（下流/上流 Activity）
   - UseCaseView（UML ユースケース図）
 
@@ -125,7 +119,6 @@ zeus list problems
 ### Risk レビュー
 ```bash
 zeus list risks
-zeus predict risk
 ```
 - probability（high/medium/low）が適切か
 - impact（critical/high/medium/low）が適切か
@@ -203,25 +196,6 @@ zeus doctor
 - UseCase の relations で循環を検出
 - 検出された場合はエラーレポート
 
-## WBS階層のチェック
-
-- 循環参照がないか（自動検出される）
-- 適切な粒度で分割されているか
-- WBSコードが一貫しているか
-
-## タイムラインのチェック
-
-- 開始日・期限日が設定されているか
-- クリティカルパスが特定されているか
-- 依存関係が正しく設定されているか
-- スラック（余裕時間）が適切か
-
-## 進捗確認
-
-- 進捗率が正確に更新されているか
-- 遅延 Activity・Objective が特定されているか
-- ボトルネックが把握されているか
-
 ## レビュー基準
 
 1. **完了の定義**: Deliverable の acceptance_criteria を確認
@@ -270,16 +244,13 @@ zeus list problems
 zeus list actors
 zeus list usecases
 
-# 4. リスク分析
-zeus predict risk
-
-# 5. 依存関係確認
+# 4. 依存関係確認
 zeus graph --format mermaid
 
-# 6. UML ユースケース図確認
+# 5. UML ユースケース図確認
 zeus uml show usecase --format mermaid
 
-# 7. レポート生成
+# 6. レポート生成
 zeus report --format markdown -o review-report.md
 ```
 
@@ -287,4 +258,3 @@ zeus report --format markdown -o review-report.md
 
 - @zeus-suggest - 提案生成
 - @zeus-risk-analysis - リスク分析
-- @zeus-wbs-design - WBS 階層設計

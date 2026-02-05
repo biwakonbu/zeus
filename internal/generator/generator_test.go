@@ -59,7 +59,6 @@ func TestGenerateAll(t *testing.T) {
 	skills := []string{
 		"zeus-suggest/SKILL.md",
 		"zeus-risk-analysis/SKILL.md",
-		"zeus-wbs-design/SKILL.md",
 		"zeus-e2e-tester/SKILL.md",
 	}
 	for _, skill := range skills {
@@ -392,10 +391,6 @@ func TestGenerateSkills_FileContent(t *testing.T) {
 			contains: []string{"MyProject", "zeus-risk-analysis", "リスク"},
 		},
 		{
-			dir:      "zeus-wbs-design",
-			contains: []string{"WBS", "階層"},
-		},
-		{
 			dir:      "zeus-e2e-tester",
 			contains: []string{"E2E", "テスト"},
 		},
@@ -474,7 +469,6 @@ func TestGenerateSkills_AllFiles(t *testing.T) {
 	skills := []string{
 		"zeus-suggest",
 		"zeus-risk-analysis",
-		"zeus-wbs-design",
 		"zeus-e2e-tester",
 	}
 
@@ -652,7 +646,6 @@ func TestEmbeddedSkillFiles(t *testing.T) {
 	skills := []string{
 		"assets/skills/zeus-suggest/SKILL.md",
 		"assets/skills/zeus-risk-analysis/SKILL.md",
-		"assets/skills/zeus-wbs-design/SKILL.md",
 		"assets/skills/zeus-e2e-tester/SKILL.md",
 	}
 
@@ -665,37 +658,5 @@ func TestEmbeddedSkillFiles(t *testing.T) {
 		if len(content) == 0 {
 			t.Errorf("skill file %s should not be empty", skill)
 		}
-	}
-}
-
-// TestGenerateSkills_WBSDesign は zeus-wbs-design スキルが生成されるかテスト
-func TestGenerateSkills_WBSDesign(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "generator-test")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	g := NewGenerator(tmpDir)
-	ctx := context.Background()
-
-	err = g.GenerateSkills(ctx, "TestProject")
-	if err != nil {
-		t.Fatalf("GenerateSkills() error = %v", err)
-	}
-
-	// zeus-wbs-design スキルが生成されているか確認
-	path := filepath.Join(tmpDir, ".claude", "skills", "zeus-wbs-design", "SKILL.md")
-	content, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("failed to read zeus-wbs-design skill: %v", err)
-	}
-
-	// 内容を確認
-	if !strings.Contains(string(content), "zeus-wbs-design") {
-		t.Error("skill file should contain 'zeus-wbs-design'")
-	}
-	if !strings.Contains(string(content), "WBS") {
-		t.Error("skill file should contain 'WBS'")
 	}
 }

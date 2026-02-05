@@ -534,19 +534,10 @@ func listActivities(cmd *cobra.Command, zeus *core.Zeus) error {
 			act.ID,
 			act.Title)
 
-		// 詳細情報（進捗、担当者、期限など）
+		// 詳細情報（担当者など）
 		var details []string
-		if act.Progress > 0 {
-			details = append(details, fmt.Sprintf("Progress: %d%%", act.Progress))
-		}
 		if act.Assignee != "" {
 			details = append(details, fmt.Sprintf("Assignee: %s", act.Assignee))
-		}
-		if act.DueDate != "" {
-			details = append(details, fmt.Sprintf("Due: %s", act.DueDate))
-		}
-		if act.EstimateHours > 0 {
-			details = append(details, fmt.Sprintf("Estimate: %.1fh", act.EstimateHours))
 		}
 		if len(act.Dependencies) > 0 {
 			details = append(details, fmt.Sprintf("Deps: %d", len(act.Dependencies)))

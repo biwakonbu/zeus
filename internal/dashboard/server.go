@@ -131,12 +131,6 @@ func (s *Server) handler() http.Handler {
 	// API エンドポイント（CORS 対応）
 	mux.HandleFunc("/api/status", s.corsMiddleware(s.handleAPIStatus))
 	mux.HandleFunc("/api/graph", s.corsMiddleware(s.handleAPIGraph))
-	mux.HandleFunc("/api/predict", s.corsMiddleware(s.handleAPIPredict))
-	mux.HandleFunc("/api/wbs", s.corsMiddleware(s.handleAPIWBS))
-	mux.HandleFunc("/api/wbs/analysis", s.corsMiddleware(s.handleAPIWBSAnalysis))
-	mux.HandleFunc("/api/wbs/aggregated", s.corsMiddleware(s.handleAPIWBSAggregated))
-	mux.HandleFunc("/api/timeline", s.corsMiddleware(s.handleAPITimeline))
-	mux.HandleFunc("/api/downstream", s.corsMiddleware(s.handleAPIDownstream))
 	mux.HandleFunc("/api/affinity", s.corsMiddleware(s.handleAPIAffinity)) // Phase 7: Affinity Canvas
 
 	// UML UseCase API エンドポイント
@@ -219,7 +213,6 @@ func (s *Server) BroadcastAllUpdates(ctx context.Context) {
 				ID:          status.Project.ID,
 				Name:        status.Project.Name,
 				Description: status.Project.Description,
-				StartDate:   status.Project.StartDate,
 			},
 			State: ProjectState{
 				Health: string(status.State.Health),
@@ -256,47 +249,6 @@ func (s *Server) BroadcastAllUpdates(ctx context.Context) {
 			response.Isolated = []string{}
 		}
 		s.broadcaster.BroadcastGraph(response)
-	}
-
-	// 予測
-	if result, err := s.zeus.Predict(ctx, "all"); err == nil {
-		response := PredictResponse{}
-		if result.Completion != nil {
-			response.Completion = &CompletionPrediction{
-				RemainingTasks:    result.Completion.RemainingTasks,
-				AverageVelocity:   result.Completion.AverageVelocity,
-				EstimatedDate:     result.Completion.EstimatedDate,
-				ConfidenceLevel:   result.Completion.ConfidenceLevel,
-				MarginDays:        result.Completion.MarginDays,
-				HasSufficientData: result.Completion.HasSufficientData,
-			}
-		}
-		if result.Risk != nil {
-			factors := make([]RiskFactor, len(result.Risk.Factors))
-			for i, f := range result.Risk.Factors {
-				factors[i] = RiskFactor{
-					Name:        f.Name,
-					Description: f.Description,
-					Impact:      f.Impact,
-				}
-			}
-			response.Risk = &RiskPrediction{
-				OverallLevel: string(result.Risk.OverallLevel),
-				Factors:      factors,
-				Score:        result.Risk.Score,
-			}
-		}
-		if result.Velocity != nil {
-			response.Velocity = &VelocityReport{
-				Last7Days:     result.Velocity.Last7Days,
-				Last14Days:    result.Velocity.Last14Days,
-				Last30Days:    result.Velocity.Last30Days,
-				WeeklyAverage: result.Velocity.WeeklyAverage,
-				Trend:         string(result.Velocity.Trend),
-				DataPoints:    result.Velocity.DataPoints,
-			}
-		}
-		s.broadcaster.BroadcastPrediction(response)
 	}
 }
 

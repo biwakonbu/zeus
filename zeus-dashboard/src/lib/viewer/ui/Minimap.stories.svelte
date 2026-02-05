@@ -14,8 +14,7 @@
 			status: 'completed',
 			priority: 'high',
 			assignee: 'alice',
-			dependencies: [],
-			progress: 100
+			dependencies: []
 		},
 		{
 			id: 'task-2',
@@ -24,8 +23,7 @@
 			status: 'completed',
 			priority: 'medium',
 			assignee: 'bob',
-			dependencies: ['task-1'],
-			progress: 100
+			dependencies: ['task-1']
 		},
 		{
 			id: 'task-3',
@@ -34,8 +32,7 @@
 			status: 'in_progress',
 			priority: 'high',
 			assignee: 'alice',
-			dependencies: ['task-2'],
-			progress: 60
+			dependencies: ['task-2']
 		},
 		{
 			id: 'task-4',
@@ -44,8 +41,7 @@
 			status: 'pending',
 			priority: 'medium',
 			assignee: 'charlie',
-			dependencies: ['task-2'],
-			progress: 0
+			dependencies: ['task-2']
 		},
 		{
 			id: 'task-5',
@@ -54,8 +50,7 @@
 			status: 'blocked',
 			priority: 'low',
 			assignee: 'bob',
-			dependencies: ['task-3', 'task-4'],
-			progress: 0
+			dependencies: ['task-3', 'task-4']
 		}
 	];
 

@@ -114,15 +114,6 @@ steps:
       visibleCount: 3
       totalCount: 3
 
-  # クリティカルパス状態の確認
-  - id: verify-critical-path
-    name: クリティカルパス状態
-    type: web
-    action: capture_state
-    method: window.__ZEUS__.getCriticalPathState()
-    expect:
-      enabled: true
-
   # スナップショット取得（参照用）
   - id: snapshot-dashboard
     name: ダッシュボードスナップショット
@@ -159,6 +150,3 @@ assertions:
 
   - type: api_available
     endpoint: /api/activities
-
-  - type: api_available
-    endpoint: /api/timeline

@@ -757,16 +757,7 @@ zeus verify coverage [--strict] [--fix]
 zeus verify integrity [--fix]
 ```
 
-### 6.2 移行
-
-```bash
-zeus migrate analyze
-zeus migrate tasks [--dry-run] [--interactive] [--no-backup]
-zeus migrate verify
-zeus migrate rollback
-```
-
-### 6.3 エンティティ操作
+### 6.2 エンティティ操作
 
 ```bash
 zeus add objective <title> [--parent <id>] [--wbs <code>]

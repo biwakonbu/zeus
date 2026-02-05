@@ -121,27 +121,11 @@ steps:
     path: golden/snapshots/integration-final.png
     mode: reference
 
-  # クリティカルパスの確認
-  - id: verify-critical-path
-    name: クリティカルパス確認
-    type: web
-    action: capture_state
-    method: window.__ZEUS__.getCriticalPathState()
-    expect:
-      enabled: true
-      criticalPathCount: 3  # 全 Activity が直列なのでクリティカルパス上
-
   # API 経由での確認
   - id: api-verify-activities
     name: API で Activity 確認
     type: cli
     command: curl -s http://localhost:8080/api/activities | jq '.activities | length'
-    expect_output: "3"
-
-  - id: api-verify-timeline
-    name: API でタイムライン確認
-    type: cli
-    command: curl -s http://localhost:8080/api/timeline | jq '.critical_path | length'
     expect_output: "3"
 
 teardown:
@@ -160,6 +144,3 @@ assertions:
       - ${activity_design_id}
       - ${activity_impl_id}
       - ${activity_test_id}
-
-  - type: critical_path
-    expected_length: 3

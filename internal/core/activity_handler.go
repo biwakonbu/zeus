@@ -240,29 +240,11 @@ func (h *ActivityHandler) Update(ctx context.Context, id string, update any) err
 		if parentID, exists := updateMap["parent_id"].(string); exists {
 			activity.ParentID = parentID
 		}
-		if estimateHours, exists := updateMap["estimate_hours"].(float64); exists {
-			activity.EstimateHours = estimateHours
-		}
-		if actualHours, exists := updateMap["actual_hours"].(float64); exists {
-			activity.ActualHours = actualHours
-		}
 		if assignee, exists := updateMap["assignee"].(string); exists {
 			activity.Assignee = assignee
 		}
-		if startDate, exists := updateMap["start_date"].(string); exists {
-			activity.StartDate = startDate
-		}
-		if dueDate, exists := updateMap["due_date"].(string); exists {
-			activity.DueDate = dueDate
-		}
 		if priority, exists := updateMap["priority"].(string); exists {
 			activity.Priority = ActivityPriority(priority)
-		}
-		if wbsCode, exists := updateMap["wbs_code"].(string); exists {
-			activity.WBSCode = wbsCode
-		}
-		if progress, exists := updateMap["progress"].(int); exists {
-			activity.Progress = progress
 		}
 		if approvalLevel, exists := updateMap["approval_level"].(string); exists {
 			activity.ApprovalLevel = ApprovalLevel(approvalLevel)
@@ -697,24 +679,6 @@ func WithActivityParent(parentID string) EntityOption {
 	}
 }
 
-// WithActivityEstimateHours は見積もり時間を設定
-func WithActivityEstimateHours(hours float64) EntityOption {
-	return func(v any) {
-		if a, ok := v.(*ActivityEntity); ok {
-			a.EstimateHours = hours
-		}
-	}
-}
-
-// WithActivityActualHours は実績時間を設定
-func WithActivityActualHours(hours float64) EntityOption {
-	return func(v any) {
-		if a, ok := v.(*ActivityEntity); ok {
-			a.ActualHours = hours
-		}
-	}
-}
-
 // WithActivityAssignee は担当者を設定
 func WithActivityAssignee(assignee string) EntityOption {
 	return func(v any) {
@@ -724,47 +688,11 @@ func WithActivityAssignee(assignee string) EntityOption {
 	}
 }
 
-// WithActivityStartDate は開始日を設定
-func WithActivityStartDate(startDate string) EntityOption {
-	return func(v any) {
-		if a, ok := v.(*ActivityEntity); ok {
-			a.StartDate = startDate
-		}
-	}
-}
-
-// WithActivityDueDate は期限日を設定
-func WithActivityDueDate(dueDate string) EntityOption {
-	return func(v any) {
-		if a, ok := v.(*ActivityEntity); ok {
-			a.DueDate = dueDate
-		}
-	}
-}
-
 // WithActivityPriority は優先度を設定
 func WithActivityPriority(priority ActivityPriority) EntityOption {
 	return func(v any) {
 		if a, ok := v.(*ActivityEntity); ok {
 			a.Priority = priority
-		}
-	}
-}
-
-// WithActivityWBSCode は WBS コードを設定
-func WithActivityWBSCode(wbsCode string) EntityOption {
-	return func(v any) {
-		if a, ok := v.(*ActivityEntity); ok {
-			a.WBSCode = wbsCode
-		}
-	}
-}
-
-// WithActivityProgress は進捗率を設定
-func WithActivityProgress(progress int) EntityOption {
-	return func(v any) {
-		if a, ok := v.(*ActivityEntity); ok {
-			a.Progress = progress
 		}
 	}
 }

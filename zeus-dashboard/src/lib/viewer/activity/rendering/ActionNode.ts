@@ -205,8 +205,7 @@ export class ActionNode extends ActivityNodeBase {
 	 */
 	private drawText(): void {
 		const name = this.nodeData.name || '';
-		const maxWidth = this.nodeWidth - ACTION_NODE_SIZE.paddingH;
-		let displayText = name;
+		const displayText = name;
 
 		this.nameText.text = displayText;
 

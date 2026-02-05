@@ -339,17 +339,6 @@ func WithDeliverableStatus(status DeliverableStatus) EntityOption {
 	}
 }
 
-// WithDeliverableProgress は Deliverable の進捗を設定
-func WithDeliverableProgress(progress int) EntityOption {
-	return func(v any) {
-		if del, ok := v.(*DeliverableEntity); ok {
-			if progress >= 0 && progress <= 100 {
-				del.Progress = progress
-			}
-		}
-	}
-}
-
 // WithDeliverableOwner は Deliverable のオーナーを設定
 func WithDeliverableOwner(owner string) EntityOption {
 	return func(v any) {

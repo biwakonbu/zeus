@@ -33,7 +33,7 @@ func TestDoctorCyclicDetection(t *testing.T) {
 	runCommand(t, dir, "init")
 
 	// 正常な階層構造を作成
-	result := runCommand(t, dir, "add", "objective", "親目標", "--wbs", "1.0")
+	result := runCommand(t, dir, "add", "objective", "親目標")
 	assertSuccess(t, result)
 	parentID := extractEntityID(t, result, "obj-")
 	if parentID == "" {
@@ -41,8 +41,7 @@ func TestDoctorCyclicDetection(t *testing.T) {
 	}
 
 	result = runCommand(t, dir, "add", "objective", "子目標",
-		"--parent", parentID,
-		"--wbs", "1.1")
+		"--parent", parentID)
 	assertSuccess(t, result)
 
 	// doctor でチェック
@@ -87,8 +86,7 @@ func TestRefChain_Del_Obj(t *testing.T) {
 	runCommand(t, dir, "init")
 
 	// Objective 作成
-	result := runCommand(t, dir, "add", "objective", "Phase 1 目標",
-		"--wbs", "1.0")
+	result := runCommand(t, dir, "add", "objective", "Phase 1 目標")
 	assertSuccess(t, result)
 	objID := extractEntityID(t, result, "obj-")
 	if objID == "" {
