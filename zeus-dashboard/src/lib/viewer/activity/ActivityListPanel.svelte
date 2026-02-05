@@ -2,7 +2,7 @@
 	// ActivityListPanel - アクティビティ一覧パネル（オーバーレイ用シンプル版）
 	import { onDestroy } from 'svelte';
 	import type { ActivityItem } from '$lib/types/api';
-	import { Icon } from '$lib/components/ui';
+	import { Icon, SearchInput } from '$lib/components/ui';
 
 	interface Props {
 		activities: ActivityItem[];
@@ -19,12 +19,11 @@
 	let debounceTimer: ReturnType<typeof setTimeout>;
 
 	// 検索入力ハンドラー
-	function handleSearch(event: Event) {
-		const target = event.target as HTMLInputElement;
-		searchQuery = target.value;
+	function handleSearchInput(value: string) {
+		searchQuery = value;
 		clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(() => {
-			debouncedQuery = searchQuery;
+			debouncedQuery = value;
 		}, 250);
 	}
 
@@ -75,21 +74,12 @@
 <div class="list-panel-content">
 	<!-- 検索 -->
 	<div class="search-row">
-		<div class="search-input-wrapper">
-			<Icon name="Search" size={14} />
-			<input
-				type="text"
-				class="search-input"
-				placeholder="検索..."
-				value={searchQuery}
-				oninput={handleSearch}
-			/>
-			{#if searchQuery}
-				<button class="search-clear" onclick={handleSearchClear}>
-					<Icon name="X" size={12} />
-				</button>
-			{/if}
-		</div>
+		<SearchInput
+			value={searchQuery}
+			placeholder="検索..."
+			onInput={handleSearchInput}
+			onClear={handleSearchClear}
+		/>
 	</div>
 
 	<!-- カウント表示 -->
@@ -151,46 +141,6 @@
 
 	.search-row {
 		flex-shrink: 0;
-	}
-
-	.search-input-wrapper {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		background: rgba(0, 0, 0, 0.3);
-		border: 1px solid var(--border-metal);
-		border-radius: 4px;
-		padding: 6px 10px;
-		color: var(--text-muted);
-	}
-
-	.search-input {
-		flex: 1;
-		background: transparent;
-		border: none;
-		outline: none;
-		color: var(--text-primary);
-		font-size: 0.8125rem;
-		font-family: inherit;
-	}
-
-	.search-input::placeholder {
-		color: var(--text-muted);
-	}
-
-	.search-clear {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: transparent;
-		border: none;
-		cursor: pointer;
-		color: var(--text-muted);
-		padding: 2px;
-	}
-
-	.search-clear:hover {
-		color: var(--text-primary);
 	}
 
 	.count-row {

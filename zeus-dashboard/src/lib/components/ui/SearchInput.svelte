@@ -6,10 +6,11 @@
 	interface Props {
 		value: string;
 		placeholder?: string;
+		compact?: boolean;
 		onInput: (value: string) => void;
 		onClear?: () => void;
 	}
-	let { value, placeholder = '検索...', onInput, onClear }: Props = $props();
+	let { value, placeholder = '検索...', compact = false, onInput, onClear }: Props = $props();
 
 	function handleClear() {
 		onInput('');
@@ -17,9 +18,9 @@
 	}
 </script>
 
-<div class="search-wrapper">
+<div class="search-wrapper" class:compact>
 	<span class="search-icon">
-		<Icon name="Search" size={16} />
+		<Icon name="Search" size={compact ? 14 : 16} />
 	</span>
 	<input
 		type="text"
@@ -31,7 +32,7 @@
 	/>
 	{#if value}
 		<button class="clear-btn" onclick={handleClear} aria-label="クリア">
-			<Icon name="X" size={14} />
+			<Icon name="X" size={compact ? 12 : 14} />
 		</button>
 	{/if}
 </div>
@@ -41,6 +42,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+		width: 100%;
 		padding: 0.5rem 0.75rem;
 		background: linear-gradient(180deg, rgba(25, 25, 25, 0.9) 0%, rgba(20, 20, 20, 0.95) 100%);
 		border: 2px solid var(--border-metal);
@@ -58,6 +60,19 @@
 		box-shadow:
 			0 0 12px rgba(255, 149, 51, 0.4),
 			inset 0 2px 4px rgba(0, 0, 0, 0.3);
+	}
+
+	/* コンパクトモード */
+	.search-wrapper.compact {
+		gap: 0.375rem;
+		padding: var(--spacing-xs) var(--spacing-sm);
+		border-width: 1px;
+		background: var(--bg-primary);
+		box-shadow: none;
+	}
+
+	.search-wrapper.compact .search-input {
+		font-size: var(--font-size-xs);
 	}
 
 	.search-icon {

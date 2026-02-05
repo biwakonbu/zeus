@@ -2,6 +2,7 @@
 	// UseCase View - PixiJS 版
 	// ミニマルデザイン: キャンバスが主役、パネルはオーバーレイで必要時のみ表示
 	import { onMount, onDestroy } from 'svelte';
+	import { get } from 'svelte/store';
 	import type {
 		UseCaseDiagramResponse,
 		ActorItem,
@@ -126,8 +127,9 @@
 			engine = new UseCaseEngine();
 			await engine.init(canvasContainer);
 
-			// フィルタモードはデフォルト無効（最初からノードを表示）
-			engine.setFilterMode(false);
+			// フィルタモードは有効（選択時に関連ノードだけ表示）
+			// 初期表示は setData() 後に showAll() で行う
+			engine.setFilterMode(true);
 
 			engine.onActorClicked((actor) => {
 				selectedActorId = actor.id;
@@ -167,6 +169,11 @@
 			if (data) {
 				const engineData: UseCaseEngineData = { ...data, subsystems };
 				engine.setData(engineData);
+				// ナビゲーション中は showAll() をスキップ（ナビゲーション Effect に任せる）
+				const nav = get(pendingNavigation);
+				if (!nav || nav.view !== 'usecase') {
+					engine.showAll();
+				}
 				syncStoreState();
 			}
 		} catch (e) {
@@ -202,16 +209,19 @@
 		showDetailPanel = false;
 		selectedActorId = null;
 		selectedUseCaseId = null;
-		// 視覚的な選択状態のみ解除（図は消さない）
+		// 選択解除して全ノード表示に戻す
 		engine?.clearSelectionVisual();
+		engine?.showAll();
 	}
 
 	// Actor/UseCase クリック（リストから）
-	// エンジンへの反映は選択同期 Effect が担当
+	// エンジンに直接選択を反映（絞り込みを確実に実行）
+	// エンジン側で冪等性が保証されているため、Effect との重複呼び出しは問題ない
 	function handleActorClick(actor: ActorItem) {
 		selectedActorId = actor.id;
 		selectedUseCaseId = null;
 		showDetailPanel = true;
+		engine?.selectActor(actor.id);
 		onActorSelect?.(actor);
 	}
 
@@ -219,6 +229,7 @@
 		selectedUseCaseId = usecase.id;
 		selectedActorId = null;
 		showDetailPanel = true;
+		engine?.selectUseCase(usecase.id);
 		onUseCaseSelect?.(usecase);
 	}
 
@@ -289,6 +300,11 @@
 		if (engineInitialized && engine && data) {
 			const engineData: UseCaseEngineData = { ...data, subsystems };
 			engine.setData(engineData);
+			// ナビゲーション中は showAll() をスキップ（ナビゲーション Effect に任せる）
+			const nav = $pendingNavigation;
+			if (!nav || nav.view !== 'usecase') {
+				engine.showAll();
+			}
 			syncStoreState();
 		}
 	});
@@ -323,7 +339,7 @@
 	});
 
 	// ナビゲーションによる自動選択 Effect
-	// ローカル状態の更新のみ行う。エンジンへの反映は選択同期 Effect が担当
+	// エンジンに直接選択を反映（絞り込みを確実に実行）
 	$effect(() => {
 		// ローカル変数に代入することで TypeScript の型推論を活用し、
 		// 以降のコードで null チェック後の型が確定する
@@ -337,6 +353,7 @@
 				selectedUseCaseId = usecase.id;
 				selectedActorId = null;
 				showDetailPanel = true;
+				engine?.selectUseCase(usecase.id);
 				onUseCaseSelect?.(usecase);
 			}
 			clearPendingNavigation();
@@ -347,6 +364,7 @@
 				selectedActorId = actor.id;
 				selectedUseCaseId = null;
 				showDetailPanel = true;
+				engine?.selectActor(actor.id);
 				onActorSelect?.(actor);
 			}
 			clearPendingNavigation();

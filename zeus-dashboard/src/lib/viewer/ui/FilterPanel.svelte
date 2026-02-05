@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { EntityStatus, Priority } from '$lib/types/api';
 	import type { FilterCriteria } from '../interaction/FilterManager';
+	import { SearchInput } from '$lib/components/ui';
 
 	// Props
 	interface Props {
@@ -22,9 +23,6 @@
 		onSearchChange,
 		onClear
 	}: Props = $props();
-
-	// フィルターパネルの開閉（初回はデフォルトで展開）
-	let isExpanded = $state(true);
 
 	// ステータス一覧
 	const statuses: { value: EntityStatus; label: string; color: string }[] = [
@@ -52,8 +50,7 @@
 	// 検索入力（criteria.searchText に同期）
 	let searchValue = $derived(criteria.searchText || '');
 
-	function handleSearchInput(e: Event) {
-		const value = (e.target as HTMLInputElement).value;
+	function handleSearchInput(value: string) {
 		onSearchChange(value);
 	}
 
@@ -70,142 +67,81 @@
 	}
 </script>
 
-<div class="filter-panel" class:expanded={isExpanded}>
-	<button class="filter-toggle" onclick={() => (isExpanded = !isExpanded)} class:active={isActive}>
-		<span class="toggle-icon">{isExpanded ? '▼' : '▶'}</span>
-		<span class="toggle-text">FILTER</span>
-		{#if isActive}
-			<span class="active-indicator">●</span>
-		{/if}
-	</button>
+<div class="filter-content">
+	<!-- 検索 -->
+	<div class="filter-section">
+		<span class="filter-label">Search</span>
+		<SearchInput
+			value={searchValue}
+			placeholder="Task ID or title..."
+			compact
+			onInput={handleSearchInput}
+		/>
+	</div>
 
-	{#if isExpanded}
-		<div class="filter-content">
-			<!-- 検索 -->
-			<div class="filter-section">
-				<label for="filter-search-input" class="filter-label">Search</label>
-				<input
-					id="filter-search-input"
-					type="text"
-					class="filter-search"
-					placeholder="Task ID or title..."
-					value={searchValue}
-					oninput={handleSearchInput}
-				/>
-			</div>
-
-			<!-- ステータス -->
-			<div class="filter-section" role="group" aria-label="Status filter">
-				<span class="filter-label">Status</span>
-				<div class="filter-chips">
-					{#each statuses as status}
-						<button
-							class="filter-chip"
-							class:active={isStatusActive(status.value)}
-							style="--chip-color: {status.color}"
-							onclick={() => onStatusToggle(status.value)}
-						>
-							<span class="chip-dot"></span>
-							{status.label}
-						</button>
-					{/each}
-				</div>
-			</div>
-
-			<!-- 優先度 -->
-			<div class="filter-section" role="group" aria-label="Priority filter">
-				<span class="filter-label">Priority</span>
-				<div class="filter-chips">
-					{#each priorities as priority}
-						<button
-							class="filter-chip"
-							class:active={isPriorityActive(priority.value)}
-							style="--chip-color: {priority.color}"
-							onclick={() => onPriorityToggle(priority.value)}
-						>
-							<span class="chip-dot"></span>
-							{priority.label}
-						</button>
-					{/each}
-				</div>
-			</div>
-
-			<!-- 担当者 -->
-			{#if availableAssignees.length > 0}
-				<div class="filter-section" role="group" aria-label="Assignee filter">
-					<span class="filter-label">Assignee</span>
-					<div class="filter-chips">
-						{#each availableAssignees as assignee}
-							<button
-								class="filter-chip"
-								class:active={isAssigneeActive(assignee)}
-								onclick={() => onAssigneeToggle(assignee)}
-							>
-								{assignee}
-							</button>
-						{/each}
-					</div>
-				</div>
-			{/if}
-
-			<!-- クリアボタン -->
-			{#if isActive}
-				<button class="filter-clear" onclick={onClear}>Clear All Filters</button>
-			{/if}
+	<!-- ステータス -->
+	<div class="filter-section" role="group" aria-label="Status filter">
+		<span class="filter-label">Status</span>
+		<div class="filter-chips">
+			{#each statuses as status}
+				<button
+					class="filter-chip"
+					class:active={isStatusActive(status.value)}
+					style="--chip-color: {status.color}"
+					onclick={() => onStatusToggle(status.value)}
+				>
+					<span class="chip-dot"></span>
+					{status.label}
+				</button>
+			{/each}
 		</div>
+	</div>
+
+	<!-- 優先度 -->
+	<div class="filter-section" role="group" aria-label="Priority filter">
+		<span class="filter-label">Priority</span>
+		<div class="filter-chips">
+			{#each priorities as priority}
+				<button
+					class="filter-chip"
+					class:active={isPriorityActive(priority.value)}
+					style="--chip-color: {priority.color}"
+					onclick={() => onPriorityToggle(priority.value)}
+				>
+					<span class="chip-dot"></span>
+					{priority.label}
+				</button>
+			{/each}
+		</div>
+	</div>
+
+	<!-- 担当者 -->
+	{#if availableAssignees.length > 0}
+		<div class="filter-section" role="group" aria-label="Assignee filter">
+			<span class="filter-label">Assignee</span>
+			<div class="filter-chips">
+				{#each availableAssignees as assignee}
+					<button
+						class="filter-chip"
+						class:active={isAssigneeActive(assignee)}
+						onclick={() => onAssigneeToggle(assignee)}
+					>
+						{assignee}
+					</button>
+				{/each}
+			</div>
+		</div>
+	{/if}
+
+	<!-- クリアボタン -->
+	{#if isActive}
+		<button class="filter-clear" onclick={onClear}>Clear All Filters</button>
 	{/if}
 </div>
 
 <style>
-	.filter-panel {
-		position: absolute;
-		top: var(--spacing-md);
-		left: calc(var(--spacing-md) + 140px);
-		background-color: rgba(45, 45, 45, 0.95);
-		border: 2px solid var(--border-metal);
-		border-radius: var(--border-radius-sm);
-		max-width: 280px;
-		z-index: 10;
-	}
-
-	.filter-toggle {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-xs);
-		width: 100%;
-		padding: var(--spacing-sm) var(--spacing-md);
-		background: none;
-		border: none;
-		color: var(--text-secondary);
-		font-size: var(--font-size-xs);
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		cursor: pointer;
-		transition: color var(--transition-fast);
-	}
-
-	.filter-toggle:hover {
-		color: var(--text-primary);
-	}
-
-	.filter-toggle.active {
-		color: var(--accent-primary);
-	}
-
-	.toggle-icon {
-		font-size: 10px;
-	}
-
-	.active-indicator {
-		color: var(--accent-primary);
-		font-size: 8px;
-		margin-left: auto;
-	}
-
 	.filter-content {
-		padding: var(--spacing-sm) var(--spacing-md);
-		border-top: 1px solid var(--border-dark);
+		padding: var(--spacing-sm);
 	}
 
 	.filter-section {
@@ -223,26 +159,6 @@
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 		margin-bottom: var(--spacing-xs);
-	}
-
-	.filter-search {
-		width: 100%;
-		padding: var(--spacing-xs) var(--spacing-sm);
-		background-color: var(--bg-primary);
-		border: 1px solid var(--border-dark);
-		border-radius: var(--border-radius-sm);
-		color: var(--text-primary);
-		font-size: var(--font-size-xs);
-		font-family: var(--font-family);
-	}
-
-	.filter-search:focus {
-		outline: none;
-		border-color: var(--accent-primary);
-	}
-
-	.filter-search::placeholder {
-		color: var(--text-muted);
 	}
 
 	.filter-chips {

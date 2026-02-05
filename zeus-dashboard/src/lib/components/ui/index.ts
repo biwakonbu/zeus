@@ -8,3 +8,4 @@ export { default as Toast } from './Toast.svelte';
 export { default as ToastContainer } from './ToastContainer.svelte';
 export { default as KeyboardHelp } from './KeyboardHelp.svelte';
 export { default as OverlayPanel } from './OverlayPanel.svelte';
+export { default as SearchInput } from './SearchInput.svelte';
