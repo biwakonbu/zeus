@@ -2,7 +2,12 @@
 	// UseCase View - PixiJS 版
 	// ミニマルデザイン: キャンバスが主役、パネルはオーバーレイで必要時のみ表示
 	import { onMount, onDestroy } from 'svelte';
-	import type { UseCaseDiagramResponse, ActorItem, UseCaseItem, SubsystemItem } from '$lib/types/api';
+	import type {
+		UseCaseDiagramResponse,
+		ActorItem,
+		UseCaseItem,
+		SubsystemItem
+	} from '$lib/types/api';
 	import { fetchUseCaseDiagram, fetchSubsystems, fetchActivities } from '$lib/api/client';
 	import { Icon, EmptyState, OverlayPanel } from '$lib/components/ui';
 	import { UseCaseEngine, type UseCaseEngineData } from './engine/UseCaseEngine';
@@ -112,6 +117,10 @@
 	let engineInitializing = false;
 	let engineInitialized = false;
 
+	// ナビゲーションによる選択がエンジンに反映済みかどうか
+	// 重複呼び出しを防ぐためのフラグ
+	let selectionAppliedToEngine = false;
+
 	// エンジン初期化（一度だけ実行）
 	async function initEngine(): Promise<void> {
 		if (!canvasContainer || engineInitializing || engineInitialized) return;
@@ -207,6 +216,7 @@
 		selectedUseCaseId = null;
 		showDetailPanel = true;
 		engine?.selectActor(actor.id);
+		selectionAppliedToEngine = true; // 重複呼び出し防止
 		onActorSelect?.(actor);
 	}
 
@@ -215,6 +225,7 @@
 		selectedActorId = null;
 		showDetailPanel = true;
 		engine?.selectUseCase(usecase.id);
+		selectionAppliedToEngine = true; // 重複呼び出し防止
 		onUseCaseSelect?.(usecase);
 	}
 
@@ -282,6 +293,18 @@
 			const engineData: UseCaseEngineData = { ...data, subsystems };
 			engine.setData(engineData);
 			syncStoreState();
+
+			// 選択状態をエンジンに反映（ナビゲーション後の遅延初期化対応）
+			// 既にナビゲーション Effect で反映済みならスキップ（重複呼び出し防止）
+			if (!selectionAppliedToEngine) {
+				if (selectedUseCaseId) {
+					engine.selectUseCase(selectedUseCaseId);
+					selectionAppliedToEngine = true;
+				} else if (selectedActorId) {
+					engine.selectActor(selectedActorId);
+					selectionAppliedToEngine = true;
+				}
+			}
 		}
 	});
 
@@ -298,9 +321,16 @@
 	});
 
 	// ナビゲーションによる自動選択 Effect
+	// engineInitialized 条件を削除: ビュー切り替え直後はエンジンが未初期化のため、
+	// 選択状態のみ先に設定し、エンジンへの反映はデータ設定 Effect で行う
 	$effect(() => {
+		// ローカル変数に代入することで TypeScript の型推論を活用し、
+		// 以降のコードで null チェック後の型が確定する
 		const nav = $pendingNavigation;
-		if (!nav || nav.view !== 'usecase' || !engineInitialized || !data) return;
+		if (!nav || nav.view !== 'usecase' || !data) return;
+
+		// 新しいナビゲーションが来たのでフラグをリセット
+		selectionAppliedToEngine = false;
 
 		if (nav.entityType === 'usecase' && nav.entityId) {
 			// UseCase を選択
@@ -309,7 +339,11 @@
 				selectedUseCaseId = usecase.id;
 				selectedActorId = null;
 				showDetailPanel = true;
-				engine?.selectUseCase(usecase.id);
+				// エンジンが初期化済みなら選択を反映
+				if (engineInitialized && engine) {
+					engine.selectUseCase(usecase.id);
+					selectionAppliedToEngine = true;
+				}
 				onUseCaseSelect?.(usecase);
 			}
 			clearPendingNavigation();
@@ -320,7 +354,11 @@
 				selectedActorId = actor.id;
 				selectedUseCaseId = null;
 				showDetailPanel = true;
-				engine?.selectActor(actor.id);
+				// エンジンが初期化済みなら選択を反映
+				if (engineInitialized && engine) {
+					engine.selectActor(actor.id);
+					selectionAppliedToEngine = true;
+				}
 				onActorSelect?.(actor);
 			}
 			clearPendingNavigation();
@@ -421,7 +459,10 @@
 		{#if hoveredUseCase}
 			<div class="hover-tooltip" style={tooltipStyle()}>
 				<div class="tooltip-header">
-					<span class="tooltip-status-dot" style="background: {getStatusColor(hoveredUseCase.status)}"></span>
+					<span
+						class="tooltip-status-dot"
+						style="background: {getStatusColor(hoveredUseCase.status)}"
+					></span>
 					<span>{hoveredUseCase.title}</span>
 				</div>
 				<div class="tooltip-meta">
@@ -487,8 +528,11 @@
 		width: 100%;
 		height: 100%;
 		background-color: #1a1a1a;
-		background-image:
-			radial-gradient(circle at 1px 1px, rgba(255, 149, 51, 0.08) 1px, transparent 0);
+		background-image: radial-gradient(
+			circle at 1px 1px,
+			rgba(255, 149, 51, 0.08) 1px,
+			transparent 0
+		);
 		background-size: 24px 24px;
 	}
 
