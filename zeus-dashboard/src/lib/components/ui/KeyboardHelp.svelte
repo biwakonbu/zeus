@@ -2,12 +2,45 @@
 	// キーボードショートカットヘルプモーダル
 	import { Icon } from '$lib/components/ui';
 	import { shortcutsList, formatShortcutKey } from '$lib/stores/keyboard';
+	import { currentView } from '$lib/stores/view';
 
 	interface Props {
 		onClose: () => void;
 	}
 
 	let { onClose }: Props = $props();
+
+	// ビューごとの操作ヒント定義
+	const viewHints: Record<string, { description: string; key: string }[]> = {
+		graph: [
+			{ description: 'ズーム', key: 'Scroll' },
+			{ description: 'パン（移動）', key: 'Shift+Drag' },
+			{ description: 'チェーン選択', key: 'Shift+Click' },
+			{ description: '依存関係フィルター', key: 'Alt+Click / Right-Click' }
+		],
+		usecase: [
+			{ description: 'ズーム', key: 'Scroll' },
+			{ description: 'パン（移動）', key: 'Drag' },
+			{ description: 'Actor/UseCase 選択', key: 'Click' },
+			{ description: '関連エンティティ表示', key: 'Click (Filter Mode)' }
+		],
+		activity: [
+			{ description: 'ズーム', key: 'Scroll' },
+			{ description: 'パン（移動）', key: 'Drag' },
+			{ description: 'ノード選択', key: 'Click' }
+		]
+	};
+
+	// 現在のビューのラベル
+	const viewLabels: Record<string, string> = {
+		graph: 'Graph View',
+		usecase: 'UseCase View',
+		activity: 'Activity View'
+	};
+
+	// 現在のビューのヒント
+	const currentViewHints = $derived(viewHints[$currentView] || []);
+	const currentViewLabel = $derived(viewLabels[$currentView] || 'View');
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
@@ -80,6 +113,21 @@
 					</div>
 				</div>
 			</div>
+
+			<!-- 現在のビューのマウス操作 -->
+			{#if currentViewHints.length > 0}
+				<div class="shortcut-category">
+					<h3 class="category-title">{currentViewLabel} - マウス操作</h3>
+					<div class="shortcut-list">
+						{#each currentViewHints as hint (hint.key)}
+							<div class="shortcut-item">
+								<span class="shortcut-description">{hint.description}</span>
+								<kbd class="shortcut-key">{hint.key}</kbd>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
 		</div>
 
 		<div class="help-footer">

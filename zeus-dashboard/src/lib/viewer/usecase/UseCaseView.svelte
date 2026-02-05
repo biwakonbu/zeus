@@ -116,11 +116,11 @@
 
 	// エンジン初期化状態
 	let engineInitializing = false;
-	let engineInitialized = false;
+	let engineReady = $state(false);
 
 	// エンジン初期化（一度だけ実行）
 	async function initEngine(): Promise<void> {
-		if (!canvasContainer || engineInitializing || engineInitialized) return;
+		if (!canvasContainer || engineInitializing || engineReady) return;
 		engineInitializing = true;
 
 		try {
@@ -163,19 +163,8 @@
 				updateUseCaseViewState({ zoom: viewport.scale });
 			});
 
-			engineInitialized = true;
-
-			// 初期化完了後にデータがあれば設定
-			if (data) {
-				const engineData: UseCaseEngineData = { ...data, subsystems };
-				engine.setData(engineData);
-				// ナビゲーション中は showAll() をスキップ（ナビゲーション Effect に任せる）
-				const nav = get(pendingNavigation);
-				if (!nav || nav.view !== 'usecase') {
-					engine.showAll();
-				}
-				syncStoreState();
-			}
+			// エンジン準備完了（$effect をトリガー）
+			engineReady = true;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'エンジン初期化に失敗しました';
 		} finally {
@@ -286,7 +275,9 @@
 
 	// エンジン初期化 Effect（canvasContainer が利用可能になったら一度だけ）
 	$effect(() => {
-		if (canvasContainer && !engineInitialized && !engineInitializing) {
+		const container = canvasContainer;
+		const ready = engineReady;
+		if (container && !ready && !engineInitializing) {
 			initEngine();
 		}
 	});
@@ -296,17 +287,25 @@
 	// 注意: この Effect は選択同期 Effect より先に定義する必要がある
 	//       Svelte 5 では Effect は定義順に実行されるため、
 	//       setData() → 選択反映 の順序が保証される
+	// NOTE: Svelte 5 の $effect は条件分岐内でのみ読み取られた変数を依存関係として追跡しない場合がある。
+	//       そのため ready / data / subsystems を条件の外で明示的に読み取り、依存関係として登録する。
 	$effect(() => {
-		if (engineInitialized && engine && data) {
-			const engineData: UseCaseEngineData = { ...data, subsystems };
-			engine.setData(engineData);
-			// ナビゲーション中は showAll() をスキップ（ナビゲーション Effect に任せる）
-			const nav = $pendingNavigation;
-			if (!nav || nav.view !== 'usecase') {
-				engine.showAll();
-			}
-			syncStoreState();
+		const ready = engineReady;
+		const currentData = data;
+		const currentSubsystems = subsystems;
+		if (!ready || !engine || !currentData) return;
+
+		const engineData: UseCaseEngineData = { ...currentData, subsystems: currentSubsystems };
+		engine.setData(engineData);
+
+		// pendingNavigation は依存に含めない（遷移中の "一瞬の全表示" を避ける）
+		// ナビゲーション中は showAll() をスキップ（ナビゲーション Effect に任せる）
+		const nav = get(pendingNavigation);
+		if (!nav || nav.view !== 'usecase') {
+			engine.showAll();
 		}
+
+		syncStoreState();
 	});
 
 	// 選択状態の同期 Effect（選択状態が変更されたらエンジンに反映）
@@ -314,12 +313,15 @@
 	// 注意: この Effect はデータ設定 Effect の後に定義すること
 	//       エンジン側で冪等性が保証されているため重複呼び出しは問題ない
 	$effect(() => {
-		if (!engineInitialized || !engine) return;
+		const ready = engineReady;
+		const usecaseId = selectedUseCaseId;
+		const actorId = selectedActorId;
+		if (!ready || !engine) return;
 
-		if (selectedUseCaseId) {
-			engine.selectUseCase(selectedUseCaseId);
-		} else if (selectedActorId) {
-			engine.selectActor(selectedActorId);
+		if (usecaseId) {
+			engine.selectUseCase(usecaseId);
+		} else if (actorId) {
+			engine.selectActor(actorId);
 		} else {
 			// 両方 null の場合、視覚的な選択のみ解除（hideAll は呼ばない）
 			engine.clearSelectionVisual();
@@ -332,9 +334,11 @@
 	});
 
 	$effect(() => {
-		if (!canvasContainer || !engine) return () => {};
+		const ready = engineReady;
+		const container = canvasContainer;
+		if (!container || !ready || !engine) return () => {};
 		const resizeObserver = new ResizeObserver(() => engine?.resize());
-		resizeObserver.observe(canvasContainer);
+		resizeObserver.observe(container);
 		return () => resizeObserver.disconnect();
 	});
 
@@ -344,29 +348,46 @@
 		// ローカル変数に代入することで TypeScript の型推論を活用し、
 		// 以降のコードで null チェック後の型が確定する
 		const nav = $pendingNavigation;
-		if (!nav || nav.view !== 'usecase' || !data) return;
+		const ready = engineReady;
+		const currentData = data;
+		if (!nav || nav.view !== 'usecase' || !ready || !engine || !currentData) return;
 
 		if (nav.entityType === 'usecase' && nav.entityId) {
 			// UseCase を選択
-			const usecase = data.usecases.find((u: UseCaseItem) => u.id === nav.entityId);
+			const usecase = currentData.usecases.find((u: UseCaseItem) => u.id === nav.entityId);
 			if (usecase) {
 				selectedUseCaseId = usecase.id;
 				selectedActorId = null;
 				showDetailPanel = true;
-				engine?.selectUseCase(usecase.id);
+				engine.selectUseCase(usecase.id);
 				onUseCaseSelect?.(usecase);
+			} else {
+				selectedUseCaseId = null;
+				selectedActorId = null;
+				showDetailPanel = false;
+				engine.clearSelectionVisual();
+				engine.showAll();
 			}
 			clearPendingNavigation();
 		} else if (nav.entityType === 'actor' && nav.entityId) {
 			// Actor を選択
-			const actor = data.actors.find((a: ActorItem) => a.id === nav.entityId);
+			const actor = currentData.actors.find((a: ActorItem) => a.id === nav.entityId);
 			if (actor) {
 				selectedActorId = actor.id;
 				selectedUseCaseId = null;
 				showDetailPanel = true;
-				engine?.selectActor(actor.id);
+				engine.selectActor(actor.id);
 				onActorSelect?.(actor);
+			} else {
+				selectedUseCaseId = null;
+				selectedActorId = null;
+				showDetailPanel = false;
+				engine.clearSelectionVisual();
+				engine.showAll();
 			}
+			clearPendingNavigation();
+		} else {
+			// 想定外のナビゲーションは詰まらせない
 			clearPendingNavigation();
 		}
 	});

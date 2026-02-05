@@ -54,23 +54,18 @@
 	let hoveredNode: ActivityNodeItem | null = $state(null);
 	let hoverPosition = $state({ x: 0, y: 0 });
 
-	// Tooltip 位置
-	const TOOLTIP_WIDTH = 220;
-	const TOOLTIP_HEIGHT = 100;
+	// Tooltip 位置（画面端でフリップ）
 	const TOOLTIP_OFFSET = 16;
 
 	const tooltipStyle = $derived(() => {
-		const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
-		const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 1080;
-		const flipX = hoverPosition.x + TOOLTIP_WIDTH + TOOLTIP_OFFSET > viewportWidth;
-		const flipY = hoverPosition.y + TOOLTIP_HEIGHT + TOOLTIP_OFFSET > viewportHeight;
-		const left = flipX
-			? hoverPosition.x - TOOLTIP_WIDTH - TOOLTIP_OFFSET
-			: hoverPosition.x + TOOLTIP_OFFSET;
-		const top = flipY
-			? hoverPosition.y - TOOLTIP_HEIGHT - TOOLTIP_OFFSET
-			: hoverPosition.y + TOOLTIP_OFFSET;
-		return `left: ${Math.max(8, left)}px; top: ${Math.max(8, top)}px;`;
+		const vw = typeof window !== 'undefined' ? window.innerWidth : 1920;
+		const vh = typeof window !== 'undefined' ? window.innerHeight : 1080;
+		// 画面の右半分にいる場合は左側に表示、下半分にいる場合は上側に表示
+		const flipX = hoverPosition.x > vw / 2;
+		const flipY = hoverPosition.y > vh / 2;
+		const style = flipX ? `right: ${vw - hoverPosition.x + TOOLTIP_OFFSET}px;` : `left: ${hoverPosition.x + TOOLTIP_OFFSET}px;`;
+		const styleY = flipY ? `bottom: ${vh - hoverPosition.y + TOOLTIP_OFFSET}px;` : `top: ${hoverPosition.y + TOOLTIP_OFFSET}px;`;
+		return style + styleY;
 	});
 
 	// PixiJS エンジン
@@ -360,15 +355,11 @@
 		<!-- ホバー Tooltip -->
 		{#if hoveredNode}
 			<div class="hover-tooltip" style={tooltipStyle()}>
-				<div class="tooltip-header">
-					<span class="tooltip-type-badge">{getNodeTypeLabel(hoveredNode.type)}</span>
-					{#if hoveredNode.name}
-						<span class="tooltip-name">{hoveredNode.name}</span>
-					{/if}
-				</div>
-				<div class="tooltip-meta">
-					<span class="tooltip-id">{hoveredNode.id}</span>
-				</div>
+				<span class="tooltip-type-badge">{getNodeTypeLabel(hoveredNode.type)}</span>
+				{#if hoveredNode.name}
+					<span class="tooltip-name">{hoveredNode.name}</span>
+				{/if}
+				<span class="tooltip-id">{hoveredNode.id}</span>
 			</div>
 		{/if}
 	{/if}
@@ -443,22 +434,17 @@
 	.hover-tooltip {
 		position: fixed;
 		z-index: 1000;
-		background: rgba(30, 30, 30, 0.95);
-		border: 1px solid var(--border-metal);
-		border-radius: 6px;
-		padding: 10px;
-		min-width: 140px;
-		max-width: 220px;
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-		pointer-events: none;
-		backdrop-filter: blur(8px);
-	}
-
-	.tooltip-header {
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		margin-bottom: 6px;
+		background: rgba(30, 30, 30, 0.95);
+		border: 1px solid var(--border-metal);
+		border-radius: 4px;
+		padding: 6px 10px;
+		white-space: nowrap;
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+		pointer-events: none;
+		backdrop-filter: blur(8px);
 	}
 
 	.tooltip-type-badge {
@@ -477,15 +463,9 @@
 		color: var(--text-primary);
 	}
 
-	.tooltip-meta {
-		display: flex;
-		gap: 6px;
-		font-size: 0.6875rem;
-		color: var(--text-muted);
-	}
-
 	.tooltip-id {
 		font-family: monospace;
 		font-size: 0.65rem;
+		color: var(--text-muted);
 	}
 </style>

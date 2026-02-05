@@ -1,7 +1,13 @@
 <script lang="ts">
 	import type { ConnectionState } from '$lib/types/api';
 	import { ViewSwitcher, type ViewType } from '$lib/viewer';
-	import { currentView, setView, usecaseViewState, graphViewState } from '$lib/stores/view';
+	import {
+		currentView,
+		setView,
+		usecaseViewState,
+		graphViewState,
+		activityViewState
+	} from '$lib/stores/view';
 	import { Icon } from '$lib/components/ui';
 
 	interface Props {
@@ -69,6 +75,23 @@
 
 	function handleGraphClearDependencyFilter() {
 		$graphViewState.onClearDependencyFilter?.();
+	}
+
+	// Activity ビューのコントロール
+	function handleActivityZoomIn() {
+		$activityViewState.onZoomIn?.();
+	}
+
+	function handleActivityZoomOut() {
+		$activityViewState.onZoomOut?.();
+	}
+
+	function handleActivityZoomReset() {
+		$activityViewState.onZoomReset?.();
+	}
+
+	function handleActivityToggleListPanel() {
+		$activityViewState.onToggleListPanel?.();
 	}
 </script>
 
@@ -213,6 +236,57 @@
 				</div>
 			{/if}
 
+			<!-- Activity ビュー専用コントロール -->
+			{#if $currentView === 'activity'}
+				<div class="activity-controls">
+					<!-- 情報バッジ -->
+					<div class="info-badge">
+						<Icon name="Workflow" size={14} />
+						<span>{$activityViewState.activityCount} activities</span>
+					</div>
+
+					<!-- リストパネルトグル -->
+					<button
+						class="control-btn"
+						class:active={$activityViewState.showListPanel}
+						onclick={handleActivityToggleListPanel}
+						aria-label="リストパネル"
+						title="リスト表示 (L)"
+					>
+						<Icon name="List" size={16} />
+					</button>
+
+					<div class="control-separator"></div>
+
+					<!-- ズームコントロール -->
+					<button
+						class="control-btn"
+						onclick={handleActivityZoomOut}
+						aria-label="ズームアウト"
+						title="ズームアウト"
+					>
+						<Icon name="Minus" size={16} />
+					</button>
+					<span class="zoom-display">{Math.round($activityViewState.zoom * 100)}%</span>
+					<button
+						class="control-btn"
+						onclick={handleActivityZoomIn}
+						aria-label="ズームイン"
+						title="ズームイン"
+					>
+						<Icon name="Plus" size={16} />
+					</button>
+					<button
+						class="control-btn"
+						onclick={handleActivityZoomReset}
+						aria-label="リセット"
+						title="ビューをリセット"
+					>
+						<Icon name="Maximize2" size={16} />
+					</button>
+				</div>
+			{/if}
+
 			<!-- 接続状態 -->
 			<div class="connection-status">
 				<span class="connection-indicator {connectionState}"></span>
@@ -281,9 +355,10 @@
 		gap: var(--spacing-md);
 	}
 
-	/* UseCase / Graph コントロール共通 */
+	/* UseCase / Graph / Activity コントロール共通 */
 	.usecase-controls,
-	.graph-controls {
+	.graph-controls,
+	.activity-controls {
 		display: flex;
 		align-items: center;
 		gap: 4px;

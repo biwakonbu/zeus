@@ -1430,7 +1430,7 @@
 		}
 	}
 
-	// 表示されているタスク数
+	// 表示されているタスク数（Store 同期用に保持、UI 表示なし）
 	let visibleCount = $derived(Array.from(nodeMap.values()).filter((n) => n.visible).length);
 
 	// パネルトグル関数
@@ -1535,34 +1535,6 @@
 		onNavigate={handleMinimapNavigate}
 	/>
 
-	<!-- ステータスバー -->
-	<div class="status-bar">
-		<span class="status-item mode-indicator" class:wbs-mode={isWBSMode}>
-			{isWBSMode ? 'WBS' : 'TASK'}
-		</span>
-		<span class="status-item">
-			Zoom: {(currentViewport.scale * 100).toFixed(0)}%
-		</span>
-		<span class="status-item"> Nodes: {visibleCount}/{graphNodes.length} </span>
-		{#if METRICS_ENABLED}
-			<span class="status-item metrics-info"> Logs: {metricsEntries.length} </span>
-		{/if}
-		{#if selectedIds.length > 0}
-			<span class="status-item selection-info"> Selected: {selectedIds.length} </span>
-		{/if}
-		{#if dependencyFilterNodeId}
-			<span class="status-item dependency-filter-info">
-				Filtered: {dependencyFilterNodeId}
-				<button class="inline-reset-btn" onclick={clearDependencyFilter}>×</button>
-			</span>
-		{/if}
-		{#if hoveredTaskId}
-			<span class="status-item hover-info">
-				{hoveredTaskId}
-			</span>
-		{/if}
-	</div>
-
 	<!-- 凡例（オーバーレイ） -->
 	{#if showLegend}
 		<OverlayPanel
@@ -1618,13 +1590,6 @@
 		</OverlayPanel>
 	{/if}
 
-	<!-- 操作ヒント -->
-	<div class="hints">
-		<div class="hint-item">Scroll: Zoom</div>
-		<div class="hint-item">Shift+Drag: Pan</div>
-		<div class="hint-item">Shift+Click: Chain Select</div>
-		<div class="hint-item">Alt+Click / Right-Click: Filter Dependencies</div>
-	</div>
 </div>
 
 <style>
@@ -1644,51 +1609,6 @@
 
 	.canvas-container :global(canvas) {
 		display: block;
-	}
-
-	/* ステータスバー */
-	.status-bar {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		display: flex;
-		gap: var(--spacing-lg);
-		padding: var(--spacing-sm) var(--spacing-md);
-		background-color: rgba(26, 26, 26, 0.9);
-		border-top: 1px solid var(--border-dark);
-		font-size: var(--font-size-xs);
-		color: var(--text-secondary);
-	}
-
-	.status-item {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-xs);
-	}
-
-	.hover-info {
-		color: var(--accent-primary);
-	}
-
-	.selection-info {
-		color: var(--status-info);
-	}
-
-	/* モードインジケーター */
-	.mode-indicator {
-		font-weight: 600;
-		padding: 2px 8px;
-		border-radius: 4px;
-		background-color: rgba(136, 136, 136, 0.3);
-		color: var(--text-secondary);
-		letter-spacing: 0.05em;
-	}
-
-	.mode-indicator.wbs-mode {
-		background-color: rgba(255, 215, 0, 0.2);
-		color: #ffd700;
-		border: 1px solid rgba(255, 215, 0, 0.4);
 	}
 
 	/* 凡例（オーバーレイパネル内） */
@@ -1759,49 +1679,5 @@
 
 	.legend-dot.task {
 		background-color: #888888; /* グレー - タスク */
-	}
-
-	/* インラインリセットボタン */
-	.inline-reset-btn {
-		background: none;
-		border: none;
-		color: var(--text-muted);
-		cursor: pointer;
-		margin-left: 4px;
-		padding: 0 4px;
-		font-size: 12px;
-	}
-
-	.inline-reset-btn:hover {
-		color: var(--text-primary);
-	}
-
-	/* 依存関係フィルター状態表示 */
-	.dependency-filter-info {
-		color: var(--accent-primary);
-		background-color: rgba(255, 149, 51, 0.2);
-		padding: 2px 8px;
-		border-radius: 4px;
-	}
-
-	.metrics-info {
-		color: var(--accent-primary);
-	}
-
-	/* 操作ヒント */
-	.hints {
-		position: absolute;
-		bottom: 40px;
-		left: var(--spacing-md);
-		display: flex;
-		gap: var(--spacing-md);
-		font-size: 11px;
-		color: var(--text-secondary);
-	}
-
-	.hint-item {
-		background-color: rgba(0, 0, 0, 0.7);
-		padding: 3px 8px;
-		border-radius: var(--border-radius-sm);
 	}
 </style>
