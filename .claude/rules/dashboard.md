@@ -31,6 +31,20 @@ paths:
 - Svelte Stores でリアクティブな状態管理
 - SSE クライアントで自動再接続ロジック実装
 
+**Lint 構成（併用）:**
+
+| ツール | 対象 | 設定ファイル |
+|--------|------|-------------|
+| oxlint | `.ts` ファイル | `.oxlintrc.json` |
+| ESLint + eslint-plugin-svelte | `.svelte` ファイル | `eslint.config.js` |
+| Prettier | 全ファイル | `.prettierrc` |
+
+```bash
+npm run lint       # oxlint && eslint
+npm run lint:fix   # 自動修正
+npm run format     # Prettier
+```
+
 ## 統合戦略
 
 | 環境 | 実行方法 | 静的ファイル配信 | API アクセス |

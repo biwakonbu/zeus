@@ -4,14 +4,17 @@ Zeus の Web ダッシュボード。SvelteKit + TypeScript で実装。Factorio
 
 ## 技術スタック
 
-| 技術 | バージョン | 用途 |
-|------|-----------|------|
-| SvelteKit | 2.x | フレームワーク |
-| Svelte | 5.x | UI ライブラリ（Runes 対応） |
-| TypeScript | 5.x | 型システム |
-| Vite | 7.x | ビルドツール |
-| Mermaid.js | 11.x | 依存関係グラフ |
-| adapter-static | 3.x | SPA ビルド |
+| 技術           | バージョン | 用途                        |
+| -------------- | ---------- | --------------------------- |
+| SvelteKit      | 2.x        | フレームワーク              |
+| Svelte         | 5.x        | UI ライブラリ（Runes 対応） |
+| TypeScript     | 5.x        | 型システム                  |
+| Vite           | 7.x        | ビルドツール                |
+| Mermaid.js     | 11.x       | 依存関係グラフ              |
+| adapter-static | 3.x        | SPA ビルド                  |
+| oxlint         | 1.x        | TypeScript Linter（高速）   |
+| ESLint         | 9.x        | Svelte Linter               |
+| Prettier       | 3.x        | コードフォーマッター        |
 
 ## セットアップ
 
@@ -31,12 +34,14 @@ npm run check
 ### 開発モード
 
 **ターミナル 1 - Go バックエンド:**
+
 ```bash
 # プロジェクトルートで実行
 go run . dashboard --dev --port 8080
 ```
 
 **ターミナル 2 - Vite 開発サーバー:**
+
 ```bash
 cd zeus-dashboard
 npm run dev
@@ -52,6 +57,7 @@ make build-all
 ```
 
 これにより:
+
 1. SvelteKit をビルド（`zeus-dashboard/build/`）
 2. ビルド成果物を Go embed 用にコピー（`internal/dashboard/build/`）
 3. Go バイナリをビルド
@@ -96,24 +102,24 @@ zeus-dashboard/
 
 ### Factorio 風ビューワー
 
-| コンポーネント | 説明 |
-|---------------|------|
+| コンポーネント | 説明                                          |
+| -------------- | --------------------------------------------- |
 | FactorioViewer | メインビューワーコンポーネント（PixiJS 描画） |
-| ViewerEngine | PixiJS 初期化・管理 |
-| LayoutEngine | 自動レイアウト（トポロジカル + 力学） |
-| SpatialIndex | Quadtree 空間インデックス |
-| TaskNode | タスクノード描画（LOD 対応） |
-| TaskEdge | エッジ描画 |
-| Minimap | ミニマップ |
-| FilterPanel | フィルターパネル |
+| ViewerEngine   | PixiJS 初期化・管理                           |
+| LayoutEngine   | 自動レイアウト（トポロジカル + 力学）         |
+| SpatialIndex   | Quadtree 空間インデックス                     |
+| TaskNode       | タスクノード描画（LOD 対応）                  |
+| TaskEdge       | エッジ描画                                    |
+| Minimap        | ミニマップ                                    |
+| FilterPanel    | フィルターパネル                              |
 
 ### 共通 UI
 
-| コンポーネント | 説明 |
-|---------------|------|
-| Panel | パネルコンテナ（金属フレーム効果） |
-| Badge | ステータスバッジ |
-| ProgressBar | プログレスバー |
+| コンポーネント | 説明                               |
+| -------------- | ---------------------------------- |
+| Panel          | パネルコンテナ（金属フレーム効果） |
+| Badge          | ステータスバッジ                   |
+| ProgressBar    | プログレスバー                     |
 
 ## Svelte 5 Runes
 
@@ -121,19 +127,19 @@ zeus-dashboard/
 
 ```svelte
 <script lang="ts">
-  // リアクティブな状態
-  let count = $state(0);
+	// リアクティブな状態
+	let count = $state(0);
 
-  // 派生値
-  let doubled = $derived(count * 2);
+	// 派生値
+	let doubled = $derived(count * 2);
 
-  // 副作用
-  $effect(() => {
-    console.log(`Count is now ${count}`);
-  });
+	// 副作用
+	$effect(() => {
+		console.log(`Count is now ${count}`);
+	});
 
-  // Props
-  let { title } = $props<{ title: string }>();
+	// Props
+	let { title } = $props<{ title: string }>();
 </script>
 ```
 
@@ -141,23 +147,23 @@ zeus-dashboard/
 
 ### エンドポイント
 
-| エンドポイント | 説明 |
-|---------------|------|
-| `GET /api/status` | プロジェクト状態 |
-| `GET /api/activities` | Activity 一覧 |
-| `GET /api/graph` | 依存関係グラフ（Mermaid 形式） |
-| `GET /api/predict` | 予測分析結果 |
-| `GET /api/events` | SSE ストリーム |
+| エンドポイント        | 説明                           |
+| --------------------- | ------------------------------ |
+| `GET /api/status`     | プロジェクト状態               |
+| `GET /api/activities` | Activity 一覧                  |
+| `GET /api/graph`      | 依存関係グラフ（Mermaid 形式） |
+| `GET /api/predict`    | 予測分析結果                   |
+| `GET /api/events`     | SSE ストリーム                 |
 
 ### SSE イベント
 
-| イベント | 説明 |
-|---------|------|
-| `connected` | 接続確立 |
-| `status` | プロジェクト状態更新 |
-| `task` | タスク更新 |
-| `graph` | グラフ更新 |
-| `prediction` | 予測更新 |
+| イベント     | 説明                 |
+| ------------ | -------------------- |
+| `connected`  | 接続確立             |
+| `status`     | プロジェクト状態更新 |
+| `task`       | タスク更新           |
+| `graph`      | グラフ更新           |
+| `prediction` | 予測更新             |
 
 ## デザインシステム
 
@@ -165,23 +171,23 @@ zeus-dashboard/
 
 ```css
 :root {
-  /* 背景色 */
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #242424;
-  --bg-panel: #2d2d2d;
+	/* 背景色 */
+	--bg-primary: #1a1a1a;
+	--bg-secondary: #242424;
+	--bg-panel: #2d2d2d;
 
-  /* オレンジアクセント */
-  --accent-primary: #ff9533;
-  --accent-hover: #ffaa55;
+	/* オレンジアクセント */
+	--accent-primary: #ff9533;
+	--accent-hover: #ffaa55;
 
-  /* 金属フレーム */
-  --border-metal: #4a4a4a;
-  --border-highlight: #666666;
+	/* 金属フレーム */
+	--border-metal: #4a4a4a;
+	--border-highlight: #666666;
 
-  /* ステータス色 */
-  --status-good: #44cc44;
-  --status-fair: #ffcc00;
-  --status-poor: #ee4444;
+	/* ステータス色 */
+	--status-good: #44cc44;
+	--status-fair: #ffcc00;
+	--status-poor: #ee4444;
 }
 ```
 
@@ -191,14 +197,44 @@ IBM Plex Mono を使用。`static/fonts/` に配置。
 
 ## npm スクリプト
 
-| コマンド | 説明 |
-|---------|------|
-| `npm run dev` | 開発サーバー起動（ポート 5173） |
-| `npm run build` | 本番ビルド |
-| `npm run preview` | ビルド成果物プレビュー |
-| `npm run check` | TypeScript 型チェック |
-| `npm run check:watch` | 型チェック（監視モード） |
-| `npm run clean` | ビルド成果物削除 |
+| コマンド              | 説明                            |
+| --------------------- | ------------------------------- |
+| `npm run dev`         | 開発サーバー起動（ポート 5173） |
+| `npm run build`       | 本番ビルド                      |
+| `npm run preview`     | ビルド成果物プレビュー          |
+| `npm run check`       | TypeScript 型チェック           |
+| `npm run check:watch` | 型チェック（監視モード）        |
+| `npm run lint`        | Lint 実行（oxlint + ESLint）    |
+| `npm run lint:fix`    | Lint 自動修正                   |
+| `npm run format`      | Prettier フォーマット           |
+| `npm run clean`       | ビルド成果物削除                |
+
+## Lint 構成
+
+併用構成で高速かつ Svelte 対応の Lint を実現:
+
+| ツール                      | 対象          | 役割                  |
+| --------------------------- | ------------- | --------------------- |
+| oxlint                      | `.ts` ファイル | TypeScript Lint（高速） |
+| ESLint + eslint-plugin-svelte | `.svelte` ファイル | Svelte 固有 Lint      |
+| Prettier                    | 全ファイル    | フォーマット          |
+
+**設定ファイル:**
+
+- `.oxlintrc.json` - oxlint 設定（`.svelte` を除外）
+- `eslint.config.js` - ESLint 設定（`.svelte` のみ対象）
+- `.prettierrc` - Prettier 設定
+
+```bash
+# Lint 実行
+npm run lint
+
+# 自動修正
+npm run lint:fix
+
+# フォーマット
+npm run format
+```
 
 ## トラブルシューティング
 

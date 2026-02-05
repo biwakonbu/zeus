@@ -1,63 +1,61 @@
 {
-  "name": "zeus-dashboard",
-  "private": true,
-  "version": "0.0.1",
-  "type": "module",
-  "scripts": {
-    "dev": "vite dev --port 5173",
-    "build": "vite build",
-    "preview": "vite preview",
-    "prepare": "svelte-kit sync || echo ''",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "clean": "rm -rf build .svelte-kit",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build -o storybook-static",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "test:perf": "vitest run --reporter=verbose src/**/*.perf.test.ts"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.39.2",
-    "@storybook/addon-essentials": "^8.6.12",
-    "@storybook/addon-interactions": "^8.6.12",
-    "@storybook/addon-svelte-csf": "^5.0.0",
-    "@storybook/svelte": "^8.6.12",
-    "@storybook/sveltekit": "^8.6.12",
-    "@storybook/test": "^8.6.12",
-    "@sveltejs/adapter-static": "^3.0.0",
-    "@sveltejs/kit": "^2.49.1",
-    "@sveltejs/vite-plugin-svelte": "^6.2.1",
-    "@typescript-eslint/eslint-plugin": "^8.53.0",
-    "@typescript-eslint/parser": "^8.53.0",
-    "@vitest/coverage-v8": "^4.0.17",
-    "eslint": "^9.39.2",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-svelte": "^3.14.0",
-    "msw": "^2.9.2",
-    "msw-storybook-addon": "^2.0.5",
-    "prettier": "^3.8.0",
-    "prettier-plugin-svelte": "^3.4.1",
-    "storybook": "^8.6.12",
-    "svelte": "^5.45.6",
-    "svelte-check": "^4.3.4",
-    "svelte-eslint-parser": "^0.43.0",
-    "typescript": "^5.9.3",
-    "vite": "^7.2.6",
-    "vitest": "^4.0.17"
-  },
-  "dependencies": {
-    "lucide-svelte": "^0.562.0",
-    "mermaid": "^11.4.0",
-    "pixi.js": "^8.6.6"
-  },
-  "msw": {
-    "workerDirectory": [
-      "static"
-    ]
-  }
+	"name": "zeus-dashboard",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev --port 5173",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"clean": "rm -rf build .svelte-kit",
+		"lint": "oxlint && eslint --no-warn-ignored .",
+		"lint:fix": "oxlint --fix && eslint --fix --no-warn-ignored .",
+		"format": "prettier --write .",
+		"storybook": "storybook dev -p 6006",
+		"build-storybook": "storybook build -o storybook-static",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage",
+		"test:perf": "vitest run --reporter=verbose src/**/*.perf.test.ts"
+	},
+	"devDependencies": {
+		"@storybook/addon-essentials": "^8.6.12",
+		"@storybook/addon-interactions": "^8.6.12",
+		"@storybook/addon-svelte-csf": "^5.0.0",
+		"@storybook/svelte": "^8.6.12",
+		"@storybook/sveltekit": "^8.6.12",
+		"@storybook/test": "^8.6.12",
+		"@sveltejs/adapter-static": "^3.0.0",
+		"@sveltejs/kit": "^2.49.1",
+		"@sveltejs/vite-plugin-svelte": "^6.2.1",
+		"@typescript-eslint/parser": "^8.54.0",
+		"@vitest/coverage-v8": "^4.0.17",
+		"eslint": "^9.39.2",
+		"eslint-plugin-svelte": "^3.14.0",
+		"msw": "^2.9.2",
+		"msw-storybook-addon": "^2.0.5",
+		"oxlint": "^1.43.0",
+		"prettier": "^3.8.0",
+		"prettier-plugin-svelte": "^3.4.1",
+		"storybook": "^8.6.12",
+		"svelte": "^5.45.6",
+		"svelte-check": "^4.3.4",
+		"svelte-eslint-parser": "^1.4.1",
+		"typescript": "^5.9.3",
+		"vite": "^7.2.6",
+		"vitest": "^4.0.17"
+	},
+	"dependencies": {
+		"lucide-svelte": "^0.562.0",
+		"mermaid": "^11.4.0",
+		"pixi.js": "^8.6.6"
+	},
+	"msw": {
+		"workerDirectory": [
+			"static"
+		]
+	}
 }

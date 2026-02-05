@@ -20,7 +20,7 @@ Zeus は「神の視点」でプロジェクト管理を支援する AI 駆動�
 ## コーディング規約
 
 - **Go**: 標準規約（gofmt, go vet）に準拠
-- **TypeScript/Svelte**: ESLint + Prettier
+- **TypeScript/Svelte**: oxlint（.ts）+ ESLint（.svelte）+ Prettier
 - **コメント**: 日本語
 - **変数・関数名**: 英語（国際標準）
 

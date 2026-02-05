@@ -65,7 +65,6 @@
 	}: Props = $props();
 
 	// 動的にアイコンコンポーネントを取得
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const IconComponent = $derived((icons as unknown as Record<string, Component<any>>)[name]);
 </script>
 

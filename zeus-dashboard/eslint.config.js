@@ -1,9 +1,15 @@
-import eslint from '@eslint/js';
-import tseslint from '@typescript-eslint/eslint-plugin';
-import tsparser from '@typescript-eslint/parser';
 import svelte from 'eslint-plugin-svelte';
 import svelteParser from 'svelte-eslint-parser';
-import prettier from 'eslint-config-prettier';
+import tsParser from '@typescript-eslint/parser';
+
+// Svelte 5 のルーン
+const svelteGlobals = {
+	$state: 'readonly',
+	$derived: 'readonly',
+	$effect: 'readonly',
+	$props: 'readonly',
+	$bindable: 'readonly'
+};
 
 // ブラウザ環境のグローバル変数
 const browserGlobals = {
@@ -45,46 +51,17 @@ const browserGlobals = {
 	navigator: 'readonly'
 };
 
-// Svelte 5 のルーン
-const svelteGlobals = {
-	$state: 'readonly',
-	$derived: 'readonly',
-	$effect: 'readonly',
-	$props: 'readonly',
-	$bindable: 'readonly'
-};
-
 export default [
-	eslint.configs.recommended,
 	{
-		ignores: ['build/', '.svelte-kit/', 'node_modules/', 'storybook-static/', '*.config.js', '*.config.ts']
+		ignores: ['build/', '.svelte-kit/', 'node_modules/', 'storybook-static/', 'static/', '*.config.js', '*.config.ts']
 	},
-	{
-		files: ['**/*.ts'],
-		languageOptions: {
-			parser: tsparser,
-			parserOptions: {
-				ecmaVersion: 2022,
-				sourceType: 'module'
-			},
-			globals: browserGlobals
-		},
-		plugins: {
-			'@typescript-eslint': tseslint
-		},
-		rules: {
-			...tseslint.configs.recommended.rules,
-			'@typescript-eslint/no-unused-vars': 'warn',
-			'@typescript-eslint/no-explicit-any': 'warn',
-			'no-unused-vars': 'off'
-		}
-	},
+	// Svelte ファイルのみ対象（.ts は oxlint が担当）
 	{
 		files: ['**/*.svelte'],
 		languageOptions: {
 			parser: svelteParser,
 			parserOptions: {
-				parser: tsparser,
+				parser: tsParser,
 				ecmaVersion: 2022,
 				sourceType: 'module'
 			},
@@ -94,15 +71,11 @@ export default [
 			}
 		},
 		plugins: {
-			svelte,
-			'@typescript-eslint': tseslint
+			svelte
 		},
 		rules: {
 			...svelte.configs.recommended.rules,
-			'@typescript-eslint/no-unused-vars': 'warn',
-			'@typescript-eslint/no-explicit-any': 'warn',
-			'no-unused-vars': 'off'
+			'no-unused-vars': 'off' // TypeScript の型は oxlint/tsc に任せる
 		}
-	},
-	prettier
+	}
 ];
