@@ -135,20 +135,20 @@ func (sm *StateManager) RestoreSnapshot(ctx context.Context, timestamp string) e
 }
 
 // CalculateState はタスクから状態を計算
-func (sm *StateManager) CalculateState(tasks []Task) *ProjectState {
+func (sm *StateManager) CalculateState(tasks []ListItem) *ProjectState {
 	stats := TaskStats{
 		TotalTasks: len(tasks),
 	}
 
 	for _, task := range tasks {
 		switch task.Status {
-		case TaskStatusCompleted:
+		case ItemStatusCompleted:
 			stats.Completed++
-		case TaskStatusInProgress:
+		case ItemStatusInProgress:
 			stats.InProgress++
-		case TaskStatusPending:
+		case ItemStatusPending:
 			stats.Pending++
-		case TaskStatusBlocked:
+		case ItemStatusBlocked:
 			// ブロック状態も Pending に含める
 			stats.Pending++
 		}
@@ -188,13 +188,13 @@ func (sm *StateManager) calculateHealth(stats *TaskStats) HealthStatus {
 	return HealthGood
 }
 
-func (sm *StateManager) detectRisks(tasks []Task, stats *TaskStats) []string {
+func (sm *StateManager) detectRisks(tasks []ListItem, stats *TaskStats) []string {
 	risks := []string{}
 
 	// ブロック状態のタスクが多い
 	blockedCount := 0
 	for _, task := range tasks {
-		if task.Status == TaskStatusBlocked {
+		if task.Status == ItemStatusBlocked {
 			blockedCount++
 		}
 	}

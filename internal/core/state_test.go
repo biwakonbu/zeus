@@ -278,12 +278,12 @@ func TestCalculateState(t *testing.T) {
 	z := New(tmpDir)
 	sm := NewStateManager(z.ZeusPath, z.fileStore)
 
-	tasks := []Task{
-		{ID: "task-1", Status: TaskStatusCompleted},
-		{ID: "task-2", Status: TaskStatusCompleted},
-		{ID: "task-3", Status: TaskStatusInProgress},
-		{ID: "task-4", Status: TaskStatusPending},
-		{ID: "task-5", Status: TaskStatusBlocked},
+	tasks := []ListItem{
+		{ID: "task-1", Status: ItemStatusCompleted},
+		{ID: "task-2", Status: ItemStatusCompleted},
+		{ID: "task-3", Status: ItemStatusInProgress},
+		{ID: "task-4", Status: ItemStatusPending},
+		{ID: "task-5", Status: ItemStatusBlocked},
 	}
 
 	state := sm.CalculateState(tasks)
@@ -315,40 +315,40 @@ func TestCalculateHealth(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		tasks    []Task
+		tasks    []ListItem
 		expected HealthStatus
 	}{
 		{
 			name:     "empty tasks",
-			tasks:    []Task{},
+			tasks:    []ListItem{},
 			expected: HealthUnknown,
 		},
 		{
 			name: "good health (>70% completed)",
-			tasks: []Task{
-				{Status: TaskStatusCompleted},
-				{Status: TaskStatusCompleted},
-				{Status: TaskStatusCompleted},
-				{Status: TaskStatusPending},
+			tasks: []ListItem{
+				{Status: ItemStatusCompleted},
+				{Status: ItemStatusCompleted},
+				{Status: ItemStatusCompleted},
+				{Status: ItemStatusPending},
 			},
 			expected: HealthGood,
 		},
 		{
 			name: "fair health (30-70% completed)",
-			tasks: []Task{
-				{Status: TaskStatusCompleted},
-				{Status: TaskStatusPending},
-				{Status: TaskStatusPending},
+			tasks: []ListItem{
+				{Status: ItemStatusCompleted},
+				{Status: ItemStatusPending},
+				{Status: ItemStatusPending},
 			},
 			expected: HealthFair,
 		},
 		{
 			name: "poor health (<30% completed)",
-			tasks: []Task{
-				{Status: TaskStatusPending},
-				{Status: TaskStatusPending},
-				{Status: TaskStatusPending},
-				{Status: TaskStatusPending},
+			tasks: []ListItem{
+				{Status: ItemStatusPending},
+				{Status: ItemStatusPending},
+				{Status: ItemStatusPending},
+				{Status: ItemStatusPending},
 			},
 			expected: HealthPoor,
 		},
@@ -375,9 +375,9 @@ func TestDetectRisks(t *testing.T) {
 	sm := NewStateManager(z.ZeusPath, z.fileStore)
 
 	// ブロックされたタスク
-	tasks := []Task{
-		{Status: TaskStatusBlocked},
-		{Status: TaskStatusBlocked},
+	tasks := []ListItem{
+		{Status: ItemStatusBlocked},
+		{Status: ItemStatusBlocked},
 	}
 	state := sm.CalculateState(tasks)
 	foundBlockedRisk := false
@@ -391,13 +391,13 @@ func TestDetectRisks(t *testing.T) {
 	}
 
 	// WIP リミット超過
-	tasks = []Task{
-		{Status: TaskStatusInProgress},
-		{Status: TaskStatusInProgress},
-		{Status: TaskStatusInProgress},
-		{Status: TaskStatusInProgress},
-		{Status: TaskStatusInProgress},
-		{Status: TaskStatusInProgress},
+	tasks = []ListItem{
+		{Status: ItemStatusInProgress},
+		{Status: ItemStatusInProgress},
+		{Status: ItemStatusInProgress},
+		{Status: ItemStatusInProgress},
+		{Status: ItemStatusInProgress},
+		{Status: ItemStatusInProgress},
 	}
 	state = sm.CalculateState(tasks)
 	foundWIPRisk := false

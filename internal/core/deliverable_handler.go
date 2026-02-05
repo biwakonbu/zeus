@@ -119,7 +119,7 @@ func (h *DeliverableHandler) List(ctx context.Context, filter *ListFilter) (*Lis
 
 	return &ListResult{
 		Entity: h.Type() + "s",
-		Items:  []Task{},
+		Items:  []ListItem{},
 		Total:  len(deliverables),
 	}, nil
 }

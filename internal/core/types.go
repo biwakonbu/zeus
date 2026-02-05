@@ -37,14 +37,14 @@ type Settings struct {
 	AIProvider      string `yaml:"ai_provider"`      // claude-code, gemini, codex
 }
 
-// TaskStatus はタスクステータス
-type TaskStatus string
+// ItemStatus はリスト項目のステータス
+type ItemStatus string
 
 const (
-	TaskStatusPending    TaskStatus = "pending"
-	TaskStatusInProgress TaskStatus = "in_progress"
-	TaskStatusCompleted  TaskStatus = "completed"
-	TaskStatusBlocked    TaskStatus = "blocked"
+	ItemStatusPending    ItemStatus = "pending"
+	ItemStatusInProgress ItemStatus = "in_progress"
+	ItemStatusCompleted  ItemStatus = "completed"
+	ItemStatusBlocked    ItemStatus = "blocked"
 )
 
 // ApprovalLevel は承認レベル
@@ -56,23 +56,22 @@ const (
 	ApprovalApprove ApprovalLevel = "approve"
 )
 
-// TaskPriority はタスク優先度
-type TaskPriority string
+// ItemPriority はリスト項目の優先度
+type ItemPriority string
 
 const (
-	PriorityHigh   TaskPriority = "high"
-	PriorityMedium TaskPriority = "medium"
-	PriorityLow    TaskPriority = "low"
+	PriorityHigh   ItemPriority = "high"
+	PriorityMedium ItemPriority = "medium"
+	PriorityLow    ItemPriority = "low"
 )
 
-// Task はタスク
-// Deprecated: Activity を使用してください
-type Task struct {
+// ListItem は一覧表示用の汎用項目
+type ListItem struct {
 	ID            string        `yaml:"id"`
 	Title         string        `yaml:"title"`
 	Description   string        `yaml:"description,omitempty"`
-	Status        TaskStatus    `yaml:"status"`
-	Priority      TaskPriority  `yaml:"priority,omitempty"`
+	Status        ItemStatus    `yaml:"status"`
+	Priority      ItemPriority  `yaml:"priority,omitempty"`
 	Assignee      string        `yaml:"assignee,omitempty"`
 	EstimateHours float64       `yaml:"estimate_hours,omitempty"`
 	ActualHours   float64       `yaml:"actual_hours,omitempty"`
@@ -80,18 +79,11 @@ type Task struct {
 	ApprovalLevel ApprovalLevel `yaml:"approval_level"`
 	CreatedAt     string        `yaml:"created_at"`
 	UpdatedAt     string        `yaml:"updated_at"`
-
-	// Phase 6A: WBS・タイムライン機能用の新規フィールド（全て optional）
-	ParentID  string `yaml:"parent_id,omitempty"`  // 親タスクID
-	StartDate string `yaml:"start_date,omitempty"` // 開始日（ISO8601）
-	DueDate   string `yaml:"due_date,omitempty"`   // 期限日（ISO8601）
-	Progress  int    `yaml:"progress,omitempty"`   // 進捗率（0-100）
-	WBSCode   string `yaml:"wbs_code,omitempty"`   // WBS番号（例: "1.2.3"）
-}
-
-// TaskStore はタスクストア
-type TaskStore struct {
-	Tasks []Task `yaml:"tasks"`
+	ParentID      string        `yaml:"parent_id,omitempty"`
+	StartDate     string        `yaml:"start_date,omitempty"`
+	DueDate       string        `yaml:"due_date,omitempty"`
+	Progress      int           `yaml:"progress,omitempty"`
+	WBSCode       string        `yaml:"wbs_code,omitempty"`
 }
 
 // HealthStatus は健全性ステータス
@@ -153,7 +145,7 @@ type AddResult struct {
 // ListResult は一覧結果
 type ListResult struct {
 	Entity string
-	Items  []Task
+	Items  []ListItem
 	Total  int
 }
 
@@ -210,7 +202,7 @@ type Suggestion struct {
 	TargetTaskID string          `yaml:"target_task_id,omitempty"` // priority_change, dependency用（Activity ID を指定）
 	NewPriority  string          `yaml:"new_priority,omitempty"`   // priority_change用
 	Dependencies []string        `yaml:"dependencies,omitempty"`   // dependency用
-	TaskData     *Task           `yaml:"task_data,omitempty"`      // new_task用（非推奨: ActivityData を使用）
+	TaskData     *ListItem       `yaml:"task_data,omitempty"`      // new_task用（非推奨: ActivityData を使用）
 	ActivityData *ActivityEntity `yaml:"activity_data,omitempty"`  // new_task用（推奨）
 }
 
@@ -240,16 +232,16 @@ type ExplainResult struct {
 	Suggestions []string          // 改善提案
 }
 
-// Validate は Task の妥当性を検証
-func (t *Task) Validate() error {
+// Validate は ListItem の妥当性を検証
+func (t *ListItem) Validate() error {
 	if t.ID == "" {
-		return fmt.Errorf("task ID is required")
+		return fmt.Errorf("item ID is required")
 	}
 	if t.Title == "" {
-		return fmt.Errorf("task title is required")
+		return fmt.Errorf("item title is required")
 	}
 	if t.Status == "" {
-		return fmt.Errorf("task status is required")
+		return fmt.Errorf("item status is required")
 	}
 	if t.EstimateHours < 0 {
 		return fmt.Errorf("estimate_hours must be non-negative, got %f", t.EstimateHours)
@@ -1691,10 +1683,9 @@ func (a *ActivityEntity) GetID() string { return a.ID }
 // GetTitle は Entity インターフェースを実装（ActivityEntity）
 func (a *ActivityEntity) GetTitle() string { return a.Title }
 
-// ToTask は ActivityEntity を Task に変換（後方互換性用）
-// Deprecated: 将来のバージョンで削除予定
-func (a *ActivityEntity) ToTask() Task {
-	var priority TaskPriority
+// ToListItem は ActivityEntity を ListItem に変換
+func (a *ActivityEntity) ToListItem() ListItem {
+	var priority ItemPriority
 	switch a.Priority {
 	case ActivityPriorityHigh:
 		priority = PriorityHigh
@@ -1704,26 +1695,26 @@ func (a *ActivityEntity) ToTask() Task {
 		priority = PriorityLow
 	}
 
-	var status TaskStatus
+	var status ItemStatus
 	switch a.Status {
 	case ActivityStatusPending:
-		status = TaskStatusPending
+		status = ItemStatusPending
 	case ActivityStatusInProgress:
-		status = TaskStatusInProgress
+		status = ItemStatusInProgress
 	case ActivityStatusCompleted:
-		status = TaskStatusCompleted
+		status = ItemStatusCompleted
 	case ActivityStatusBlocked:
-		status = TaskStatusBlocked
+		status = ItemStatusBlocked
 	default:
 		// フローステータスの場合はマッピング
 		if a.Status == ActivityStatusActive {
-			status = TaskStatusInProgress
+			status = ItemStatusInProgress
 		} else {
-			status = TaskStatusPending
+			status = ItemStatusPending
 		}
 	}
 
-	return Task{
+	return ListItem{
 		ID:            a.ID,
 		Title:         a.Title,
 		Description:   a.Description,
@@ -1744,8 +1735,8 @@ func (a *ActivityEntity) ToTask() Task {
 	}
 }
 
-// NewActivityFromTask は Task から ActivityEntity を生成（マイグレーション用）
-func NewActivityFromTask(t Task, newID string) *ActivityEntity {
+// NewActivityFromListItem は ListItem から ActivityEntity を生成（マイグレーション用）
+func NewActivityFromListItem(t ListItem, newID string) *ActivityEntity {
 	var priority ActivityPriority
 	switch t.Priority {
 	case PriorityHigh:
@@ -1758,13 +1749,13 @@ func NewActivityFromTask(t Task, newID string) *ActivityEntity {
 
 	var status ActivityStatus
 	switch t.Status {
-	case TaskStatusPending:
+	case ItemStatusPending:
 		status = ActivityStatusPending
-	case TaskStatusInProgress:
+	case ItemStatusInProgress:
 		status = ActivityStatusInProgress
-	case TaskStatusCompleted:
+	case ItemStatusCompleted:
 		status = ActivityStatusCompleted
-	case TaskStatusBlocked:
+	case ItemStatusBlocked:
 		status = ActivityStatusBlocked
 	}
 

@@ -91,11 +91,10 @@ func (h *SubsystemHandler) List(ctx context.Context, filter *ListFilter) (*ListR
 		subsystemsFile = SubsystemsFile{Subsystems: []SubsystemEntity{}}
 	}
 
-	// Subsystem を Task に変換（ListResult の互換性のため）
-	// 注: 本来は ListResult を汎用化すべきだが、既存インターフェースに合わせる
-	items := make([]Task, 0, len(subsystemsFile.Subsystems))
+	// Subsystem を ListItem に変換
+	items := make([]ListItem, 0, len(subsystemsFile.Subsystems))
 	for _, s := range subsystemsFile.Subsystems {
-		items = append(items, Task{
+		items = append(items, ListItem{
 			ID:          s.ID,
 			Title:       s.Name,
 			Description: s.Description,

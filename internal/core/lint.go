@@ -96,7 +96,6 @@ func (l *LintChecker) CheckIDFormat(ctx context.Context) ([]*LintError, []*LintW
 	var warnings []*LintWarning
 
 	// ディレクトリベースのエンティティ（個別ファイル）
-	// Note: tasks は TaskStore 形式のため singleFileEntities で処理
 	directoryEntities := []struct {
 		entityType  string
 		directory   string
@@ -288,12 +287,6 @@ func (l *LintChecker) extractEntityID(ctx context.Context, entityType, filePath 
 			return "", err
 		}
 		return entity.ID, nil
-	case "task":
-		var entity Task
-		if err := l.fileStore.ReadYaml(ctx, filePath, &entity); err != nil {
-			return "", err
-		}
-		return entity.ID, nil
 	case "usecase":
 		var entity UseCaseEntity
 		if err := l.fileStore.ReadYaml(ctx, filePath, &entity); err != nil {
@@ -326,16 +319,6 @@ func (l *LintChecker) extractEntityIDsFromFile(ctx context.Context, entityType, 
 		ids := make([]string, len(store.Subsystems))
 		for i, sub := range store.Subsystems {
 			ids[i] = sub.ID
-		}
-		return ids, nil
-	case "task":
-		var store TaskStore
-		if err := l.fileStore.ReadYaml(ctx, filePath, &store); err != nil {
-			return nil, err
-		}
-		ids := make([]string, len(store.Tasks))
-		for i, task := range store.Tasks {
-			ids[i] = task.ID
 		}
 		return ids, nil
 	case "constraint":

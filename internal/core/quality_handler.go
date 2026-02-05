@@ -107,7 +107,7 @@ func (h *QualityHandler) List(ctx context.Context, filter *ListFilter) (*ListRes
 
 	return &ListResult{
 		Entity: h.Type(),
-		Items:  []Task{},
+		Items:  []ListItem{},
 		Total:  len(qualities),
 	}, nil
 }

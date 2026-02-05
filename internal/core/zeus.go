@@ -161,7 +161,7 @@ func (z *Zeus) Init(ctx context.Context) (*InitResult, error) {
 	}
 
 	// 初期状態を記録（空の状態）
-	state := z.stateStore.CalculateState([]Task{})
+	state := z.stateStore.CalculateState([]ListItem{})
 	if err := z.stateStore.SaveCurrentState(ctx, state); err != nil {
 		return nil, err
 	}
@@ -434,23 +434,23 @@ func (z *Zeus) updateState(ctx context.Context) error {
 	// Activity から状態を計算（Task は非推奨、Activity に統合）
 	actHandler := z.GetActivityHandler()
 	if actHandler == nil {
-		state := z.stateStore.CalculateState([]Task{})
+		state := z.stateStore.CalculateState([]ListItem{})
 		return z.stateStore.SaveCurrentState(ctx, state)
 	}
 
 	activities, err := actHandler.GetAllSimple(ctx)
 	if err != nil {
-		state := z.stateStore.CalculateState([]Task{})
+		state := z.stateStore.CalculateState([]ListItem{})
 		return z.stateStore.SaveCurrentState(ctx, state)
 	}
 
-	// Activity を Task 形式に変換して状態計算
-	tasks := make([]Task, len(activities))
+	// Activity を ListItem 形式に変換して状態計算
+	tasks := make([]ListItem, len(activities))
 	for i, act := range activities {
-		tasks[i] = Task{
+		tasks[i] = ListItem{
 			ID:     act.ID,
 			Title:  act.Title,
-			Status: activityStatusToTaskStatus(act.Status),
+			Status: activityStatusToItemStatus(act.Status),
 		}
 	}
 
@@ -458,22 +458,22 @@ func (z *Zeus) updateState(ctx context.Context) error {
 	return z.stateStore.SaveCurrentState(ctx, state)
 }
 
-// activityStatusToTaskStatus は ActivityStatus を TaskStatus に変換
-func activityStatusToTaskStatus(status ActivityStatus) TaskStatus {
+// activityStatusToItemStatus は ActivityStatus を ItemStatus に変換
+func activityStatusToItemStatus(status ActivityStatus) ItemStatus {
 	switch status {
 	case ActivityStatusCompleted:
-		return TaskStatusCompleted
+		return ItemStatusCompleted
 	case ActivityStatusInProgress:
-		return TaskStatusInProgress
+		return ItemStatusInProgress
 	case ActivityStatusPending:
-		return TaskStatusPending
+		return ItemStatusPending
 	case ActivityStatusBlocked:
-		return TaskStatusBlocked
+		return ItemStatusBlocked
 	case ActivityStatusDraft, ActivityStatusActive, ActivityStatusDeprecated:
 		// Draft, Active, Deprecated は Pending として扱う
-		return TaskStatusPending
+		return ItemStatusPending
 	default:
-		return TaskStatusPending
+		return ItemStatusPending
 	}
 }
 
@@ -707,11 +707,6 @@ func (z *Zeus) Explain(ctx context.Context, entityID string, includeContext bool
 		return z.explainActivity(ctx, entityID, includeContext)
 	}
 
-	// 後方互換性: タスクIDの場合も Activity として処理
-	if len(entityID) >= 5 && entityID[:5] == "task-" {
-		return z.explainTask(ctx, entityID, includeContext)
-	}
-
 	return nil, fmt.Errorf("不明なエンティティ: %s", entityID)
 }
 
@@ -769,82 +764,6 @@ func (z *Zeus) explainProject(ctx context.Context, includeContext bool) (*Explai
 	if state.Health == HealthPoor {
 		result.Suggestions = append(result.Suggestions,
 			"プロジェクトの健全性が低下しています。リスク要因を確認してください。")
-	}
-
-	return result, nil
-}
-
-// explainTask は特定タスクの説明を生成（後方互換性用）
-func (z *Zeus) explainTask(ctx context.Context, taskID string, includeContext bool) (*ExplainResult, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
-	// タスクストアを読み込み
-	var taskStore TaskStore
-	if err := z.fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-		return nil, err
-	}
-
-	// タスクを検索
-	var targetTask *Task
-	for i := range taskStore.Tasks {
-		if taskStore.Tasks[i].ID == taskID {
-			targetTask = &taskStore.Tasks[i]
-			break
-		}
-	}
-
-	if targetTask == nil {
-		return nil, fmt.Errorf("タスクが見つかりません: %s", taskID)
-	}
-
-	// 要約を生成
-	summary := fmt.Sprintf("「%s」は現在 %s 状態のタスクです。",
-		targetTask.Title, targetTask.Status)
-
-	// 詳細を生成
-	details := ""
-	if targetTask.Description != "" {
-		details = targetTask.Description
-	}
-	if targetTask.EstimateHours > 0 {
-		details += fmt.Sprintf("\n見積もり工数: %.1f 時間", targetTask.EstimateHours)
-	}
-	if targetTask.ActualHours > 0 {
-		details += fmt.Sprintf("\n実績工数: %.1f 時間", targetTask.ActualHours)
-	}
-
-	result := &ExplainResult{
-		EntityID:    taskID,
-		EntityType:  "task",
-		Summary:     summary,
-		Details:     details,
-		Context:     make(map[string]string),
-		Suggestions: []string{},
-	}
-
-	// コンテキスト情報を追加
-	if includeContext {
-		result.Context["status"] = string(targetTask.Status)
-		result.Context["approval_level"] = string(targetTask.ApprovalLevel)
-		result.Context["created_at"] = targetTask.CreatedAt
-		if targetTask.Assignee != "" {
-			result.Context["assignee"] = targetTask.Assignee
-		}
-		if len(targetTask.Dependencies) > 0 {
-			result.Context["dependencies"] = fmt.Sprintf("%v", targetTask.Dependencies)
-		}
-	}
-
-	// 改善提案を生成
-	if targetTask.Status == TaskStatusBlocked {
-		result.Suggestions = append(result.Suggestions,
-			"このタスクはブロックされています。依存関係を確認してください。")
-	}
-	if targetTask.EstimateHours > 0 && targetTask.ActualHours > targetTask.EstimateHours*1.5 {
-		result.Suggestions = append(result.Suggestions,
-			"実績が見積もりを大幅に超過しています。タスク分割を検討してください。")
 	}
 
 	return result, nil
@@ -942,7 +861,7 @@ func (z *Zeus) applySuggestion(ctx context.Context, suggestion *Suggestion) erro
 			activity = suggestion.ActivityData
 		} else if suggestion.TaskData != nil {
 			// TaskData から ActivityEntity に変換
-			activity = NewActivityFromTask(*suggestion.TaskData, suggestion.TaskData.ID)
+			activity = NewActivityFromListItem(*suggestion.TaskData, suggestion.TaskData.ID)
 		} else {
 			return fmt.Errorf("new_task タイプの提案に Activity データがありません")
 		}
@@ -1043,28 +962,6 @@ func (z *Zeus) applySuggestion(ctx context.Context, suggestion *Suggestion) erro
 }
 
 // ===== Phase 4: 高度な分析機能 =====
-
-// toAnalysisTaskInfo は core.Task を analysis.TaskInfo に変換
-func toAnalysisTaskInfo(tasks []Task) []analysis.TaskInfo {
-	result := make([]analysis.TaskInfo, len(tasks))
-	for i, t := range tasks {
-		result[i] = analysis.TaskInfo{
-			ID:            t.ID,
-			Title:         t.Title,
-			Status:        string(t.Status),
-			Dependencies:  t.Dependencies,
-			ParentID:      t.ParentID,
-			StartDate:     t.StartDate,
-			DueDate:       t.DueDate,
-			Progress:      t.Progress,
-			WBSCode:       t.WBSCode,
-			Priority:      string(t.Priority),
-			Assignee:      t.Assignee,
-			EstimateHours: t.EstimateHours,
-		}
-	}
-	return result
-}
 
 // activityToAnalysisTaskInfo は Activity を analysis.TaskInfo に変換（後方互換性用）
 func activityToAnalysisTaskInfo(activities []ActivityEntity) []analysis.TaskInfo {

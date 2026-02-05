@@ -214,21 +214,29 @@ func (s *Server) loadAffinityDataParallel(ctx context.Context) (
 		mu.Unlock()
 	}()
 
-	// Tasks（単一ファイル、直接読み込み）
+	// Activities（ディレクトリ内の複数ファイル）
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		var taskStore core.TaskStore
-		if err := fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-			taskStore = core.TaskStore{Tasks: []core.Task{}}
+		actFiles, err := fileStore.ListDir(ctx, "activities")
+		if err != nil {
+			return
 		}
-		result := make([]analysis.TaskInfo, len(taskStore.Tasks))
-		for i, t := range taskStore.Tasks {
+		result := make([]analysis.TaskInfo, 0, len(actFiles))
+		for _, file := range actFiles {
+			if !hasYamlSuffix(file) {
+				continue
+			}
+			var act core.ActivityEntity
+			if err := fileStore.ReadYaml(ctx, "activities/"+file, &act); err != nil {
+				continue
+			}
+			t := act.ToListItem()
 			completedAt := ""
-			if t.Status == core.TaskStatusCompleted {
+			if t.Status == core.ItemStatusCompleted {
 				completedAt = t.UpdatedAt
 			}
-			result[i] = analysis.TaskInfo{
+			result = append(result, analysis.TaskInfo{
 				ID:            t.ID,
 				Title:         t.Title,
 				Status:        string(t.Status),
@@ -244,7 +252,7 @@ func (s *Server) loadAffinityDataParallel(ctx context.Context) (
 				CreatedAt:     t.CreatedAt,
 				UpdatedAt:     t.UpdatedAt,
 				CompletedAt:   completedAt,
-			}
+			})
 		}
 		mu.Lock()
 		tasks = result

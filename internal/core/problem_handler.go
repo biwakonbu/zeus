@@ -126,7 +126,7 @@ func (h *ProblemHandler) List(ctx context.Context, filter *ListFilter) (*ListRes
 
 	return &ListResult{
 		Entity: h.Type() + "s",
-		Items:  []Task{},
+		Items:  []ListItem{},
 		Total:  len(problems),
 	}, nil
 }

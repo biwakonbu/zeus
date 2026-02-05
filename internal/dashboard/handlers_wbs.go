@@ -320,19 +320,24 @@ func (s *Server) handleAPIWBSAnalysis(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	fileStore := s.zeus.FileStore()
 
-	// タスクを取得（tasks/active.yaml から直接読み込み）
-	var taskStore core.TaskStore
-	if err := fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-		taskStore = core.TaskStore{Tasks: []core.Task{}}
-	}
-	tasks := make([]analysis.TaskInfo, len(taskStore.Tasks))
-	for i, t := range taskStore.Tasks {
-		// CompletedAt は core.Task にないので、完了状態の場合は UpdatedAt を使用
+	// Activity を取得（activities/ ディレクトリから直接読み込み）
+	tasks := []analysis.TaskInfo{}
+	actFiles, _ := fileStore.ListDir(ctx, "activities")
+	for _, file := range actFiles {
+		if !hasYamlSuffix(file) {
+			continue
+		}
+		var act core.ActivityEntity
+		if err := fileStore.ReadYaml(ctx, "activities/"+file, &act); err != nil {
+			continue
+		}
+		t := act.ToListItem()
+		// CompletedAt は core.ListItem にないので、完了状態の場合は UpdatedAt を使用
 		completedAt := ""
-		if t.Status == core.TaskStatusCompleted {
+		if t.Status == core.ItemStatusCompleted {
 			completedAt = t.UpdatedAt
 		}
-		tasks[i] = analysis.TaskInfo{
+		tasks = append(tasks, analysis.TaskInfo{
 			ID:            t.ID,
 			Title:         t.Title,
 			Status:        string(t.Status),
@@ -348,7 +353,7 @@ func (s *Server) handleAPIWBSAnalysis(w http.ResponseWriter, r *http.Request) {
 			CreatedAt:     t.CreatedAt,
 			UpdatedAt:     t.UpdatedAt,
 			CompletedAt:   completedAt,
-		}
+		})
 	}
 
 	// Objective を取得（objectives/ ディレクトリから直接読み込み）

@@ -165,6 +165,8 @@ zeus update-claude                              # Claude Code ファイル再生
 
 ### Activity
 
+> **Note:** Task は Activity に統合されました。旧 Task API (`/api/tasks`) は Activity を TaskItem 形式で返します。内部的には `ListItem` 型を使用。
+
 Activity は「実行可能な作業単位」として 2 つのモードを持つ:
 
 | モード | 用途 | 判定条件 |
@@ -243,8 +245,6 @@ zeus graph --unified --hide-completed          # 完了済みを非表示
 
 **推奨対応:** Priority 1 の 2 タスク（計 5時間）対応後、本番展開可能
 
-詳細: REVIEW_PHASE_2_3.md / REVIEW_SUMMARY.json 参照
-
 ## ドキュメント
 
 - `docs/system-design.md` - システム設計書（必読）
@@ -252,7 +252,6 @@ zeus graph --unified --hide-completed          # 完了済みを非表示
 - `docs/operations-manual.md` - 運用マニュアル
 - `docs/detailed-design.md` - 10概念モデル詳細設計
 - `docs/design/affinity-canvas.md` - Affinity Canvas 設計書（Phase 7）
-- `docs/api-spec.md` - API 仕様（将来実装）
 - `docs/security.md` - セキュリティ実装ガイド
 
 ## 詳細情報

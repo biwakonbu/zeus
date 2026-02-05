@@ -99,7 +99,7 @@ func (h *ConstraintHandler) List(ctx context.Context, filter *ListFilter) (*List
 
 	return &ListResult{
 		Entity: h.Type() + "s",
-		Items:  []Task{},
+		Items:  []ListItem{},
 		Total:  len(constraints),
 	}, nil
 }

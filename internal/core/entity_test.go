@@ -138,7 +138,7 @@ func (m *MockEntityHandler) Add(ctx context.Context, name string, opts ...Entity
 
 func (m *MockEntityHandler) List(ctx context.Context, filter *ListFilter) (*ListResult, error) {
 	m.listCalled = true
-	return &ListResult{Entity: m.entityType, Items: []Task{}, Total: 0}, nil
+	return &ListResult{Entity: m.entityType, Items: []ListItem{}, Total: 0}, nil
 }
 
 func (m *MockEntityHandler) Get(ctx context.Context, id string) (any, error) {

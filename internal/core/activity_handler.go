@@ -132,7 +132,7 @@ func (h *ActivityHandler) List(ctx context.Context, filter *ListFilter) (*ListRe
 	if !h.fileStore.Exists(ctx, "activities") {
 		return &ListResult{
 			Entity: h.Type(),
-			Items:  []Task{},
+			Items:  []ListItem{},
 			Total:  0,
 		}, nil
 	}
@@ -143,7 +143,7 @@ func (h *ActivityHandler) List(ctx context.Context, filter *ListFilter) (*ListRe
 		return nil, fmt.Errorf("failed to list activities directory: %w", err)
 	}
 
-	items := make([]Task, 0)
+	items := make([]ListItem, 0)
 	for _, file := range files {
 		if !hasYamlSuffix(file) {
 			continue
@@ -153,7 +153,7 @@ func (h *ActivityHandler) List(ctx context.Context, filter *ListFilter) (*ListRe
 			continue // 読み込み失敗はスキップ
 		}
 		// Task に変換（ListResult 互換性のため）
-		items = append(items, activity.ToTask())
+		items = append(items, activity.ToListItem())
 	}
 
 	return &ListResult{

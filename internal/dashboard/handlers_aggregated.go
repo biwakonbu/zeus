@@ -103,10 +103,17 @@ func (s *Server) handleAPIWBSAggregated(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 	fileStore := s.zeus.FileStore()
 
-	// タスクを取得
-	var taskStore core.TaskStore
-	if err := fileStore.ReadYaml(ctx, "tasks/active.yaml", &taskStore); err != nil {
-		taskStore = core.TaskStore{Tasks: []core.Task{}}
+	// Activity を取得（ListItem に変換）
+	activities := []core.ListItem{}
+	actFiles, _ := fileStore.ListDir(ctx, "activities")
+	for _, file := range actFiles {
+		if !hasYamlSuffix(file) {
+			continue
+		}
+		var act core.ActivityEntity
+		if err := fileStore.ReadYaml(ctx, "activities/"+file, &act); err == nil {
+			activities = append(activities, act.ToListItem())
+		}
 	}
 
 	// Objective を取得
@@ -175,10 +182,10 @@ func (s *Server) handleAPIWBSAggregated(w http.ResponseWriter, r *http.Request) 
 
 	// 集約データを構築
 	response := WBSAggregatedResponse{
-		Progress:  buildProgressAggregation(vision, objectives, deliverables, taskStore.Tasks),
+		Progress:  buildProgressAggregation(vision, objectives, deliverables, activities),
 		Issues:    buildIssueAggregation(objectives, deliverables, problems, risks),
-		Coverage:  buildCoverageAggregation(vision, objectives, deliverables, taskStore.Tasks),
-		Resources: buildResourceAggregation(objectives, taskStore.Tasks),
+		Coverage:  buildCoverageAggregation(vision, objectives, deliverables, activities),
+		Resources: buildResourceAggregation(objectives, activities),
 	}
 
 	writeJSON(w, http.StatusOK, response)
@@ -189,7 +196,8 @@ func (s *Server) handleAPIWBSAggregated(w http.ResponseWriter, r *http.Request) 
 // =============================================================================
 
 // buildProgressAggregation は進捗集約データを構築
-func buildProgressAggregation(vision core.Vision, objectives []core.ObjectiveEntity, deliverables []core.DeliverableEntity, tasks []core.Task) *ProgressAggregation {
+// items は Activity から変換された ListItem のリスト
+func buildProgressAggregation(vision core.Vision, objectives []core.ObjectiveEntity, deliverables []core.DeliverableEntity, items []core.ListItem) *ProgressAggregation {
 	result := &ProgressAggregation{
 		Objectives: []*ProgressNode{},
 	}
@@ -200,12 +208,12 @@ func buildProgressAggregation(vision core.Vision, objectives []core.ObjectiveEnt
 		objDeliverables[del.ObjectiveID] = append(objDeliverables[del.ObjectiveID], del)
 	}
 
-	// Deliverable ID → Tasks マップ
-	// （タスクの DeliverableID がないので、ParentID から判定）
-	delTasks := make(map[string][]core.Task)
-	for _, task := range tasks {
-		if task.ParentID != "" {
-			delTasks[task.ParentID] = append(delTasks[task.ParentID], task)
+	// Deliverable ID → Items マップ
+	// （Item の DeliverableID がないので、ParentID から判定）
+	delItems := make(map[string][]core.ListItem)
+	for _, item := range items {
+		if item.ParentID != "" {
+			delItems[item.ParentID] = append(delItems[item.ParentID], item)
 		}
 	}
 
@@ -232,16 +240,16 @@ func buildProgressAggregation(vision core.Vision, objectives []core.ObjectiveEnt
 				Children: []*ProgressNode{},
 			}
 
-			// 関連タスクを追加
-			for _, task := range delTasks[del.ID] {
-				taskNode := &ProgressNode{
-					ID:       task.ID,
-					Title:    task.Title,
+			// 関連 Activity を追加
+			for _, item := range delItems[del.ID] {
+				itemNode := &ProgressNode{
+					ID:       item.ID,
+					Title:    item.Title,
 					NodeType: "task",
-					Progress: task.Progress,
-					Status:   string(task.Status),
+					Progress: item.Progress,
+					Status:   string(item.Status),
 				}
-				delNode.Children = append(delNode.Children, taskNode)
+				delNode.Children = append(delNode.Children, itemNode)
 			}
 			delNode.ChildrenCount = len(delNode.Children)
 
@@ -359,7 +367,8 @@ func buildIssueAggregation(objectives []core.ObjectiveEntity, deliverables []cor
 }
 
 // buildCoverageAggregation はカバレッジデータを構築
-func buildCoverageAggregation(vision core.Vision, objectives []core.ObjectiveEntity, deliverables []core.DeliverableEntity, tasks []core.Task) *CoverageAggregation {
+// items は Activity から変換された ListItem のリスト
+func buildCoverageAggregation(vision core.Vision, objectives []core.ObjectiveEntity, deliverables []core.DeliverableEntity, items []core.ListItem) *CoverageAggregation {
 	result := &CoverageAggregation{
 		OrphanedTasks: []string{},
 		MissingLinks:  []string{},
@@ -371,20 +380,20 @@ func buildCoverageAggregation(vision core.Vision, objectives []core.ObjectiveEnt
 		objDeliverables[del.ObjectiveID] = append(objDeliverables[del.ObjectiveID], del)
 	}
 
-	// Deliverable ID → Tasks マップ
-	delTasks := make(map[string][]core.Task)
-	linkedTaskIDs := make(map[string]bool)
-	for _, task := range tasks {
-		if task.ParentID != "" {
-			delTasks[task.ParentID] = append(delTasks[task.ParentID], task)
-			linkedTaskIDs[task.ID] = true
+	// Deliverable ID → Items マップ
+	delItems := make(map[string][]core.ListItem)
+	linkedItemIDs := make(map[string]bool)
+	for _, item := range items {
+		if item.ParentID != "" {
+			delItems[item.ParentID] = append(delItems[item.ParentID], item)
+			linkedItemIDs[item.ID] = true
 		}
 	}
 
-	// 孤立タスクを検出
-	for _, task := range tasks {
-		if !linkedTaskIDs[task.ID] {
-			result.OrphanedTasks = append(result.OrphanedTasks, task.ID)
+	// 孤立 Activity を検出
+	for _, item := range items {
+		if !linkedItemIDs[item.ID] {
+			result.OrphanedTasks = append(result.OrphanedTasks, item.ID)
 		}
 	}
 
@@ -430,23 +439,23 @@ func buildCoverageAggregation(vision core.Vision, objectives []core.ObjectiveEnt
 				Children: []*CoverageNode{},
 			}
 
-			// Task なしの Deliverable をマーク
-			taskList := delTasks[del.ID]
-			if len(taskList) == 0 {
+			// Activity なしの Deliverable をマーク
+			itemList := delItems[del.ID]
+			if len(itemList) == 0 {
 				delNode.HasIssue = true
 				delNode.IssueType = "no_tasks"
 				result.MissingLinks = append(result.MissingLinks, del.ID)
 			}
 
-			// タスクを追加
-			for _, task := range taskList {
-				taskNode := &CoverageNode{
-					ID:       task.ID,
-					Title:    task.Title,
+			// Activity を追加
+			for _, item := range itemList {
+				itemNode := &CoverageNode{
+					ID:       item.ID,
+					Title:    item.Title,
 					NodeType: "task",
 					Value:    1,
 				}
-				delNode.Children = append(delNode.Children, taskNode)
+				delNode.Children = append(delNode.Children, itemNode)
 			}
 
 			objNode.Children = append(objNode.Children, delNode)
@@ -468,7 +477,8 @@ func buildCoverageAggregation(vision core.Vision, objectives []core.ObjectiveEnt
 }
 
 // buildResourceAggregation はリソース配分データを構築
-func buildResourceAggregation(objectives []core.ObjectiveEntity, tasks []core.Task) *ResourceAggregation {
+// items は Activity から変換された ListItem のリスト
+func buildResourceAggregation(objectives []core.ObjectiveEntity, items []core.ListItem) *ResourceAggregation {
 	result := &ResourceAggregation{
 		Assignees:  []string{},
 		Objectives: []string{},
@@ -477,9 +487,9 @@ func buildResourceAggregation(objectives []core.ObjectiveEntity, tasks []core.Ta
 
 	// 担当者一覧を収集
 	assigneeSet := make(map[string]bool)
-	for _, task := range tasks {
-		if task.Assignee != "" {
-			assigneeSet[task.Assignee] = true
+	for _, item := range items {
+		if item.Assignee != "" {
+			assigneeSet[item.Assignee] = true
 		}
 	}
 	for assignee := range assigneeSet {
@@ -504,26 +514,26 @@ func buildResourceAggregation(objectives []core.ObjectiveEntity, tasks []core.Ta
 		result.Matrix[i] = make([]ResourceCell, len(objectives))
 	}
 
-	// タスク → Objective のマッピング（簡易版: ParentID から推定）
+	// Activity → Objective のマッピング（簡易版: ParentID から推定）
 	// 実際には Deliverable → Objective のリンクを辿る必要がある
 	assigneeIdx := make(map[string]int)
 	for i, a := range result.Assignees {
 		assigneeIdx[a] = i
 	}
 
-	for _, task := range tasks {
-		if task.Assignee == "" {
+	for _, item := range items {
+		if item.Assignee == "" {
 			continue
 		}
-		aIdx, ok := assigneeIdx[task.Assignee]
+		aIdx, ok := assigneeIdx[item.Assignee]
 		if !ok {
 			continue
 		}
 
 		// 仮: 最初の Objective に割り当て（実際はリンクを辿る）
 		oIdx := 0
-		if task.ParentID != "" {
-			if idx, ok := objIDs[task.ParentID]; ok {
+		if item.ParentID != "" {
+			if idx, ok := objIDs[item.ParentID]; ok {
 				oIdx = idx
 			}
 		}
@@ -532,8 +542,8 @@ func buildResourceAggregation(objectives []core.ObjectiveEntity, tasks []core.Ta
 		}
 
 		result.Matrix[aIdx][oIdx].TaskCount++
-		result.Matrix[aIdx][oIdx].Progress += task.Progress
-		if task.Status == core.TaskStatusBlocked {
+		result.Matrix[aIdx][oIdx].Progress += item.Progress
+		if item.Status == core.ItemStatusBlocked {
 			result.Matrix[aIdx][oIdx].BlockedCount++
 		}
 	}

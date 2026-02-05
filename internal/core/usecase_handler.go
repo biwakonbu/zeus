@@ -107,7 +107,7 @@ func (h *UseCaseHandler) List(ctx context.Context, filter *ListFilter) (*ListRes
 	if !h.fileStore.Exists(ctx, "usecases") {
 		return &ListResult{
 			Entity: h.Type(),
-			Items:  []Task{},
+			Items:  []ListItem{},
 			Total:  0,
 		}, nil
 	}
@@ -118,7 +118,7 @@ func (h *UseCaseHandler) List(ctx context.Context, filter *ListFilter) (*ListRes
 		return nil, fmt.Errorf("failed to list usecases directory: %w", err)
 	}
 
-	items := make([]Task, 0)
+	items := make([]ListItem, 0)
 	for _, file := range files {
 		if !hasYamlSuffix(file) {
 			continue
@@ -127,11 +127,11 @@ func (h *UseCaseHandler) List(ctx context.Context, filter *ListFilter) (*ListRes
 		if err := h.fileStore.ReadYaml(ctx, filepath.Join("usecases", file), &usecase); err != nil {
 			continue // 読み込み失敗はスキップ
 		}
-		// Task に変換（ListResult 互換性のため）
-		items = append(items, Task{
+		// ListItem に変換
+		items = append(items, ListItem{
 			ID:        usecase.ID,
 			Title:     usecase.Title,
-			Status:    TaskStatus(usecase.Status),
+			Status:    ItemStatus(usecase.Status),
 			CreatedAt: usecase.Metadata.CreatedAt,
 			UpdatedAt: usecase.Metadata.UpdatedAt,
 		})

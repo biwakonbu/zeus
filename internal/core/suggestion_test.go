@@ -269,16 +269,16 @@ func TestApplySuggestion_AllFlag(t *testing.T) {
 func TestTaskValidate(t *testing.T) {
 	tests := []struct {
 		name    string
-		task    Task
+		task    ListItem
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "valid task",
-			task: Task{
+			task: ListItem{
 				ID:        "task-1",
 				Title:     "Test Task",
-				Status:    TaskStatusPending,
+				Status:    ItemStatusPending,
 				CreatedAt: Now(),
 				UpdatedAt: Now(),
 			},
@@ -286,37 +286,37 @@ func TestTaskValidate(t *testing.T) {
 		},
 		{
 			name: "missing ID",
-			task: Task{
+			task: ListItem{
 				Title:  "Test Task",
-				Status: TaskStatusPending,
+				Status: ItemStatusPending,
 			},
 			wantErr: true,
-			errMsg:  "task ID is required",
+			errMsg:  "item ID is required",
 		},
 		{
 			name: "missing title",
-			task: Task{
+			task: ListItem{
 				ID:     "task-1",
-				Status: TaskStatusPending,
+				Status: ItemStatusPending,
 			},
 			wantErr: true,
-			errMsg:  "task title is required",
+			errMsg:  "item title is required",
 		},
 		{
 			name: "missing status",
-			task: Task{
+			task: ListItem{
 				ID:    "task-1",
 				Title: "Test Task",
 			},
 			wantErr: true,
-			errMsg:  "task status is required",
+			errMsg:  "item status is required",
 		},
 		{
 			name: "negative estimate hours",
-			task: Task{
+			task: ListItem{
 				ID:            "task-1",
 				Title:         "Test Task",
-				Status:        TaskStatusPending,
+				Status:        ItemStatusPending,
 				EstimateHours: -5,
 			},
 			wantErr: true,
@@ -324,10 +324,10 @@ func TestTaskValidate(t *testing.T) {
 		},
 		{
 			name: "invalid approval level",
-			task: Task{
+			task: ListItem{
 				ID:            "task-1",
 				Title:         "Test Task",
-				Status:        TaskStatusPending,
+				Status:        ItemStatusPending,
 				ApprovalLevel: "invalid",
 			},
 			wantErr: true,
@@ -350,10 +350,10 @@ func TestTaskValidate(t *testing.T) {
 
 // TestSuggestionValidate は提案の検証をテスト
 func TestSuggestionValidate(t *testing.T) {
-	validTask := &Task{
+	validTask := &ListItem{
 		ID:        "task-1",
 		Title:     "Test Task",
-		Status:    TaskStatusPending,
+		Status:    ItemStatusPending,
 		CreatedAt: Now(),
 		UpdatedAt: Now(),
 	}
@@ -595,10 +595,10 @@ func TestSuggestionValidate_AdditionalCases(t *testing.T) {
 				Type:        SuggestionNewTask,
 				Description: "New task",
 				Impact:      ImpactMedium,
-				TaskData: &Task{
+				TaskData: &ListItem{
 					ID: "task-1",
 					// Title がない
-					Status: TaskStatusPending,
+					Status: ItemStatusPending,
 				},
 			},
 			wantErr: true,

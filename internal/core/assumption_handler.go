@@ -125,7 +125,7 @@ func (h *AssumptionHandler) List(ctx context.Context, filter *ListFilter) (*List
 
 	return &ListResult{
 		Entity: h.Type() + "s",
-		Items:  []Task{},
+		Items:  []ListItem{},
 		Total:  len(assumptions),
 	}, nil
 }

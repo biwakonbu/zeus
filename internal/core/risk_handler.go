@@ -129,7 +129,7 @@ func (h *RiskHandler) List(ctx context.Context, filter *ListFilter) (*ListResult
 
 	return &ListResult{
 		Entity: h.Type() + "s",
-		Items:  []Task{},
+		Items:  []ListItem{},
 		Total:  len(risks),
 	}, nil
 }

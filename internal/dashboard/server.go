@@ -130,7 +130,7 @@ func (s *Server) handler() http.Handler {
 
 	// API エンドポイント（CORS 対応）
 	mux.HandleFunc("/api/status", s.corsMiddleware(s.handleAPIStatus))
-	// Note: /api/tasks は非推奨。Activity API (/api/activities) を使用してください。
+	mux.HandleFunc("/api/tasks", s.corsMiddleware(s.handleAPITasks)) // Activity を TaskItem 形式で返す
 	mux.HandleFunc("/api/graph", s.corsMiddleware(s.handleAPIGraph))
 	mux.HandleFunc("/api/predict", s.corsMiddleware(s.handleAPIPredict))
 	mux.HandleFunc("/api/wbs", s.corsMiddleware(s.handleAPIWBS))

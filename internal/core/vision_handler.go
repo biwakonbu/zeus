@@ -95,18 +95,18 @@ func (h *VisionHandler) List(ctx context.Context, filter *ListFilter) (*ListResu
 			// Vision が存在しない場合は空のリストを返す
 			return &ListResult{
 				Entity: h.Type(),
-				Items:  []Task{}, // 互換性のため Task スライスを使用
+				Items:  []ListItem{}, // 互換性のため Task スライスを使用
 				Total:  0,
 			}, nil
 		}
 		return nil, err
 	}
 
-	// ListResult.Items は []Task なので、空を返す
+	// ListResult.Items は []ListItem なので、空を返す
 	// Vision は単一エンティティなので Get を使用することを推奨
 	return &ListResult{
 		Entity: h.Type(),
-		Items:  []Task{},
+		Items:  []ListItem{},
 		Total:  1,
 	}, nil
 }

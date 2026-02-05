@@ -219,11 +219,11 @@ func TestMockApprovalStoreRejectFlow(t *testing.T) {
 func TestMockStateStoreCalculateState(t *testing.T) {
 	mockState := mocks.NewMockStateStore()
 
-	tasks := []core.Task{
-		{ID: "1", Status: core.TaskStatusCompleted},
-		{ID: "2", Status: core.TaskStatusInProgress},
-		{ID: "3", Status: core.TaskStatusPending},
-		{ID: "4", Status: core.TaskStatusCompleted},
+	tasks := []core.ListItem{
+		{ID: "1", Status: core.ItemStatusCompleted},
+		{ID: "2", Status: core.ItemStatusInProgress},
+		{ID: "3", Status: core.ItemStatusPending},
+		{ID: "4", Status: core.ItemStatusCompleted},
 	}
 
 	state := mockState.CalculateState(tasks)

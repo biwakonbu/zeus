@@ -84,7 +84,7 @@ type StateStore interface {
 	RestoreSnapshot(ctx context.Context, timestamp string) error
 
 	// CalculateState はタスクから状態を計算
-	CalculateState(tasks []Task) *ProjectState
+	CalculateState(tasks []ListItem) *ProjectState
 }
 
 // ApprovalStore は承認管理の抽象化インターフェース

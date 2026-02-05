@@ -90,11 +90,10 @@ func (h *ActorHandler) List(ctx context.Context, filter *ListFilter) (*ListResul
 		actorsFile = ActorsFile{Actors: []ActorEntity{}}
 	}
 
-	// Actor を Task に変換（ListResult の互換性のため）
-	// 注: 本来は ListResult を汎用化すべきだが、既存インターフェースに合わせる
-	items := make([]Task, 0, len(actorsFile.Actors))
+	// Actor を ListItem に変換
+	items := make([]ListItem, 0, len(actorsFile.Actors))
 	for _, a := range actorsFile.Actors {
-		items = append(items, Task{
+		items = append(items, ListItem{
 			ID:        a.ID,
 			Title:     a.Title,
 			CreatedAt: a.Metadata.CreatedAt,

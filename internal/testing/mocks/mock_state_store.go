@@ -126,19 +126,19 @@ func (m *MockStateStore) RestoreSnapshot(ctx context.Context, timestamp string) 
 	return fmt.Errorf("snapshot not found: %s", timestamp)
 }
 
-// CalculateState はタスクから状態を計算
-func (m *MockStateStore) CalculateState(tasks []core.Task) *core.ProjectState {
+// CalculateState はリスト項目から状態を計算
+func (m *MockStateStore) CalculateState(items []core.ListItem) *core.ProjectState {
 	stats := core.TaskStats{
-		TotalTasks: len(tasks),
+		TotalTasks: len(items),
 	}
 
-	for _, task := range tasks {
-		switch task.Status {
-		case core.TaskStatusCompleted:
+	for _, item := range items {
+		switch item.Status {
+		case core.ItemStatusCompleted:
 			stats.Completed++
-		case core.TaskStatusInProgress:
+		case core.ItemStatusInProgress:
 			stats.InProgress++
-		case core.TaskStatusPending:
+		case core.ItemStatusPending:
 			stats.Pending++
 		}
 	}

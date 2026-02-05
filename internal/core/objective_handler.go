@@ -114,11 +114,11 @@ func (h *ObjectiveHandler) List(ctx context.Context, filter *ListFilter) (*ListR
 		objectives = objectives[:filter.Limit]
 	}
 
-	// ListResult.Items は []Task なので、空を返す（互換性維持）
+	// ListResult.Items は []ListItem なので、空を返す（互換性維持）
 	// 本来は汎用 Entity リスト対応が望ましい
 	return &ListResult{
 		Entity: h.Type() + "s",
-		Items:  []Task{},
+		Items:  []ListItem{},
 		Total:  len(objectives),
 	}, nil
 }

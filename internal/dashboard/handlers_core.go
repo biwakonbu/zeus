@@ -2,6 +2,8 @@ package dashboard
 
 import (
 	"net/http"
+
+	"github.com/biwakonbu/zeus/internal/core"
 )
 
 // =============================================================================
@@ -291,4 +293,88 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+// =============================================================================
+// Tasks API ハンドラー（Activity を TaskItem 形式で返す）
+// =============================================================================
+
+// TasksResponse はタスク一覧 API のレスポンス
+type TasksResponse struct {
+	Tasks []TaskItem `json:"tasks"`
+	Total int        `json:"total"`
+}
+
+// TaskItem はタスク項目
+type TaskItem struct {
+	ID           string   `json:"id"`
+	Title        string   `json:"title"`
+	Status       string   `json:"status"`
+	Priority     string   `json:"priority"`
+	Assignee     string   `json:"assignee"`
+	Dependencies []string `json:"dependencies"`
+	ParentID     string   `json:"parent_id,omitempty"`
+	StartDate    string   `json:"start_date,omitempty"`
+	DueDate      string   `json:"due_date,omitempty"`
+	Progress     int      `json:"progress"`
+	WBSCode      string   `json:"wbs_code,omitempty"`
+}
+
+// handleAPITasks はタスク一覧 API を処理（Activity を TaskItem 形式で返す）
+func (s *Server) handleAPITasks(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "GET メソッドのみ許可されています")
+		return
+	}
+
+	ctx := r.Context()
+	fileStore := s.zeus.FileStore()
+
+	// Activity を取得
+	files, err := fileStore.ListDir(ctx, "activities")
+	if err != nil {
+		// ディレクトリが存在しない場合は空のレスポンス
+		response := TasksResponse{
+			Tasks: []TaskItem{},
+			Total: 0,
+		}
+		writeJSON(w, http.StatusOK, response)
+		return
+	}
+
+	items := []TaskItem{}
+	for _, file := range files {
+		if !hasYamlSuffix(file) {
+			continue
+		}
+
+		var act core.ActivityEntity
+		if err := fileStore.ReadYaml(ctx, "activities/"+file, &act); err != nil {
+			continue
+		}
+
+		// Simple モードの Activity のみ TaskItem に変換
+		if len(act.Nodes) == 0 {
+			items = append(items, TaskItem{
+				ID:           act.ID,
+				Title:        act.Title,
+				Status:       string(act.Status),
+				Priority:     string(act.Priority),
+				Assignee:     act.Assignee,
+				Dependencies: act.Dependencies,
+				ParentID:     act.ParentID,
+				StartDate:    act.StartDate,
+				DueDate:      act.DueDate,
+				Progress:     act.Progress,
+				WBSCode:      act.WBSCode,
+			})
+		}
+	}
+
+	response := TasksResponse{
+		Tasks: items,
+		Total: len(items),
+	}
+
+	writeJSON(w, http.StatusOK, response)
 }

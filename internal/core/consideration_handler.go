@@ -125,7 +125,7 @@ func (h *ConsiderationHandler) List(ctx context.Context, filter *ListFilter) (*L
 
 	return &ListResult{
 		Entity: h.Type() + "s",
-		Items:  []Task{},
+		Items:  []ListItem{},
 		Total:  len(considerations),
 	}, nil
 }

@@ -115,7 +115,7 @@ func (h *DecisionHandler) List(ctx context.Context, filter *ListFilter) (*ListRe
 
 	return &ListResult{
 		Entity: h.Type() + "s",
-		Items:  []Task{},
+		Items:  []ListItem{},
 		Total:  len(decisions),
 	}, nil
 }
