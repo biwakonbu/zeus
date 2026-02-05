@@ -1,15 +1,16 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import Minimap from './Minimap.svelte';
-	import type { TaskItem } from '$lib/types/api';
+	import type { GraphNode } from '$lib/types/api';
 	import type { NodePosition, LayoutResult } from '../engine/LayoutEngine';
 	import type { Viewport } from '../engine/ViewerEngine';
 
-	// モックタスク
-	const mockTasks: TaskItem[] = [
+	// モックノード
+	const mockNodes: GraphNode[] = [
 		{
 			id: 'task-1',
 			title: 'タスク 1',
+			node_type: 'task',
 			status: 'completed',
 			priority: 'high',
 			assignee: 'alice',
@@ -19,6 +20,7 @@
 		{
 			id: 'task-2',
 			title: 'タスク 2',
+			node_type: 'task',
 			status: 'completed',
 			priority: 'medium',
 			assignee: 'bob',
@@ -28,6 +30,7 @@
 		{
 			id: 'task-3',
 			title: 'タスク 3',
+			node_type: 'task',
 			status: 'in_progress',
 			priority: 'high',
 			assignee: 'alice',
@@ -37,6 +40,7 @@
 		{
 			id: 'task-4',
 			title: 'タスク 4',
+			node_type: 'task',
 			status: 'pending',
 			priority: 'medium',
 			assignee: 'charlie',
@@ -46,6 +50,7 @@
 		{
 			id: 'task-5',
 			title: 'タスク 5',
+			node_type: 'task',
 			status: 'blocked',
 			priority: 'low',
 			assignee: 'bob',
@@ -90,7 +95,7 @@
 			layout: 'padded'
 		},
 		args: {
-			tasks: mockTasks,
+			nodes: mockNodes,
 			positions: mockPositions,
 			bounds: mockBounds,
 			viewport: normalViewport,
@@ -140,7 +145,7 @@
 <Story name="Default">
 	<div class="minimap-story-wrapper">
 		<Minimap
-			tasks={mockTasks}
+			nodes={mockNodes}
 			positions={mockPositions}
 			bounds={mockBounds}
 			viewport={normalViewport}
@@ -153,7 +158,7 @@
 <Story name="ZoomedOut">
 	<div class="minimap-story-wrapper">
 		<Minimap
-			tasks={mockTasks}
+			nodes={mockNodes}
 			positions={mockPositions}
 			bounds={mockBounds}
 			viewport={zoomedOutViewport}
@@ -166,7 +171,7 @@
 <Story name="ZoomedIn">
 	<div class="minimap-story-wrapper">
 		<Minimap
-			tasks={mockTasks}
+			nodes={mockNodes}
 			positions={mockPositions}
 			bounds={mockBounds}
 			viewport={zoomedInViewport}
@@ -179,7 +184,7 @@
 <Story name="Empty">
 	<div class="minimap-story-wrapper">
 		<Minimap
-			tasks={[]}
+			nodes={[]}
 			positions={new Map()}
 			bounds={{ minX: 0, minY: 0, maxX: 100, maxY: 100, width: 100, height: 100 }}
 			viewport={normalViewport}
@@ -192,7 +197,7 @@
 <Story name="Interactive" args={{ onNavigate: handleInteractiveNavigate }}>
 	<div class="minimap-story-wrapper">
 		<Minimap
-			tasks={mockTasks}
+			nodes={mockNodes}
 			positions={mockPositions}
 			bounds={mockBounds}
 			viewport={interactiveViewport}
@@ -214,7 +219,7 @@ x: {Math.round(interactiveViewport.x)}, y: {Math.round(interactiveViewport.y)}
 	<div style="display: flex; gap: 24px; align-items: flex-start;">
 		<div class="minimap-story-wrapper">
 			<Minimap
-				tasks={mockTasks}
+				nodes={mockNodes}
 				positions={mockPositions}
 				bounds={mockBounds}
 				viewport={normalViewport}

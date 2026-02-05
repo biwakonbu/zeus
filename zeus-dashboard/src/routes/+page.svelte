@@ -7,7 +7,6 @@
 	import { setConnected, setDisconnected, setConnecting } from '$lib/stores/connection';
 	import { connectSSE, disconnectSSE } from '$lib/api/sse';
 	import { fetchWBSAsGraphData, fetchActivities } from '$lib/api/client';
-	import { tasks } from '$lib/stores/tasks';
 	import type { WBSGraphData, ActivityItem } from '$lib/types/api';
 
 	let useSSE = $state(true);
@@ -125,7 +124,6 @@
 <div class="viewer-container">
 	{#if $currentView === 'graph'}
 		<FactorioViewer
-			tasks={$tasks}
 			graphData={wbsGraphData}
 			selectedTaskId={selectedTaskId}
 			onTaskSelect={handleTaskSelect}
@@ -138,40 +136,46 @@
 	{/if}
 </div>
 
-<!-- 選択タスク詳細パネル（Graph View） -->
-{#if $currentView === 'graph' && selectedTaskId}
-	{@const selectedTask = $tasks.find(t => t.id === selectedTaskId)}
-	{#if selectedTask}
+<!-- 選択ノード詳細パネル（Graph View） -->
+{#if $currentView === 'graph' && selectedTaskId && wbsGraphData}
+	{@const selectedNode = wbsGraphData.nodes.find(n => n.id === selectedTaskId)}
+	{#if selectedNode}
 		<div class="task-detail-panel">
 			<div class="panel-header">
-				<h3 class="panel-title">TASK DETAIL</h3>
+				<h3 class="panel-title">NODE DETAIL</h3>
 				<button class="close-btn" onclick={() => selectedTaskId = null}>x</button>
 			</div>
 			<div class="task-detail-content">
 				<div class="detail-row">
 					<span class="detail-label">ID</span>
-					<span class="detail-value">{selectedTask.id}</span>
+					<span class="detail-value">{selectedNode.id}</span>
 				</div>
 				<div class="detail-row">
 					<span class="detail-label">Title</span>
-					<span class="detail-value">{selectedTask.title}</span>
+					<span class="detail-value">{selectedNode.title}</span>
+				</div>
+				<div class="detail-row">
+					<span class="detail-label">Type</span>
+					<span class="detail-value node-type-{selectedNode.node_type}">{selectedNode.node_type}</span>
 				</div>
 				<div class="detail-row">
 					<span class="detail-label">Status</span>
-					<span class="detail-value status-{selectedTask.status}">{selectedTask.status}</span>
+					<span class="detail-value status-{selectedNode.status}">{selectedNode.status}</span>
 				</div>
-				<div class="detail-row">
-					<span class="detail-label">Priority</span>
-					<span class="detail-value priority-{selectedTask.priority}">{selectedTask.priority}</span>
-				</div>
+				{#if selectedNode.priority}
+					<div class="detail-row">
+						<span class="detail-label">Priority</span>
+						<span class="detail-value priority-{selectedNode.priority}">{selectedNode.priority}</span>
+					</div>
+				{/if}
 				<div class="detail-row">
 					<span class="detail-label">Assignee</span>
-					<span class="detail-value">{selectedTask.assignee || 'Unassigned'}</span>
+					<span class="detail-value">{selectedNode.assignee || 'Unassigned'}</span>
 				</div>
-				{#if selectedTask.dependencies.length > 0}
+				{#if selectedNode.dependencies.length > 0}
 					<div class="detail-row">
 						<span class="detail-label">Dependencies</span>
-						<span class="detail-value">{selectedTask.dependencies.length} tasks</span>
+						<span class="detail-value">{selectedNode.dependencies.length} nodes</span>
 					</div>
 				{/if}
 			</div>
@@ -290,5 +294,22 @@
 
 	.priority-low {
 		color: var(--priority-low);
+	}
+
+	/* ノードタイプ色 */
+	.node-type-vision {
+		color: #ffd700;
+	}
+
+	.node-type-objective {
+		color: #6699ff;
+	}
+
+	.node-type-deliverable {
+		color: #66cc99;
+	}
+
+	.node-type-task {
+		color: #888888;
 	}
 </style>

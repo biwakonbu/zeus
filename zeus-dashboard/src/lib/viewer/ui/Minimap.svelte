@@ -1,12 +1,11 @@
 <script lang="ts">
-	import type { TaskItem, GraphNode, GraphNodeType } from '$lib/types/api';
+	import type { GraphNode, GraphNodeType } from '$lib/types/api';
 	import type { NodePosition, LayoutResult } from '../engine/LayoutEngine';
 	import type { Viewport } from '../engine/ViewerEngine';
 
-	// Props（後方互換性: tasks または nodes を受け付ける）
+	// Props
 	interface Props {
-		tasks?: TaskItem[];
-		nodes?: GraphNode[];
+		nodes: GraphNode[];
 		isWBSMode?: boolean;
 		positions: Map<string, NodePosition>;
 		bounds: LayoutResult['bounds'];
@@ -14,23 +13,7 @@
 		onNavigate?: (x: number, y: number) => void;
 	}
 
-	let { tasks = [], nodes = [], isWBSMode = false, positions, bounds, viewport, onNavigate }: Props = $props();
-
-	// 内部で使用するノードリスト（nodes 優先、なければ tasks から変換）
-	let internalNodes = $derived.by(() => {
-		if (nodes.length > 0) return nodes;
-		return tasks.map(t => ({
-			id: t.id,
-			title: t.title,
-			node_type: 'task' as GraphNodeType,
-			status: t.status,
-			progress: t.progress ?? 0,
-			priority: t.priority,
-			assignee: t.assignee,
-			wbs_code: t.wbs_code,
-			dependencies: t.dependencies
-		}));
-	});
+	let { nodes, isWBSMode = false, positions, bounds, viewport, onNavigate }: Props = $props();
 
 	// ミニマップサイズ
 	const MINIMAP_WIDTH = 180;
@@ -57,7 +40,7 @@
 	// ノードを描画用に変換
 	let nodeRects = $derived.by(() => {
 		const rects: { x: number; y: number; status: string; nodeType: GraphNodeType }[] = [];
-		for (const node of internalNodes) {
+		for (const node of nodes) {
 			const pos = positions.get(node.id);
 			if (!pos) continue;
 			rects.push({

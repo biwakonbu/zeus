@@ -167,7 +167,7 @@ func TestSSEBroadcaster_Broadcast_MultipleClients(t *testing.T) {
 	client3 := broadcaster.AddClient("client-003")
 
 	event := SSEEvent{
-		Type: EventTask,
+		Type: EventGraph,
 		Data: "test data",
 	}
 
@@ -178,8 +178,8 @@ func TestSSEBroadcaster_Broadcast_MultipleClients(t *testing.T) {
 	for i, client := range clients {
 		select {
 		case received := <-client.Events:
-			if received.Type != EventTask {
-				t.Errorf("client %d: expected event type 'task', got '%s'", i+1, received.Type)
+			if received.Type != EventGraph {
+				t.Errorf("client %d: expected event type 'graph', got '%s'", i+1, received.Type)
 			}
 		case <-time.After(100 * time.Millisecond):
 			t.Errorf("client %d: timeout waiting for event", i+1)
@@ -248,25 +248,6 @@ func TestSSEBroadcaster_BroadcastStatus(t *testing.T) {
 	}
 }
 
-// ===== BroadcastTask テスト =====
-
-func TestSSEBroadcaster_BroadcastTask(t *testing.T) {
-	broadcaster := NewSSEBroadcaster()
-	client := broadcaster.AddClient("client-001")
-
-	data := map[string]string{"task_id": "task-001"}
-	broadcaster.BroadcastTask(data)
-
-	select {
-	case received := <-client.Events:
-		if received.Type != EventTask {
-			t.Errorf("expected event type 'task', got '%s'", received.Type)
-		}
-	case <-time.After(100 * time.Millisecond):
-		t.Error("timeout waiting for task event")
-	}
-}
-
 // ===== BroadcastGraph テスト =====
 
 func TestSSEBroadcaster_BroadcastGraph(t *testing.T) {
@@ -332,7 +313,7 @@ func TestFormatSSEMessage(t *testing.T) {
 
 func TestFormatSSEMessage_ComplexData(t *testing.T) {
 	event := SSEEvent{
-		Type: EventTask,
+		Type: EventGraph,
 		Data: struct {
 			ID       string `json:"id"`
 			Title    string `json:"title"`
@@ -385,7 +366,6 @@ func TestEventType_Values(t *testing.T) {
 		expected  string
 	}{
 		{EventStatus, "status"},
-		{EventTask, "task"},
 		{EventApproval, "approval"},
 		{EventGraph, "graph"},
 		{EventPrediction, "prediction"},
@@ -491,7 +471,7 @@ func TestSSEBroadcaster_Concurrent_AddBroadcastRemove(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			event := SSEEvent{
-				Type: EventTask,
+				Type: EventGraph,
 				Data: idx,
 			}
 			broadcaster.Broadcast(event)
@@ -547,14 +527,13 @@ func TestSSEBroadcaster_ComplexScenario(t *testing.T) {
 
 	// 様々なイベントをブロードキャスト
 	broadcaster.BroadcastStatus(map[string]string{"status": "active"})
-	broadcaster.BroadcastTask(map[string]string{"task_id": "task-001", "action": "created"})
 	broadcaster.BroadcastGraph(map[string]int{"nodes": 50, "edges": 75})
 	broadcaster.BroadcastPrediction(map[string]float64{"completion": 0.75})
 
-	// 各クライアントが 4 イベントを受信
+	// 各クライアントが 3 イベントを受信
 	for _, client := range []*SSEClient{client1, client2} {
 		receivedCount := 0
-		for i := 0; i < 4; i++ {
+		for i := 0; i < 3; i++ {
 			select {
 			case <-client.Events:
 				receivedCount++
@@ -562,8 +541,8 @@ func TestSSEBroadcaster_ComplexScenario(t *testing.T) {
 				t.Errorf("client %s: timeout waiting for event %d", client.ID, i+1)
 			}
 		}
-		if receivedCount != 4 {
-			t.Errorf("client %s: expected 4 events, got %d", client.ID, receivedCount)
+		if receivedCount != 3 {
+			t.Errorf("client %s: expected 3 events, got %d", client.ID, receivedCount)
 		}
 	}
 

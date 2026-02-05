@@ -130,7 +130,6 @@ func (s *Server) handler() http.Handler {
 
 	// API エンドポイント（CORS 対応）
 	mux.HandleFunc("/api/status", s.corsMiddleware(s.handleAPIStatus))
-	mux.HandleFunc("/api/tasks", s.corsMiddleware(s.handleAPITasks)) // Activity を TaskItem 形式で返す
 	mux.HandleFunc("/api/graph", s.corsMiddleware(s.handleAPIGraph))
 	mux.HandleFunc("/api/predict", s.corsMiddleware(s.handleAPIPredict))
 	mux.HandleFunc("/api/wbs", s.corsMiddleware(s.handleAPIWBS))
@@ -235,8 +234,6 @@ func (s *Server) BroadcastAllUpdates(ctx context.Context) {
 		}
 		s.broadcaster.BroadcastStatus(response)
 	}
-
-	// Note: Task ブロードキャストは非推奨。Activity API を使用してください。
 
 	// グラフ
 	if graph, err := s.zeus.BuildDependencyGraph(ctx); err == nil {

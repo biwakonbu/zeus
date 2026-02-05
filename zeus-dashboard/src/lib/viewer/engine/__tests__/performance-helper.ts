@@ -158,12 +158,13 @@ export function assertPerformanceOnce(duration: number, threshold: number, label
 }
 
 /**
- * テスト用のタスクデータを生成
- * TaskItem と互換性を持つ型
+ * テスト用のグラフノードデータを生成
+ * GraphNode と互換性を持つ型
  */
-export interface MockTaskItem {
+export interface MockGraphNode {
 	id: string;
 	title: string;
+	node_type: 'task' | 'vision' | 'objective' | 'deliverable';
 	status: 'pending' | 'in_progress' | 'completed' | 'blocked';
 	progress: number;
 	priority: 'high' | 'medium' | 'low';
@@ -172,21 +173,21 @@ export interface MockTaskItem {
 }
 
 /**
- * ランダムなタスクリストを生成
+ * ランダムなグラフノードリストを生成
  *
- * @param count タスク数
+ * @param count ノード数
  * @param maxDependencies 最大依存数
  */
-export function generateMockTasks(count: number, maxDependencies = 3): MockTaskItem[] {
-	const statuses: MockTaskItem['status'][] = ['pending', 'in_progress', 'completed', 'blocked'];
-	const priorities: MockTaskItem['priority'][] = ['high', 'medium', 'low'];
+export function generateMockTasks(count: number, maxDependencies = 3): MockGraphNode[] {
+	const statuses: MockGraphNode['status'][] = ['pending', 'in_progress', 'completed', 'blocked'];
+	const priorities: MockGraphNode['priority'][] = ['high', 'medium', 'low'];
 
-	const tasks: MockTaskItem[] = [];
+	const nodes: MockGraphNode[] = [];
 
 	for (let i = 0; i < count; i++) {
 		const id = `task-${i}`;
 
-		// 自分より前のタスクから依存を選択
+		// 自分より前のノードから依存を選択
 		const dependencies: string[] = [];
 		const numDeps = Math.min(i, Math.floor(Math.random() * (maxDependencies + 1)));
 		for (let j = 0; j < numDeps; j++) {
@@ -197,9 +198,10 @@ export function generateMockTasks(count: number, maxDependencies = 3): MockTaskI
 			}
 		}
 
-		tasks.push({
+		nodes.push({
 			id,
 			title: `Task ${i}`,
+			node_type: 'task',
 			status: statuses[Math.floor(Math.random() * statuses.length)],
 			progress: Math.floor(Math.random() * 101),
 			priority: priorities[Math.floor(Math.random() * priorities.length)],
@@ -208,7 +210,7 @@ export function generateMockTasks(count: number, maxDependencies = 3): MockTaskI
 		});
 	}
 
-	return tasks;
+	return nodes;
 }
 
 /**

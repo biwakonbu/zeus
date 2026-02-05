@@ -1,5 +1,5 @@
 // 自動レイアウトエンジン
-import type { TaskItem } from '$lib/types/api';
+import type { GraphNode } from '$lib/types/api';
 import { TaskNode } from '../rendering/TaskNode';
 
 // レイアウト設定
@@ -58,7 +58,7 @@ export class LayoutEngine {
 	/**
 	 * レイアウトハッシュを計算（構造変更の検出用）
 	 */
-	private computeLayoutHash(tasks: TaskItem[]): string {
+	private computeLayoutHash(tasks: GraphNode[]): string {
 		// タスクIDと依存関係のみでハッシュを計算（ステータス等は無視）
 		return tasks
 			.map(t => `${t.id}:${t.dependencies.sort().join(',')}`)
@@ -69,7 +69,7 @@ export class LayoutEngine {
 	/**
 	 * タスクリストをレイアウト（キャッシュ対応）
 	 */
-	layout(tasks: TaskItem[]): LayoutResult {
+	layout(tasks: GraphNode[]): LayoutResult {
 		const hash = this.computeLayoutHash(tasks);
 
 		// キャッシュが有効な場合はそのまま返す
@@ -113,7 +113,7 @@ export class LayoutEngine {
 	 * 部分レイアウト（フィルター時用）
 	 * 指定されたノードのみをレイアウトする（キャッシュを使わない）
 	 */
-	layoutSubset(tasks: TaskItem[], visibleIds: Set<string>): LayoutResult {
+	layoutSubset(tasks: GraphNode[], visibleIds: Set<string>): LayoutResult {
 		// フィルター対象のタスクのみ抽出
 		const filteredTasks = tasks.filter(t => visibleIds.has(t.id));
 
@@ -136,7 +136,7 @@ export class LayoutEngine {
 	/**
 	 * 依存関係グラフを構築
 	 */
-	private buildGraph(tasks: TaskItem[]): {
+	private buildGraph(tasks: GraphNode[]): {
 		outgoing: Map<string, Set<string>>; // id -> 依存先のセット
 		incoming: Map<string, Set<string>>; // id -> 依存元のセット
 	} {
@@ -169,7 +169,7 @@ export class LayoutEngine {
 	 * レイヤー0 = 依存なし（ルート）、レイヤーN = 深さN
 	 */
 	private computeLayers(
-		tasks: TaskItem[],
+		tasks: GraphNode[],
 		graph: { outgoing: Map<string, Set<string>>; incoming: Map<string, Set<string>> }
 	): string[][] {
 		const layers: string[][] = [];

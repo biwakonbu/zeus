@@ -21,7 +21,7 @@ import {
 	generateMockTasks,
 	PERFORMANCE_THRESHOLDS,
 	formatPerformanceResult,
-	type MockTaskItem
+	type MockGraphNode
 } from './performance-helper';
 
 describe('DiffUtils パフォーマンステスト', () => {
@@ -141,6 +141,7 @@ describe('DiffUtils パフォーマンステスト', () => {
 			tasks.push({
 				id: 'new-task',
 				title: 'New Task',
+				node_type: 'task',
 				status: 'pending',
 				progress: 0,
 				priority: 'medium',
@@ -187,7 +188,7 @@ describe('DiffUtils パフォーマンステスト', () => {
 			const previousIds = new Set(previousTasks.map((t) => t.id));
 
 			// task-0 削除、task-5 追加
-			const newTasks: MockTaskItem[] = [
+			const newTasks: MockGraphNode[] = [
 				previousTasks[1],
 				previousTasks[2],
 				previousTasks[3],
@@ -195,6 +196,7 @@ describe('DiffUtils パフォーマンステスト', () => {
 				{
 					id: 'task-5',
 					title: 'Task 5',
+					node_type: 'task',
 					status: 'pending',
 					progress: 0,
 					priority: 'medium',

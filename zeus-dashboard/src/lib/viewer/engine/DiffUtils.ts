@@ -4,7 +4,7 @@
  * タスクリストの変更を効率的に検出するための関数群
  */
 
-import type { TaskItem } from '$lib/types/api';
+import type { GraphNode } from '$lib/types/api';
 
 /**
  * 変更タイプ
@@ -39,7 +39,7 @@ export function createInitialState(): DiffDetectorState {
  *
  * 構造に関係しない属性のみを含める
  */
-export function computeTasksHash(tasks: TaskItem[]): string {
+export function computeTasksHash(tasks: GraphNode[]): string {
 	return tasks
 		.map(
 			(t) =>
@@ -51,7 +51,7 @@ export function computeTasksHash(tasks: TaskItem[]): string {
 /**
  * 依存関係のハッシュを計算
  */
-export function computeDependencyHash(tasks: TaskItem[]): string {
+export function computeDependencyHash(tasks: GraphNode[]): string {
 	return tasks
 		.map((t) => `${t.id}:${t.dependencies.join(',')}`)
 		.sort()
@@ -66,7 +66,7 @@ export function computeDependencyHash(tasks: TaskItem[]): string {
  * @returns 変更タイプと更新された状態
  */
 export function detectTaskChanges(
-	tasks: TaskItem[],
+	tasks: GraphNode[],
 	state: DiffDetectorState
 ): { changeType: ChangeType; newState: DiffDetectorState } {
 	const newTaskIds = new Set(tasks.map((t) => t.id));
@@ -108,12 +108,12 @@ export function detectTaskChanges(
  * @returns 追加されたタスクと削除されたタスクID
  */
 export function identifyTaskDiff(
-	newTasks: TaskItem[],
+	newTasks: GraphNode[],
 	previousTaskIds: Set<string>
 ): {
-	added: TaskItem[];
+	added: GraphNode[];
 	removed: string[];
-	unchanged: TaskItem[];
+	unchanged: GraphNode[];
 } {
 	const newTaskIds = new Set(newTasks.map((t) => t.id));
 

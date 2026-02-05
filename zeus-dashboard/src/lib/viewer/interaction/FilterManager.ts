@@ -1,6 +1,6 @@
 // フィルタリング管理クラス
 
-import type { TaskItem, TaskStatus, Priority } from '$lib/types/api';
+import type { GraphNode, TaskStatus, Priority } from '$lib/types/api';
 
 /**
  * フィルター条件
@@ -24,7 +24,7 @@ export interface FilterChangeEvent {
 }
 
 /**
- * FilterManager - タスクのフィルタリングを管理
+ * FilterManager - ノードのフィルタリングを管理
  *
  * 責務:
  * - ステータス別フィルタ
@@ -34,17 +34,24 @@ export interface FilterChangeEvent {
  * - フィルター結果のキャッシュ
  */
 export class FilterManager {
-	private tasks: TaskItem[] = [];
+	private nodes: GraphNode[] = [];
 	private criteria: FilterCriteria = {};
 	private visibleIds: Set<string> = new Set();
 	private listeners: ((event: FilterChangeEvent) => void)[] = [];
 
 	/**
-	 * タスクデータを設定
+	 * ノードデータを設定
 	 */
-	setTasks(tasks: TaskItem[]): void {
-		this.tasks = tasks;
+	setNodes(nodes: GraphNode[]): void {
+		this.nodes = nodes;
 		this.applyFilter();
+	}
+
+	/**
+	 * @deprecated setNodes を使用してください
+	 */
+	setTasks(nodes: GraphNode[]): void {
+		this.setNodes(nodes);
 	}
 
 	/**
@@ -140,24 +147,31 @@ export class FilterManager {
 	}
 
 	/**
-	 * 表示されるタスクIDを取得
+	 * 表示されるノードIDを取得
 	 */
 	getVisibleIds(): string[] {
 		return Array.from(this.visibleIds);
 	}
 
 	/**
-	 * 表示されるタスクを取得
+	 * 表示されるノードを取得
 	 */
-	getVisibleTasks(): TaskItem[] {
-		return this.tasks.filter((t) => this.visibleIds.has(t.id));
+	getVisibleNodes(): GraphNode[] {
+		return this.nodes.filter((n) => this.visibleIds.has(n.id));
 	}
 
 	/**
-	 * 非表示のタスクIDを取得
+	 * @deprecated getVisibleNodes を使用してください
+	 */
+	getVisibleTasks(): GraphNode[] {
+		return this.getVisibleNodes();
+	}
+
+	/**
+	 * 非表示のノードIDを取得
 	 */
 	getHiddenIds(): string[] {
-		return this.tasks.filter((t) => !this.visibleIds.has(t.id)).map((t) => t.id);
+		return this.nodes.filter((n) => !this.visibleIds.has(n.id)).map((n) => n.id);
 	}
 
 	/**
@@ -186,9 +200,9 @@ export class FilterManager {
 	 */
 	getAvailableAssignees(): string[] {
 		const assignees = new Set<string>();
-		for (const task of this.tasks) {
-			if (task.assignee) {
-				assignees.add(task.assignee);
+		for (const node of this.nodes) {
+			if (node.assignee) {
+				assignees.add(node.assignee);
 			}
 		}
 		return Array.from(assignees).sort();
@@ -213,15 +227,15 @@ export class FilterManager {
 	private applyFilter(): void {
 		this.visibleIds.clear();
 
-		for (const task of this.tasks) {
-			if (this.matchesCriteria(task)) {
-				this.visibleIds.add(task.id);
+		for (const node of this.nodes) {
+			if (this.matchesCriteria(node)) {
+				this.visibleIds.add(node.id);
 			}
 		}
 
 		// 変更があった場合のみイベント発火
 		const newVisibleIds = Array.from(this.visibleIds);
-		const hiddenIds = this.tasks.filter((t) => !this.visibleIds.has(t.id)).map((t) => t.id);
+		const hiddenIds = this.nodes.filter((n) => !this.visibleIds.has(n.id)).map((n) => n.id);
 
 		this.emit({
 			criteria: this.criteria,
@@ -231,26 +245,28 @@ export class FilterManager {
 	}
 
 	/**
-	 * タスクがフィルター条件にマッチするか
+	 * ノードがフィルター条件にマッチするか
 	 */
-	private matchesCriteria(task: TaskItem): boolean {
+	private matchesCriteria(node: GraphNode): boolean {
 		// ステータスフィルター
 		if (this.criteria.statuses && this.criteria.statuses.length > 0) {
-			if (!this.criteria.statuses.includes(task.status)) {
+			const nodeStatus = node.status as TaskStatus;
+			if (!this.criteria.statuses.includes(nodeStatus)) {
 				return false;
 			}
 		}
 
 		// 優先度フィルター
 		if (this.criteria.priorities && this.criteria.priorities.length > 0) {
-			if (!this.criteria.priorities.includes(task.priority)) {
+			const nodePriority = node.priority as Priority | undefined;
+			if (!nodePriority || !this.criteria.priorities.includes(nodePriority)) {
 				return false;
 			}
 		}
 
 		// 担当者フィルター
 		if (this.criteria.assignees && this.criteria.assignees.length > 0) {
-			if (!this.criteria.assignees.includes(task.assignee)) {
+			if (!node.assignee || !this.criteria.assignees.includes(node.assignee)) {
 				return false;
 			}
 		}
@@ -258,9 +274,9 @@ export class FilterManager {
 		// テキスト検索
 		if (this.criteria.searchText) {
 			const searchLower = this.criteria.searchText.toLowerCase();
-			const titleMatch = task.title.toLowerCase().includes(searchLower);
-			const idMatch = task.id.toLowerCase().includes(searchLower);
-			const assigneeMatch = task.assignee?.toLowerCase().includes(searchLower) ?? false;
+			const titleMatch = node.title.toLowerCase().includes(searchLower);
+			const idMatch = node.id.toLowerCase().includes(searchLower);
+			const assigneeMatch = node.assignee?.toLowerCase().includes(searchLower) ?? false;
 			if (!titleMatch && !idMatch && !assigneeMatch) {
 				return false;
 			}
@@ -268,7 +284,7 @@ export class FilterManager {
 
 		// 依存関係フィルター
 		if (this.criteria.hasDependencies !== undefined) {
-			const hasDeps = task.dependencies.length > 0;
+			const hasDeps = node.dependencies.length > 0;
 			if (this.criteria.hasDependencies !== hasDeps) {
 				return false;
 			}
@@ -276,7 +292,7 @@ export class FilterManager {
 
 		// ブロック状態フィルター
 		if (this.criteria.isBlocked !== undefined) {
-			const isBlocked = task.status === 'blocked';
+			const isBlocked = node.status === 'blocked';
 			if (this.criteria.isBlocked !== isBlocked) {
 				return false;
 			}
@@ -298,7 +314,7 @@ export class FilterManager {
 	 * クリーンアップ
 	 */
 	destroy(): void {
-		this.tasks = [];
+		this.nodes = [];
 		this.visibleIds.clear();
 		this.listeners = [];
 		this.criteria = {};

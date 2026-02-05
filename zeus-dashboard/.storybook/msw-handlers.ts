@@ -1,9 +1,9 @@
 import { http, HttpResponse } from 'msw';
 import type {
-	TaskItem,
-	TasksResponse,
+	GraphNode,
 	WBSResponse,
 	TimelineResponse,
+	TimelineItem,
 	DownstreamResponse,
 	StatusResponse,
 	Vision,
@@ -28,79 +28,73 @@ import type {
 	QualityResponse
 } from '../src/lib/types/api';
 
-// モックデータ: タスク
-const mockTasks: TaskItem[] = [
+// モックデータ: GraphNode
+const mockGraphNodes: GraphNode[] = [
 	{
 		id: 'task-1',
 		title: 'プロジェクト初期化',
+		node_type: 'task',
 		status: 'completed',
 		priority: 'high',
 		assignee: 'alice',
 		dependencies: [],
 		progress: 100,
-		wbs_code: '1',
-		start_date: '2024-01-01',
-		due_date: '2024-01-05'
+		wbs_code: '1'
 	},
 	{
 		id: 'task-2',
 		title: 'データベース設計',
+		node_type: 'task',
 		status: 'completed',
 		priority: 'high',
 		assignee: 'bob',
 		dependencies: ['task-1'],
 		progress: 100,
-		wbs_code: '2',
-		start_date: '2024-01-06',
-		due_date: '2024-01-10'
+		wbs_code: '2'
 	},
 	{
 		id: 'task-3',
 		title: 'API 実装',
+		node_type: 'task',
 		status: 'in_progress',
 		priority: 'high',
 		assignee: 'alice',
 		dependencies: ['task-2'],
 		progress: 60,
-		wbs_code: '3',
-		start_date: '2024-01-11',
-		due_date: '2024-01-20'
+		wbs_code: '3'
 	},
 	{
 		id: 'task-4',
 		title: 'フロントエンド実装',
+		node_type: 'task',
 		status: 'in_progress',
 		priority: 'medium',
 		assignee: 'charlie',
 		dependencies: ['task-2'],
 		progress: 40,
-		wbs_code: '4',
-		start_date: '2024-01-11',
-		due_date: '2024-01-25'
+		wbs_code: '4'
 	},
 	{
 		id: 'task-5',
 		title: 'テスト作成',
+		node_type: 'task',
 		status: 'pending',
 		priority: 'medium',
 		assignee: 'bob',
 		dependencies: ['task-3', 'task-4'],
 		progress: 0,
-		wbs_code: '5',
-		start_date: '2024-01-26',
-		due_date: '2024-02-01'
+		wbs_code: '5'
 	},
 	{
 		id: 'task-6',
 		title: 'デプロイメント設定',
+		node_type: 'task',
 		status: 'blocked',
 		priority: 'low',
 		assignee: 'alice',
 		dependencies: ['task-5'],
 		progress: 0,
-		wbs_code: '6',
-		start_date: '2024-02-02',
-		due_date: '2024-02-05'
+		wbs_code: '6'
 	}
 ];
 
@@ -163,21 +157,33 @@ const mockWBS: WBSResponse = {
 	}
 };
 
+// タイムラインアイテム用の日付データ
+const taskDates: Record<string, { start: string; end: string }> = {
+	'task-1': { start: '2024-01-01', end: '2024-01-05' },
+	'task-2': { start: '2024-01-06', end: '2024-01-10' },
+	'task-3': { start: '2024-01-11', end: '2024-01-20' },
+	'task-4': { start: '2024-01-11', end: '2024-01-25' },
+	'task-5': { start: '2024-01-26', end: '2024-02-01' },
+	'task-6': { start: '2024-02-02', end: '2024-02-05' }
+};
+
 // モックデータ: タイムライン
+const mockTimelineItems: TimelineItem[] = mockGraphNodes.map((node) => ({
+	task_id: node.id,
+	title: node.title,
+	start_date: taskDates[node.id]?.start || '2024-01-01',
+	end_date: taskDates[node.id]?.end || '2024-01-10',
+	progress: node.progress,
+	status: node.status as 'completed' | 'in_progress' | 'pending' | 'blocked',
+	priority: (node.priority || 'medium') as 'high' | 'medium' | 'low',
+	assignee: node.assignee || '',
+	is_on_critical_path: ['task-1', 'task-2', 'task-3', 'task-5', 'task-6'].includes(node.id),
+	slack: node.status === 'completed' ? null : Math.floor(Math.random() * 5),
+	dependencies: node.dependencies
+}));
+
 const mockTimeline: TimelineResponse = {
-	items: mockTasks.map((task) => ({
-		task_id: task.id,
-		title: task.title,
-		start_date: task.start_date || '2024-01-01',
-		end_date: task.due_date || '2024-01-10',
-		progress: task.progress,
-		status: task.status,
-		priority: task.priority,
-		assignee: task.assignee,
-		is_on_critical_path: ['task-1', 'task-2', 'task-3', 'task-5', 'task-6'].includes(task.id),
-		slack: task.status === 'completed' ? null : Math.floor(Math.random() * 5),
-		dependencies: task.dependencies
-	})),
+	items: mockTimelineItems,
 	critical_path: ['task-1', 'task-2', 'task-3', 'task-5', 'task-6'],
 	project_start: '2024-01-01',
 	project_end: '2024-02-05',
@@ -532,15 +538,6 @@ const mockQuality: QualityItem[] = [
 
 // MSW ハンドラー
 export const handlers = [
-	// タスク一覧
-	http.get('/api/tasks', () => {
-		const response: TasksResponse = {
-			tasks: mockTasks,
-			total: mockTasks.length
-		};
-		return HttpResponse.json(response);
-	}),
-
 	// WBS
 	http.get('/api/wbs', () => {
 		return HttpResponse.json(mockWBS);
@@ -557,9 +554,9 @@ export const handlers = [
 		const taskId = url.searchParams.get('task_id') || 'task-1';
 
 		// 簡易的な下流・上流計算
-		const task = mockTasks.find((t) => t.id === taskId);
-		const downstream = mockTasks.filter((t) => t.dependencies.includes(taskId)).map((t) => t.id);
-		const upstream = task?.dependencies || [];
+		const node = mockGraphNodes.find((n) => n.id === taskId);
+		const downstream = mockGraphNodes.filter((n) => n.dependencies.includes(taskId)).map((n) => n.id);
+		const upstream = node?.dependencies || [];
 
 		const response: DownstreamResponse = {
 			task_id: taskId,
@@ -724,7 +721,7 @@ export const handlers = [
 
 // エクスポート: 既存 + 10概念モデル
 export {
-	mockTasks,
+	mockGraphNodes,
 	mockWBS,
 	mockTimeline,
 	mockStatus,

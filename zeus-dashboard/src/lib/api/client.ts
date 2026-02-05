@@ -1,7 +1,6 @@
 // API クライアント
 import type {
 	StatusResponse,
-	TasksResponse,
 	GraphResponse,
 	PredictResponse,
 	WBSResponse,
@@ -63,11 +62,6 @@ async function fetchJSON<T>(endpoint: string): Promise<T> {
 // ステータス取得
 export async function fetchStatus(): Promise<StatusResponse> {
 	return fetchJSON<StatusResponse>('/status');
-}
-
-// タスク一覧取得
-export async function fetchTasks(): Promise<TasksResponse> {
-	return fetchJSON<TasksResponse>('/tasks');
 }
 
 // グラフ取得
@@ -206,7 +200,6 @@ export async function fetchWBSAsGraphData(): Promise<WBSGraphData> {
 // 全データ取得（並列実行）
 export interface DashboardData {
 	status: StatusResponse | null;
-	tasks: TasksResponse | null;
 	graph: GraphResponse | null;
 	predict: PredictResponse | null;
 }
@@ -214,15 +207,13 @@ export interface DashboardData {
 export async function fetchAllData(): Promise<DashboardData> {
 	const results = await Promise.allSettled([
 		fetchStatus(),
-		fetchTasks(),
 		fetchGraph(),
 		fetchPredict()
 	]);
 
 	return {
 		status: results[0].status === 'fulfilled' ? results[0].value : null,
-		tasks: results[1].status === 'fulfilled' ? results[1].value : null,
-		graph: results[2].status === 'fulfilled' ? results[2].value : null,
-		predict: results[3].status === 'fulfilled' ? results[3].value : null
+		graph: results[1].status === 'fulfilled' ? results[1].value : null,
+		predict: results[2].status === 'fulfilled' ? results[2].value : null
 	};
 }

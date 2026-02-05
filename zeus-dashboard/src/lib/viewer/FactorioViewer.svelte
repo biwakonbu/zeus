@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import type { TaskItem, TaskStatus, Priority, GraphNode, WBSGraphData, TimelineItem } from '$lib/types/api';
+	import type { TaskStatus, Priority, GraphNode, WBSGraphData, TimelineItem } from '$lib/types/api';
 	import { fetchTimeline } from '$lib/api/client';
 	import { ViewerEngine, type Viewport } from './engine/ViewerEngine';
 	import { LayoutEngine, type NodePosition } from './engine/LayoutEngine';
@@ -18,49 +18,30 @@
 
 	// Props
 	interface Props {
-		tasks?: TaskItem[];
-		graphData?: WBSGraphData;  // WBS モード用の GraphNode/Edge データ
+		graphData?: WBSGraphData;  // GraphNode/Edge データ
 		selectedTaskId?: string | null;
 		onTaskSelect?: (taskId: string | null) => void;
 		onTaskHover?: (taskId: string | null) => void;
 	}
 
 	let {
-		tasks = [],
 		graphData,
 		selectedTaskId = null,
 		onTaskSelect,
 		onTaskHover
 	}: Props = $props();
 
-	// WBS モード判定: graphData が提供されていれば WBS モード
+	// WBS モード判定: graphData が提供されているかどうか
 	let isWBSMode = $derived(!!graphData && graphData.nodes.length > 0);
-
-	/**
-	 * TaskItem[] から GraphNode[] への変換（後方互換性用）
-	 */
-	function tasksToGraphNodes(taskList: TaskItem[]): GraphNode[] {
-		return taskList.map(t => ({
-			id: t.id,
-			title: t.title,
-			node_type: 'task' as const,
-			status: t.status,
-			progress: t.progress ?? 0,
-			priority: t.priority,
-			assignee: t.assignee || undefined,
-			wbs_code: t.wbs_code,
-			dependencies: t.dependencies
-		}));
-	}
 
 	// 内部で使用する統一された GraphNode リスト
 	let graphNodes = $derived(
-		isWBSMode ? graphData!.nodes : tasksToGraphNodes(tasks)
+		graphData?.nodes ?? []
 	);
 
 	// 内部で使用するエッジリスト
 	let graphEdges = $derived(
-		isWBSMode ? graphData!.edges : []
+		graphData?.edges ?? []
 	);
 
 	// 内部状態
@@ -865,9 +846,8 @@
 		// ノードマップを作成
 		const graphNodeMap = new Map(nodeList.map(n => [n.id, n]));
 
-		// フィルターマネージャーを更新（TaskItem 互換形式で）
-		const taskItems = graphNodesToTaskItems(nodeList);
-		filterManager.setTasks(taskItems);
+		// フィルターマネージャーを更新
+		filterManager.setNodes(nodeList);
 		availableAssignees = filterManager.getAvailableAssignees();
 
 		// 既存ノードのデータを更新
@@ -887,26 +867,6 @@
 			totalNodes: nodeMap.size,
 			updatedNodes: updatedCount
 		}, true);
-	}
-
-	/**
-	 * GraphNode[] から TaskItem[] 互換形式に変換（フィルター・選択マネージャー用）
-	 */
-	function graphNodesToTaskItems(nodeList: GraphNode[]): TaskItem[] {
-		return nodeList.map(n => ({
-			id: n.id,
-			title: n.title,
-			status: (n.status === 'completed' || n.status === 'in_progress' || n.status === 'pending' || n.status === 'blocked')
-				? n.status as TaskStatus
-				: 'pending' as TaskStatus,
-			priority: (n.priority === 'high' || n.priority === 'medium' || n.priority === 'low')
-				? n.priority as Priority
-				: 'medium' as Priority,
-			assignee: n.assignee || '',
-			dependencies: n.dependencies,
-			progress: n.progress,
-			wbs_code: n.wbs_code
-		}));
 	}
 
 	// 外部からの選択状態変更を反映
@@ -946,15 +906,14 @@
 			originalPositions = null;
 		}
 
-		// TaskItem 互換形式に変換してマネージャーに設定
-		const taskItems = graphNodesToTaskItems(nodeList);
-		filterManager.setTasks(taskItems);
-		selectionManager.setTasks(taskItems);
+		// マネージャーに GraphNode を設定
+		filterManager.setNodes(nodeList);
+		selectionManager.setNodes(nodeList);
 		availableAssignees = filterManager.getAvailableAssignees();
 
-		// レイアウト計算（TaskItem 互換形式で）
+		// レイアウト計算（GraphNode で）
 		const layoutStart = nowMs();
-		const layout = layoutEngine.layout(taskItems);
+		const layout = layoutEngine.layout(nodeList);
 		const layoutMs = nowMs() - layoutStart;
 		positions = layout.positions;
 		layoutBounds = layout.bounds;
@@ -1456,8 +1415,7 @@
 		}
 
 		// フィルター対象のみで再レイアウト
-		const taskItems = graphNodesToTaskItems(graphNodes);
-		const filteredLayout = layoutEngine.layoutSubset(taskItems, dependencyFilterIds);
+		const filteredLayout = layoutEngine.layoutSubset(graphNodes, dependencyFilterIds);
 
 		// 可視性を更新
 		visibleTaskIds = dependencyFilterIds;
@@ -1492,8 +1450,7 @@
 
 			// layoutBounds も再計算
 			if (layoutEngine) {
-				const taskItems = graphNodesToTaskItems(graphNodes);
-				const fullLayout = layoutEngine.layout(taskItems);
+				const fullLayout = layoutEngine.layout(graphNodes);
 				layoutBounds = fullLayout.bounds;
 			}
 

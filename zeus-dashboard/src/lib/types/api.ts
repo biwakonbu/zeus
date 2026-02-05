@@ -31,28 +31,7 @@ export interface TaskStats {
 	pending: number;
 }
 
-// タスク API レスポンス
-export interface TasksResponse {
-	tasks: TaskItem[];
-	total: number;
-}
-
-export interface TaskItem {
-	id: string;
-	title: string;
-	status: TaskStatus;
-	priority: Priority;
-	assignee: string;
-	dependencies: string[];
-
-	// Phase 6A: WBS・タイムライン機能用フィールド
-	parent_id?: string;
-	start_date?: string;
-	due_date?: string;
-	progress: number;
-	wbs_code?: string;
-}
-
+// TaskStatus と Priority は TimelineItem, WBSNode 等で使用される共通型
 export type TaskStatus = 'completed' | 'in_progress' | 'pending' | 'blocked';
 export type Priority = 'high' | 'medium' | 'low';
 
@@ -114,7 +93,7 @@ export interface VelocityReport {
 export type VelocityTrend = 'increasing' | 'stable' | 'decreasing' | 'insufficient_data';
 
 // SSE イベント型
-export type SSEEventType = 'status' | 'task' | 'approval' | 'graph' | 'prediction';
+export type SSEEventType = 'status' | 'approval' | 'graph' | 'prediction';
 
 export interface SSEEvent<T = unknown> {
 	type: SSEEventType;

@@ -1,6 +1,6 @@
 // 選択管理クラス
 
-import type { TaskItem } from '$lib/types/api';
+import type { GraphNode } from '$lib/types/api';
 
 /**
  * 選択イベント
@@ -11,7 +11,7 @@ export interface SelectionEvent {
 }
 
 /**
- * SelectionManager - タスクの選択状態を管理
+ * SelectionManager - ノードの選択状態を管理
  *
  * 責務:
  * - 単一選択/複数選択の管理
@@ -22,16 +22,23 @@ export interface SelectionEvent {
 export class SelectionManager {
 	private selectedIds: Set<string> = new Set();
 	private listeners: ((event: SelectionEvent) => void)[] = [];
-	private tasks: Map<string, TaskItem> = new Map();
+	private nodes: Map<string, GraphNode> = new Map();
 
 	/**
-	 * タスクデータを設定
+	 * ノードデータを設定
 	 */
-	setTasks(tasks: TaskItem[]): void {
-		this.tasks.clear();
-		for (const task of tasks) {
-			this.tasks.set(task.id, task);
+	setNodes(nodes: GraphNode[]): void {
+		this.nodes.clear();
+		for (const node of nodes) {
+			this.nodes.set(node.id, node);
 		}
+	}
+
+	/**
+	 * @deprecated setNodes を使用してください
+	 */
+	setTasks(nodes: GraphNode[]): void {
+		this.setNodes(nodes);
 	}
 
 	/**
@@ -135,34 +142,34 @@ export class SelectionManager {
 	/**
 	 * 依存チェーンを選択（上流・下流）
 	 */
-	selectDependencyChain(taskId: string, direction: 'upstream' | 'downstream' | 'both'): void {
-		const chainIds = new Set<string>([taskId]);
+	selectDependencyChain(nodeId: string, direction: 'upstream' | 'downstream' | 'both'): void {
+		const chainIds = new Set<string>([nodeId]);
 
 		const visited = new Set<string>();
-		const queue = [taskId];
+		const queue = [nodeId];
 
 		while (queue.length > 0) {
 			const currentId = queue.shift()!;
 			if (visited.has(currentId)) continue;
 			visited.add(currentId);
 
-			const task = this.tasks.get(currentId);
-			if (!task) continue;
+			const node = this.nodes.get(currentId);
+			if (!node) continue;
 
 			// 上流（依存先）
 			if (direction === 'upstream' || direction === 'both') {
-				for (const depId of task.dependencies) {
-					if (!visited.has(depId) && this.tasks.has(depId)) {
+				for (const depId of node.dependencies) {
+					if (!visited.has(depId) && this.nodes.has(depId)) {
 						chainIds.add(depId);
 						queue.push(depId);
 					}
 				}
 			}
 
-			// 下流（このタスクに依存するタスク）
+			// 下流（このノードに依存するノード）
 			if (direction === 'downstream' || direction === 'both') {
-				for (const [id, t] of this.tasks) {
-					if (t.dependencies.includes(currentId) && !visited.has(id)) {
+				for (const [id, n] of this.nodes) {
+					if (n.dependencies.includes(currentId) && !visited.has(id)) {
 						chainIds.add(id);
 						queue.push(id);
 					}
@@ -195,7 +202,7 @@ export class SelectionManager {
 	 * 全選択
 	 */
 	selectAll(): void {
-		const allIds = Array.from(this.tasks.keys());
+		const allIds = Array.from(this.nodes.keys());
 		const newIds = allIds.filter((id) => !this.selectedIds.has(id));
 		for (const id of allIds) {
 			this.selectedIds.add(id);
@@ -269,6 +276,6 @@ export class SelectionManager {
 	destroy(): void {
 		this.selectedIds.clear();
 		this.listeners = [];
-		this.tasks.clear();
+		this.nodes.clear();
 	}
 }

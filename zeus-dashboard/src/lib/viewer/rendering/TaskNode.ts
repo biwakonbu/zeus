@@ -1,7 +1,7 @@
 // タスクノードの描画クラス（WBS 全ノードタイプ対応）
 import { Container, Graphics, Text } from 'pixi.js';
 import type { FederatedPointerEvent } from 'pixi.js';
-import type { TaskItem, TaskStatus, Priority, GraphNode, GraphNodeType } from '$lib/types/api';
+import type { TaskStatus, Priority, GraphNode, GraphNodeType } from '$lib/types/api';
 
 // ノードサイズ定数
 const NODE_WIDTH = 200;
@@ -126,20 +126,6 @@ export enum LODLevel {
 	Micro = 2
 }
 
-// TaskItem を GraphNode 形式に変換するヘルパー
-function taskItemToGraphNode(task: TaskItem): GraphNode {
-	return {
-		id: task.id,
-		title: task.title,
-		node_type: 'task',
-		status: task.status,
-		progress: task.progress ?? 0,
-		priority: task.priority,
-		assignee: task.assignee,
-		wbs_code: task.wbs_code,
-		dependencies: task.dependencies
-	};
-}
 
 /**
  * TaskNode - WBS ノード（Vision, Objective, Deliverable, Task）の視覚的表現
@@ -183,16 +169,10 @@ export class TaskNode extends Container {
 	// 影響範囲ハイライト
 	private highlightType: HighlightType = null;
 
-	// 後方互換性: TaskItem または GraphNode を受け取る
-	constructor(data: TaskItem | GraphNode) {
+	constructor(data: GraphNode) {
 		super();
 
-		// TaskItem の場合は GraphNode に変換
-		if ('dependencies' in data && !('node_type' in data)) {
-			this.graphNode = taskItemToGraphNode(data as TaskItem);
-		} else {
-			this.graphNode = data as GraphNode;
-		}
+		this.graphNode = data;
 		this.nodeType = this.graphNode.node_type;
 		this.progress = this.graphNode.progress ?? this.estimateProgressFromStatus(this.graphNode.status);
 
@@ -787,25 +767,13 @@ export class TaskNode extends Container {
 	}
 
 	/**
-	 * ノードデータを更新（TaskItem または GraphNode を受け取る）
+	 * ノードデータを更新
 	 */
-	updateData(data: TaskItem | GraphNode): void {
-		if ('dependencies' in data && !('node_type' in data)) {
-			this.graphNode = taskItemToGraphNode(data as TaskItem);
-		} else {
-			this.graphNode = data as GraphNode;
-		}
+	updateData(data: GraphNode): void {
+		this.graphNode = data;
 		this.nodeType = this.graphNode.node_type;
 		this.progress = this.graphNode.progress ?? this.estimateProgressFromStatus(this.graphNode.status);
 		this.draw();
-	}
-
-	/**
-	 * 後方互換: タスクデータを更新
-	 * @deprecated updateData を使用してください
-	 */
-	updateTask(task: TaskItem): void {
-		this.updateData(task);
 	}
 
 	/**
@@ -907,22 +875,6 @@ export class TaskNode extends Container {
 		return this.nodeType;
 	}
 
-	/**
-	 * 後方互換: タスクデータを取得（TaskItem 形式）
-	 * @deprecated getGraphNode を使用してください
-	 */
-	getTask(): TaskItem {
-		return {
-			id: this.graphNode.id,
-			title: this.graphNode.title,
-			status: this.graphNode.status as TaskStatus,
-			priority: (this.graphNode.priority || 'medium') as Priority,
-			assignee: this.graphNode.assignee || '',
-			dependencies: this.graphNode.dependencies,
-			progress: this.graphNode.progress,
-			wbs_code: this.graphNode.wbs_code
-		};
-	}
 
 	/**
 	 * ノードの幅を取得

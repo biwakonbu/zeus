@@ -11,7 +11,6 @@ type EventType string
 
 const (
 	EventStatus     EventType = "status"
-	EventTask       EventType = "task"
 	EventApproval   EventType = "approval"
 	EventGraph      EventType = "graph"
 	EventPrediction EventType = "prediction"
@@ -92,14 +91,6 @@ func (b *SSEBroadcaster) Broadcast(event SSEEvent) {
 func (b *SSEBroadcaster) BroadcastStatus(data interface{}) {
 	b.Broadcast(SSEEvent{
 		Type: EventStatus,
-		Data: data,
-	})
-}
-
-// BroadcastTask はタスク更新を配信
-func (b *SSEBroadcaster) BroadcastTask(data interface{}) {
-	b.Broadcast(SSEEvent{
-		Type: EventTask,
 		Data: data,
 	})
 }
