@@ -126,8 +126,8 @@
 			engine = new UseCaseEngine();
 			await engine.init(canvasContainer);
 
-			// デフォルトでフィルタモードを有効化（選択するまで非表示）
-			engine.setFilterMode(true);
+			// フィルタモードはデフォルト無効（最初からノードを表示）
+			engine.setFilterMode(false);
 
 			engine.onActorClicked((actor) => {
 				selectedActorId = actor.id;

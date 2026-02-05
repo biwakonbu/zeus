@@ -8,7 +8,8 @@ import type {
 	UseCaseDiagramResponse,
 	ActivitiesResponse,
 	ActivityDiagramResponse,
-	SubsystemsResponse
+	SubsystemsResponse,
+	UnifiedGraphResponse
 } from '$lib/types/api';
 
 // API ベース URL（開発時は Vite Proxy 経由、本番時は同一オリジン）
@@ -59,6 +60,11 @@ export async function fetchStatus(): Promise<StatusResponse> {
 // グラフ取得
 export async function fetchGraph(): Promise<GraphResponse> {
 	return fetchJSON<GraphResponse>('/graph');
+}
+
+// UnifiedGraph 取得（Activity, UseCase, Deliverable, Objective の統合グラフ）
+export async function fetchUnifiedGraph(): Promise<UnifiedGraphResponse> {
+	return fetchJSON<UnifiedGraphResponse>('/unified-graph');
 }
 
 // =============================================================================

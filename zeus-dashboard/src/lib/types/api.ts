@@ -491,3 +491,47 @@ export interface ActivityDiagramResponse {
 	activity?: ActivityItem;
 	mermaid: string;
 }
+
+// =============================================================================
+// UnifiedGraph API レスポンス（Graph View 用）
+// =============================================================================
+
+// UnifiedGraph ノード
+export interface UnifiedGraphNodeItem {
+	id: string;
+	type: string;
+	title: string;
+	status: string;
+	depth: number;
+	mode?: string;
+	assignee?: string;
+	priority?: string;
+	parents?: string[];
+	children?: string[];
+}
+
+// UnifiedGraph エッジ
+export interface UnifiedGraphEdgeItem {
+	source: string;
+	target: string;
+	type: string;
+	label?: string;
+}
+
+// UnifiedGraph 統計情報
+export interface UnifiedGraphStats {
+	total_nodes: number;
+	by_type: Record<string, number>;
+	by_status: Record<string, number>;
+	max_depth: number;
+}
+
+// UnifiedGraph API レスポンス
+export interface UnifiedGraphResponse {
+	nodes: UnifiedGraphNodeItem[];
+	edges: UnifiedGraphEdgeItem[];
+	stats: UnifiedGraphStats;
+	cycles: string[][];
+	isolated: string[];
+	mermaid: string;
+}

@@ -6,8 +6,14 @@
 	import { refreshAllData, currentView } from '$lib/stores';
 	import { setConnected, setDisconnected, setConnecting } from '$lib/stores/connection';
 	import { connectSSE, disconnectSSE } from '$lib/api/sse';
-	import { fetchActivities } from '$lib/api/client';
-	import type { ActivityItem, GraphNode, GraphEdge } from '$lib/types/api';
+	import { fetchActivities, fetchUnifiedGraph } from '$lib/api/client';
+	import type {
+		ActivityItem,
+		GraphNode,
+		GraphEdge,
+		UnifiedGraphResponse,
+		GraphNodeType
+	} from '$lib/types/api';
 
 	// グラフデータ型（GraphNode/Edge の組み合わせ）
 	interface GraphData {
@@ -15,11 +21,30 @@
 		edges: GraphEdge[];
 	}
 
+	// UnifiedGraph を GraphData に変換するヘルパー
+	function convertUnifiedGraphToGraphData(unified: UnifiedGraphResponse): GraphData {
+		const nodes: GraphNode[] = unified.nodes.map((n) => ({
+			id: n.id,
+			title: n.title,
+			node_type: n.type as GraphNodeType,
+			status: n.status,
+			priority: n.priority,
+			assignee: n.assignee,
+			dependencies: n.parents || []
+		}));
+
+		const edges: GraphEdge[] = unified.edges.map((e) => ({
+			from: e.source,
+			to: e.target
+		}));
+
+		return { nodes, edges };
+	}
+
 	let useSSE = $state(true);
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
 
-	// グラフデータ（Graph View 用）- WBS 機能削除のため空の初期値
-	// 空のデータで初期化（ノード詳細パネル表示用）
+	// グラフデータ（Graph View 用）- UnifiedGraph API から取得
 	let graphData = $state<GraphData>({ nodes: [], edges: [] });
 
 	// Activity データ（UseCase View の関連 Activity 表示用）
@@ -46,7 +71,14 @@
 			.then(() => {
 				setConnected();
 
-				// Note: WBS 機能は削除されたため、graphData は空のまま
+				// UnifiedGraph からグラフデータを取得（Graph View 用）
+				fetchUnifiedGraph()
+					.then((data) => {
+						graphData = convertUnifiedGraphToGraphData(data);
+					})
+					.catch((err) => {
+						console.warn('UnifiedGraph fetch failed:', err);
+					});
 
 				// Activity データを取得（UseCase View の関連 Activity 表示用）
 				fetchActivities()
