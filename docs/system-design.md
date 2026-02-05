@@ -690,9 +690,10 @@ export async function projectScan(context) {
 - `zeus-orchestrator.md` - 全コマンド一覧、ダッシュボード、Phase 6 機能
 - `zeus-planner.md` - WBS階層作成、タイムライン設計、依存関係
 - `zeus-reviewer.md` - 分析ツール、Phase 6 レビュー項目
-- `zeus-project-scan/SKILL.md` - graph, predict, wbs, timeline 対応
-- `zeus-task-suggest/SKILL.md` - WBS・タイムライン考慮の提案
+- `zeus-suggest/SKILL.md` - Activity、リスク軽減、優先度変更などを提案
 - `zeus-risk-analysis/SKILL.md` - Phase 6 固有のリスク分析
+- `zeus-wbs-design/SKILL.md` - WBS 階層設計のガイド
+- `zeus-e2e-tester/SKILL.md` - E2E テストスキル
 
 ### 9.5 Phase 4（高度な分析）- 完了
 1. 依存関係グラフの可視化（text/dot/mermaid）

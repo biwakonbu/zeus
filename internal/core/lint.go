@@ -120,7 +120,7 @@ func (l *LintChecker) CheckIDFormat(ctx context.Context) ([]*LintError, []*LintW
 		warnings = append(warnings, warns...)
 	}
 
-	// 単一ファイルエンティティ（actors.yaml, subsystems.yaml, tasks/active.yaml）
+	// 単一ファイルエンティティ（actors.yaml, subsystems.yaml, tasks/active.yaml, constraints.yaml）
 	singleFileEntities := []struct {
 		entityType  string
 		filePath    string
@@ -129,10 +129,18 @@ func (l *LintChecker) CheckIDFormat(ctx context.Context) ([]*LintError, []*LintW
 		{"actor", "actors.yaml", "actor-XXXXXXXX"},
 		{"subsystem", "subsystems.yaml", "sub-XXXXXXXX"},
 		{"task", "tasks/active.yaml", "task-XXXXXXXX"},
+		{"constraint", "constraints.yaml", "const-NNN"},
 	}
 
 	for _, entity := range singleFileEntities {
 		errs, warns := l.checkSingleFileEntityIDs(ctx, entity.entityType, entity.filePath, entity.expectedFmt)
+		errors = append(errors, errs...)
+		warnings = append(warnings, warns...)
+	}
+
+	// Vision の単一エンティティチェック（配列でない単一エンティティ）
+	if l.fileStore.Exists(ctx, "vision.yaml") {
+		errs, warns := l.checkSingleVisionEntityID(ctx)
 		errors = append(errors, errs...)
 		warnings = append(warnings, warns...)
 	}
@@ -330,6 +338,16 @@ func (l *LintChecker) extractEntityIDsFromFile(ctx context.Context, entityType, 
 			ids[i] = task.ID
 		}
 		return ids, nil
+	case "constraint":
+		var store ConstraintsFile
+		if err := l.fileStore.ReadYaml(ctx, filePath, &store); err != nil {
+			return nil, err
+		}
+		ids := make([]string, len(store.Constraints))
+		for i, c := range store.Constraints {
+			ids[i] = c.ID
+		}
+		return ids, nil
 	default:
 		return nil, fmt.Errorf("unknown single-file entity type: %s", entityType)
 	}
@@ -344,6 +362,9 @@ func (l *LintChecker) CheckStatusProgressConsistency(ctx context.Context) []*Lin
 
 	// Deliverable: progress=100 なら status=completed
 	warnings = append(warnings, l.checkDeliverableStatusProgress(ctx)...)
+
+	// Activity: progress=100 なら status=completed
+	warnings = append(warnings, l.checkActivityStatusProgress(ctx)...)
 
 	return warnings
 }
@@ -413,6 +434,42 @@ func (l *LintChecker) checkDeliverableStatusProgress(ctx context.Context) []*Lin
 				Message:    "progress=100 but status is not completed",
 				Suggested:  string(DeliverableStatusCompleted),
 				Actual:     string(del.Status),
+			})
+		}
+	}
+
+	return warnings
+}
+
+// checkActivityStatusProgress は Activity の status/progress 整合性をチェック
+func (l *LintChecker) checkActivityStatusProgress(ctx context.Context) []*LintWarning {
+	var warnings []*LintWarning
+
+	if !l.fileStore.Exists(ctx, "activities") {
+		return warnings
+	}
+
+	files, err := l.fileStore.ListDir(ctx, "activities")
+	if err != nil {
+		return warnings
+	}
+
+	for _, file := range files {
+		if !hasYamlSuffix(file) {
+			continue
+		}
+		var act ActivityEntity
+		if err := l.fileStore.ReadYaml(ctx, filepath.Join("activities", file), &act); err != nil {
+			continue
+		}
+		if act.Progress == 100 && act.Status != ActivityStatusCompleted {
+			warnings = append(warnings, &LintWarning{
+				EntityType: "activity",
+				EntityID:   act.ID,
+				Field:      "status",
+				Message:    "progress=100 but status is not completed",
+				Suggested:  string(ActivityStatusCompleted),
+				Actual:     string(act.Status),
 			})
 		}
 	}
@@ -551,4 +608,35 @@ func (l *LintChecker) fixActivityStatusProgress(ctx context.Context) (int, error
 	}
 
 	return fixedCount, nil
+}
+
+// checkSingleVisionEntityID は Vision の ID フォーマットをチェック
+// Vision は単一エンティティ（配列でない）として vision.yaml に保存される
+func (l *LintChecker) checkSingleVisionEntityID(ctx context.Context) ([]*LintError, []*LintWarning) {
+	var errors []*LintError
+	var warnings []*LintWarning
+
+	var vision Vision
+	if err := l.fileStore.ReadYaml(ctx, "vision.yaml", &vision); err != nil {
+		warnings = append(warnings, &LintWarning{
+			EntityType: "vision",
+			EntityID:   "vision.yaml",
+			Field:      "file",
+			Message:    fmt.Sprintf("failed to read file: %v", err),
+		})
+		return errors, warnings
+	}
+
+	if err := ValidateID("vision", vision.ID); err != nil {
+		errors = append(errors, &LintError{
+			EntityType: "vision",
+			EntityID:   vision.ID,
+			Field:      "id",
+			Message:    "ID format mismatch",
+			Expected:   "vision-NNN",
+			Actual:     vision.ID,
+		})
+	}
+
+	return errors, warnings
 }

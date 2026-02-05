@@ -66,31 +66,96 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 }
 
 // createIntegrityChecker は Zeus インスタンスから IntegrityChecker を作成
+// 全てのハンドラーは任意であり、取得できたものだけが設定される
 func createIntegrityChecker(zeus *core.Zeus) *core.IntegrityChecker {
 	registry := zeus.GetRegistry()
 	if registry == nil {
 		return nil
 	}
 
-	// Objective ハンドラーを取得
-	objHandler, ok := registry.Get("objective")
-	if !ok {
-		return nil
-	}
-	objH, ok := objHandler.(*core.ObjectiveHandler)
-	if !ok {
-		return nil
+	// Objective ハンドラーを取得（nil でも IntegrityChecker は動作する）
+	var objH *core.ObjectiveHandler
+	if objHandler, ok := registry.Get("objective"); ok {
+		objH, _ = objHandler.(*core.ObjectiveHandler)
 	}
 
-	// Deliverable ハンドラーを取得
-	delHandler, ok := registry.Get("deliverable")
-	if !ok {
-		return nil
-	}
-	delH, ok := delHandler.(*core.DeliverableHandler)
-	if !ok {
-		return nil
+	// Deliverable ハンドラーを取得（nil でも IntegrityChecker は動作する）
+	var delH *core.DeliverableHandler
+	if delHandler, ok := registry.Get("deliverable"); ok {
+		delH, _ = delHandler.(*core.DeliverableHandler)
 	}
 
-	return core.NewIntegrityChecker(objH, delH)
+	checker := core.NewIntegrityChecker(objH, delH)
+
+	// Consideration ハンドラーを設定
+	if conHandler, ok := registry.Get("consideration"); ok {
+		if conH, ok := conHandler.(*core.ConsiderationHandler); ok {
+			checker.SetConsiderationHandler(conH)
+		}
+	}
+
+	// Decision ハンドラーを設定
+	if decHandler, ok := registry.Get("decision"); ok {
+		if decH, ok := decHandler.(*core.DecisionHandler); ok {
+			checker.SetDecisionHandler(decH)
+		}
+	}
+
+	// Problem ハンドラーを設定
+	if probHandler, ok := registry.Get("problem"); ok {
+		if probH, ok := probHandler.(*core.ProblemHandler); ok {
+			checker.SetProblemHandler(probH)
+		}
+	}
+
+	// Risk ハンドラーを設定
+	if riskHandler, ok := registry.Get("risk"); ok {
+		if riskH, ok := riskHandler.(*core.RiskHandler); ok {
+			checker.SetRiskHandler(riskH)
+		}
+	}
+
+	// Assumption ハンドラーを設定
+	if assumHandler, ok := registry.Get("assumption"); ok {
+		if assumH, ok := assumHandler.(*core.AssumptionHandler); ok {
+			checker.SetAssumptionHandler(assumH)
+		}
+	}
+
+	// Quality ハンドラーを設定
+	if qualHandler, ok := registry.Get("quality"); ok {
+		if qualH, ok := qualHandler.(*core.QualityHandler); ok {
+			checker.SetQualityHandler(qualH)
+		}
+	}
+
+	// UseCase ハンドラーを設定
+	if ucHandler, ok := registry.Get("usecase"); ok {
+		if ucH, ok := ucHandler.(*core.UseCaseHandler); ok {
+			checker.SetUseCaseHandler(ucH)
+		}
+	}
+
+	// Subsystem ハンドラーを設定
+	if subHandler, ok := registry.Get("subsystem"); ok {
+		if subH, ok := subHandler.(*core.SubsystemHandler); ok {
+			checker.SetSubsystemHandler(subH)
+		}
+	}
+
+	// Activity ハンドラーを設定
+	if actHandler, ok := registry.Get("activity"); ok {
+		if actH, ok := actHandler.(*core.ActivityHandler); ok {
+			checker.SetActivityHandler(actH)
+		}
+	}
+
+	// Actor ハンドラーを設定
+	if actorHandler, ok := registry.Get("actor"); ok {
+		if actorH, ok := actorHandler.(*core.ActorHandler); ok {
+			checker.SetActorHandler(actorH)
+		}
+	}
+
+	return checker
 }

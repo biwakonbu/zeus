@@ -1,5 +1,8 @@
 ---
 description: プロジェクトのリスクを分析し、対策を提案するスキル
+use_when: |
+  Use when user asks about risks, problems, or assumptions.
+  Also use when user says "リスク", "問題", "前提条件", "risk", "problem", "assumption".
 ---
 
 # zeus-risk-analysis
@@ -163,5 +166,5 @@ zeus apply <suggestion-id>
 
 ## 関連スキル
 
-- zeus-project-scan - プロジェクトスキャン
-- zeus-activity-suggest - Activity 提案
+- zeus-suggest - 提案生成
+- zeus-wbs-design - WBS 階層設計

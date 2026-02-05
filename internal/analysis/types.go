@@ -261,14 +261,14 @@ type ActivityInfo struct {
 	UseCaseID    string   // 関連 UseCase ID
 
 	// 作業管理フィールド
-	Progress      int      // 進捗率（0-100）
-	Priority      string   // 優先度
-	Assignee      string   // 担当者
-	WBSCode       string   // WBS コード
-	StartDate     string   // 開始日
-	DueDate       string   // 期限日
-	EstimateHours float64  // 見積もり時間
-	ActualHours   float64  // 実績時間
+	Progress      int     // 進捗率（0-100）
+	Priority      string  // 優先度
+	Assignee      string  // 担当者
+	WBSCode       string  // WBS コード
+	StartDate     string  // 開始日
+	DueDate       string  // 期限日
+	EstimateHours float64 // 見積もり時間
+	ActualHours   float64 // 実績時間
 
 	// 関連情報
 	RelatedDeliverables []string // 関連 Deliverable ID
@@ -288,14 +288,14 @@ type UseCaseInfo struct {
 
 // UnifiedGraphNode は統合グラフのノード
 type UnifiedGraphNode struct {
-	ID         string     // ノード ID
-	Type       EntityType // エンティティタイプ
-	Title      string     // タイトル
-	Status     string     // ステータス
-	Progress   int        // 進捗率（該当する場合）
-	Priority   string     // 優先度（Activity のみ）
-	Assignee   string     // 担当者（Activity のみ）
-	Mode       string     // モード（Activity のみ: "simple" or "flow"）
+	ID       string     // ノード ID
+	Type     EntityType // エンティティタイプ
+	Title    string     // タイトル
+	Status   string     // ステータス
+	Progress int        // 進捗率（該当する場合）
+	Priority string     // 優先度（Activity のみ）
+	Assignee string     // 担当者（Activity のみ）
+	Mode     string     // モード（Activity のみ: "simple" or "flow"）
 
 	// 関連情報
 	Parents  []string // 親ノード ID
@@ -305,10 +305,10 @@ type UnifiedGraphNode struct {
 
 // UnifiedEdge は統合グラフのエッジ
 type UnifiedEdge struct {
-	From     string         // ソースノード ID
-	To       string         // ターゲットノード ID
-	Type     UnifiedEdgeType // エッジタイプ
-	Label    string         // ラベル（オプション）
+	From  string          // ソースノード ID
+	To    string          // ターゲットノード ID
+	Type  UnifiedEdgeType // エッジタイプ
+	Label string          // ラベル（オプション）
 }
 
 // UnifiedEdgeType は統合グラフのエッジタイプ
@@ -332,15 +332,15 @@ type UnifiedGraph struct {
 
 // UnifiedGraphStats は統合グラフの統計情報
 type UnifiedGraphStats struct {
-	TotalNodes          int            // 総ノード数
-	NodesByType         map[EntityType]int // タイプ別ノード数
-	TotalEdges          int            // 総エッジ数
+	TotalNodes          int                     // 総ノード数
+	NodesByType         map[EntityType]int      // タイプ別ノード数
+	TotalEdges          int                     // 総エッジ数
 	EdgesByType         map[UnifiedEdgeType]int // タイプ別エッジ数
-	IsolatedCount       int            // 孤立ノード数
-	CycleCount          int            // 循環依存の数
-	MaxDepth            int            // 最大深さ
-	CompletedActivities int            // 完了 Activity 数
-	TotalActivities     int            // 総 Activity 数
+	IsolatedCount       int                     // 孤立ノード数
+	CycleCount          int                     // 循環依存の数
+	MaxDepth            int                     // 最大深さ
+	CompletedActivities int                     // 完了 Activity 数
+	TotalActivities     int                     // 総 Activity 数
 }
 
 // GraphFilter はグラフ表示のフィルタリングオプション

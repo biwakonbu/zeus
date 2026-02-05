@@ -108,11 +108,13 @@ target-project/               # Zeus を適用するプロジェクト
 │   │   ├── zeus-planner.md
 │   │   └── zeus-reviewer.md
 │   └── skills/               # Zeus 用スキル
-│       ├── zeus-project-scan/
+│       ├── zeus-suggest/
 │       │   └── SKILL.md
-│       ├── zeus-task-suggest/
+│       ├── zeus-risk-analysis/
 │       │   └── SKILL.md
-│       └── zeus-risk-analysis/
+│       ├── zeus-wbs-design/
+│       │   └── SKILL.md
+│       └── zeus-e2e-tester/
 │           └── SKILL.md
 │
 └── ... (既存のプロジェクトファイル)

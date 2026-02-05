@@ -474,7 +474,7 @@ func TestConsiderationHandler_Delete_ReferencedByDecision(t *testing.T) {
 	}
 
 	// エラーメッセージに Decision ID が含まれることを確認
-	if err != nil && !contains(err.Error(), "dec-001") {
+	if err != nil && !strings.Contains(err.Error(), "dec-001") {
 		t.Errorf("error should mention referencing decision, got: %v", err)
 	}
 }
@@ -598,7 +598,3 @@ func TestConsiderationHandler_IDSequence(t *testing.T) {
 		t.Errorf("expected 3 unique IDs, got %d", len(seen))
 	}
 }
-
-// contains は文字列に部分文字列が含まれるかをチェック（integrity_test.go と同じ）
-// Note: この関数は既に integrity_test.go で定義されているが、
-// パッケージ内の他のテストファイルからも参照可能

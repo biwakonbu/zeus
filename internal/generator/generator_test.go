@@ -57,10 +57,10 @@ func TestGenerateAll(t *testing.T) {
 
 	// スキルファイルが存在するか確認
 	skills := []string{
-		"zeus-project-scan/SKILL.md",
-		"zeus-activity-suggest/SKILL.md",
+		"zeus-suggest/SKILL.md",
 		"zeus-risk-analysis/SKILL.md",
 		"zeus-wbs-design/SKILL.md",
+		"zeus-e2e-tester/SKILL.md",
 	}
 	for _, skill := range skills {
 		path := filepath.Join(tmpDir, ".claude", "skills", skill)
@@ -114,16 +114,13 @@ func TestGenerateSkills(t *testing.T) {
 		t.Errorf("GenerateSkills() error = %v", err)
 	}
 
-	// プロジェクトスキャンファイルの内容を確認
-	content, err := os.ReadFile(filepath.Join(tmpDir, ".claude", "skills", "zeus-project-scan", "SKILL.md"))
+	// 提案生成スキルファイルの内容を確認
+	content, err := os.ReadFile(filepath.Join(tmpDir, ".claude", "skills", "zeus-suggest", "SKILL.md"))
 	if err != nil {
 		t.Fatalf("failed to read skill file: %v", err)
 	}
 
-	if !strings.Contains(string(content), "TestProject") {
-		t.Error("skill file should contain project name")
-	}
-	if !strings.Contains(string(content), "zeus-project-scan") {
+	if !strings.Contains(string(content), "zeus-suggest") {
 		t.Error("skill file should contain skill name")
 	}
 }
@@ -381,21 +378,26 @@ func TestGenerateSkills_FileContent(t *testing.T) {
 	}
 
 	// 各スキルファイルの内容を確認
+	// 注: {{.ProjectName}} テンプレート変数は zeus-risk-analysis のみに含まれる
 	checks := []struct {
 		dir      string
 		contains []string
 	}{
 		{
-			dir:      "zeus-project-scan",
-			contains: []string{"MyProject", "zeus-project-scan", "プロジェクト全体をスキャン"},
-		},
-		{
-			dir:      "zeus-activity-suggest",
-			contains: []string{"MyProject", "zeus-activity-suggest", "Activity"},
+			dir:      "zeus-suggest",
+			contains: []string{"zeus-suggest", "提案"},
 		},
 		{
 			dir:      "zeus-risk-analysis",
-			contains: []string{"MyProject", "zeus-risk-analysis", "リスクを分析"},
+			contains: []string{"MyProject", "zeus-risk-analysis", "リスク"},
+		},
+		{
+			dir:      "zeus-wbs-design",
+			contains: []string{"WBS", "階層"},
+		},
+		{
+			dir:      "zeus-e2e-tester",
+			contains: []string{"E2E", "テスト"},
 		},
 	}
 
@@ -470,10 +472,10 @@ func TestGenerateSkills_AllFiles(t *testing.T) {
 
 	// 全スキルファイルが存在し、空でないか確認
 	skills := []string{
-		"zeus-project-scan",
-		"zeus-activity-suggest",
+		"zeus-suggest",
 		"zeus-risk-analysis",
 		"zeus-wbs-design",
+		"zeus-e2e-tester",
 	}
 
 	for _, skill := range skills {
@@ -575,9 +577,9 @@ func TestGenerateSkills_ContextCancelledDuringLoop(t *testing.T) {
 	}
 
 	// スキルファイルが生成されていることを確認
-	path := filepath.Join(tmpDir, ".claude", "skills", "zeus-project-scan", "SKILL.md")
+	path := filepath.Join(tmpDir, ".claude", "skills", "zeus-suggest", "SKILL.md")
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Error("zeus-project-scan/SKILL.md should be created")
+		t.Error("zeus-suggest/SKILL.md should be created")
 	}
 }
 
@@ -648,10 +650,10 @@ func TestEmbeddedAgentFiles(t *testing.T) {
 // TestEmbeddedSkillFiles は埋め込みスキルファイルが正しく読み込めるかテスト
 func TestEmbeddedSkillFiles(t *testing.T) {
 	skills := []string{
-		"assets/skills/zeus-project-scan/SKILL.md",
-		"assets/skills/zeus-activity-suggest/SKILL.md",
+		"assets/skills/zeus-suggest/SKILL.md",
 		"assets/skills/zeus-risk-analysis/SKILL.md",
 		"assets/skills/zeus-wbs-design/SKILL.md",
+		"assets/skills/zeus-e2e-tester/SKILL.md",
 	}
 
 	for _, skill := range skills {

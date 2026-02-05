@@ -207,11 +207,11 @@ type Suggestion struct {
 	UpdatedAt   string           `yaml:"updated_at,omitempty"`
 	// タイプ固有のデータ
 	// 注意: TargetTaskID は後方互換性のために残しているが、Activity ID を指定する
-	TargetTaskID string            `yaml:"target_task_id,omitempty"` // priority_change, dependency用（Activity ID を指定）
-	NewPriority  string            `yaml:"new_priority,omitempty"`   // priority_change用
-	Dependencies []string          `yaml:"dependencies,omitempty"`   // dependency用
-	TaskData     *Task             `yaml:"task_data,omitempty"`      // new_task用（非推奨: ActivityData を使用）
-	ActivityData *ActivityEntity   `yaml:"activity_data,omitempty"`  // new_task用（推奨）
+	TargetTaskID string          `yaml:"target_task_id,omitempty"` // priority_change, dependency用（Activity ID を指定）
+	NewPriority  string          `yaml:"new_priority,omitempty"`   // priority_change用
+	Dependencies []string        `yaml:"dependencies,omitempty"`   // dependency用
+	TaskData     *Task           `yaml:"task_data,omitempty"`      // new_task用（非推奨: ActivityData を使用）
+	ActivityData *ActivityEntity `yaml:"activity_data,omitempty"`  // new_task用（推奨）
 }
 
 // SuggestionStore は提案ストア
@@ -1466,7 +1466,7 @@ type ActivityEntity struct {
 	ID                  string               `yaml:"id"`
 	Title               string               `yaml:"title"`
 	Description         string               `yaml:"description,omitempty"`
-	UseCaseID           string               `yaml:"usecase_id,omitempty"`           // 任意紐付け
+	UseCaseID           string               `yaml:"usecase_id,omitempty"` // 任意紐付け
 	Status              ActivityStatus       `yaml:"status"`
 	RelatedDeliverables []string             `yaml:"related_deliverables,omitempty"` // 関連 Deliverable ID（推奨）
 	Nodes               []ActivityNode       `yaml:"nodes,omitempty"`

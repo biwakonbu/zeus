@@ -1,5 +1,8 @@
 ---
 description: WBS 階層設計の知識。プロジェクト構造を L1-L5 の階層で正しく設計するためのガイド。
+use_when: |
+  Use when user asks about WBS, project structure, or hierarchy design.
+  Also use when user says "WBS", "階層", "構造", "work breakdown", "分解".
 ---
 
 # zeus-wbs-design
@@ -107,6 +110,5 @@ zeus add activity "作業名" --priority <high|medium|low> --wbs "N.M.L" -d "説
 
 ## 関連スキル
 
-- zeus-project-scan - プロジェクト状態のスキャン
-- zeus-activity-suggest - Activity 提案
+- zeus-suggest - 提案生成
 - zeus-risk-analysis - リスク分析

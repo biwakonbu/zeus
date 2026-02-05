@@ -95,10 +95,10 @@ func (g *Generator) GenerateSkills(ctx context.Context, projectName string) erro
 	}
 
 	skills := []string{
-		"zeus-project-scan",
-		"zeus-activity-suggest",
+		"zeus-suggest",
 		"zeus-risk-analysis",
 		"zeus-wbs-design",
+		"zeus-e2e-tester",
 	}
 
 	data := map[string]string{

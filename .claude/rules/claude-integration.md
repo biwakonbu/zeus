@@ -24,9 +24,9 @@ paths:
 │   ├── zeus-e2e-tester/      # E2E テストスキル
 │   │   ├── SKILL.md          # スキル定義
 │   │   └── resources/        # ゴールデンファイル・シナリオ
-│   ├── zeus-project-scan/    # プロジェクト状態取得
-│   ├── zeus-activity-suggest/ # Activity 提案
-│   └── zeus-risk-analysis/   # リスク分析
+│   ├── zeus-suggest/         # 提案生成
+│   ├── zeus-risk-analysis/   # リスク分析
+│   └── zeus-wbs-design/      # WBS 階層設計
 └── rules/                    # ルール定義（このファイル群）
 ```
 

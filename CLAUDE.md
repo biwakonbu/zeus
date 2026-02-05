@@ -121,9 +121,9 @@ zeus update-claude                              # Claude Code ファイル再生
 - `agents/zeus-orchestrator.md` - 全コマンド一覧
 - `agents/zeus-planner.md` - WBS・タイムライン設計
 - `agents/zeus-reviewer.md` - 分析・レビュー
-- `skills/zeus-project-scan/SKILL.md` - プロジェクト状態取得
-- `skills/zeus-activity-suggest/SKILL.md` - Activity 提案
+- `skills/zeus-suggest/SKILL.md` - 提案生成
 - `skills/zeus-risk-analysis/SKILL.md` - リスク分析
+- `skills/zeus-wbs-design/SKILL.md` - WBS 階層設計
 
 ## 10概念モデル
 

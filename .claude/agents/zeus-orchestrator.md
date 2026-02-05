@@ -271,6 +271,6 @@ GET /api/uml/activity?id=X # アクティビティ図
 
 ## 使用スキル
 
-- @zeus-project-scan - プロジェクトスキャン
-- @zeus-activity-suggest - Activity 提案
+- @zeus-suggest - 提案生成
 - @zeus-risk-analysis - リスク分析
+- @zeus-wbs-design - WBS 階層設計

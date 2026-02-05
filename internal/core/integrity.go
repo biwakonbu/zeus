@@ -6,6 +6,43 @@ import (
 	"fmt"
 )
 
+// 整合性チェック用エラーメッセージ定数
+const (
+	// 参照エラーメッセージ
+	ErrMsgReferencedObjectiveNotFound      = "referenced objective not found"
+	ErrMsgReferencedDeliverableNotFound    = "referenced deliverable not found"
+	ErrMsgReferencedConsiderationNotFound  = "referenced consideration not found"
+	ErrMsgReferencedDecisionNotFound       = "referenced decision not found"
+	ErrMsgReferencedSubsystemNotFound      = "referenced subsystem not found"
+	ErrMsgReferencedActorNotFound          = "referenced actor not found"
+	ErrMsgReferencedUseCaseNotFound        = "referenced usecase not found"
+	ErrMsgReferencedActivityNotFound       = "referenced dependency activity not found"
+	ErrMsgReferencedParentActivityNotFound = "referenced parent activity not found"
+	ErrMsgParentObjectiveNotFound          = "parent objective not found"
+
+	// 必須フィールド欠損メッセージ
+	ErrMsgObjectiveIDRequired     = "objective_id is required but missing"
+	ErrMsgDeliverableIDRequired   = "deliverable_id is required but missing"
+	ErrMsgConsiderationIDRequired = "consideration_id is required but missing"
+
+	// 無効なID形式メッセージ
+	ErrMsgInvalidSubsystemIDFormat   = "invalid subsystem ID format"
+	ErrMsgInvalidActorIDFormat       = "invalid actor ID format"
+	ErrMsgInvalidUseCaseIDFormat     = "invalid usecase ID format"
+	ErrMsgInvalidDeliverableIDFormat = "invalid deliverable ID format"
+
+	// 循環参照メッセージ
+	ErrMsgCircularParentReference    = "circular parent reference detected"
+	ErrMsgCircularDependencyDetected = "circular dependency detected"
+
+	// RelatedDeliverables 用メッセージ
+	ErrMsgRelatedDeliverableNotFound      = "referenced deliverable in related_deliverables not found"
+	ErrMsgInvalidRelatedDeliverableFormat = "invalid deliverable ID format in related_deliverables"
+)
+
+// ParentResolver は親 ID を解決する関数型（汎用循環参照検出用）
+type ParentResolver func(id string) string
+
 // IntegrityChecker は参照整合性をチェックする
 type IntegrityChecker struct {
 	objectiveHandler     *ObjectiveHandler
@@ -18,6 +55,8 @@ type IntegrityChecker struct {
 	qualityHandler       *QualityHandler
 	usecaseHandler       *UseCaseHandler
 	subsystemHandler     *SubsystemHandler
+	activityHandler      *ActivityHandler
+	actorHandler         *ActorHandler
 }
 
 // NewIntegrityChecker は新しい IntegrityChecker を作成
@@ -66,6 +105,16 @@ func (c *IntegrityChecker) SetUseCaseHandler(h *UseCaseHandler) {
 // SetSubsystemHandler は SubsystemHandler を設定
 func (c *IntegrityChecker) SetSubsystemHandler(h *SubsystemHandler) {
 	c.subsystemHandler = h
+}
+
+// SetActivityHandler は ActivityHandler を設定
+func (c *IntegrityChecker) SetActivityHandler(h *ActivityHandler) {
+	c.activityHandler = h
+}
+
+// SetActorHandler は ActorHandler を設定
+func (c *IntegrityChecker) SetActorHandler(h *ActorHandler) {
+	c.actorHandler = h
 }
 
 // ReferenceError は参照エラーを表す
@@ -159,6 +208,7 @@ func (c *IntegrityChecker) CheckAll(ctx context.Context) (*IntegrityResult, erro
 // - Objective → Objective (parent) 参照
 // - Decision → Consideration 参照（必須）
 // - Quality → Deliverable 参照（必須）
+// - UseCase → Objective 参照（必須）
 // - Consideration → Objective/Deliverable 参照（任意）
 // - Problem → Objective/Deliverable 参照（任意）
 // - Risk → Objective/Deliverable 参照（任意）
@@ -198,6 +248,13 @@ func (c *IntegrityChecker) CheckReferences(ctx context.Context) ([]*ReferenceErr
 		return nil, err
 	}
 	errors = append(errors, qualErrors...)
+
+	// UseCase → Objective 参照チェック（必須）
+	ucErrors, err := c.checkUseCaseObjectiveReferences(ctx)
+	if err != nil {
+		return nil, err
+	}
+	errors = append(errors, ucErrors...)
 
 	// Consideration → Objective/Deliverable 参照チェック
 	conErrors, err := c.checkConsiderationReferences(ctx)
@@ -255,7 +312,7 @@ func (c *IntegrityChecker) checkDeliverableReferences(ctx context.Context) ([]*R
 				SourceID:   del.ID,
 				TargetType: "objective",
 				TargetID:   del.ObjectiveID,
-				Message:    "referenced objective not found",
+				Message:    ErrMsgReferencedObjectiveNotFound,
 			})
 		} else if err != nil {
 			return nil, err
@@ -290,7 +347,7 @@ func (c *IntegrityChecker) checkObjectiveParentReferences(ctx context.Context) (
 				SourceID:   obj.ID,
 				TargetType: "objective",
 				TargetID:   obj.ParentID,
-				Message:    "parent objective not found",
+				Message:    ErrMsgParentObjectiveNotFound,
 			})
 		} else if err != nil {
 			return nil, err
@@ -302,11 +359,41 @@ func (c *IntegrityChecker) checkObjectiveParentReferences(ctx context.Context) (
 
 // CheckCycles は循環参照をチェック
 // - Objective 階層の循環参照を検出
+// - Activity 階層（ParentID）の循環参照を検出
+// - Activity 依存関係（Dependencies）の循環参照を検出
 func (c *IntegrityChecker) CheckCycles(ctx context.Context) ([]*CycleError, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
+	var errors []*CycleError
+
+	// Objective 階層の循環参照チェック
+	objCycles, err := c.checkObjectiveCycles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	errors = append(errors, objCycles...)
+
+	// Activity 階層（ParentID）の循環参照チェック
+	actParentCycles, err := c.checkActivityParentCycles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	errors = append(errors, actParentCycles...)
+
+	// Activity 依存関係（Dependencies）の循環参照チェック
+	actDepCycles, err := c.checkActivityDependencyCycles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	errors = append(errors, actDepCycles...)
+
+	return errors, nil
+}
+
+// checkObjectiveCycles は Objective 階層の循環参照をチェック
+func (c *IntegrityChecker) checkObjectiveCycles(ctx context.Context) ([]*CycleError, error) {
 	if c.objectiveHandler == nil {
 		return []*CycleError{}, nil
 	}
@@ -316,27 +403,32 @@ func (c *IntegrityChecker) CheckCycles(ctx context.Context) ([]*CycleError, erro
 		return nil, err
 	}
 
-	// ID → Objective のマップを作成
-	objMap := make(map[string]*ObjectiveEntity)
+	// ID → ParentID のマップを作成
+	parentMap := make(map[string]string)
 	for _, obj := range objectives {
-		objMap[obj.ID] = obj
+		parentMap[obj.ID] = obj.ParentID
+	}
+
+	// ParentResolver を作成
+	resolver := func(id string) string {
+		return parentMap[id]
 	}
 
 	var errors []*CycleError
 	visited := make(map[string]bool)
 
 	for _, obj := range objectives {
-		if visited[obj.ID] {
+		if visited[obj.ID] || obj.ParentID == "" {
 			continue
 		}
 
-		// このノードから親をたどって循環を検出
-		cycle := c.detectCycle(obj.ID, objMap, visited)
+		// 汎用循環検出関数を使用
+		cycle := c.detectCycleGeneric(obj.ID, resolver, visited)
 		if len(cycle) > 0 {
 			errors = append(errors, &CycleError{
 				EntityType: "objective",
 				Cycle:      cycle,
-				Message:    "circular parent reference detected",
+				Message:    ErrMsgCircularParentReference,
 			})
 		}
 	}
@@ -344,8 +436,77 @@ func (c *IntegrityChecker) CheckCycles(ctx context.Context) ([]*CycleError, erro
 	return errors, nil
 }
 
-// detectCycle は指定されたノードから循環を検出
-func (c *IntegrityChecker) detectCycle(startID string, objMap map[string]*ObjectiveEntity, globalVisited map[string]bool) []string {
+// checkActivityParentCycles は Activity 階層（ParentID）の循環参照をチェック
+func (c *IntegrityChecker) checkActivityParentCycles(ctx context.Context) ([]*CycleError, error) {
+	if c.activityHandler == nil {
+		return []*CycleError{}, nil
+	}
+
+	activities, err := c.activityHandler.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// ID → ParentID のマップを作成
+	parentMap := make(map[string]string)
+	for _, act := range activities {
+		parentMap[act.ID] = act.ParentID
+	}
+
+	// ParentResolver を作成
+	resolver := func(id string) string {
+		return parentMap[id]
+	}
+
+	var errors []*CycleError
+	visited := make(map[string]bool)
+
+	for _, act := range activities {
+		if visited[act.ID] || act.ParentID == "" {
+			continue
+		}
+
+		// 汎用循環検出関数を使用
+		cycle := c.detectCycleGeneric(act.ID, resolver, visited)
+		if len(cycle) > 0 {
+			errors = append(errors, &CycleError{
+				EntityType: "activity",
+				Cycle:      cycle,
+				Message:    ErrMsgCircularParentReference,
+			})
+		}
+	}
+
+	return errors, nil
+}
+
+// checkActivityDependencyCycles は Activity 依存関係（Dependencies）の循環参照をチェック
+func (c *IntegrityChecker) checkActivityDependencyCycles(ctx context.Context) ([]*CycleError, error) {
+	if c.activityHandler == nil {
+		return []*CycleError{}, nil
+	}
+
+	// ActivityHandler の DetectDependencyCycles を使用
+	cycles, err := c.activityHandler.DetectDependencyCycles(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var errors []*CycleError
+	for _, cycle := range cycles {
+		errors = append(errors, &CycleError{
+			EntityType: "activity",
+			Cycle:      cycle,
+			Message:    ErrMsgCircularDependencyDetected,
+		})
+	}
+
+	return errors, nil
+}
+
+// detectCycleGeneric は汎用的な循環参照検出関数
+// ParentResolver を使用して親 ID を解決し、循環を検出する
+func (c *IntegrityChecker) detectCycleGeneric(startID string, resolver ParentResolver, globalVisited map[string]bool) []string {
 	localVisited := make(map[string]bool)
 	path := []string{}
 
@@ -376,11 +537,11 @@ func (c *IntegrityChecker) detectCycle(startID string, objMap map[string]*Object
 		path = append(path, current)
 
 		// 次の親へ
-		obj, exists := objMap[current]
-		if !exists || obj.ParentID == "" {
+		parentID := resolver(current)
+		if parentID == "" {
 			break
 		}
-		current = obj.ParentID
+		current = parentID
 	}
 
 	// 訪問したノードをグローバルに記録
@@ -411,7 +572,7 @@ func (c *IntegrityChecker) checkDecisionReferences(ctx context.Context) ([]*Refe
 				SourceID:   dec.ID,
 				TargetType: "consideration",
 				TargetID:   "",
-				Message:    "consideration_id is required but missing",
+				Message:    ErrMsgConsiderationIDRequired,
 			})
 			continue
 		}
@@ -425,7 +586,7 @@ func (c *IntegrityChecker) checkDecisionReferences(ctx context.Context) ([]*Refe
 					SourceID:   dec.ID,
 					TargetType: "consideration",
 					TargetID:   dec.ConsiderationID,
-					Message:    "referenced consideration not found",
+					Message:    ErrMsgReferencedConsiderationNotFound,
 				})
 			} else if err != nil {
 				return nil, err
@@ -456,7 +617,7 @@ func (c *IntegrityChecker) checkQualityReferences(ctx context.Context) ([]*Refer
 				SourceID:   qual.ID,
 				TargetType: "deliverable",
 				TargetID:   "",
-				Message:    "deliverable_id is required but missing",
+				Message:    ErrMsgDeliverableIDRequired,
 			})
 			continue
 		}
@@ -470,7 +631,7 @@ func (c *IntegrityChecker) checkQualityReferences(ctx context.Context) ([]*Refer
 					SourceID:   qual.ID,
 					TargetType: "deliverable",
 					TargetID:   qual.DeliverableID,
-					Message:    "referenced deliverable not found",
+					Message:    ErrMsgReferencedDeliverableNotFound,
 				})
 			} else if err != nil {
 				return nil, err
@@ -503,7 +664,7 @@ func (c *IntegrityChecker) checkConsiderationReferences(ctx context.Context) ([]
 					SourceID:   con.ID,
 					TargetType: "objective",
 					TargetID:   con.ObjectiveID,
-					Message:    "referenced objective not found",
+					Message:    ErrMsgReferencedObjectiveNotFound,
 				})
 			} else if err != nil {
 				return nil, err
@@ -519,7 +680,7 @@ func (c *IntegrityChecker) checkConsiderationReferences(ctx context.Context) ([]
 					SourceID:   con.ID,
 					TargetType: "deliverable",
 					TargetID:   con.DeliverableID,
-					Message:    "referenced deliverable not found",
+					Message:    ErrMsgReferencedDeliverableNotFound,
 				})
 			} else if err != nil {
 				return nil, err
@@ -535,7 +696,7 @@ func (c *IntegrityChecker) checkConsiderationReferences(ctx context.Context) ([]
 					SourceID:   con.ID,
 					TargetType: "decision",
 					TargetID:   con.DecisionID,
-					Message:    "referenced decision not found",
+					Message:    ErrMsgReferencedDecisionNotFound,
 				})
 			} else if err != nil {
 				return nil, err
@@ -568,7 +729,7 @@ func (c *IntegrityChecker) checkProblemReferences(ctx context.Context) ([]*Refer
 					SourceID:   prob.ID,
 					TargetType: "objective",
 					TargetID:   prob.ObjectiveID,
-					Message:    "referenced objective not found",
+					Message:    ErrMsgReferencedObjectiveNotFound,
 				})
 			} else if err != nil {
 				return nil, err
@@ -584,7 +745,7 @@ func (c *IntegrityChecker) checkProblemReferences(ctx context.Context) ([]*Refer
 					SourceID:   prob.ID,
 					TargetType: "deliverable",
 					TargetID:   prob.DeliverableID,
-					Message:    "referenced deliverable not found",
+					Message:    ErrMsgReferencedDeliverableNotFound,
 				})
 			} else if err != nil {
 				return nil, err
@@ -617,7 +778,7 @@ func (c *IntegrityChecker) checkRiskReferences(ctx context.Context) ([]*Referenc
 					SourceID:   risk.ID,
 					TargetType: "objective",
 					TargetID:   risk.ObjectiveID,
-					Message:    "referenced objective not found",
+					Message:    ErrMsgReferencedObjectiveNotFound,
 				})
 			} else if err != nil {
 				return nil, err
@@ -633,7 +794,7 @@ func (c *IntegrityChecker) checkRiskReferences(ctx context.Context) ([]*Referenc
 					SourceID:   risk.ID,
 					TargetType: "deliverable",
 					TargetID:   risk.DeliverableID,
-					Message:    "referenced deliverable not found",
+					Message:    ErrMsgReferencedDeliverableNotFound,
 				})
 			} else if err != nil {
 				return nil, err
@@ -666,7 +827,7 @@ func (c *IntegrityChecker) checkAssumptionReferences(ctx context.Context) ([]*Re
 					SourceID:   assum.ID,
 					TargetType: "objective",
 					TargetID:   assum.ObjectiveID,
-					Message:    "referenced objective not found",
+					Message:    ErrMsgReferencedObjectiveNotFound,
 				})
 			} else if err != nil {
 				return nil, err
@@ -682,7 +843,7 @@ func (c *IntegrityChecker) checkAssumptionReferences(ctx context.Context) ([]*Re
 					SourceID:   assum.ID,
 					TargetType: "deliverable",
 					TargetID:   assum.DeliverableID,
-					Message:    "referenced deliverable not found",
+					Message:    ErrMsgReferencedDeliverableNotFound,
 				})
 			} else if err != nil {
 				return nil, err
@@ -693,8 +854,59 @@ func (c *IntegrityChecker) checkAssumptionReferences(ctx context.Context) ([]*Re
 	return errors, nil
 }
 
-// CheckWarnings は警告レベルの参照問題をチェック（TASK-015: サブシステム参照）
+// checkUseCaseObjectiveReferences は UseCase から Objective への参照をチェック（必須）
+func (c *IntegrityChecker) checkUseCaseObjectiveReferences(ctx context.Context) ([]*ReferenceError, error) {
+	if c.usecaseHandler == nil {
+		return []*ReferenceError{}, nil
+	}
+
+	usecases, err := c.usecaseHandler.getAllUseCases(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var errors []*ReferenceError
+	for _, uc := range usecases {
+		// ObjectiveID は必須
+		if uc.ObjectiveID == "" {
+			errors = append(errors, &ReferenceError{
+				SourceType: "usecase",
+				SourceID:   uc.ID,
+				TargetType: "objective",
+				TargetID:   "",
+				Message:    ErrMsgObjectiveIDRequired,
+			})
+			continue
+		}
+
+		// Objective の存在確認
+		if c.objectiveHandler != nil {
+			_, err := c.objectiveHandler.Get(ctx, uc.ObjectiveID)
+			if err == ErrEntityNotFound {
+				errors = append(errors, &ReferenceError{
+					SourceType: "usecase",
+					SourceID:   uc.ID,
+					TargetType: "objective",
+					TargetID:   uc.ObjectiveID,
+					Message:    ErrMsgReferencedObjectiveNotFound,
+				})
+			} else if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return errors, nil
+}
+
+// CheckWarnings は警告レベルの参照問題をチェック
 // - UseCase → Subsystem 参照（任意、存在しないサブシステムへの参照は警告）
+// - UseCase → Actor 参照（任意、存在しないアクターへの参照は警告）
+// - Activity → UseCase 参照（任意、存在しないユースケースへの参照は警告）
+// - Activity → Activity (Dependencies) 参照（任意、存在しないアクティビティへの参照は警告）
+// - Activity → Activity (ParentID) 参照（任意、存在しない親への参照は警告）
+// - Activity → Deliverable (RelatedDeliverables) 参照（推奨、存在しない成果物への参照は警告）
+// - Activity.Node → Deliverable (DeliverableIDs) 参照（任意、存在しない成果物への参照は警告）
 func (c *IntegrityChecker) CheckWarnings(ctx context.Context) ([]*ReferenceWarning, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -703,11 +915,65 @@ func (c *IntegrityChecker) CheckWarnings(ctx context.Context) ([]*ReferenceWarni
 	var warnings []*ReferenceWarning
 
 	// UseCase → Subsystem 参照チェック
-	usecaseWarnings, err := c.checkUseCaseSubsystemReferences(ctx)
+	usecaseSubsystemWarnings, err := c.checkUseCaseSubsystemReferences(ctx)
 	if err != nil {
 		return nil, err
 	}
-	warnings = append(warnings, usecaseWarnings...)
+	warnings = append(warnings, usecaseSubsystemWarnings...)
+
+	// UseCase → Actor 参照チェック
+	usecaseActorWarnings, err := c.checkUseCaseActorReferences(ctx)
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, usecaseActorWarnings...)
+
+	// Activity 関連チェック（一度だけ取得して再利用）
+	activityWarnings, err := c.checkAllActivityReferences(ctx)
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, activityWarnings...)
+
+	return warnings, nil
+}
+
+// checkAllActivityReferences は Activity 関連の全ての参照チェックを一度の GetAll で実行
+// パフォーマンス最適化: Activity を一度だけ取得し、複数のチェックで再利用
+func (c *IntegrityChecker) checkAllActivityReferences(ctx context.Context) ([]*ReferenceWarning, error) {
+	if c.activityHandler == nil {
+		return []*ReferenceWarning{}, nil
+	}
+
+	// Activity を一度だけ取得
+	activities, err := c.activityHandler.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Activity ID のセットを作成（Dependencies/ParentID チェック用）
+	activityIDs := make(map[string]bool)
+	for _, act := range activities {
+		activityIDs[act.ID] = true
+	}
+
+	var warnings []*ReferenceWarning
+
+	// Activity → UseCase 参照チェック
+	ucWarnings := c.checkActivityUseCaseReferencesWithData(ctx, activities)
+	warnings = append(warnings, ucWarnings...)
+
+	// Activity → Activity (Dependencies) 参照チェック
+	depWarnings := c.checkActivityDependencyReferencesWithData(activities, activityIDs)
+	warnings = append(warnings, depWarnings...)
+
+	// Activity → Activity (ParentID) 参照チェック
+	parentWarnings := c.checkActivityParentReferencesWithData(activities, activityIDs)
+	warnings = append(warnings, parentWarnings...)
+
+	// Activity → Deliverable 参照チェック
+	delWarnings := c.checkActivityDeliverableReferencesWithData(ctx, activities)
+	warnings = append(warnings, delWarnings...)
 
 	return warnings, nil
 }
@@ -746,7 +1012,7 @@ func (c *IntegrityChecker) checkUseCaseSubsystemReferences(ctx context.Context) 
 				SourceID:   uc.ID,
 				TargetType: "subsystem",
 				TargetID:   uc.SubsystemID,
-				Message:    "referenced subsystem not found",
+				Message:    ErrMsgReferencedSubsystemNotFound,
 			})
 		} else if err != nil {
 			// ValidationError（無効な ID 形式）も警告として扱う
@@ -757,7 +1023,7 @@ func (c *IntegrityChecker) checkUseCaseSubsystemReferences(ctx context.Context) 
 					SourceID:   uc.ID,
 					TargetType: "subsystem",
 					TargetID:   uc.SubsystemID,
-					Message:    "invalid subsystem ID format",
+					Message:    ErrMsgInvalidSubsystemIDFormat,
 				})
 			} else {
 				// その他のエラーはそのまま返す
@@ -767,4 +1033,218 @@ func (c *IntegrityChecker) checkUseCaseSubsystemReferences(ctx context.Context) 
 	}
 
 	return warnings, nil
+}
+
+// checkUseCaseActorReferences は UseCase から Actor への参照をチェック（警告レベル）
+func (c *IntegrityChecker) checkUseCaseActorReferences(ctx context.Context) ([]*ReferenceWarning, error) {
+	if c.usecaseHandler == nil {
+		return []*ReferenceWarning{}, nil
+	}
+
+	usecases, err := c.usecaseHandler.getAllUseCases(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var warnings []*ReferenceWarning
+	for _, uc := range usecases {
+		// ActorHandler が未設定なら警告チェックをスキップ
+		if c.actorHandler == nil {
+			continue
+		}
+
+		for _, actorRef := range uc.Actors {
+			if actorRef.ActorID == "" {
+				continue
+			}
+
+			// Actor の存在確認
+			_, err := c.actorHandler.Get(ctx, actorRef.ActorID)
+			if err == ErrEntityNotFound {
+				warnings = append(warnings, &ReferenceWarning{
+					SourceType: "usecase",
+					SourceID:   uc.ID,
+					TargetType: "actor",
+					TargetID:   actorRef.ActorID,
+					Message:    ErrMsgReferencedActorNotFound,
+				})
+			} else if err != nil {
+				var validationErr *ValidationError
+				if errors.As(err, &validationErr) {
+					warnings = append(warnings, &ReferenceWarning{
+						SourceType: "usecase",
+						SourceID:   uc.ID,
+						TargetType: "actor",
+						TargetID:   actorRef.ActorID,
+						Message:    ErrMsgInvalidActorIDFormat,
+					})
+				} else {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	return warnings, nil
+}
+
+// ===== 最適化されたヘルパーメソッド（事前取得データを使用） =====
+
+// checkActivityUseCaseReferencesWithData は Activity から UseCase への参照をチェック（事前取得データ使用）
+func (c *IntegrityChecker) checkActivityUseCaseReferencesWithData(ctx context.Context, activities []ActivityEntity) []*ReferenceWarning {
+	var warnings []*ReferenceWarning
+	for _, act := range activities {
+		// UseCaseID が未設定なら OK（任意フィールド）
+		if act.UseCaseID == "" {
+			continue
+		}
+
+		// UseCaseHandler が未設定なら警告チェックをスキップ
+		if c.usecaseHandler == nil {
+			continue
+		}
+
+		// UseCase の存在確認
+		_, err := c.usecaseHandler.Get(ctx, act.UseCaseID)
+		if err == ErrEntityNotFound {
+			warnings = append(warnings, &ReferenceWarning{
+				SourceType: "activity",
+				SourceID:   act.ID,
+				TargetType: "usecase",
+				TargetID:   act.UseCaseID,
+				Message:    ErrMsgReferencedUseCaseNotFound,
+			})
+		} else if err != nil {
+			var validationErr *ValidationError
+			if errors.As(err, &validationErr) {
+				warnings = append(warnings, &ReferenceWarning{
+					SourceType: "activity",
+					SourceID:   act.ID,
+					TargetType: "usecase",
+					TargetID:   act.UseCaseID,
+					Message:    ErrMsgInvalidUseCaseIDFormat,
+				})
+			}
+		}
+	}
+	return warnings
+}
+
+// checkActivityDependencyReferencesWithData は Activity から Activity (Dependencies) への参照をチェック（事前取得データ使用）
+func (c *IntegrityChecker) checkActivityDependencyReferencesWithData(activities []ActivityEntity, activityIDs map[string]bool) []*ReferenceWarning {
+	var warnings []*ReferenceWarning
+	for _, act := range activities {
+		for _, depID := range act.Dependencies {
+			if depID == "" {
+				continue
+			}
+
+			// 依存先 Activity の存在確認
+			if !activityIDs[depID] {
+				warnings = append(warnings, &ReferenceWarning{
+					SourceType: "activity",
+					SourceID:   act.ID,
+					TargetType: "activity",
+					TargetID:   depID,
+					Message:    ErrMsgReferencedActivityNotFound,
+				})
+			}
+		}
+	}
+	return warnings
+}
+
+// checkActivityParentReferencesWithData は Activity から Activity (ParentID) への参照をチェック（事前取得データ使用）
+func (c *IntegrityChecker) checkActivityParentReferencesWithData(activities []ActivityEntity, activityIDs map[string]bool) []*ReferenceWarning {
+	var warnings []*ReferenceWarning
+	for _, act := range activities {
+		// ParentID が未設定なら OK（任意フィールド）
+		if act.ParentID == "" {
+			continue
+		}
+
+		// 親 Activity の存在確認
+		if !activityIDs[act.ParentID] {
+			warnings = append(warnings, &ReferenceWarning{
+				SourceType: "activity",
+				SourceID:   act.ID,
+				TargetType: "activity",
+				TargetID:   act.ParentID,
+				Message:    ErrMsgReferencedParentActivityNotFound,
+			})
+		}
+	}
+	return warnings
+}
+
+// checkActivityDeliverableReferencesWithData は Activity から Deliverable への参照をチェック（事前取得データ使用）
+func (c *IntegrityChecker) checkActivityDeliverableReferencesWithData(ctx context.Context, activities []ActivityEntity) []*ReferenceWarning {
+	// DeliverableHandler が未設定なら警告チェックをスキップ
+	if c.deliverableHandler == nil {
+		return []*ReferenceWarning{}
+	}
+
+	var warnings []*ReferenceWarning
+	for _, act := range activities {
+		// RelatedDeliverables のチェック
+		for _, delID := range act.RelatedDeliverables {
+			if delID == "" {
+				continue
+			}
+
+			_, err := c.deliverableHandler.Get(ctx, delID)
+			if err == ErrEntityNotFound {
+				warnings = append(warnings, &ReferenceWarning{
+					SourceType: "activity",
+					SourceID:   act.ID,
+					TargetType: "deliverable",
+					TargetID:   delID,
+					Message:    ErrMsgRelatedDeliverableNotFound,
+				})
+			} else if err != nil {
+				var validationErr *ValidationError
+				if errors.As(err, &validationErr) {
+					warnings = append(warnings, &ReferenceWarning{
+						SourceType: "activity",
+						SourceID:   act.ID,
+						TargetType: "deliverable",
+						TargetID:   delID,
+						Message:    ErrMsgInvalidRelatedDeliverableFormat,
+					})
+				}
+			}
+		}
+
+		// Node.DeliverableIDs のチェック
+		for _, node := range act.Nodes {
+			for _, delID := range node.DeliverableIDs {
+				if delID == "" {
+					continue
+				}
+
+				_, err := c.deliverableHandler.Get(ctx, delID)
+				if err == ErrEntityNotFound {
+					warnings = append(warnings, &ReferenceWarning{
+						SourceType: "activity",
+						SourceID:   act.ID,
+						TargetType: "deliverable",
+						TargetID:   delID,
+						Message:    fmt.Sprintf("referenced deliverable in node %s not found", node.ID),
+					})
+				} else if err != nil {
+					var validationErr *ValidationError
+					if errors.As(err, &validationErr) {
+						warnings = append(warnings, &ReferenceWarning{
+							SourceType: "activity",
+							SourceID:   act.ID,
+							TargetType: "deliverable",
+							TargetID:   delID,
+							Message:    fmt.Sprintf("invalid deliverable ID format in node %s", node.ID),
+						})
+					}
+				}
+			}
+		}
+	}
+	return warnings
 }

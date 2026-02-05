@@ -285,6 +285,6 @@ zeus report --format markdown -o review-report.md
 
 ## 使用スキル
 
-- @zeus-project-scan - プロジェクトスキャン
+- @zeus-suggest - 提案生成
 - @zeus-risk-analysis - リスク分析
-- @zeus-activity-suggest - Activity 提案
+- @zeus-wbs-design - WBS 階層設計

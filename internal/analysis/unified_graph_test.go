@@ -389,4 +389,3 @@ func TestGraphFilter_Chaining(t *testing.T) {
 		t.Error("expected HideUnrelated to be true")
 	}
 }
-

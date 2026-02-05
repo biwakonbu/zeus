@@ -1,14 +1,17 @@
 ---
-description: 現在の状態に基づいて Activity（作業単位）を提案するスキル
+description: Zeus プロジェクトの提案生成スキル。Activity、リスク軽減、優先度変更などを提案。
+use_when: |
+  Use when user asks for suggestions, recommendations, or next steps.
+  Also use when user says "提案", "次にやること", "suggest", "recommend", "何をすべき".
 ---
 
-# zeus-activity-suggest
+# zeus-suggest
 
-現在の状態に基づいて Activity（作業単位）や改善案を提案するスキル。
+Zeus の提案生成スキル。現在の状態に基づいて Activity や改善案を提案する。
 
 ## 概要
 
-Zeus プロジェクト（{{.ProjectName}}）の 10概念モデル全体を分析し、次に取り組むべき Activity や改善案を提案します。
+Zeus プロジェクトの 10概念モデル全体を分析し、次に取り組むべき Activity や改善案を提案する。
 
 ## 実行方法
 
@@ -90,17 +93,6 @@ zeus apply --all --dry-run
 - 制約違反の可能性警告
 - non-negotiable 制約のチェック
 
-## WBS階層を考慮した提案
-
-- 親 Activity/Objective の完了度に基づく子の優先度調整
-- 親が未設定の Activity に対する整理提案
-
-## タイムライン最適化
-
-- クリティカルパス上の Activity の優先度向上
-- 期限切れ Activity/Objective の警告
-- 依存関係のボトルネック特定
-
 ## 提案アルゴリズム
 
 1. 現在のプロジェクト状態を取得（`zeus status`）
@@ -111,9 +103,9 @@ zeus apply --all --dry-run
 
 ## 保存先
 
-提案は `.zeus/suggestions/active.yaml` に保存されます。
+提案は `.zeus/suggestions/active.yaml` に保存される。
 
 ## 関連スキル
 
-- zeus-project-scan - プロジェクト状態のスキャン
 - zeus-risk-analysis - リスク分析
+- zeus-wbs-design - WBS 階層設計

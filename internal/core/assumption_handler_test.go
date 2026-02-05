@@ -564,6 +564,7 @@ func TestAssumptionHandler_IDSequence(t *testing.T) {
 	}
 
 }
+
 // ===== ファイルパステスト =====
 
 func TestAssumptionHandler_FilePath(t *testing.T) {
