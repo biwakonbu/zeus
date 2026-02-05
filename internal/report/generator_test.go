@@ -20,11 +20,11 @@ func TestNewGenerator(t *testing.T) {
 
 	state := &ProjectState{
 		Health: "Good",
-		Summary: TaskStats{
-			TotalTasks: 10,
-			Completed:  5,
-			InProgress: 3,
-			Pending:    2,
+		Summary: SummaryStats{
+			TotalActivities: 10,
+			Completed:       5,
+			InProgress:      3,
+			Pending:         2,
 		},
 	}
 
@@ -54,11 +54,11 @@ func TestGenerator_GenerateText(t *testing.T) {
 
 	state := &ProjectState{
 		Health: "Good",
-		Summary: TaskStats{
-			TotalTasks: 10,
-			Completed:  5,
-			InProgress: 3,
-			Pending:    2,
+		Summary: SummaryStats{
+			TotalActivities: 10,
+			Completed:       5,
+			InProgress:      3,
+			Pending:         2,
 		},
 	}
 
@@ -107,11 +107,11 @@ func TestGenerator_GenerateHTML(t *testing.T) {
 
 	state := &ProjectState{
 		Health: "Excellent",
-		Summary: TaskStats{
-			TotalTasks: 20,
-			Completed:  15,
-			InProgress: 3,
-			Pending:    2,
+		Summary: SummaryStats{
+			TotalActivities: 20,
+			Completed:       15,
+			InProgress:      3,
+			Pending:         2,
 		},
 	}
 
@@ -164,11 +164,11 @@ func TestGenerator_GenerateMarkdown(t *testing.T) {
 
 	state := &ProjectState{
 		Health: "Fair",
-		Summary: TaskStats{
-			TotalTasks: 10,
-			Completed:  3,
-			InProgress: 4,
-			Pending:    3,
+		Summary: SummaryStats{
+			TotalActivities: 10,
+			Completed:       3,
+			InProgress:      4,
+			Pending:         3,
 		},
 	}
 
@@ -200,11 +200,11 @@ func TestGenerator_GenerateMarkdown_WithGraph(t *testing.T) {
 
 	state := &ProjectState{
 		Health: "Good",
-		Summary: TaskStats{
-			TotalTasks: 5,
-			Completed:  2,
-			InProgress: 2,
-			Pending:    1,
+		Summary: SummaryStats{
+			TotalActivities: 5,
+			Completed:       2,
+			InProgress:      2,
+			Pending:         1,
 		},
 	}
 
@@ -258,11 +258,11 @@ func TestGenerator_BuildReportData(t *testing.T) {
 
 	state := &ProjectState{
 		Health: "Good",
-		Summary: TaskStats{
-			TotalTasks: 100,
-			Completed:  50,
-			InProgress: 30,
-			Pending:    20,
+		Summary: SummaryStats{
+			TotalActivities: 100,
+			Completed:       50,
+			InProgress:      30,
+			Pending:         20,
 		},
 	}
 
@@ -299,11 +299,11 @@ func TestGenerator_BuildReportData_WithAnalysis(t *testing.T) {
 
 	state := &ProjectState{
 		Health: "Fair",
-		Summary: TaskStats{
-			TotalTasks: 10,
-			Completed:  3,
-			InProgress: 4,
-			Pending:    3,
+		Summary: SummaryStats{
+			TotalActivities: 10,
+			Completed:       3,
+			InProgress:      4,
+			Pending:         3,
 		},
 	}
 
@@ -370,11 +370,11 @@ func TestGenerator_GenerateRecommendations_PoorHealth(t *testing.T) {
 	config := &ZeusConfig{Project: ProjectInfo{Name: "Test"}}
 	state := &ProjectState{
 		Health: "Poor",
-		Summary: TaskStats{
-			TotalTasks: 10,
-			Completed:  2,
-			InProgress: 3,
-			Pending:    5,
+		Summary: SummaryStats{
+			TotalActivities: 10,
+			Completed:       2,
+			InProgress:      3,
+			Pending:         5,
 		},
 	}
 
@@ -399,11 +399,11 @@ func TestGenerator_GenerateRecommendations_FairHealth(t *testing.T) {
 	config := &ZeusConfig{Project: ProjectInfo{Name: "Test"}}
 	state := &ProjectState{
 		Health: "Fair",
-		Summary: TaskStats{
-			TotalTasks: 10,
-			Completed:  4,
-			InProgress: 3,
-			Pending:    3,
+		Summary: SummaryStats{
+			TotalActivities: 10,
+			Completed:       4,
+			InProgress:      3,
+			Pending:         3,
 		},
 	}
 
@@ -427,11 +427,11 @@ func TestGenerator_GenerateRecommendations_LargeBacklog(t *testing.T) {
 	config := &ZeusConfig{Project: ProjectInfo{Name: "Test"}}
 	state := &ProjectState{
 		Health: "Good",
-		Summary: TaskStats{
-			TotalTasks: 50,
-			Completed:  10,
-			InProgress: 5,
-			Pending:    35, // > 10
+		Summary: SummaryStats{
+			TotalActivities: 50,
+			Completed:       10,
+			InProgress:      5,
+			Pending:         35, // > 10
 		},
 	}
 
@@ -455,11 +455,11 @@ func TestGenerator_GenerateRecommendations_WithRiskFactors(t *testing.T) {
 	config := &ZeusConfig{Project: ProjectInfo{Name: "Test"}}
 	state := &ProjectState{
 		Health: "Good",
-		Summary: TaskStats{
-			TotalTasks: 10,
-			Completed:  5,
-			InProgress: 3,
-			Pending:    2,
+		Summary: SummaryStats{
+			TotalActivities: 10,
+			Completed:       5,
+			InProgress:      3,
+			Pending:         2,
 		},
 	}
 
@@ -502,11 +502,11 @@ func TestGenerator_GenerateRecommendations_NoDuplicates(t *testing.T) {
 	config := &ZeusConfig{Project: ProjectInfo{Name: "Test"}}
 	state := &ProjectState{
 		Health: "Poor",
-		Summary: TaskStats{
-			TotalTasks: 50,
-			Completed:  5,
-			InProgress: 10,
-			Pending:    35,
+		Summary: SummaryStats{
+			TotalActivities: 50,
+			Completed:       5,
+			InProgress:      10,
+			Pending:         35,
 		},
 	}
 
@@ -541,11 +541,11 @@ func TestGenerator_ZeroTasks(t *testing.T) {
 
 	state := &ProjectState{
 		Health: "N/A",
-		Summary: TaskStats{
-			TotalTasks: 0,
-			Completed:  0,
-			InProgress: 0,
-			Pending:    0,
+		Summary: SummaryStats{
+			TotalActivities: 0,
+			Completed:       0,
+			InProgress:      0,
+			Pending:         0,
 		},
 	}
 

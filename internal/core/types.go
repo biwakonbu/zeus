@@ -96,18 +96,18 @@ const (
 	HealthUnknown HealthStatus = "unknown"
 )
 
-// TaskStats はタスク統計
-type TaskStats struct {
-	TotalTasks int `yaml:"total_tasks"`
-	Completed  int `yaml:"completed"`
-	InProgress int `yaml:"in_progress"`
-	Pending    int `yaml:"pending"`
+// SummaryStats はサマリー統計（Activity 統計）
+type SummaryStats struct {
+	TotalActivities int `yaml:"total_activities"`
+	Completed       int `yaml:"completed"`
+	InProgress      int `yaml:"in_progress"`
+	Pending         int `yaml:"pending"`
 }
 
 // ProjectState はプロジェクト状態
 type ProjectState struct {
 	Timestamp string       `yaml:"timestamp"`
-	Summary   TaskStats    `yaml:"summary"`
+	Summary   SummaryStats `yaml:"summary"`
 	Health    HealthStatus `yaml:"health"`
 	Risks     []string     `yaml:"risks"`
 }

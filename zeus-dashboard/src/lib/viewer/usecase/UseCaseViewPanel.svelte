@@ -13,7 +13,14 @@
 		activities?: ActivityItem[];
 		onClose?: () => void;
 	}
-	let { actor = null, usecase = null, actors = [], usecases = [], activities = [], onClose }: Props = $props();
+	let {
+		actor = null,
+		usecase = null,
+		actors = [],
+		usecases = [],
+		activities = [],
+		onClose
+	}: Props = $props();
 
 	// 関連 Activity を取得
 	const relatedActivities = $derived.by((): ActivityItem[] => {
@@ -206,7 +213,8 @@
 						<ul class="relation-list">
 							{#each usecase.relations as relation}
 								<li class="relation-item">
-									<span class="relation-type">{relationLabels[relation.type] ?? relation.type}</span>
+									<span class="relation-type">{relationLabels[relation.type] ?? relation.type}</span
+									>
 									<span class="relation-name">{getUseCaseName(relation.target_id)}</span>
 									<span class="relation-id">({relation.target_id})</span>
 									{#if relation.condition}
@@ -280,7 +288,8 @@
 										{#if alternativeFlowExpanded[altFlow.id]}
 											<div class="flow-body">
 												<div class="flow-condition">
-													<strong>条件:</strong> {altFlow.condition}
+													<strong>条件:</strong>
+													{altFlow.condition}
 												</div>
 												<ol class="flow-steps">
 													{#each altFlow.steps as step}
@@ -321,7 +330,8 @@
 										{#if exceptionFlowExpanded[excFlow.id]}
 											<div class="flow-body">
 												<div class="flow-trigger">
-													<strong>発生条件:</strong> {excFlow.trigger}
+													<strong>発生条件:</strong>
+													{excFlow.trigger}
 												</div>
 												<ol class="flow-steps">
 													{#each excFlow.steps as step}
@@ -412,7 +422,9 @@
 		border-radius: 4px;
 		color: var(--text-secondary);
 		cursor: pointer;
-		transition: background 0.15s ease, color 0.15s ease;
+		transition:
+			background 0.15s ease,
+			color 0.15s ease;
 	}
 
 	.close-button:hover {
@@ -804,7 +816,9 @@
 		font-family: inherit;
 		font-size: 0.75rem;
 		text-align: left;
-		transition: background 0.15s ease, border-color 0.15s ease;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease;
 	}
 
 	.activity-link:hover {

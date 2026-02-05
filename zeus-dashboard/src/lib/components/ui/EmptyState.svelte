@@ -11,13 +11,7 @@
 		onAction?: () => void;
 	}
 
-	let {
-		icon = 'Inbox',
-		title,
-		description = '',
-		actionLabel = '',
-		onAction
-	}: Props = $props();
+	let { icon = 'Inbox', title, description = '', actionLabel = '', onAction }: Props = $props();
 </script>
 
 <div class="empty-state">
@@ -85,7 +79,9 @@
 		font-size: var(--font-size-sm, 13px);
 		font-weight: 500;
 		cursor: pointer;
-		transition: background-color 0.15s ease, color 0.15s ease;
+		transition:
+			background-color 0.15s ease,
+			color 0.15s ease;
 	}
 
 	.empty-action:hover {

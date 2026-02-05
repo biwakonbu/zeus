@@ -123,7 +123,9 @@
 
 <!-- デフォルト -->
 <Story name="Default">
-	<div style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<ActivityListPanel
 			activities={sampleActivities}
 			selectedActivityId={null}
@@ -134,7 +136,9 @@
 
 <!-- 選択済み -->
 <Story name="WithSelection">
-	<div style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<ActivityListPanel
 			activities={sampleActivities}
 			selectedActivityId="act-002"
@@ -145,7 +149,9 @@
 
 <!-- 空のリスト -->
 <Story name="Empty">
-	<div style="width: 300px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<ActivityListPanel
 			activities={[]}
 			selectedActivityId={null}
@@ -156,7 +162,9 @@
 
 <!-- 単一アイテム -->
 <Story name="SingleItem">
-	<div style="width: 300px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<ActivityListPanel
 			activities={[sampleActivities[0]]}
 			selectedActivityId={null}
@@ -167,7 +175,9 @@
 
 <!-- インタラクティブ -->
 <Story name="Interactive">
-	<div style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<ActivityListPanel
 			activities={sampleActivities}
 			{selectedActivityId}

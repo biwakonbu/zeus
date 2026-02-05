@@ -41,10 +41,7 @@ export function createInitialState(): DiffDetectorState {
  */
 export function computeTasksHash(tasks: GraphNode[]): string {
 	return tasks
-		.map(
-			(t) =>
-				`${t.id}:${t.status}:${t.progress ?? 0}:${t.priority ?? ''}:${t.assignee ?? ''}`
-		)
+		.map((t) => `${t.id}:${t.status}:${t.progress ?? 0}:${t.priority ?? ''}:${t.assignee ?? ''}`)
 		.join('|');
 }
 

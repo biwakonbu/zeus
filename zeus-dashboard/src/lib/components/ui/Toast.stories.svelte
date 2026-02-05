@@ -111,7 +111,9 @@
 
 <!-- 全バリエーション -->
 <Story name="AllVariants">
-	<div style="display: flex; flex-direction: column; gap: 12px; padding: 24px; background: var(--bg-primary);">
+	<div
+		style="display: flex; flex-direction: column; gap: 12px; padding: 24px; background: var(--bg-primary);"
+	>
 		<Toast
 			id="toast-all-info"
 			type="info"

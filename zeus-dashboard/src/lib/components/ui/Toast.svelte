@@ -26,11 +26,7 @@
 	}
 </script>
 
-<div
-	class="toast toast-{type}"
-	role="alert"
-	aria-live={type === 'error' ? 'assertive' : 'polite'}
->
+<div class="toast toast-{type}" role="alert" aria-live={type === 'error' ? 'assertive' : 'polite'}>
 	<span class="toast-icon">
 		<Icon name={iconMap[type]} size={18} />
 	</span>
@@ -124,7 +120,9 @@
 		color: var(--text-muted, #888);
 		cursor: pointer;
 		border-radius: var(--border-radius-sm, 4px);
-		transition: color 0.15s ease, background-color 0.15s ease;
+		transition:
+			color 0.15s ease,
+			background-color 0.15s ease;
 	}
 
 	.toast-dismiss:hover {

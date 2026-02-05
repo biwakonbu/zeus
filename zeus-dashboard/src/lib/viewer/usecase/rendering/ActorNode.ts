@@ -174,7 +174,13 @@ export class ActorNode extends Container {
 
 		// 選択/ホバー時の背景グロー
 		if (this.isSelected || this.isHovered) {
-			g.roundRect(cx - BOX.width / 2 - 5, cy - BOX.height / 2 - 5, BOX.width + 10, BOX.height + 10, 4);
+			g.roundRect(
+				cx - BOX.width / 2 - 5,
+				cy - BOX.height / 2 - 5,
+				BOX.width + 10,
+				BOX.height + 10,
+				4
+			);
 			g.fill({ color: color, alpha: 0.1 });
 		}
 
@@ -209,9 +215,10 @@ export class ActorNode extends Container {
 
 		// アクター名
 		const maxChars = 10;
-		const displayName = this.actor.title.length > maxChars
-			? this.actor.title.substring(0, maxChars - 1) + '..'
-			: this.actor.title;
+		const displayName =
+			this.actor.title.length > maxChars
+				? this.actor.title.substring(0, maxChars - 1) + '..'
+				: this.actor.title;
 		this.labelText.text = displayName;
 		this.labelText.x = centerX - this.labelText.width / 2;
 		this.labelText.y = ACTOR_HEIGHT - 14;

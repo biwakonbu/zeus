@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import type { TaskStatus, Priority, GraphNode, WBSGraphData, TimelineItem } from '$lib/types/api';
+	import type { EntityStatus, Priority, GraphNode, WBSGraphData, TimelineItem } from '$lib/types/api';
 	import { fetchTimeline } from '$lib/api/client';
 	import { ViewerEngine, type Viewport } from './engine/ViewerEngine';
 	import { LayoutEngine, type NodePosition } from './engine/LayoutEngine';
@@ -18,31 +18,22 @@
 
 	// Props
 	interface Props {
-		graphData?: WBSGraphData;  // GraphNode/Edge データ
+		graphData?: WBSGraphData; // GraphNode/Edge データ
 		selectedTaskId?: string | null;
 		onTaskSelect?: (taskId: string | null) => void;
 		onTaskHover?: (taskId: string | null) => void;
 	}
 
-	let {
-		graphData,
-		selectedTaskId = null,
-		onTaskSelect,
-		onTaskHover
-	}: Props = $props();
+	let { graphData, selectedTaskId = null, onTaskSelect, onTaskHover }: Props = $props();
 
 	// WBS モード判定: graphData が提供されているかどうか
 	let isWBSMode = $derived(!!graphData && graphData.nodes.length > 0);
 
 	// 内部で使用する統一された GraphNode リスト
-	let graphNodes = $derived(
-		graphData?.nodes ?? []
-	);
+	let graphNodes = $derived(graphData?.nodes ?? []);
 
 	// 内部で使用するエッジリスト
-	let graphEdges = $derived(
-		graphData?.edges ?? []
-	);
+	let graphEdges = $derived(graphData?.edges ?? []);
 
 	// 内部状態
 	let containerElement: HTMLDivElement;
@@ -71,16 +62,22 @@
 	 * ノードリストのハッシュを計算（浅い比較用）
 	 */
 	function computeNodesHash(nodeList: GraphNode[]): string {
-		return nodeList.map(n =>
-			`${n.id}:${n.status}:${n.progress ?? 0}:${n.priority ?? ''}:${n.assignee ?? ''}:${n.node_type}`
-		).join('|');
+		return nodeList
+			.map(
+				(n) =>
+					`${n.id}:${n.status}:${n.progress ?? 0}:${n.priority ?? ''}:${n.assignee ?? ''}:${n.node_type}`
+			)
+			.join('|');
 	}
 
 	/**
 	 * 依存関係のハッシュを計算（構造変更の検出用）
 	 */
 	function computeDependencyHash(nodeList: GraphNode[]): string {
-		return nodeList.map(n => `${n.id}:${n.dependencies.join(',')}`).sort().join('|');
+		return nodeList
+			.map((n) => `${n.id}:${n.dependencies.join(',')}`)
+			.sort()
+			.join('|');
 	}
 
 	/**
@@ -90,12 +87,14 @@
 	function detectNodeChanges(newNodes: GraphNode[]): 'none' | 'data' | 'structure' {
 		const newHash = computeNodesHash(newNodes);
 		const newDepHash = computeDependencyHash(newNodes);
-		const newIds = new Set(newNodes.map(n => n.id));
+		const newIds = new Set(newNodes.map((n) => n.id));
 
 		// 構造変更（追加/削除/依存関係変更）をチェック
-		if (newDepHash !== previousDependencyHash ||
+		if (
+			newDepHash !== previousDependencyHash ||
 			newIds.size !== previousTaskIds.size ||
-			!Array.from(newIds).every(id => previousTaskIds.has(id))) {
+			!Array.from(newIds).every((id) => previousTaskIds.has(id))
+		) {
 			previousTasksHash = newHash;
 			previousDependencyHash = newDepHash;
 			previousTaskIds = newIds;
@@ -132,9 +131,9 @@
 	let visibleTaskIds: Set<string> = $state(new Set());
 
 	// 依存関係フィルター状態
-	let dependencyFilterNodeId: string | null = $state(null);  // フィルター対象ノードID
-	let dependencyFilterIds: Set<string> = $state(new Set());  // 表示対象のノードID
-	let originalPositions: Map<string, NodePosition> | null = $state(null);  // フィルター前の元の位置
+	let dependencyFilterNodeId: string | null = $state(null); // フィルター対象ノードID
+	let dependencyFilterIds: Set<string> = $state(new Set()); // 表示対象のノードID
+	let originalPositions: Map<string, NodePosition> | null = $state(null); // フィルター前の元の位置
 
 	// キー状態追跡（Chrome MCP ツール対応）
 	let isAltKeyPressed = $state(false);
@@ -179,12 +178,18 @@
 		entries: MetricsEntry[];
 	};
 
-	const metricsParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-	const METRICS_ENABLED = import.meta.env.DEV || import.meta.env.MODE === 'test' || metricsParams?.has('metrics') === true;
+	const metricsParams =
+		typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+	const METRICS_ENABLED =
+		import.meta.env.DEV ||
+		import.meta.env.MODE === 'test' ||
+		metricsParams?.has('metrics') === true;
 	const METRICS_VERBOSE = metricsParams?.has('metricsVerbose') === true;
 	const METRICS_SLOW_THRESHOLD_MS = 50;
 	const METRICS_MAX_ENTRIES = 2000;
-	const METRICS_AUTOSAVE = METRICS_ENABLED && (import.meta.env.MODE === 'test' || metricsParams?.has('metricsAutoSave') === true);
+	const METRICS_AUTOSAVE =
+		METRICS_ENABLED &&
+		(import.meta.env.MODE === 'test' || metricsParams?.has('metricsAutoSave') === true);
 	const METRICS_FLUSH_INTERVAL_MS = 5000;
 	const METRICS_ENDPOINT = '/api/metrics';
 	let renderSequence = 0;
@@ -199,15 +204,16 @@
 	}
 
 	function getMemorySnapshot(): { usedMB: number; totalMB: number; limitMB: number } | null {
-		const perf = typeof performance !== 'undefined'
-			? (performance as Performance & {
-					memory?: {
-						usedJSHeapSize: number;
-						totalJSHeapSize: number;
-						jsHeapSizeLimit: number;
-					};
-				})
-			: null;
+		const perf =
+			typeof performance !== 'undefined'
+				? (performance as Performance & {
+						memory?: {
+							usedJSHeapSize: number;
+							totalJSHeapSize: number;
+							jsHeapSizeLimit: number;
+						};
+					})
+				: null;
 		if (!perf?.memory) return null;
 		return {
 			usedMB: Math.round(perf.memory.usedJSHeapSize / 1024 / 1024),
@@ -254,7 +260,8 @@
 		}
 
 		if (typeof window !== 'undefined') {
-			(window as Window & { __VIEWER_METRICS__?: MetricsEntry[] }).__VIEWER_METRICS__ = metricsEntries;
+			(window as Window & { __VIEWER_METRICS__?: MetricsEntry[] }).__VIEWER_METRICS__ =
+				metricsEntries;
 		}
 	}
 
@@ -277,7 +284,11 @@
 		const payload = buildMetricsPayload(batch, reason);
 		const body = JSON.stringify(payload);
 
-		if (useBeacon && typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+		if (
+			useBeacon &&
+			typeof navigator !== 'undefined' &&
+			typeof navigator.sendBeacon === 'function'
+		) {
 			const ok = navigator.sendBeacon(
 				METRICS_ENDPOINT,
 				new Blob([body], { type: 'application/json' })
@@ -499,10 +510,15 @@
 		filterManager = new FilterManager();
 
 		await engine.init(containerElement);
-		logMetrics('engine.init', initStart, {
-			containerWidth: containerElement.clientWidth,
-			containerHeight: containerElement.clientHeight
-		}, true);
+		logMetrics(
+			'engine.init',
+			initStart,
+			{
+				containerWidth: containerElement.clientWidth,
+				containerHeight: containerElement.clientHeight
+			},
+			true
+		);
 
 		// 空間インデックスを初期化（十分な大きさのバウンド）
 		spatialIndex = new SpatialIndex({
@@ -760,14 +776,19 @@
 			resetCriticalPath();
 		} finally {
 			isLoadingTimeline = false;
-			logMetrics('timeline.load', timelineStart, {
-				result,
-				items: itemsCount,
-				validItems,
-				invalidItems,
-				criticalPath: criticalCount,
-				error: errorMessage
-			}, true);
+			logMetrics(
+				'timeline.load',
+				timelineStart,
+				{
+					result,
+					items: itemsCount,
+					validItems,
+					invalidItems,
+					criticalPath: criticalCount,
+					error: errorMessage
+				},
+				true
+			);
 		}
 	}
 
@@ -844,7 +865,7 @@
 		let updatedCount = 0;
 
 		// ノードマップを作成
-		const graphNodeMap = new Map(nodeList.map(n => [n.id, n]));
+		const graphNodeMap = new Map(nodeList.map((n) => [n.id, n]));
 
 		// フィルターマネージャーを更新
 		filterManager.setNodes(nodeList);
@@ -863,10 +884,15 @@
 		visibleTaskIds = new Set(filterManager.getVisibleIds());
 		updateVisibility();
 
-		logMetrics('updateGraphNodes', updateStart, {
-			totalNodes: nodeMap.size,
-			updatedNodes: updatedCount
-		}, true);
+		logMetrics(
+			'updateGraphNodes',
+			updateStart,
+			{
+				totalNodes: nodeMap.size,
+				updatedNodes: updatedCount
+			},
+			true
+		);
 	}
 
 	// 外部からの選択状態変更を反映
@@ -944,7 +970,7 @@
 			const pos = positions.get(gn.id);
 			if (!pos) continue;
 
-			const node = new TaskNode(gn);  // GraphNode を渡す
+			const node = new TaskNode(gn); // GraphNode を渡す
 			node.x = pos.x - TaskNode.getWidth() / 2;
 			node.y = pos.y - TaskNode.getHeight() / 2;
 
@@ -1028,20 +1054,25 @@
 			engine.panTo(centerX, centerY, false);
 		}
 
-		logMetrics('renderGraphNodes', renderStart, {
-			seq: renderSeq,
-			nodes: nodeList.length,
-			dependencies: dependencyCount,
-			renderedNodes: nodeMap.size,
-			edges: edgeFactory.getAll().length,
-			layoutMs: Math.round(layoutMs),
-			boundsW: Math.round(layout.bounds.width),
-			boundsH: Math.round(layout.bounds.height),
-			layers: layout.layers.length,
-			visibleFilterCount: visibleTaskIds.size,
-			viewportScale: Number(currentViewport.scale.toFixed(2)),
-			mode: isWBSMode ? 'wbs' : 'task'
-		}, true);
+		logMetrics(
+			'renderGraphNodes',
+			renderStart,
+			{
+				seq: renderSeq,
+				nodes: nodeList.length,
+				dependencies: dependencyCount,
+				renderedNodes: nodeMap.size,
+				edges: edgeFactory.getAll().length,
+				layoutMs: Math.round(layoutMs),
+				boundsW: Math.round(layout.bounds.width),
+				boundsH: Math.round(layout.bounds.height),
+				layers: layout.layers.length,
+				visibleFilterCount: visibleTaskIds.size,
+				viewportScale: Number(currentViewport.scale.toFixed(2)),
+				mode: isWBSMode ? 'wbs' : 'task'
+			},
+			true
+		);
 	}
 
 	/**
@@ -1250,14 +1281,17 @@
 		const upstream = getUpstreamNodes(nodeId);
 		const downstream = getDownstreamNodes(nodeId);
 
-		console.log('[DependencyFilter] Node:', nodeId, 'Upstream:', upstream.length, 'Downstream:', downstream.length);
+		console.log(
+			'[DependencyFilter] Node:',
+			nodeId,
+			'Upstream:',
+			upstream.length,
+			'Downstream:',
+			downstream.length
+		);
 
 		// 表示対象: 選択ノード + 上流 + 下流
-		const filterIds = new Set<string>([
-			nodeId,
-			...upstream,
-			...downstream
-		]);
+		const filterIds = new Set<string>([nodeId, ...upstream, ...downstream]);
 
 		dependencyFilterNodeId = nodeId;
 		dependencyFilterIds = filterIds;
@@ -1361,8 +1395,10 @@
 		spatialIndex.clear();
 
 		// バウンディングボックスを計算
-		let minX = Infinity, maxX = -Infinity;
-		let minY = Infinity, maxY = -Infinity;
+		let minX = Infinity,
+			maxX = -Infinity;
+		let minY = Infinity,
+			maxY = -Infinity;
 
 		for (const pos of posMap.values()) {
 			minX = Math.min(minX, pos.x - TaskNode.getWidth() / 2);
@@ -1375,8 +1411,8 @@
 			spatialIndex.rebuild({
 				x: minX - 500,
 				y: minY - 500,
-				width: (maxX - minX) + 1000,
-				height: (maxY - minY) + 1000
+				width: maxX - minX + 1000,
+				height: maxY - minY + 1000
 			});
 
 			// ノードを空間インデックスに追加
@@ -1482,7 +1518,7 @@
 		// 前回ハイライトされていたが今回されていないエッジを元に戻す
 		for (const edgeKey of previousHighlightedEdges) {
 			if (!currentHighlightedEdges.has(edgeKey)) {
-				const edge = edgeFactory.getAll().find(e => e.getKey() === edgeKey);
+				const edge = edgeFactory.getAll().find((e) => e.getKey() === edgeKey);
 				if (edge) {
 					const fromId = edge.getFromId();
 					const toId = edge.getToId();
@@ -1570,7 +1606,7 @@
 	/**
 	 * フィルター: ステータストグル
 	 */
-	function handleStatusToggle(status: TaskStatus): void {
+	function handleStatusToggle(status: EntityStatus): void {
 		filterManager?.toggleStatus(status);
 	}
 
@@ -1614,9 +1650,7 @@
 	}
 
 	// 表示されているタスク数
-	let visibleCount = $derived(
-		Array.from(nodeMap.values()).filter((n) => n.visible).length
-	);
+	let visibleCount = $derived(Array.from(nodeMap.values()).filter((n) => n.visible).length);
 
 	// パネルトグル関数
 	function toggleFilterPanel(): void {
@@ -1951,19 +1985,19 @@
 
 	/* WBS ノードタイプ別の色（TaskNode.ts と同期） */
 	.legend-dot.vision {
-		background-color: #ffd700;  /* ゴールド - 最上位の目標 */
+		background-color: #ffd700; /* ゴールド - 最上位の目標 */
 	}
 
 	.legend-dot.objective {
-		background-color: #6699ff;  /* ブルー - 目標 */
+		background-color: #6699ff; /* ブルー - 目標 */
 	}
 
 	.legend-dot.deliverable {
-		background-color: #66cc99;  /* グリーン - 成果物 */
+		background-color: #66cc99; /* グリーン - 成果物 */
 	}
 
 	.legend-dot.task {
-		background-color: #888888;  /* グレー - タスク */
+		background-color: #888888; /* グレー - タスク */
 	}
 
 	.legend-line {

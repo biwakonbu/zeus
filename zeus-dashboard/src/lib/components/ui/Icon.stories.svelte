@@ -42,7 +42,9 @@
 
 <!-- サイズバリエーション -->
 <Story name="Sizes">
-	<div style="display: flex; align-items: center; gap: 24px; padding: 24px; background: var(--bg-primary);">
+	<div
+		style="display: flex; align-items: center; gap: 24px; padding: 24px; background: var(--bg-primary);"
+	>
 		<div style="text-align: center;">
 			<Icon name="Heart" size={12} />
 			<p style="color: var(--text-muted); font-size: 10px; margin-top: 4px;">12px</p>
@@ -130,12 +132,18 @@
 <!-- よく使うアイコン一覧 -->
 <Story name="CommonIcons">
 	<div style="padding: 24px; background: var(--bg-primary);">
-		<h4 style="color: var(--text-secondary); margin-bottom: 16px; font-size: 12px;">ナビゲーション</h4>
+		<h4 style="color: var(--text-secondary); margin-bottom: 16px; font-size: 12px;">
+			ナビゲーション
+		</h4>
 		<div style="display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px;">
 			{#each ['Heart', 'Calendar', 'Flame', 'RefreshCw', 'X', 'ChevronDown', 'ChevronRight', 'ChevronUp', 'ChevronLeft'] as iconName}
 				<div style="text-align: center; width: 60px;">
 					<Icon name={iconName} size={20} />
-					<p style="color: var(--text-muted); font-size: 9px; margin-top: 4px; word-break: break-all;">{iconName}</p>
+					<p
+						style="color: var(--text-muted); font-size: 9px; margin-top: 4px; word-break: break-all;"
+					>
+						{iconName}
+					</p>
 				</div>
 			{/each}
 		</div>
@@ -145,7 +153,11 @@
 			{#each ['AlertTriangle', 'CheckCircle', 'Info', 'XCircle'] as iconName}
 				<div style="text-align: center; width: 60px;">
 					<Icon name={iconName} size={20} />
-					<p style="color: var(--text-muted); font-size: 9px; margin-top: 4px; word-break: break-all;">{iconName}</p>
+					<p
+						style="color: var(--text-muted); font-size: 9px; margin-top: 4px; word-break: break-all;"
+					>
+						{iconName}
+					</p>
 				</div>
 			{/each}
 		</div>
@@ -155,7 +167,11 @@
 			{#each ['ClipboardList', 'Target', 'BarChart', 'Ruler', 'ZoomIn', 'ZoomOut', 'Edit', 'Copy', 'Trash2', 'Search', 'ExternalLink'] as iconName}
 				<div style="text-align: center; width: 60px;">
 					<Icon name={iconName} size={20} />
-					<p style="color: var(--text-muted); font-size: 9px; margin-top: 4px; word-break: break-all;">{iconName}</p>
+					<p
+						style="color: var(--text-muted); font-size: 9px; margin-top: 4px; word-break: break-all;"
+					>
+						{iconName}
+					</p>
 				</div>
 			{/each}
 		</div>
@@ -165,7 +181,11 @@
 			{#each ['Keyboard', 'Inbox', 'Settings', 'Zap', 'Package', 'MoreHorizontal', 'MoreVertical'] as iconName}
 				<div style="text-align: center; width: 60px;">
 					<Icon name={iconName} size={20} />
-					<p style="color: var(--text-muted); font-size: 9px; margin-top: 4px; word-break: break-all;">{iconName}</p>
+					<p
+						style="color: var(--text-muted); font-size: 9px; margin-top: 4px; word-break: break-all;"
+					>
+						{iconName}
+					</p>
 				</div>
 			{/each}
 		</div>
@@ -181,7 +201,9 @@
 		</div>
 		<div style="text-align: center;">
 			<Icon name="InvalidIconName" size={24} />
-			<p style="color: var(--text-muted); font-size: 10px; margin-top: 4px;">無効なアイコン（フォールバック）</p>
+			<p style="color: var(--text-muted); font-size: 10px; margin-top: 4px;">
+				無効なアイコン（フォールバック）
+			</p>
 		</div>
 	</div>
 </Story>

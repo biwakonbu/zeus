@@ -55,8 +55,12 @@ export abstract class SyncBarNode extends ActivityNodeBase {
 		if (this.isSelected || this.isHovered) {
 			const glowColor = this.isSelected ? COMMON_COLORS.borderSelected : COMMON_COLORS.borderHover;
 			const glowAlpha = this.isSelected
-				? ('selectedGlowAlpha' in colors ? colors.selectedGlowAlpha : 0.4)
-				: ('hoverGlowAlpha' in colors ? colors.hoverGlowAlpha : 0.25);
+				? 'selectedGlowAlpha' in colors
+					? colors.selectedGlowAlpha
+					: 0.4
+				: 'hoverGlowAlpha' in colors
+					? colors.hoverGlowAlpha
+					: 0.25;
 
 			// 中間グロー層
 			this.background.roundRect(-7, -6, this.barWidth + 14, this.barHeight + 12, 5);
@@ -95,7 +99,13 @@ export abstract class SyncBarNode extends ActivityNodeBase {
 		this.background.stroke({ width: 1, color: borderColor });
 
 		// Layer 4: 上部ハイライト（金属光沢）
-		this.background.roundRect(2, 1, this.barWidth - 4, this.barHeight * METAL_EFFECT.topHighlightRatio, 1);
+		this.background.roundRect(
+			2,
+			1,
+			this.barWidth - 4,
+			this.barHeight * METAL_EFFECT.topHighlightRatio,
+			1
+		);
 		this.background.fill({ color: colors.highlight, alpha: METAL_EFFECT.topHighlightAlpha });
 
 		// Layer 5: 下部シャドウ（凹み感）
@@ -111,7 +121,10 @@ export abstract class SyncBarNode extends ActivityNodeBase {
 		// === 左右端のアクセント（金属パネルの縁）- 幅を縮小してバランス改善 ===
 		// 左端ハイライト（2px に縮小）
 		this.background.roundRect(0, 0, 2, this.barHeight, 1);
-		this.background.fill({ color: colors.highlight, alpha: METAL_EFFECT.outerHighlightAlpha * 0.7 });
+		this.background.fill({
+			color: colors.highlight,
+			alpha: METAL_EFFECT.outerHighlightAlpha * 0.7
+		});
 
 		// 右端シャドウ（2px に縮小）
 		this.background.roundRect(this.barWidth - 2, 0, 2, this.barHeight, 1);

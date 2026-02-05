@@ -141,7 +141,9 @@ export class SSEClient {
 			this.reconnectAttempts++;
 			const delay = this.reconnectDelay * Math.min(this.reconnectAttempts, 5);
 
-			console.log(`[SSE] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+			console.log(
+				`[SSE] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+			);
 
 			this.reconnectTimer = setTimeout(() => {
 				this.connect();

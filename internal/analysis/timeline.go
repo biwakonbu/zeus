@@ -33,12 +33,12 @@ type Timeline struct {
 
 // TimelineStats はタイムライン統計
 type TimelineStats struct {
-	TotalTasks      int     `json:"total_tasks"`
-	TasksWithDates  int     `json:"tasks_with_dates"`
-	OnCriticalPath  int     `json:"on_critical_path"`
-	AverageSlack    float64 `json:"average_slack"`
-	OverdueTasks    int     `json:"overdue_tasks"`
-	CompletedOnTime int     `json:"completed_on_time"`
+	TotalActivities     int     `json:"total_activities"`
+	ActivitiesWithDates int     `json:"activities_with_dates"`
+	OnCriticalPath      int     `json:"on_critical_path"`
+	AverageSlack        float64 `json:"average_slack"`
+	OverdueActivities   int     `json:"overdue_activities"`
+	CompletedOnTime     int     `json:"completed_on_time"`
 }
 
 // TimelineBuilder はタイムラインを構築するビルダー
@@ -183,12 +183,12 @@ func (tb *TimelineBuilder) Build(ctx context.Context) (*Timeline, error) {
 		ProjectEnd:    projectEndStr,
 		TotalDuration: totalDuration,
 		Stats: TimelineStats{
-			TotalTasks:      len(tb.tasks),
-			TasksWithDates:  len(itemsWithDates),
-			OnCriticalPath:  len(criticalPath),
-			AverageSlack:    avgSlack,
-			OverdueTasks:    overdue,
-			CompletedOnTime: completedOnTime,
+			TotalActivities:     len(tb.tasks),
+			ActivitiesWithDates: len(itemsWithDates),
+			OnCriticalPath:      len(criticalPath),
+			AverageSlack:        avgSlack,
+			OverdueActivities:   overdue,
+			CompletedOnTime:     completedOnTime,
 		},
 	}, nil
 }

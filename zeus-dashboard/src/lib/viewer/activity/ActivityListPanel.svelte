@@ -238,7 +238,9 @@
 		cursor: pointer;
 		text-align: left;
 		font-family: inherit;
-		transition: background 0.15s ease, border-color 0.15s ease;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease;
 	}
 
 	.activity-item:hover {
@@ -250,7 +252,6 @@
 		background: rgba(255, 149, 51, 0.15);
 		border-color: var(--accent-primary);
 	}
-
 
 	.activity-header {
 		display: flex;

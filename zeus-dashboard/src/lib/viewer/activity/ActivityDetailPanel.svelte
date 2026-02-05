@@ -232,11 +232,7 @@
 				{#each activity.nodes as node (node.id)}
 					{@const isSelected = selectedNode?.id === node.id}
 					<li class="node-list-item" class:selected={isSelected}>
-						<button
-							class="node-button"
-							onclick={() => onNodeClick?.(node)}
-							title={node.id}
-						>
+						<button class="node-button" onclick={() => onNodeClick?.(node)} title={node.id}>
 							<span class="node-icon" style="color: {getNodeColor(node.type)}">
 								<Icon name={getNodeIcon(node.type)} size={12} />
 							</span>
@@ -278,7 +274,9 @@
 		border-radius: 4px;
 		color: var(--text-secondary);
 		cursor: pointer;
-		transition: background 0.15s ease, color 0.15s ease;
+		transition:
+			background 0.15s ease,
+			color 0.15s ease;
 	}
 
 	.close-button:hover {
@@ -374,7 +372,9 @@
 		cursor: pointer;
 		font-family: inherit;
 		font-size: 0.6875rem;
-		transition: background 0.15s ease, border-color 0.15s ease;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease;
 	}
 
 	.usecase-link:hover {

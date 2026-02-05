@@ -25,10 +25,7 @@ function createKeyboardStore() {
 	});
 
 	// ショートカットキーを正規化
-	function normalizeKey(
-		key: string,
-		modifiers: ('ctrl' | 'cmd' | 'alt' | 'shift')[] = []
-	): string {
+	function normalizeKey(key: string, modifiers: ('ctrl' | 'cmd' | 'alt' | 'shift')[] = []): string {
 		const sortedMods = [...modifiers].sort();
 		return [...sortedMods, key.toLowerCase()].join('+');
 	}

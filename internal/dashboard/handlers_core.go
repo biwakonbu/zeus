@@ -25,16 +25,16 @@ type ProjectInfo struct {
 
 // ProjectState はプロジェクト状態
 type ProjectState struct {
-	Health  string    `json:"health"`
-	Summary TaskStats `json:"summary"`
+	Health  string       `json:"health"`
+	Summary SummaryStats `json:"summary"`
 }
 
-// TaskStats はタスク統計
-type TaskStats struct {
-	TotalTasks int `json:"total_tasks"`
-	Completed  int `json:"completed"`
-	InProgress int `json:"in_progress"`
-	Pending    int `json:"pending"`
+// SummaryStats はサマリー統計（Activity 統計）
+type SummaryStats struct {
+	TotalActivities int `json:"total_activities"`
+	Completed       int `json:"completed"`
+	InProgress      int `json:"in_progress"`
+	Pending         int `json:"pending"`
 }
 
 // GraphResponse はグラフ API のレスポンス
@@ -122,11 +122,11 @@ func (s *Server) handleAPIStatus(w http.ResponseWriter, r *http.Request) {
 		},
 		State: ProjectState{
 			Health: string(status.State.Health),
-			Summary: TaskStats{
-				TotalTasks: status.State.Summary.TotalTasks,
-				Completed:  status.State.Summary.Completed,
-				InProgress: status.State.Summary.InProgress,
-				Pending:    status.State.Summary.Pending,
+			Summary: SummaryStats{
+				TotalActivities: status.State.Summary.TotalActivities,
+				Completed:       status.State.Summary.Completed,
+				InProgress:      status.State.Summary.InProgress,
+				Pending:         status.State.Summary.Pending,
 			},
 		},
 		PendingApprovals: status.PendingApprovals,

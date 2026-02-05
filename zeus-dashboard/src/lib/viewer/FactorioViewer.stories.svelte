@@ -82,28 +82,163 @@
 	// より多くのノード
 	const complexNodes: GraphNode[] = [
 		// レイヤー1
-		{ id: 't1', title: 'プロジェクト立ち上げ', node_type: 'task', status: 'completed', priority: 'high', assignee: 'alice', dependencies: [], progress: 100 },
+		{
+			id: 't1',
+			title: 'プロジェクト立ち上げ',
+			node_type: 'task',
+			status: 'completed',
+			priority: 'high',
+			assignee: 'alice',
+			dependencies: [],
+			progress: 100
+		},
 		// レイヤー2
-		{ id: 't2', title: '要件定義', node_type: 'task', status: 'completed', priority: 'high', assignee: 'bob', dependencies: ['t1'], progress: 100 },
-		{ id: 't3', title: 'チーム編成', node_type: 'task', status: 'completed', priority: 'medium', assignee: 'charlie', dependencies: ['t1'], progress: 100 },
+		{
+			id: 't2',
+			title: '要件定義',
+			node_type: 'task',
+			status: 'completed',
+			priority: 'high',
+			assignee: 'bob',
+			dependencies: ['t1'],
+			progress: 100
+		},
+		{
+			id: 't3',
+			title: 'チーム編成',
+			node_type: 'task',
+			status: 'completed',
+			priority: 'medium',
+			assignee: 'charlie',
+			dependencies: ['t1'],
+			progress: 100
+		},
 		// レイヤー3
-		{ id: 't4', title: 'アーキテクチャ設計', node_type: 'task', status: 'completed', priority: 'high', assignee: 'alice', dependencies: ['t2'], progress: 100 },
-		{ id: 't5', title: 'UI/UX デザイン', node_type: 'task', status: 'in_progress', priority: 'medium', assignee: 'charlie', dependencies: ['t2'], progress: 75 },
-		{ id: 't6', title: 'インフラ設計', node_type: 'task', status: 'completed', priority: 'medium', assignee: 'bob', dependencies: ['t2', 't3'], progress: 100 },
+		{
+			id: 't4',
+			title: 'アーキテクチャ設計',
+			node_type: 'task',
+			status: 'completed',
+			priority: 'high',
+			assignee: 'alice',
+			dependencies: ['t2'],
+			progress: 100
+		},
+		{
+			id: 't5',
+			title: 'UI/UX デザイン',
+			node_type: 'task',
+			status: 'in_progress',
+			priority: 'medium',
+			assignee: 'charlie',
+			dependencies: ['t2'],
+			progress: 75
+		},
+		{
+			id: 't6',
+			title: 'インフラ設計',
+			node_type: 'task',
+			status: 'completed',
+			priority: 'medium',
+			assignee: 'bob',
+			dependencies: ['t2', 't3'],
+			progress: 100
+		},
 		// レイヤー4
-		{ id: 't7', title: 'バックエンド開発', node_type: 'task', status: 'in_progress', priority: 'high', assignee: 'alice', dependencies: ['t4'], progress: 45 },
-		{ id: 't8', title: 'フロントエンド開発', node_type: 'task', status: 'pending', priority: 'high', assignee: 'charlie', dependencies: ['t4', 't5'], progress: 0 },
-		{ id: 't9', title: 'CI/CD 構築', node_type: 'task', status: 'in_progress', priority: 'medium', assignee: 'bob', dependencies: ['t6'], progress: 80 },
+		{
+			id: 't7',
+			title: 'バックエンド開発',
+			node_type: 'task',
+			status: 'in_progress',
+			priority: 'high',
+			assignee: 'alice',
+			dependencies: ['t4'],
+			progress: 45
+		},
+		{
+			id: 't8',
+			title: 'フロントエンド開発',
+			node_type: 'task',
+			status: 'pending',
+			priority: 'high',
+			assignee: 'charlie',
+			dependencies: ['t4', 't5'],
+			progress: 0
+		},
+		{
+			id: 't9',
+			title: 'CI/CD 構築',
+			node_type: 'task',
+			status: 'in_progress',
+			priority: 'medium',
+			assignee: 'bob',
+			dependencies: ['t6'],
+			progress: 80
+		},
 		// レイヤー5
-		{ id: 't10', title: 'API 統合', node_type: 'task', status: 'pending', priority: 'high', assignee: 'alice', dependencies: ['t7', 't8'], progress: 0 },
-		{ id: 't11', title: 'パフォーマンス最適化', node_type: 'task', status: 'blocked', priority: 'medium', assignee: 'bob', dependencies: ['t7'], progress: 0 },
+		{
+			id: 't10',
+			title: 'API 統合',
+			node_type: 'task',
+			status: 'pending',
+			priority: 'high',
+			assignee: 'alice',
+			dependencies: ['t7', 't8'],
+			progress: 0
+		},
+		{
+			id: 't11',
+			title: 'パフォーマンス最適化',
+			node_type: 'task',
+			status: 'blocked',
+			priority: 'medium',
+			assignee: 'bob',
+			dependencies: ['t7'],
+			progress: 0
+		},
 		// レイヤー6
-		{ id: 't12', title: '結合テスト', node_type: 'task', status: 'pending', priority: 'high', assignee: 'bob', dependencies: ['t10', 't9'], progress: 0 },
-		{ id: 't13', title: 'セキュリティ監査', node_type: 'task', status: 'pending', priority: 'high', assignee: 'charlie', dependencies: ['t10'], progress: 0 },
+		{
+			id: 't12',
+			title: '結合テスト',
+			node_type: 'task',
+			status: 'pending',
+			priority: 'high',
+			assignee: 'bob',
+			dependencies: ['t10', 't9'],
+			progress: 0
+		},
+		{
+			id: 't13',
+			title: 'セキュリティ監査',
+			node_type: 'task',
+			status: 'pending',
+			priority: 'high',
+			assignee: 'charlie',
+			dependencies: ['t10'],
+			progress: 0
+		},
 		// レイヤー7
-		{ id: 't14', title: 'ステージングデプロイ', node_type: 'task', status: 'pending', priority: 'medium', assignee: 'bob', dependencies: ['t12', 't13'], progress: 0 },
+		{
+			id: 't14',
+			title: 'ステージングデプロイ',
+			node_type: 'task',
+			status: 'pending',
+			priority: 'medium',
+			assignee: 'bob',
+			dependencies: ['t12', 't13'],
+			progress: 0
+		},
 		// レイヤー8
-		{ id: 't15', title: '本番リリース', node_type: 'task', status: 'pending', priority: 'high', assignee: 'alice', dependencies: ['t14'], progress: 0 }
+		{
+			id: 't15',
+			title: '本番リリース',
+			node_type: 'task',
+			status: 'pending',
+			priority: 'high',
+			assignee: 'alice',
+			dependencies: ['t14'],
+			progress: 0
+		}
 	];
 
 	// 空のノード
@@ -111,8 +246,8 @@
 
 	// GraphNode 配列を WBSGraphData に変換するヘルパー
 	function toGraphData(nodes: GraphNode[]): WBSGraphData {
-		const edges = nodes.flatMap(node =>
-			node.dependencies.map(dep => ({ from: dep, to: node.id }))
+		const edges = nodes.flatMap((node) =>
+			node.dependencies.map((dep) => ({ from: dep, to: node.id }))
 		);
 		return { nodes, edges };
 	}
@@ -180,8 +315,12 @@
 			onTaskSelect={handleInteractiveSelect}
 			onTaskHover={handleTaskHover}
 		/>
-		<div style="position: absolute; top: 60px; right: 60px; background: var(--bg-panel); padding: 12px; border-radius: 4px; border: 1px solid var(--border-metal);">
-			<p style="color: var(--text-secondary); font-size: 11px; margin: 0 0 4px 0;">選択中のノード:</p>
+		<div
+			style="position: absolute; top: 60px; right: 60px; background: var(--bg-panel); padding: 12px; border-radius: 4px; border: 1px solid var(--border-metal);"
+		>
+			<p style="color: var(--text-secondary); font-size: 11px; margin: 0 0 4px 0;">
+				選択中のノード:
+			</p>
 			<p style="color: var(--accent-primary); font-size: 12px; margin: 0;">
 				{selectedTaskId || 'なし'}
 			</p>
@@ -231,7 +370,8 @@
 					}
 				}
 
-				const statusIdx = layer < 4 ? 0 : layer < 8 ? Math.min(layer - 4, 1) : Math.min(layer - 8, 3);
+				const statusIdx =
+					layer < 4 ? 0 : layer < 8 ? Math.min(layer - 4, 1) : Math.min(layer - 8, 3);
 				nodes.push({
 					id,
 					title: `タスク ${layer + 1}-${node + 1}`,
@@ -240,7 +380,12 @@
 					priority: priorities[node % 3],
 					assignee: assignees[node % 5],
 					dependencies: deps,
-					progress: statuses[statusIdx] === 'completed' ? 100 : statuses[statusIdx] === 'in_progress' ? Math.floor(Math.random() * 80) + 10 : 0
+					progress:
+						statuses[statusIdx] === 'completed'
+							? 100
+							: statuses[statusIdx] === 'in_progress'
+								? Math.floor(Math.random() * 80) + 10
+								: 0
 				});
 			}
 		}

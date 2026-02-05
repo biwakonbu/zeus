@@ -193,9 +193,9 @@ func TestHandleAPITimeline_WithTasks(t *testing.T) {
 		t.Fatalf("JSON のデコードに失敗: %v", err)
 	}
 
-	// Stats.TotalTasks が 3 以上
-	if result.Stats.TotalTasks < 3 {
-		t.Errorf("TotalTasks が正しくありません: got %d, want >= 3", result.Stats.TotalTasks)
+	// Stats.TotalActivities が 3 以上
+	if result.Stats.TotalActivities < 3 {
+		t.Errorf("TotalActivities が正しくありません: got %d, want >= 3", result.Stats.TotalActivities)
 	}
 }
 
@@ -415,9 +415,9 @@ func TestHandleAPIStatus_WithActivities(t *testing.T) {
 		t.Fatalf("JSON のデコードに失敗: %v", err)
 	}
 
-	// Activity 数が 3 以上（TotalTasks フィールドは Activity 数を表す）
-	if result.State.Summary.TotalTasks < 3 {
-		t.Errorf("TotalTasks が正しくありません: got %d, want >= 3", result.State.Summary.TotalTasks)
+	// Activity 数が 3 以上（TotalActivities フィールドは Activity 数を表す）
+	if result.State.Summary.TotalActivities < 3 {
+		t.Errorf("TotalActivities が正しくありません: got %d, want >= 3", result.State.Summary.TotalActivities)
 	}
 }
 

@@ -225,8 +225,8 @@ func (p *Predictor) analyzeRiskFactors() []RiskFactor {
 	}
 
 	// 完了率の分析
-	if p.currentState.Summary.TotalTasks > 0 {
-		completionRate := float64(p.currentState.Summary.Completed) / float64(p.currentState.Summary.TotalTasks) * 100
+	if p.currentState.Summary.TotalActivities > 0 {
+		completionRate := float64(p.currentState.Summary.Completed) / float64(p.currentState.Summary.TotalActivities) * 100
 		if completionRate < 30 {
 			factors = append(factors, RiskFactor{
 				Name:        "Low Completion Rate",

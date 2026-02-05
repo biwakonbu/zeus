@@ -28,16 +28,16 @@ type TaskInfo struct {
 
 // ProjectState は分析に必要なプロジェクト状態
 type ProjectState struct {
-	Health  string    // プロジェクト健全性
-	Summary TaskStats // タスク統計
+	Health  string       // プロジェクト健全性
+	Summary SummaryStats // サマリー統計
 }
 
-// TaskStats はタスク統計
-type TaskStats struct {
-	TotalTasks int // 全タスク数
-	Completed  int // 完了済み
-	InProgress int // 進行中
-	Pending    int // 保留中
+// SummaryStats はサマリー統計（Activity 統計）
+type SummaryStats struct {
+	TotalActivities int // 全 Activity 数（JSON 互換のため "TotalActivities" を維持）
+	Completed       int // 完了済み
+	InProgress      int // 進行中
+	Pending         int // 保留中
 }
 
 // Snapshot はスナップショット情報
@@ -167,7 +167,7 @@ const (
 	PredictAll        PredictType = "all"
 )
 
-// タスクステータス定数
+// Activity ステータス定数
 const (
 	TaskStatusPending    = "pending"
 	TaskStatusInProgress = "in_progress"

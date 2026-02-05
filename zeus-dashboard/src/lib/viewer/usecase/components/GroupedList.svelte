@@ -110,11 +110,7 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.5rem 0.75rem;
-		background: linear-gradient(
-			180deg,
-			rgba(50, 50, 50, 0.9) 0%,
-			rgba(40, 40, 40, 0.8) 100%
-		);
+		background: linear-gradient(180deg, rgba(50, 50, 50, 0.9) 0%, rgba(40, 40, 40, 0.8) 100%);
 		border-bottom: 1px solid var(--border-metal);
 		position: sticky;
 		top: 0;

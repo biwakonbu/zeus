@@ -90,7 +90,7 @@ func runSnapshotList(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Printf("  %s%s\n", s.Timestamp, label)
 		fmt.Printf("    Health: %s | Tasks: %d | Completed: %d\n",
-			s.State.Health, s.State.Summary.TotalTasks, s.State.Summary.Completed)
+			s.State.Health, s.State.Summary.TotalActivities, s.State.Summary.Completed)
 	}
 
 	fmt.Println("═══════════════════════════════════════════════════════════")

@@ -66,7 +66,9 @@
 <Story name="AllVariants">
 	<div style="display: flex; flex-direction: column; gap: 16px;">
 		<div>
-			<h4 style="color: var(--text-secondary); margin-bottom: 8px; font-size: 12px;">Medium Size (md)</h4>
+			<h4 style="color: var(--text-secondary); margin-bottom: 8px; font-size: 12px;">
+				Medium Size (md)
+			</h4>
 			<div style="display: flex; gap: 8px; flex-wrap: wrap;">
 				<Badge variant="default">Default</Badge>
 				<Badge variant="success">Success</Badge>
@@ -77,7 +79,9 @@
 			</div>
 		</div>
 		<div>
-			<h4 style="color: var(--text-secondary); margin-bottom: 8px; font-size: 12px;">Small Size (sm)</h4>
+			<h4 style="color: var(--text-secondary); margin-bottom: 8px; font-size: 12px;">
+				Small Size (sm)
+			</h4>
 			<div style="display: flex; gap: 8px; flex-wrap: wrap;">
 				<Badge variant="default" size="sm">Default</Badge>
 				<Badge variant="success" size="sm">Success</Badge>

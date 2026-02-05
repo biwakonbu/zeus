@@ -223,11 +223,11 @@ func (s *Server) BroadcastAllUpdates(ctx context.Context) {
 			},
 			State: ProjectState{
 				Health: string(status.State.Health),
-				Summary: TaskStats{
-					TotalTasks: status.State.Summary.TotalTasks,
-					Completed:  status.State.Summary.Completed,
-					InProgress: status.State.Summary.InProgress,
-					Pending:    status.State.Summary.Pending,
+				Summary: SummaryStats{
+					TotalActivities: status.State.Summary.TotalActivities,
+					Completed:       status.State.Summary.Completed,
+					InProgress:      status.State.Summary.InProgress,
+					Pending:         status.State.Summary.Pending,
 				},
 			},
 			PendingApprovals: status.PendingApprovals,

@@ -136,8 +136,8 @@ func (sm *StateManager) RestoreSnapshot(ctx context.Context, timestamp string) e
 
 // CalculateState はタスクから状態を計算
 func (sm *StateManager) CalculateState(tasks []ListItem) *ProjectState {
-	stats := TaskStats{
-		TotalTasks: len(tasks),
+	stats := SummaryStats{
+		TotalActivities: len(tasks),
 	}
 
 	for _, task := range tasks {
@@ -167,18 +167,18 @@ func (sm *StateManager) CalculateState(tasks []ListItem) *ProjectState {
 func (sm *StateManager) getEmptyState() *ProjectState {
 	return &ProjectState{
 		Timestamp: Now(),
-		Summary:   TaskStats{},
+		Summary:   SummaryStats{},
 		Health:    HealthUnknown,
 		Risks:     []string{},
 	}
 }
 
-func (sm *StateManager) calculateHealth(stats *TaskStats) HealthStatus {
-	if stats.TotalTasks == 0 {
+func (sm *StateManager) calculateHealth(stats *SummaryStats) HealthStatus {
+	if stats.TotalActivities == 0 {
 		return HealthUnknown
 	}
 
-	progress := float64(stats.Completed) / float64(stats.TotalTasks)
+	progress := float64(stats.Completed) / float64(stats.TotalActivities)
 	if progress < 0.3 {
 		return HealthPoor
 	}
@@ -188,7 +188,7 @@ func (sm *StateManager) calculateHealth(stats *TaskStats) HealthStatus {
 	return HealthGood
 }
 
-func (sm *StateManager) detectRisks(tasks []ListItem, stats *TaskStats) []string {
+func (sm *StateManager) detectRisks(tasks []ListItem, stats *SummaryStats) []string {
 	risks := []string{}
 
 	// ブロック状態のタスクが多い
@@ -208,7 +208,7 @@ func (sm *StateManager) detectRisks(tasks []ListItem, stats *TaskStats) []string
 	}
 
 	// 完了率が低い
-	if stats.TotalTasks > 0 && float64(stats.Completed)/float64(stats.TotalTasks) < 0.2 {
+	if stats.TotalActivities > 0 && float64(stats.Completed)/float64(stats.TotalActivities) < 0.2 {
 		risks = append(risks, "Low completion rate")
 	}
 

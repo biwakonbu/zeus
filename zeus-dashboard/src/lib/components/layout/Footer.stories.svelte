@@ -26,7 +26,9 @@
 
 <!-- ページレイアウト内での表示 -->
 <Story name="InPageLayout">
-	<div style="min-height: 300px; display: flex; flex-direction: column; background: var(--bg-primary);">
+	<div
+		style="min-height: 300px; display: flex; flex-direction: column; background: var(--bg-primary);"
+	>
 		<div style="flex: 1; display: flex; align-items: center; justify-content: center;">
 			<p style="color: var(--text-muted);">メインコンテンツエリア</p>
 		</div>

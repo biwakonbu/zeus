@@ -32,11 +32,7 @@ export class SubsystemBoundary extends Container {
 	private boundaryWidth: number;
 	private boundaryHeight: number;
 
-	constructor(
-		subsystem: SubsystemItem,
-		width: number = 300,
-		height: number = 200
-	) {
+	constructor(subsystem: SubsystemItem, width: number = 300, height: number = 200) {
 		super();
 
 		this.subsystem = subsystem;
@@ -95,13 +91,7 @@ export class SubsystemBoundary extends Container {
 		// タイトルバー背景
 		// UML 準拠: 左上に配置
 		const titleWidth = this.calculateTitleWidth();
-		g.roundRect(
-			0,
-			0,
-			titleWidth + PADDING * 2,
-			TITLE_HEIGHT,
-			CORNER_RADIUS
-		);
+		g.roundRect(0, 0, titleWidth + PADDING * 2, TITLE_HEIGHT, CORNER_RADIUS);
 		g.fill({ color: this.color, alpha: 0.4 });
 
 		// タイトルバー下境界

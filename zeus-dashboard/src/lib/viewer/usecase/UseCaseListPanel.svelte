@@ -89,9 +89,7 @@
 
 		// Actor フィルタ（UseCase のみに適用）
 		if (filterActorId) {
-			usecaseList = usecaseList.filter((uc) =>
-				uc.actors.some((a) => a.actor_id === filterActorId)
-			);
+			usecaseList = usecaseList.filter((uc) => uc.actors.some((a) => a.actor_id === filterActorId));
 		}
 
 		// 検索フィルタ

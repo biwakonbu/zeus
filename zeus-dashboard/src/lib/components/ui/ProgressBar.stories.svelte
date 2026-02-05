@@ -83,7 +83,9 @@
 <!-- 小サイズ -->
 <Story name="SizeSmall" args={{ value: 60, size: 'sm' }}>
 	<div style="width: 300px;">
-		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">Small (sm)</span>
+		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;"
+			>Small (sm)</span
+		>
 		<ProgressBar value={60} size="sm" />
 	</div>
 </Story>
@@ -91,7 +93,9 @@
 <!-- 中サイズ -->
 <Story name="SizeMedium" args={{ value: 60, size: 'md' }}>
 	<div style="width: 300px;">
-		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">Medium (md)</span>
+		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;"
+			>Medium (md)</span
+		>
 		<ProgressBar value={60} size="md" />
 	</div>
 </Story>
@@ -99,7 +103,9 @@
 <!-- 大サイズ -->
 <Story name="SizeLarge" args={{ value: 60, size: 'lg' }}>
 	<div style="width: 300px;">
-		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">Large (lg)</span>
+		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;"
+			>Large (lg)</span
+		>
 		<ProgressBar value={60} size="lg" />
 	</div>
 </Story>
@@ -107,7 +113,9 @@
 <!-- 低い進捗（赤） -->
 <Story name="ColorPoor" args={{ value: 30 }}>
 	<div style="width: 300px;">
-		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">0-49%: 赤（Poor）</span>
+		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;"
+			>0-49%: 赤（Poor）</span
+		>
 		<ProgressBar value={30} />
 	</div>
 </Story>
@@ -115,7 +123,9 @@
 <!-- 中程度の進捗（黄） -->
 <Story name="ColorFair" args={{ value: 65 }}>
 	<div style="width: 300px;">
-		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">50-79%: 黄（Fair）</span>
+		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;"
+			>50-79%: 黄（Fair）</span
+		>
 		<ProgressBar value={65} />
 	</div>
 </Story>
@@ -123,7 +133,9 @@
 <!-- 高い進捗（緑） -->
 <Story name="ColorGood" args={{ value: 90 }}>
 	<div style="width: 300px;">
-		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">80-100%: 緑（Good）</span>
+		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;"
+			>80-100%: 緑（Good）</span
+		>
 		<ProgressBar value={90} />
 	</div>
 </Story>
@@ -148,7 +160,9 @@
 <!-- アニメーション -->
 <Story name="Animated">
 	<div style="width: 300px;">
-		<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">
+		<span
+			style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;"
+		>
 			アニメーション例（自動で値が変化）
 		</span>
 		<ProgressBar value={animatedValue} />
@@ -159,15 +173,24 @@
 <Story name="AllSizes">
 	<div style="display: flex; flex-direction: column; gap: 16px; width: 300px;">
 		<div>
-			<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">Small (sm)</span>
+			<span
+				style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;"
+				>Small (sm)</span
+			>
 			<ProgressBar value={75} size="sm" />
 		</div>
 		<div>
-			<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">Medium (md)</span>
+			<span
+				style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;"
+				>Medium (md)</span
+			>
 			<ProgressBar value={75} size="md" />
 		</div>
 		<div>
-			<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">Large (lg)</span>
+			<span
+				style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;"
+				>Large (lg)</span
+			>
 			<ProgressBar value={75} size="lg" />
 		</div>
 	</div>
@@ -177,15 +200,24 @@
 <Story name="AllColors">
 	<div style="display: flex; flex-direction: column; gap: 12px; width: 300px;">
 		<div>
-			<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">0-49%: 赤（危険）</span>
+			<span
+				style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;"
+				>0-49%: 赤（危険）</span
+			>
 			<ProgressBar value={25} />
 		</div>
 		<div>
-			<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">50-79%: 黄（注意）</span>
+			<span
+				style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;"
+				>50-79%: 黄（注意）</span
+			>
 			<ProgressBar value={65} />
 		</div>
 		<div>
-			<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">80-100%: 緑（良好）</span>
+			<span
+				style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;"
+				>80-100%: 緑（良好）</span
+			>
 			<ProgressBar value={90} />
 		</div>
 	</div>

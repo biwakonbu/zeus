@@ -1,7 +1,7 @@
 // タスクノードの描画クラス（WBS 全ノードタイプ対応）
 import { Container, Graphics, Text } from 'pixi.js';
 import type { FederatedPointerEvent } from 'pixi.js';
-import type { TaskStatus, Priority, GraphNode, GraphNodeType } from '$lib/types/api';
+import type { EntityStatus, Priority, GraphNode, GraphNodeType } from '$lib/types/api';
 
 // ノードサイズ定数
 const NODE_WIDTH = 200;
@@ -9,12 +9,13 @@ const NODE_HEIGHT = 80;
 const CORNER_RADIUS = 6;
 const PROGRESS_BAR_HEIGHT = 6;
 const PADDING = 10;
-const CONTENT_LEFT = 20;  // 左ステータスバー分のオフセット
+const CONTENT_LEFT = 20; // 左ステータスバー分のオフセット
 
 // テキスト解像度（Retina対応）
-const TEXT_RESOLUTION = typeof window !== 'undefined'
-	? Math.min(window.devicePixelRatio * 2, 4)  // 最大4xに制限
-	: 2;
+const TEXT_RESOLUTION =
+	typeof window !== 'undefined'
+		? Math.min(window.devicePixelRatio * 2, 4) // 最大4xに制限
+		: 2;
 
 // 色定義（Factorioテーマに準拠）
 const COLORS = {
@@ -34,34 +35,43 @@ const COLORS = {
 	// ノードタイプ別の色（左側インジケーター・背景グラデーション）
 	nodeType: {
 		vision: {
-			indicator: 0xffd700,    // ゴールド - 最上位の目標
-			background: 0x3d3520,  // 暗めの金色
+			indicator: 0xffd700, // ゴールド - 最上位の目標
+			background: 0x3d3520, // 暗めの金色
 			border: 0xffd700,
 			borderHighlight: 0xffee88,
 			borderShadow: 0x2a2510
 		},
 		objective: {
-			indicator: 0x6699ff,    // ブルー - 目標
-			background: 0x2d3550,  // 暗めの青
+			indicator: 0x6699ff, // ブルー - 目標
+			background: 0x2d3550, // 暗めの青
 			border: 0x6699ff,
 			borderHighlight: 0x99bbff,
 			borderShadow: 0x1a2030
 		},
 		deliverable: {
-			indicator: 0x66cc99,    // グリーン - 成果物
-			background: 0x2d4035,  // 暗めの緑
+			indicator: 0x66cc99, // グリーン - 成果物
+			background: 0x2d4035, // 暗めの緑
 			border: 0x66cc99,
 			borderHighlight: 0x99eebb,
 			borderShadow: 0x1a2a20
 		},
 		task: {
-			indicator: 0x888888,    // グレー - タスク（既存の動作）
-			background: 0x2d2d2d,  // 標準背景
+			indicator: 0x888888, // グレー - タスク（既存の動作）
+			background: 0x2d2d2d, // 標準背景
 			border: 0x4a4a4a,
 			borderHighlight: 0x777777,
 			borderShadow: 0x1a1a1a
 		}
-	} as Record<GraphNodeType, { indicator: number; background: number; border: number; borderHighlight?: number; borderShadow?: number }>,
+	} as Record<
+		GraphNodeType,
+		{
+			indicator: number;
+			background: number;
+			border: number;
+			borderHighlight?: number;
+			borderShadow?: number;
+		}
+	>,
 	// 基本色
 	background: 0x2d2d2d,
 	backgroundHover: 0x3a3a3a,
@@ -77,16 +87,16 @@ const COLORS = {
 	progressSegment: 0x333333,
 	// 進捗グラデーション（0% → 100%）
 	progressGradient: {
-		low: 0xff6644,      // 0-33%: オレンジ/赤
-		mid: 0xffcc00,      // 34-66%: 黄色
-		high: 0x44dd44      // 67-100%: 緑
+		low: 0xff6644, // 0-33%: オレンジ/赤
+		mid: 0xffcc00, // 34-66%: 黄色
+		high: 0x44dd44 // 67-100%: 緑
 	},
 	// クリティカルパス用
 	criticalGlow: 0xff9533,
 	slackBadge: 0x2d5a2d,
 	// 影響範囲ハイライト用
-	downstreamHighlight: 0xffcc00,  // 下流タスク（黄色）
-	upstreamHighlight: 0x44aaff     // 上流タスク（水色）
+	downstreamHighlight: 0xffcc00, // 下流タスク（黄色）
+	upstreamHighlight: 0x44aaff // 上流タスク（水色）
 };
 
 // 金属効果定数（5層ベベル構造用）
@@ -101,16 +111,16 @@ const METAL_EFFECT = {
 	bevelWidth: 1.5,
 	innerBevelWidth: 1,
 	// 上部ハイライト（金属光沢）- 領域を拡大
-	topHighlightAlpha: 0.20, // 0.25 → 0.20（光沢を適度に）
+	topHighlightAlpha: 0.2, // 0.25 → 0.20（光沢を適度に）
 	topHighlightRatio: 0.45, // 0.35 → 0.45（領域拡大）
 	// 下部シャドウ（凹み感）- 開始位置を上げて重なりを作る
-	bottomShadowAlpha: 0.10, // 0.15 → 0.10（下部影は最小限）
-	bottomShadowRatio: 0.40, // 0.3 → 0.40（60% 位置から開始）
+	bottomShadowAlpha: 0.1, // 0.15 → 0.10（下部影は最小限）
+	bottomShadowRatio: 0.4, // 0.3 → 0.40（60% 位置から開始）
 	// グロー設定（選択・ハイライト・クリティカルパス時に適用）
 	// 依存グラフ視覚効果最適化 Phase 2: ノード数が多い場合の累積効果を抑制
-	baseGlowAlpha: 0.06,      // 0.12 → 0.06
-	hoverGlowAlpha: 0.12,     // 0.25 → 0.12
-	selectedGlowAlpha: 0.20   // 0.4 → 0.20
+	baseGlowAlpha: 0.06, // 0.12 → 0.06
+	hoverGlowAlpha: 0.12, // 0.25 → 0.12
+	selectedGlowAlpha: 0.2 // 0.4 → 0.20
 } as const;
 
 // ハイライトタイプ
@@ -126,7 +136,6 @@ export enum LODLevel {
 	Micro = 2
 }
 
-
 /**
  * TaskNode - WBS ノード（Vision, Objective, Deliverable, Task）の視覚的表現
  *
@@ -141,8 +150,8 @@ export class TaskNode extends Container {
 	private nodeType: GraphNodeType;
 	private background: Graphics;
 	private statusIndicator: Graphics;
-	private typeIndicator: Graphics;  // ノードタイプバッジ
-	private typeText: Text;           // タイプバッジのラベル文字
+	private typeIndicator: Graphics; // ノードタイプバッジ
+	private typeText: Text; // タイプバッジのラベル文字
 	private idText: Text;
 	private titleText: Text;
 	private progressBar: Graphics;
@@ -174,7 +183,8 @@ export class TaskNode extends Container {
 
 		this.graphNode = data;
 		this.nodeType = this.graphNode.node_type;
-		this.progress = this.graphNode.progress ?? this.estimateProgressFromStatus(this.graphNode.status);
+		this.progress =
+			this.graphNode.progress ?? this.estimateProgressFromStatus(this.graphNode.status);
 
 		// コンポーネント初期化
 		this.background = new Graphics();
@@ -182,7 +192,12 @@ export class TaskNode extends Container {
 		this.typeIndicator = new Graphics();
 		this.typeText = new Text({
 			text: '',
-			style: { fontSize: 11, fill: 0x1a1a1a, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 'bold' },
+			style: {
+				fontSize: 11,
+				fill: 0x1a1a1a,
+				fontFamily: 'IBM Plex Mono, monospace',
+				fontWeight: 'bold'
+			},
 			resolution: TEXT_RESOLUTION
 		});
 		this.idText = new Text({
@@ -244,7 +259,17 @@ export class TaskNode extends Container {
 	 */
 	private estimateProgressFromStatus(status: string): number {
 		// 完了系
-		if (['completed', 'approved', 'delivered', 'mitigated', 'verified', 'resolved', 'passing'].includes(status)) {
+		if (
+			[
+				'completed',
+				'approved',
+				'delivered',
+				'mitigated',
+				'verified',
+				'resolved',
+				'passing'
+			].includes(status)
+		) {
 			return 100;
 		}
 		// 進行中系
@@ -252,11 +277,25 @@ export class TaskNode extends Container {
 			return 50;
 		}
 		// 未着手系
-		if (['pending', 'not_started', 'draft', 'open', 'identified', 'unverified', 'not_checked'].includes(status)) {
+		if (
+			[
+				'pending',
+				'not_started',
+				'draft',
+				'open',
+				'identified',
+				'unverified',
+				'not_checked'
+			].includes(status)
+		) {
 			return 0;
 		}
 		// ブロック系
-		if (['blocked', 'on_hold', 'deferred', 'wont_fix', 'invalid', 'accepted', 'failing'].includes(status)) {
+		if (
+			['blocked', 'on_hold', 'deferred', 'wont_fix', 'invalid', 'accepted', 'failing'].includes(
+				status
+			)
+		) {
 			return 0;
 		}
 		return 0;
@@ -312,13 +351,7 @@ export class TaskNode extends Container {
 		// Note: ホバー時は中間・内側グローのみ表示し、最外層グローは表示しない（視覚ノイズ軽減のため）
 		if (this.isSelected || this.highlightType || this.isOnCriticalPath) {
 			const baseGlowColor = typeColors.indicator;
-			this.background.roundRect(
-				-8,
-				-8,
-				NODE_WIDTH + 16,
-				NODE_HEIGHT + 16,
-				CORNER_RADIUS + 8
-			);
+			this.background.roundRect(-8, -8, NODE_WIDTH + 16, NODE_HEIGHT + 16, CORNER_RADIUS + 8);
 			this.background.fill({ color: baseGlowColor, alpha: METAL_EFFECT.baseGlowAlpha });
 		}
 
@@ -330,31 +363,20 @@ export class TaskNode extends Container {
 			if (this.isSelected) {
 				glowAlpha = METAL_EFFECT.selectedGlowAlpha;
 			} else if (this.highlightType) {
-				glowColor = this.highlightType === 'downstream'
-					? COLORS.downstreamHighlight
-					: COLORS.upstreamHighlight;
+				glowColor =
+					this.highlightType === 'downstream'
+						? COLORS.downstreamHighlight
+						: COLORS.upstreamHighlight;
 			} else if (this.isOnCriticalPath) {
 				glowColor = COLORS.criticalGlow;
 			}
 
 			// 中間グロー層
-			this.background.roundRect(
-				-6,
-				-6,
-				NODE_WIDTH + 12,
-				NODE_HEIGHT + 12,
-				CORNER_RADIUS + 6
-			);
+			this.background.roundRect(-6, -6, NODE_WIDTH + 12, NODE_HEIGHT + 12, CORNER_RADIUS + 6);
 			this.background.fill({ color: glowColor, alpha: glowAlpha * 0.6 });
 
 			// 内側グロー層
-			this.background.roundRect(
-				-3,
-				-3,
-				NODE_WIDTH + 6,
-				NODE_HEIGHT + 6,
-				CORNER_RADIUS + 3
-			);
+			this.background.roundRect(-3, -3, NODE_WIDTH + 6, NODE_HEIGHT + 6, CORNER_RADIUS + 3);
 			this.background.fill({ color: glowColor, alpha: glowAlpha });
 		}
 
@@ -398,7 +420,11 @@ export class TaskNode extends Container {
 		// Layer 5: 外側ハイライト（上部ボーダー）
 		this.background.moveTo(CORNER_RADIUS, 1);
 		this.background.lineTo(NODE_WIDTH - CORNER_RADIUS, 1);
-		this.background.stroke({ width: METAL_EFFECT.bevelWidth, color: highlightColor, alpha: METAL_EFFECT.outerHighlightAlpha });
+		this.background.stroke({
+			width: METAL_EFFECT.bevelWidth,
+			color: highlightColor,
+			alpha: METAL_EFFECT.outerHighlightAlpha
+		});
 
 		// 下部シャドウ（凹み感）
 		this.background.roundRect(
@@ -502,10 +528,9 @@ export class TaskNode extends Container {
 
 		// ID テキスト（上部）- WBS コードがあれば優先表示
 		const displayId = this.graphNode.wbs_code || this.graphNode.id;
-		const maxIdChars = Math.floor(contentWidth / 7);  // 等幅フォントで概算
-		const shortId = displayId.length > maxIdChars
-			? displayId.substring(0, maxIdChars - 2) + '..'
-			: displayId;
+		const maxIdChars = Math.floor(contentWidth / 7); // 等幅フォントで概算
+		const shortId =
+			displayId.length > maxIdChars ? displayId.substring(0, maxIdChars - 2) + '..' : displayId;
 		this.idText.text = shortId;
 		this.idText.x = CONTENT_LEFT;
 		this.idText.y = PADDING;
@@ -523,9 +548,10 @@ export class TaskNode extends Container {
 
 		// タイトル（中央）
 		const maxTitleChars = Math.floor(contentWidth / 6.5);
-		const title = this.graphNode.title.length > maxTitleChars
-			? this.graphNode.title.substring(0, maxTitleChars - 2) + '..'
-			: this.graphNode.title;
+		const title =
+			this.graphNode.title.length > maxTitleChars
+				? this.graphNode.title.substring(0, maxTitleChars - 2) + '..'
+				: this.graphNode.title;
 		this.titleText.text = title;
 		this.titleText.x = CONTENT_LEFT;
 		this.titleText.y = PADDING + 16;
@@ -535,9 +561,8 @@ export class TaskNode extends Container {
 		const progressPct = `${Math.round(this.progress)}%`;
 		const metaInfo = assignee ? `@${assignee}` : progressPct;
 		const maxMetaChars = Math.floor(contentWidth / 7);
-		const displayMeta = metaInfo.length > maxMetaChars
-			? metaInfo.substring(0, maxMetaChars - 2) + '..'
-			: metaInfo;
+		const displayMeta =
+			metaInfo.length > maxMetaChars ? metaInfo.substring(0, maxMetaChars - 2) + '..' : metaInfo;
 		this.metaText.text = displayMeta;
 		this.metaText.x = CONTENT_LEFT;
 		this.metaText.y = NODE_HEIGHT - PADDING - 12;
@@ -601,14 +626,26 @@ export class TaskNode extends Container {
 		const barY = PADDING + 34;
 		const segmentCount = 10;
 		const segmentWidth = barWidth / segmentCount;
-		const segmentGap = 1;  // セグメント間の隙間
+		const segmentGap = 1; // セグメント間の隙間
 
 		// 外枠フレーム（金属感・立体感）
 		// 外側の暗い枠
-		this.progressBar.roundRect(CONTENT_LEFT - 2, barY - 2, barWidth + 4, PROGRESS_BAR_HEIGHT + 4, 3);
+		this.progressBar.roundRect(
+			CONTENT_LEFT - 2,
+			barY - 2,
+			barWidth + 4,
+			PROGRESS_BAR_HEIGHT + 4,
+			3
+		);
 		this.progressBar.fill(0x222222);
 		// 内側の明るい枠（溝の表現）
-		this.progressBar.roundRect(CONTENT_LEFT - 1, barY - 1, barWidth + 2, PROGRESS_BAR_HEIGHT + 2, 2);
+		this.progressBar.roundRect(
+			CONTENT_LEFT - 1,
+			barY - 1,
+			barWidth + 2,
+			PROGRESS_BAR_HEIGHT + 2,
+			2
+		);
 		this.progressBar.stroke({ width: 1, color: COLORS.progressFrame });
 
 		// 背景（暗いベース）
@@ -648,7 +685,13 @@ export class TaskNode extends Container {
 
 		// 100% 完了時のグロー効果
 		if (this.progress >= 100) {
-			this.progressBar.roundRect(CONTENT_LEFT - 1, barY - 1, barWidth + 2, PROGRESS_BAR_HEIGHT + 2, 2);
+			this.progressBar.roundRect(
+				CONTENT_LEFT - 1,
+				barY - 1,
+				barWidth + 2,
+				PROGRESS_BAR_HEIGHT + 2,
+				2
+			);
 			this.progressBar.stroke({ width: 1, color: COLORS.progressGradient.high, alpha: 0.5 });
 		}
 	}
@@ -772,7 +815,8 @@ export class TaskNode extends Container {
 	updateData(data: GraphNode): void {
 		this.graphNode = data;
 		this.nodeType = this.graphNode.node_type;
-		this.progress = this.graphNode.progress ?? this.estimateProgressFromStatus(this.graphNode.status);
+		this.progress =
+			this.graphNode.progress ?? this.estimateProgressFromStatus(this.graphNode.status);
 		this.draw();
 	}
 
@@ -818,7 +862,7 @@ export class TaskNode extends Container {
 	 * @param type - ハイライトタイプ（'downstream' | 'upstream'）
 	 */
 	setHighlighted(highlighted: boolean, type?: 'downstream' | 'upstream'): void {
-		const newType: HighlightType = highlighted ? (type || 'downstream') : null;
+		const newType: HighlightType = highlighted ? type || 'downstream' : null;
 		if (this.highlightType !== newType) {
 			this.highlightType = newType;
 			this.drawBackground();
@@ -874,7 +918,6 @@ export class TaskNode extends Container {
 	getNodeType(): GraphNodeType {
 		return this.nodeType;
 	}
-
 
 	/**
 	 * ノードの幅を取得

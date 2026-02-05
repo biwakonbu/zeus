@@ -61,8 +61,12 @@ export abstract class DiamondNode extends ActivityNodeBase {
 		if (this.isSelected || this.isHovered) {
 			const glowColor = this.isSelected ? COMMON_COLORS.borderSelected : COMMON_COLORS.borderHover;
 			const glowAlpha = this.isSelected
-				? ('selectedGlowAlpha' in colors ? colors.selectedGlowAlpha : 0.4)
-				: ('hoverGlowAlpha' in colors ? colors.hoverGlowAlpha : 0.25);
+				? 'selectedGlowAlpha' in colors
+					? colors.selectedGlowAlpha
+					: 0.4
+				: 'hoverGlowAlpha' in colors
+					? colors.hoverGlowAlpha
+					: 0.25;
 
 			// 中間グロー層
 			this.background.moveTo(centerX, centerY - halfSize - 7);
@@ -95,9 +99,18 @@ export abstract class DiamondNode extends ActivityNodeBase {
 		// Layer 2: 内側シャドウ（下・右）- 対称性を維持
 		const innerShadowOffset = METAL_EFFECT.innerBevelWidth;
 		this.background.moveTo(centerX + innerShadowOffset, centerY - halfSize + innerShadowOffset);
-		this.background.lineTo(centerX + halfSize - innerShadowOffset + innerShadowOffset, centerY + innerShadowOffset);
-		this.background.lineTo(centerX + innerShadowOffset, centerY + halfSize - innerShadowOffset + innerShadowOffset);
-		this.background.lineTo(centerX - halfSize + innerShadowOffset + innerShadowOffset, centerY + innerShadowOffset);
+		this.background.lineTo(
+			centerX + halfSize - innerShadowOffset + innerShadowOffset,
+			centerY + innerShadowOffset
+		);
+		this.background.lineTo(
+			centerX + innerShadowOffset,
+			centerY + halfSize - innerShadowOffset + innerShadowOffset
+		);
+		this.background.lineTo(
+			centerX - halfSize + innerShadowOffset + innerShadowOffset,
+			centerY + innerShadowOffset
+		);
 		this.background.closePath();
 		this.background.fill({ color: 0x000000, alpha: METAL_EFFECT.innerShadowAlpha });
 

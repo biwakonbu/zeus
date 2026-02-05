@@ -88,7 +88,9 @@
 
 <!-- デフォルト -->
 <Story name="Default">
-	<div style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<UseCaseListPanel
 			actors={sampleActors}
 			usecases={sampleUseCases}
@@ -102,7 +104,9 @@
 
 <!-- Actor 選択済み -->
 <Story name="ActorSelected">
-	<div style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<UseCaseListPanel
 			actors={sampleActors}
 			usecases={sampleUseCases}
@@ -116,7 +120,9 @@
 
 <!-- UseCase 選択済み -->
 <Story name="UseCaseSelected">
-	<div style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<UseCaseListPanel
 			actors={sampleActors}
 			usecases={sampleUseCases}
@@ -130,7 +136,9 @@
 
 <!-- 空のリスト -->
 <Story name="Empty">
-	<div style="width: 300px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<UseCaseListPanel
 			actors={[]}
 			usecases={[]}
@@ -144,7 +152,9 @@
 
 <!-- インタラクティブ -->
 <Story name="Interactive">
-	<div style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<UseCaseListPanel
 			actors={sampleActors}
 			usecases={sampleUseCases}

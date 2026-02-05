@@ -164,7 +164,9 @@
 		color: var(--text-muted, #888);
 		cursor: pointer;
 		border-radius: var(--border-radius-sm, 4px);
-		transition: color 0.15s ease, background-color 0.15s ease;
+		transition:
+			color 0.15s ease,
+			background-color 0.15s ease;
 	}
 
 	.close-button:hover {

@@ -74,11 +74,7 @@
 		left: 0;
 		right: 0;
 		height: 50%;
-		background: linear-gradient(
-			180deg,
-			rgba(255, 255, 255, 0.2) 0%,
-			transparent 100%
-		);
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
 	}
 
 	.progress-label {

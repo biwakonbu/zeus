@@ -283,11 +283,11 @@ func TestTimelineBuilder_Stats(t *testing.T) {
 		t.Fatalf("Build failed: %v", err)
 	}
 
-	if timeline.Stats.TotalTasks != 3 {
-		t.Errorf("expected TotalTasks 3, got %d", timeline.Stats.TotalTasks)
+	if timeline.Stats.TotalActivities != 3 {
+		t.Errorf("expected TotalActivities 3, got %d", timeline.Stats.TotalActivities)
 	}
-	if timeline.Stats.TasksWithDates != 2 {
-		t.Errorf("expected TasksWithDates 2, got %d", timeline.Stats.TasksWithDates)
+	if timeline.Stats.ActivitiesWithDates != 2 {
+		t.Errorf("expected ActivitiesWithDates 2, got %d", timeline.Stats.ActivitiesWithDates)
 	}
 }
 
@@ -309,8 +309,8 @@ func TestTimelineBuilder_Stats_Overdue(t *testing.T) {
 		t.Fatalf("Build failed: %v", err)
 	}
 
-	if timeline.Stats.OverdueTasks != 2 {
-		t.Errorf("expected OverdueTasks 2, got %d", timeline.Stats.OverdueTasks)
+	if timeline.Stats.OverdueActivities != 2 {
+		t.Errorf("expected OverdueActivities 2, got %d", timeline.Stats.OverdueActivities)
 	}
 }
 
@@ -396,8 +396,8 @@ func TestTimelineBuilder_TasksWithoutDates(t *testing.T) {
 	if len(timeline.Items) != 0 {
 		t.Errorf("expected 0 items for tasks without dates, got %d", len(timeline.Items))
 	}
-	if timeline.Stats.TasksWithDates != 0 {
-		t.Errorf("expected TasksWithDates 0, got %d", timeline.Stats.TasksWithDates)
+	if timeline.Stats.ActivitiesWithDates != 0 {
+		t.Errorf("expected ActivitiesWithDates 0, got %d", timeline.Stats.ActivitiesWithDates)
 	}
 }
 
@@ -418,8 +418,8 @@ func TestTimelineBuilder_MixedTasks(t *testing.T) {
 	if len(timeline.Items) != 1 {
 		t.Errorf("expected 1 item, got %d", len(timeline.Items))
 	}
-	if timeline.Stats.TotalTasks != 2 {
-		t.Errorf("expected TotalTasks 2, got %d", timeline.Stats.TotalTasks)
+	if timeline.Stats.TotalActivities != 2 {
+		t.Errorf("expected TotalActivities 2, got %d", timeline.Stats.TotalActivities)
 	}
 }
 

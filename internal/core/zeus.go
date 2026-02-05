@@ -735,7 +735,7 @@ func (z *Zeus) explainProject(ctx context.Context, includeContext bool) (*Explai
 	// 詳細を生成
 	details := fmt.Sprintf("現在の健全性: %s\nタスク: 全 %d 件 (完了: %d, 進行中: %d, 保留: %d)",
 		state.Health,
-		state.Summary.TotalTasks,
+		state.Summary.TotalActivities,
 		state.Summary.Completed,
 		state.Summary.InProgress,
 		state.Summary.Pending)
@@ -1037,11 +1037,11 @@ func toAnalysisUseCaseInfo(usecases []UseCaseEntity) []analysis.UseCaseInfo {
 func toAnalysisProjectState(state *ProjectState) *analysis.ProjectState {
 	return &analysis.ProjectState{
 		Health: string(state.Health),
-		Summary: analysis.TaskStats{
-			TotalTasks: state.Summary.TotalTasks,
-			Completed:  state.Summary.Completed,
-			InProgress: state.Summary.InProgress,
-			Pending:    state.Summary.Pending,
+		Summary: analysis.SummaryStats{
+			TotalActivities: state.Summary.TotalActivities,
+			Completed:       state.Summary.Completed,
+			InProgress:      state.Summary.InProgress,
+			Pending:         state.Summary.Pending,
 		},
 	}
 }
@@ -1054,11 +1054,11 @@ func toAnalysisSnapshots(snapshots []Snapshot) []analysis.Snapshot {
 			Timestamp: s.Timestamp,
 			State: analysis.ProjectState{
 				Health: string(s.State.Health),
-				Summary: analysis.TaskStats{
-					TotalTasks: s.State.Summary.TotalTasks,
-					Completed:  s.State.Summary.Completed,
-					InProgress: s.State.Summary.InProgress,
-					Pending:    s.State.Summary.Pending,
+				Summary: analysis.SummaryStats{
+					TotalActivities: s.State.Summary.TotalActivities,
+					Completed:       s.State.Summary.Completed,
+					InProgress:      s.State.Summary.InProgress,
+					Pending:         s.State.Summary.Pending,
 				},
 			},
 		}
@@ -1082,11 +1082,11 @@ func toReportConfig(config *ZeusConfig) *report.ZeusConfig {
 func toReportProjectState(state *ProjectState) *report.ProjectState {
 	return &report.ProjectState{
 		Health: string(state.Health),
-		Summary: report.TaskStats{
-			TotalTasks: state.Summary.TotalTasks,
-			Completed:  state.Summary.Completed,
-			InProgress: state.Summary.InProgress,
-			Pending:    state.Summary.Pending,
+		Summary: report.SummaryStats{
+			TotalActivities: state.Summary.TotalActivities,
+			Completed:       state.Summary.Completed,
+			InProgress:      state.Summary.InProgress,
+			Pending:         state.Summary.Pending,
 		},
 	}
 }

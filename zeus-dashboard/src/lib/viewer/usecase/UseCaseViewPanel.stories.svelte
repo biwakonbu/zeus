@@ -67,7 +67,11 @@
 					id: 'A1',
 					name: '新規配送先追加',
 					condition: 'ユーザーが新しい配送先を追加したい場合',
-					steps: ['ユーザーは「新規住所を追加」を選択', 'システムは住所入力フォームを表示', 'ユーザーは住所情報を入力して保存'],
+					steps: [
+						'ユーザーは「新規住所を追加」を選択',
+						'システムは住所入力フォームを表示',
+						'ユーザーは住所情報を入力して保存'
+					],
 					rejoins_at: 'メインフロー ステップ2'
 				}
 			],
@@ -76,7 +80,10 @@
 					id: 'E1',
 					name: '決済失敗',
 					trigger: '決済処理が失敗した場合',
-					steps: ['システムはエラーメッセージを表示', 'ユーザーは別の支払い方法を選択するか、キャンセルする'],
+					steps: [
+						'システムはエラーメッセージを表示',
+						'ユーザーは別の支払い方法を選択するか、キャンセルする'
+					],
 					outcome: 'メインフロー ステップ3 に戻る、またはキャンセル'
 				}
 			],
@@ -114,7 +121,9 @@
 
 <!-- Actor 詳細 -->
 <Story name="ActorDetail">
-	<div style="width: 360px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;">
+	<div
+		style="width: 360px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;"
+	>
 		<UseCaseViewPanel
 			actor={sampleActors[0]}
 			usecase={null}
@@ -127,7 +136,9 @@
 
 <!-- システムアクター詳細 -->
 <Story name="SystemActorDetail">
-	<div style="width: 360px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;">
+	<div
+		style="width: 360px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;"
+	>
 		<UseCaseViewPanel
 			actor={sampleActors[2]}
 			usecase={null}
@@ -140,7 +151,9 @@
 
 <!-- UseCase 詳細（シンプル） -->
 <Story name="UseCaseSimple">
-	<div style="width: 360px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;">
+	<div
+		style="width: 360px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;"
+	>
 		<UseCaseViewPanel
 			actor={null}
 			usecase={sampleUseCases[0]}
@@ -153,7 +166,9 @@
 
 <!-- UseCase 詳細（リレーションあり） -->
 <Story name="UseCaseWithRelations">
-	<div style="width: 360px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;">
+	<div
+		style="width: 360px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;"
+	>
 		<UseCaseViewPanel
 			actor={null}
 			usecase={sampleUseCases[1]}
@@ -166,7 +181,9 @@
 
 <!-- UseCase 詳細（シナリオあり） -->
 <Story name="UseCaseWithScenario">
-	<div style="width: 400px; height: 700px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;">
+	<div
+		style="width: 400px; height: 700px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;"
+	>
 		<UseCaseViewPanel
 			actor={null}
 			usecase={useCaseWithScenario}
@@ -180,7 +197,9 @@
 
 <!-- 未選択状態 -->
 <Story name="Empty">
-	<div style="width: 360px; height: 300px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;">
+	<div
+		style="width: 360px; height: 300px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;"
+	>
 		<UseCaseViewPanel
 			actor={null}
 			usecase={null}

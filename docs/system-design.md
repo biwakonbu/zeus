@@ -94,7 +94,7 @@ Zeusは、AIによるプロジェクトマネジメントを「神の視点」�
 | Zeus | メインロジック、プロジェクト初期化、コマンド実行 |
 | StateManager | 状態スナップショット管理、履歴追跡 |
 | ApprovalManager | 3段階承認フロー (auto/notify/approve)、ファイルロック |
-| TaskHandler | タスクエンティティの CRUD 操作 |
+| ActivityHandler | Activity エンティティの CRUD 操作 |
 | EntityRegistry | エンティティハンドラーの登録・取得 |
 
 #### 2.3.2 分析パッケージ (internal/analysis/)
@@ -177,7 +177,7 @@ tasks:
 snapshot:
   timestamp: "2024-01-14T16:00:00Z"
   summary:
-    total_tasks: 42
+    total_activities: 42
     completed: 15
     in_progress: 10
     pending: 17
@@ -424,17 +424,17 @@ zeus-dashboard/src/lib/viewer/
 
 #### 3.6.1 データモデル拡張
 
-Task 型に以下のフィールドを追加（全て optional、後方互換性維持）:
+Activity 型に以下のフィールドを追加（全て optional、後方互換性維持）:
 
 ```yaml
-# タスク定義の拡張フィールド
-tasks:
-  - id: "task-001"
+# Activity 定義の拡張フィールド
+activities:
+  - id: "act-001"
     title: "Design core data structure"
     # 既存フィールド...
 
     # Phase 6 拡張フィールド
-    parent_id: "task-000"      # 親タスクID（WBS階層）
+    parent_id: "act-000"       # 親 Activity ID（WBS階層）
     start_date: "2026-01-01"   # 開始日（ISO8601）
     due_date: "2026-01-15"     # 期限日（ISO8601）
     progress: 75               # 進捗率（0-100）
@@ -445,7 +445,7 @@ tasks:
 
 **コマンド:**
 ```bash
-zeus add task "子タスク" --parent <parent-task-id>
+zeus add activity "子 Activity" --parent <parent-activity-id>
 ```
 
 **API レスポンス（/api/wbs）:**
@@ -453,14 +453,14 @@ zeus add task "子タスク" --parent <parent-task-id>
 {
   "roots": [
     {
-      "id": "task-1",
+      "id": "act-001",
       "title": "プロジェクト設計",
       "wbs_code": "1",
       "status": "in_progress",
       "progress": 80,
       "children": [
         {
-          "id": "task-2",
+          "id": "act-002",
           "title": "要件定義",
           "wbs_code": "1.1",
           "status": "completed",
@@ -493,7 +493,7 @@ zeus add task "子タスク" --parent <parent-task-id>
 {
   "items": [
     {
-      "task_id": "task-1",
+      "activity_id": "act-001",
       "title": "要件定義",
       "start_date": "2026-01-01",
       "end_date": "2026-01-15",
@@ -504,41 +504,41 @@ zeus add task "子タスク" --parent <parent-task-id>
       "dependencies": []
     }
   ],
-  "critical_path": ["task-1", "task-3", "task-5"],
+  "critical_path": ["act-001", "act-003", "act-005"],
   "project_start": "2026-01-01",
   "project_end": "2026-03-31",
   "total_duration": 90,
   "stats": {
-    "total_tasks": 20,
-    "tasks_with_dates": 15,
+    "total_activities": 20,
+    "activities_with_dates": 15,
     "on_critical_path": 5,
     "average_slack": 3.5,
-    "overdue_tasks": 2
+    "overdue_activities": 2
   }
 }
 ```
 
 **クリティカルパス計算:**
 - CPM（Critical Path Method）アルゴリズムを使用
-- 各タスクの slack（余裕時間）を計算
-- クリティカルパス上のタスクは slack = 0
+- 各 Activity の slack（余裕時間）を計算
+- クリティカルパス上の Activity は slack = 0
 
 #### 3.6.4 影響範囲可視化
 
-**API レスポンス（/api/downstream?task_id=X）:**
+**API レスポンス（/api/downstream?id=X）:**
 ```json
 {
-  "task_id": "task-3",
-  "downstream": ["task-5", "task-7", "task-8"],
-  "upstream": ["task-1", "task-2"],
+  "activity_id": "act-003",
+  "downstream": ["act-005", "act-007", "act-008"],
+  "upstream": ["act-001", "act-002"],
   "count": 5
 }
 ```
 
 **フロントエンド機能:**
-- ノードホバー時に下流タスクを黄色でハイライト
-- 上流タスクを青色でハイライト
-- 選択タスクはオレンジ色で強調
+- ノードホバー時に下流 Activity を黄色でハイライト
+- 上流 Activity を青色でハイライト
+- 選択 Activity はオレンジ色で強調
 
 #### 3.6.5 ビュー切り替え
 
@@ -553,7 +553,7 @@ zeus add task "子タスク" --parent <parent-task-id>
 ### 3.7 フィードバックシステム
 
 #### 3.7.1 自動追跡
-- タスク完了時の見積もり精度
+- Activity 完了時の見積もり精度
 - オーバーライド時の差分
 - 承認/却下の結果
 

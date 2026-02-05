@@ -85,10 +85,7 @@
 		</div>
 
 		<div class="header-center">
-			<ViewSwitcher
-				currentView={$currentView}
-				onViewChange={handleViewChange}
-			/>
+			<ViewSwitcher currentView={$currentView} onViewChange={handleViewChange} />
 		</div>
 
 		<div class="header-right">
@@ -117,14 +114,29 @@
 					<div class="control-separator"></div>
 
 					<!-- ズームコントロール -->
-					<button class="control-btn" onclick={handleZoomOut} aria-label="ズームアウト" title="ズームアウト">
+					<button
+						class="control-btn"
+						onclick={handleZoomOut}
+						aria-label="ズームアウト"
+						title="ズームアウト"
+					>
 						<Icon name="Minus" size={16} />
 					</button>
 					<span class="zoom-display">{Math.round($usecaseViewState.zoom * 100)}%</span>
-					<button class="control-btn" onclick={handleZoomIn} aria-label="ズームイン" title="ズームイン">
+					<button
+						class="control-btn"
+						onclick={handleZoomIn}
+						aria-label="ズームイン"
+						title="ズームイン"
+					>
 						<Icon name="Plus" size={16} />
 					</button>
-					<button class="control-btn" onclick={handleZoomReset} aria-label="リセット" title="ビューをリセット">
+					<button
+						class="control-btn"
+						onclick={handleZoomReset}
+						aria-label="リセット"
+						title="ビューをリセット"
+					>
 						<Icon name="Maximize2" size={16} />
 					</button>
 				</div>
@@ -188,14 +200,29 @@
 					<div class="control-separator"></div>
 
 					<!-- ズームコントロール -->
-					<button class="control-btn" onclick={handleGraphZoomOut} aria-label="ズームアウト" title="ズームアウト">
+					<button
+						class="control-btn"
+						onclick={handleGraphZoomOut}
+						aria-label="ズームアウト"
+						title="ズームアウト"
+					>
 						<Icon name="Minus" size={16} />
 					</button>
 					<span class="zoom-display">{Math.round($graphViewState.zoom * 100)}%</span>
-					<button class="control-btn" onclick={handleGraphZoomIn} aria-label="ズームイン" title="ズームイン">
+					<button
+						class="control-btn"
+						onclick={handleGraphZoomIn}
+						aria-label="ズームイン"
+						title="ズームイン"
+					>
 						<Icon name="Plus" size={16} />
 					</button>
-					<button class="control-btn" onclick={handleGraphZoomReset} aria-label="リセット" title="ビューをリセット">
+					<button
+						class="control-btn"
+						onclick={handleGraphZoomReset}
+						aria-label="リセット"
+						title="ビューをリセット"
+					>
 						<Icon name="Maximize2" size={16} />
 					</button>
 				</div>

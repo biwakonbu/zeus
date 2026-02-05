@@ -23,10 +23,13 @@
 	let focusedIndex = $state(-1); // -1 = trigger focused, 0 = 全て, 1+ = options
 
 	// 全オプション（「全て」を含む）
-	const allOptions = $derived([{ id: null, label: '全て' }, ...options.map((o) => ({ id: o.id, label: o.label }))]);
+	const allOptions = $derived([
+		{ id: null, label: '全て' },
+		...options.map((o) => ({ id: o.id, label: o.label }))
+	]);
 
 	const selectedLabel = $derived(
-		selected ? options.find((o) => o.id === selected)?.label ?? placeholder : placeholder
+		selected ? (options.find((o) => o.id === selected)?.label ?? placeholder) : placeholder
 	);
 
 	function handleToggle() {
@@ -179,11 +182,7 @@
 		justify-content: space-between;
 		width: 100%;
 		padding: 0.5rem 0.75rem;
-		background: linear-gradient(
-			180deg,
-			rgba(25, 25, 25, 0.9) 0%,
-			rgba(20, 20, 20, 0.95) 100%
-		);
+		background: linear-gradient(180deg, rgba(25, 25, 25, 0.9) 0%, rgba(20, 20, 20, 0.95) 100%);
 		border: 2px solid var(--border-metal);
 		border-radius: var(--border-radius-sm);
 		color: var(--text-primary);
@@ -244,11 +243,7 @@
 		right: 0;
 		max-height: 200px;
 		overflow-y: auto;
-		background: linear-gradient(
-			180deg,
-			rgba(45, 45, 45, 0.98) 0%,
-			rgba(36, 36, 36, 0.95) 100%
-		);
+		background: linear-gradient(180deg, rgba(45, 45, 45, 0.98) 0%, rgba(36, 36, 36, 0.95) 100%);
 		border: 2px solid var(--border-metal);
 		border-radius: var(--border-radius-sm);
 		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);

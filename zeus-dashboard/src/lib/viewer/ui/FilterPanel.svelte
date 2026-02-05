@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { TaskStatus, Priority } from '$lib/types/api';
+	import type { EntityStatus, Priority } from '$lib/types/api';
 	import type { FilterCriteria } from '../interaction/FilterManager';
 
 	// Props
 	interface Props {
 		criteria: FilterCriteria;
 		availableAssignees: string[];
-		onStatusToggle: (status: TaskStatus) => void;
+		onStatusToggle: (status: EntityStatus) => void;
 		onPriorityToggle: (priority: Priority) => void;
 		onAssigneeToggle: (assignee: string) => void;
 		onSearchChange: (text: string) => void;
@@ -27,7 +27,7 @@
 	let isExpanded = $state(true);
 
 	// ステータス一覧
-	const statuses: { value: TaskStatus; label: string; color: string }[] = [
+	const statuses: { value: EntityStatus; label: string; color: string }[] = [
 		{ value: 'completed', label: 'Completed', color: 'var(--task-completed)' },
 		{ value: 'in_progress', label: 'In Progress', color: 'var(--task-in-progress)' },
 		{ value: 'pending', label: 'Pending', color: 'var(--task-pending)' },
@@ -57,7 +57,7 @@
 		onSearchChange(value);
 	}
 
-	function isStatusActive(status: TaskStatus): boolean {
+	function isStatusActive(status: EntityStatus): boolean {
 		return criteria.statuses?.includes(status) ?? false;
 	}
 

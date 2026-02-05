@@ -110,14 +110,14 @@
 	function getNodeTypeColor(nodeType: GraphNodeType): string {
 		switch (nodeType) {
 			case 'vision':
-				return '#ffd700';  // ゴールド
+				return '#ffd700'; // ゴールド
 			case 'objective':
-				return '#6699ff';  // ブルー
+				return '#6699ff'; // ブルー
 			case 'deliverable':
-				return '#66cc99';  // グリーン
+				return '#66cc99'; // グリーン
 			case 'task':
 			default:
-				return '#888888';  // グレー
+				return '#888888'; // グレー
 		}
 	}
 

@@ -75,11 +75,7 @@
 		display: flex;
 		gap: 0;
 		min-width: fit-content; /* 内容に応じた最小幅を確保 */
-		background: linear-gradient(
-			180deg,
-			rgba(25, 25, 25, 0.9) 0%,
-			rgba(20, 20, 20, 0.95) 100%
-		);
+		background: linear-gradient(180deg, rgba(25, 25, 25, 0.9) 0%, rgba(20, 20, 20, 0.95) 100%);
 		border: 2px solid var(--border-metal);
 		border-radius: var(--border-radius-sm);
 		overflow: hidden;

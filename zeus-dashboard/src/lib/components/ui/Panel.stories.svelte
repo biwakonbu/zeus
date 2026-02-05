@@ -62,7 +62,11 @@
 <!-- エラー状態 -->
 <Story name="Error">
 	<div style="width: 400px;">
-		<Panel title="接続エラー" icon="🔌" error="サーバーへの接続に失敗しました。再試行してください。">
+		<Panel
+			title="接続エラー"
+			icon="🔌"
+			error="サーバーへの接続に失敗しました。再試行してください。"
+		>
 			<p>このコンテンツは表示されません</p>
 		</Panel>
 	</div>
@@ -76,7 +80,9 @@
 				<Badge variant="success">稼働中</Badge>
 			{/snippet}
 			<div style="display: flex; flex-direction: column; gap: 12px;">
-				<div style="display: flex; justify-content: space-between; color: var(--text-secondary); font-size: 14px;">
+				<div
+					style="display: flex; justify-content: space-between; color: var(--text-secondary); font-size: 14px;"
+				>
 					<span>完了タスク</span>
 					<span>12 / 20</span>
 				</div>
@@ -94,20 +100,29 @@
 				<Badge variant="warning" size="sm">IN PROGRESS</Badge>
 			{/snippet}
 			<div style="display: flex; flex-direction: column; gap: 12px;">
-				<div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border-dark);">
+				<div
+					style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border-dark);"
+				>
 					<span style="color: var(--text-secondary); font-size: 12px;">タスク ID</span>
 					<span style="color: var(--accent-primary); font-family: monospace;">task-42</span>
 				</div>
-				<div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border-dark);">
+				<div
+					style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border-dark);"
+				>
 					<span style="color: var(--text-secondary); font-size: 12px;">担当者</span>
 					<span style="color: var(--text-primary);">alice</span>
 				</div>
-				<div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border-dark);">
+				<div
+					style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border-dark);"
+				>
 					<span style="color: var(--text-secondary); font-size: 12px;">優先度</span>
 					<Badge variant="danger" size="sm">HIGH</Badge>
 				</div>
 				<div>
-					<span style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 8px;">進捗</span>
+					<span
+						style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 8px;"
+						>進捗</span
+					>
 					<ProgressBar value={60} size="sm" />
 				</div>
 			</div>
@@ -131,7 +146,9 @@
 			{#snippet headerRight()}
 				<Badge variant="info" size="sm">INFO</Badge>
 			{/snippet}
-			<p style="color: var(--text-secondary); font-size: 14px;">ヘッダー右にコンテンツを追加できます。</p>
+			<p style="color: var(--text-secondary); font-size: 14px;">
+				ヘッダー右にコンテンツを追加できます。
+			</p>
 		</Panel>
 	</div>
 </Story>

@@ -204,9 +204,7 @@
 			onNavigate={handleInteractiveNavigate}
 		/>
 		<div class="viewport-info">
-			<p style="color: #888; font-size: 11px; margin-bottom: 4px;">
-				クリックでビューポートを移動
-			</p>
+			<p style="color: #888; font-size: 11px; margin-bottom: 4px;">クリックでビューポートを移動</p>
 			<pre style="color: #f5a623; font-size: 10px;">
 x: {Math.round(interactiveViewport.x)}, y: {Math.round(interactiveViewport.y)}
 			</pre>
@@ -227,34 +225,24 @@ x: {Math.round(interactiveViewport.x)}, y: {Math.round(interactiveViewport.y)}
 			/>
 		</div>
 		<div style="padding: 12px; background: #2d2d2d; border-radius: 4px;">
-			<p
-				style="color: #888; font-size: 11px; margin-bottom: 8px; text-transform: uppercase;"
-			>
+			<p style="color: #888; font-size: 11px; margin-bottom: 8px; text-transform: uppercase;">
 				Status Colors
 			</p>
 			<div style="display: flex; flex-direction: column; gap: 6px;">
 				<div style="display: flex; align-items: center; gap: 8px;">
-					<span
-						style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e;"
-					></span>
+					<span style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e;"></span>
 					<span style="color: #888; font-size: 11px;">Completed</span>
 				</div>
 				<div style="display: flex; align-items: center; gap: 8px;">
-					<span
-						style="width: 8px; height: 8px; border-radius: 50%; background: #3b82f6;"
-					></span>
+					<span style="width: 8px; height: 8px; border-radius: 50%; background: #3b82f6;"></span>
 					<span style="color: #888; font-size: 11px;">In Progress</span>
 				</div>
 				<div style="display: flex; align-items: center; gap: 8px;">
-					<span
-						style="width: 8px; height: 8px; border-radius: 50%; background: #f5a623;"
-					></span>
+					<span style="width: 8px; height: 8px; border-radius: 50%; background: #f5a623;"></span>
 					<span style="color: #888; font-size: 11px;">Pending</span>
 				</div>
 				<div style="display: flex; align-items: center; gap: 8px;">
-					<span
-						style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"
-					></span>
+					<span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span>
 					<span style="color: #888; font-size: 11px;">Blocked</span>
 				</div>
 			</div>

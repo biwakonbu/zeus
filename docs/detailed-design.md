@@ -967,19 +967,21 @@ func (o *Objective) Validate() error {
 
 ## 付録: 移行ルール
 
-### Task → Objective/Deliverable 移行
+### Activity と Objective/Deliverable の関係
 
-| 旧 Task 種別 | 移行先 |
-|-------------|--------|
-| 親タスク（子を持つ） | Objective |
-| 子タスク | Deliverable |
-| 単独タスク | ユーザー選択（デフォルト: Deliverable） |
+Activity は実行可能な作業単位として、Objective や Deliverable と関連付けられます。
 
-**状態マッピング:**
-- `pending` → `draft`
-- `in_progress` → `active`(Obj) / `in_progress`(Del)
-- `completed` → `completed`
-- `blocked` → `on_hold`(Obj) / `in_progress`(Del)
+| Activity の用途 | 関連エンティティ |
+|----------------|-----------------|
+| 目標達成のための作業 | Objective に関連 |
+| 成果物作成の作業 | Deliverable に関連 |
+| UseCase の実装作業 | UseCase に関連 |
+
+**Activity ステータス:**
+- `pending` - 未着手
+- `in_progress` - 作業中
+- `completed` - 完了
+- `blocked` - ブロック中
 
 ---
 
@@ -1025,7 +1027,7 @@ Activity は Deliverable との対応関係を明示することを推奨しま�
 | Activity | `related_deliverables` | **推奨** | Activity 全体の関連 Deliverable を俯瞰 |
 | action | `deliverable_ids` | 任意 | 特定 action と Deliverable の明示的対応 |
 
-**対応関係**: 多対1（複数 Task/Deliverable が 1 action に対応可）
+**対応関係**: 多対1（複数 Activity/Deliverable が 1 action に対応可）
 
 ```yaml
 # Activity レベル（推奨）

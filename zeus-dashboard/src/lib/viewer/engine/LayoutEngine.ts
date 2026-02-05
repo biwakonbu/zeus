@@ -4,8 +4,8 @@ import { TaskNode } from '../rendering/TaskNode';
 
 // レイアウト設定
 const HORIZONTAL_SPACING = 250; // ノード間の水平距離
-const VERTICAL_SPACING = 120;   // ノード間の垂直距離
-const LAYER_PADDING = 50;       // レイヤー間のパディング
+const VERTICAL_SPACING = 120; // ノード間の垂直距離
+const LAYER_PADDING = 50; // レイヤー間のパディング
 
 /**
  * ノードの位置情報
@@ -61,7 +61,7 @@ export class LayoutEngine {
 	private computeLayoutHash(tasks: GraphNode[]): string {
 		// タスクIDと依存関係のみでハッシュを計算（ステータス等は無視）
 		return tasks
-			.map(t => `${t.id}:${t.dependencies.sort().join(',')}`)
+			.map((t) => `${t.id}:${t.dependencies.sort().join(',')}`)
 			.sort()
 			.join('|');
 	}
@@ -115,12 +115,12 @@ export class LayoutEngine {
 	 */
 	layoutSubset(tasks: GraphNode[], visibleIds: Set<string>): LayoutResult {
 		// フィルター対象のタスクのみ抽出
-		const filteredTasks = tasks.filter(t => visibleIds.has(t.id));
+		const filteredTasks = tasks.filter((t) => visibleIds.has(t.id));
 
 		// 依存関係も可視ノード内のみに制限
-		const adjustedTasks = filteredTasks.map(t => ({
+		const adjustedTasks = filteredTasks.map((t) => ({
 			...t,
-			dependencies: t.dependencies.filter(d => visibleIds.has(d))
+			dependencies: t.dependencies.filter((d) => visibleIds.has(d))
 		}));
 
 		// キャッシュを使わず新しいレイアウトを計算
@@ -150,7 +150,7 @@ export class LayoutEngine {
 		}
 
 		// エッジを追加
-		const taskIds = new Set(tasks.map(t => t.id));
+		const taskIds = new Set(tasks.map((t) => t.id));
 		for (const task of tasks) {
 			for (const depId of task.dependencies) {
 				// 依存先が存在する場合のみ追加
@@ -174,12 +174,12 @@ export class LayoutEngine {
 	): string[][] {
 		const layers: string[][] = [];
 		const nodeLayer = new Map<string, number>();
-		const remaining = new Set(tasks.map(t => t.id));
+		const remaining = new Set(tasks.map((t) => t.id));
 
 		// 依存のないノードをレイヤー0に
 		const rootNodes = tasks
-			.filter(t => t.dependencies.length === 0 || !t.dependencies.some(d => remaining.has(d)))
-			.map(t => t.id);
+			.filter((t) => t.dependencies.length === 0 || !t.dependencies.some((d) => remaining.has(d)))
+			.map((t) => t.id);
 
 		if (rootNodes.length === 0 && remaining.size > 0) {
 			// 循環依存がある場合、任意のノードをルートに
@@ -205,7 +205,7 @@ export class LayoutEngine {
 			for (const nodeId of remaining) {
 				const deps = graph.outgoing.get(nodeId) || new Set();
 				// 全ての依存が処理済みならこのレイヤーに追加
-				const allDepsProcessed = Array.from(deps).every(d => nodeLayer.has(d));
+				const allDepsProcessed = Array.from(deps).every((d) => nodeLayer.has(d));
 				if (allDepsProcessed) {
 					nextNodes.push(nodeId);
 				}
@@ -270,9 +270,10 @@ export class LayoutEngine {
 		const barycenters: { id: string; value: number }[] = [];
 
 		for (const nodeId of layer) {
-			const connections = direction === 'down'
-				? graph.outgoing.get(nodeId) || new Set()
-				: graph.incoming.get(nodeId) || new Set();
+			const connections =
+				direction === 'down'
+					? graph.outgoing.get(nodeId) || new Set()
+					: graph.incoming.get(nodeId) || new Set();
 
 			let sum = 0;
 			let count = 0;
@@ -291,7 +292,7 @@ export class LayoutEngine {
 
 		// バリセンターでソート
 		barycenters.sort((a, b) => a.value - b.value);
-		layers[layerIndex] = barycenters.map(b => b.id);
+		layers[layerIndex] = barycenters.map((b) => b.id);
 	}
 
 	/**

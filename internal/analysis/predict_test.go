@@ -9,11 +9,11 @@ import (
 func TestNewPredictor(t *testing.T) {
 	state := &ProjectState{
 		Health: "Good",
-		Summary: TaskStats{
-			TotalTasks: 10,
-			Completed:  5,
-			InProgress: 3,
-			Pending:    2,
+		Summary: SummaryStats{
+			TotalActivities: 10,
+			Completed:       5,
+			InProgress:      3,
+			Pending:         2,
 		},
 	}
 
@@ -38,11 +38,11 @@ func TestPredictor_PredictCompletion_NoHistory(t *testing.T) {
 
 	state := &ProjectState{
 		Health: "Good",
-		Summary: TaskStats{
-			TotalTasks: 10,
-			Completed:  5,
-			InProgress: 3,
-			Pending:    2,
+		Summary: SummaryStats{
+			TotalActivities: 10,
+			Completed:       5,
+			InProgress:      3,
+			Pending:         2,
 		},
 	}
 
@@ -80,11 +80,11 @@ func TestPredictor_PredictCompletion_AllCompleted(t *testing.T) {
 
 	state := &ProjectState{
 		Health: "Excellent",
-		Summary: TaskStats{
-			TotalTasks: 3,
-			Completed:  3,
-			InProgress: 0,
-			Pending:    0,
+		Summary: SummaryStats{
+			TotalActivities: 3,
+			Completed:       3,
+			InProgress:      0,
+			Pending:         0,
 		},
 	}
 
@@ -136,11 +136,11 @@ func TestPredictor_PredictRisk_NoFactors(t *testing.T) {
 	// リスク要因がないケース
 	state := &ProjectState{
 		Health: "Good",
-		Summary: TaskStats{
-			TotalTasks: 10,
-			Completed:  8, // 完了率80%（低完了率の閾値以上）
-			InProgress: 1, // WIPが少ない
-			Pending:    1,
+		Summary: SummaryStats{
+			TotalActivities: 10,
+			Completed:       8, // 完了率80%（低完了率の閾値以上）
+			InProgress:      1, // WIPが少ない
+			Pending:         1,
 		},
 	}
 
@@ -171,11 +171,11 @@ func TestPredictor_PredictRisk_WithBlockedTasks(t *testing.T) {
 
 	state := &ProjectState{
 		Health: "Fair",
-		Summary: TaskStats{
-			TotalTasks: 10,
-			Completed:  2,
-			InProgress: 3,
-			Pending:    5,
+		Summary: SummaryStats{
+			TotalActivities: 10,
+			Completed:       2,
+			InProgress:      3,
+			Pending:         5,
 		},
 	}
 
@@ -211,11 +211,11 @@ func TestPredictor_PredictRisk_HighWIP(t *testing.T) {
 
 	state := &ProjectState{
 		Health: "Fair",
-		Summary: TaskStats{
-			TotalTasks: 20,
-			Completed:  10,
-			InProgress: 8, // WIP > 5
-			Pending:    2,
+		Summary: SummaryStats{
+			TotalActivities: 20,
+			Completed:       10,
+			InProgress:      8, // WIP > 5
+			Pending:         2,
 		},
 	}
 
@@ -247,11 +247,11 @@ func TestPredictor_PredictRisk_LowCompletionRate(t *testing.T) {
 
 	state := &ProjectState{
 		Health: "Poor",
-		Summary: TaskStats{
-			TotalTasks: 100,
-			Completed:  10, // 完了率10%（閾値30%未満）
-			InProgress: 5,
-			Pending:    85,
+		Summary: SummaryStats{
+			TotalActivities: 100,
+			Completed:       10, // 完了率10%（閾値30%未満）
+			InProgress:      5,
+			Pending:         85,
 		},
 	}
 
@@ -283,11 +283,11 @@ func TestPredictor_PredictRisk_HighRiskScore(t *testing.T) {
 	// 複数のリスク要因があるケース
 	state := &ProjectState{
 		Health: "Poor",
-		Summary: TaskStats{
-			TotalTasks: 20,
-			Completed:  2, // 完了率10%
-			InProgress: 8, // WIP > 5
-			Pending:    10,
+		Summary: SummaryStats{
+			TotalActivities: 20,
+			Completed:       2, // 完了率10%
+			InProgress:      8, // WIP > 5
+			Pending:         10,
 		},
 	}
 
@@ -341,19 +341,19 @@ func TestPredictor_CalculateVelocity_WithHistory(t *testing.T) {
 		{
 			Timestamp: now.Format(time.RFC3339),
 			State: ProjectState{
-				Summary: TaskStats{Completed: 10},
+				Summary: SummaryStats{Completed: 10},
 			},
 		},
 		{
 			Timestamp: now.AddDate(0, 0, -7).Format(time.RFC3339),
 			State: ProjectState{
-				Summary: TaskStats{Completed: 5},
+				Summary: SummaryStats{Completed: 5},
 			},
 		},
 		{
 			Timestamp: now.AddDate(0, 0, -14).Format(time.RFC3339),
 			State: ProjectState{
-				Summary: TaskStats{Completed: 2},
+				Summary: SummaryStats{Completed: 2},
 			},
 		},
 	}

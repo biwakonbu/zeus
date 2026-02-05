@@ -12,7 +12,7 @@ Health:  {{.Health}}
 
 TASK SUMMARY
 ------------
-  Total:       {{.TaskStats.TotalTasks}}
+  Total:       {{.TaskStats.TotalActivities}}
   Completed:   {{.TaskStats.Completed}}
   In Progress: {{.TaskStats.InProgress}}
   Pending:     {{.TaskStats.Pending}}
@@ -164,7 +164,7 @@ const HTMLTemplate = `<!DOCTYPE html>
             <h2>Task Summary</h2>
             <div class="stats-grid">
                 <div class="stat-item">
-                    <div class="value">{{.TaskStats.TotalTasks}}</div>
+                    <div class="value">{{.TaskStats.TotalActivities}}</div>
                     <div class="label">Total Tasks</div>
                 </div>
                 <div class="stat-item">
@@ -180,7 +180,7 @@ const HTMLTemplate = `<!DOCTYPE html>
                     <div class="label">Pending</div>
                 </div>
             </div>
-            {{if gt .TaskStats.TotalTasks 0}}
+            {{if gt .TaskStats.TotalActivities 0}}
             <div class="progress-bar">
                 <div class="fill" style="width: {{.CompletionPercent}}%;"></div>
             </div>
@@ -291,7 +291,7 @@ const MarkdownTemplate = `# Zeus Project Report
 | Completed | {{.TaskStats.Completed}} | {{.CompletedPercent}}% |
 | In Progress | {{.TaskStats.InProgress}} | {{.InProgressPercent}}% |
 | Pending | {{.TaskStats.Pending}} | {{.PendingPercent}}% |
-| **Total** | **{{.TaskStats.TotalTasks}}** | **100%** |
+| **Total** | **{{.TaskStats.TotalActivities}}** | **100%** |
 
 {{if .HasGraph}}
 ## Dependency Graph

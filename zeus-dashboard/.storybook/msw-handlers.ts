@@ -189,11 +189,11 @@ const mockTimeline: TimelineResponse = {
 	project_end: '2024-02-05',
 	total_duration: 36,
 	stats: {
-		total_tasks: 6,
-		tasks_with_dates: 6,
+		total_activities: 6,
+		activities_with_dates: 6,
 		on_critical_path: 5,
 		average_slack: 2.5,
-		overdue_tasks: 0,
+		overdue_activities: 0,
 		completed_on_time: 2
 	}
 };
@@ -209,7 +209,7 @@ const mockStatus: StatusResponse = {
 	state: {
 		health: 'good',
 		summary: {
-			total_tasks: 6,
+			total_activities: 6,
 			completed: 2,
 			in_progress: 2,
 			pending: 2
@@ -555,7 +555,9 @@ export const handlers = [
 
 		// 簡易的な下流・上流計算
 		const node = mockGraphNodes.find((n) => n.id === taskId);
-		const downstream = mockGraphNodes.filter((n) => n.dependencies.includes(taskId)).map((n) => n.id);
+		const downstream = mockGraphNodes
+			.filter((n) => n.dependencies.includes(taskId))
+			.map((n) => n.id);
 		const upstream = node?.dependencies || [];
 
 		const response: DownstreamResponse = {

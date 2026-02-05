@@ -208,8 +208,8 @@ func TestZeusIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Status failed: %v", err)
 	}
-	if status.State.Summary.TotalTasks != 0 {
-		t.Errorf("expected 0 tasks, got %d", status.State.Summary.TotalTasks)
+	if status.State.Summary.TotalActivities != 0 {
+		t.Errorf("expected 0 tasks, got %d", status.State.Summary.TotalActivities)
 	}
 
 	// Add activity
@@ -478,9 +478,9 @@ func TestRestoreSnapshotIntegration(t *testing.T) {
 	// 復元後の状態を確認（スナップショット時点のタスク数が復元される）
 	status, _ := z.Status(ctx)
 	// 注意: RestoreSnapshot は状態のみを復元し、Activity ストア自体は変更しない
-	if status.State.Summary.TotalTasks != 1 {
+	if status.State.Summary.TotalActivities != 1 {
 		// スナップショット時点では 1 Activity
-		t.Logf("Note: RestoreSnapshot restores state snapshot, tasks count in state: %d", status.State.Summary.TotalTasks)
+		t.Logf("Note: RestoreSnapshot restores state snapshot, tasks count in state: %d", status.State.Summary.TotalActivities)
 	}
 }
 

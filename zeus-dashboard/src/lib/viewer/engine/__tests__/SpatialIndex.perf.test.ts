@@ -110,9 +110,13 @@ describe('SpatialIndex パフォーマンステスト', () => {
 			const viewport = { x: 1000, y: 1000, width: 1920, height: 1080 };
 			const threshold = PERFORMANCE_THRESHOLDS.spatialIndex.query;
 
-			const result = measurePerformance(() => {
-				index.queryRect(viewport);
-			}, 100, 20);
+			const result = measurePerformance(
+				() => {
+					index.queryRect(viewport);
+				},
+				100,
+				20
+			);
 
 			console.log(formatPerformanceResult('ビューポートクエリ', result));
 			assertPerformance(result, threshold, 'ビューポートクエリ');
@@ -126,9 +130,13 @@ describe('SpatialIndex パフォーマンステスト', () => {
 			// 5000アイテムでも同等の閾値を目標
 			const threshold = PERFORMANCE_THRESHOLDS.spatialIndex.query * 2;
 
-			const result = measurePerformance(() => {
-				index.queryRect(viewport);
-			}, 100, 20);
+			const result = measurePerformance(
+				() => {
+					index.queryRect(viewport);
+				},
+				100,
+				20
+			);
 
 			console.log(formatPerformanceResult('ビューポートクエリ (5000)', result));
 			assertPerformance(result, threshold, 'ビューポートクエリ (5000)');
@@ -140,12 +148,16 @@ describe('SpatialIndex パフォーマンステスト', () => {
 
 			const threshold = PERFORMANCE_THRESHOLDS.spatialIndex.pointQuery;
 
-			const result = measurePerformance(() => {
-				// ランダムな位置をクエリ
-				const x = Math.random() * worldBounds.width;
-				const y = Math.random() * worldBounds.height;
-				index.queryPoint(x, y);
-			}, 100, 20);
+			const result = measurePerformance(
+				() => {
+					// ランダムな位置をクエリ
+					const x = Math.random() * worldBounds.width;
+					const y = Math.random() * worldBounds.height;
+					index.queryPoint(x, y);
+				},
+				100,
+				20
+			);
 
 			console.log(formatPerformanceResult('ポイントクエリ', result));
 			assertPerformance(result, threshold, 'ポイントクエリ');
@@ -158,9 +170,13 @@ describe('SpatialIndex パフォーマンステスト', () => {
 			const viewport = { x: 1000, y: 1000, width: 1920, height: 1080 };
 			const margin = 100;
 
-			const result = measurePerformance(() => {
-				index.queryViewport(viewport, margin);
-			}, 50, 10);
+			const result = measurePerformance(
+				() => {
+					index.queryViewport(viewport, margin);
+				},
+				50,
+				10
+			);
 
 			console.log(formatPerformanceResult('queryViewport (マージン付き)', result));
 
@@ -225,21 +241,29 @@ describe('SpatialIndex パフォーマンステスト', () => {
 
 			const viewport = { x: 2500, y: 2500, width: 1920, height: 1080 };
 
-			const quadtreeResult = measurePerformance(() => {
-				quadtree.queryRect(viewport);
-			}, 50, 10);
+			const quadtreeResult = measurePerformance(
+				() => {
+					quadtree.queryRect(viewport);
+				},
+				50,
+				10
+			);
 
 			// ブルートフォース（単純なフィルタ）
-			const bruteforceResult = measurePerformance(() => {
-				items.filter((item) => {
-					return !(
-						item.x > viewport.x + viewport.width ||
-						item.x + item.width < viewport.x ||
-						item.y > viewport.y + viewport.height ||
-						item.y + item.height < viewport.y
-					);
-				});
-			}, 50, 10);
+			const bruteforceResult = measurePerformance(
+				() => {
+					items.filter((item) => {
+						return !(
+							item.x > viewport.x + viewport.width ||
+							item.x + item.width < viewport.x ||
+							item.y > viewport.y + viewport.height ||
+							item.y + item.height < viewport.y
+						);
+					});
+				},
+				50,
+				10
+			);
 
 			console.log(formatPerformanceResult('Quadtree', quadtreeResult));
 			console.log(formatPerformanceResult('ブルートフォース', bruteforceResult));

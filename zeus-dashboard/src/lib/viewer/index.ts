@@ -6,7 +6,11 @@ export { SpatialIndex, type Rect, type SpatialItem } from './engine/SpatialIndex
 export { TaskNode, LODLevel } from './rendering/TaskNode';
 export { TaskEdge, EdgeFactory, EdgeType } from './rendering/TaskEdge';
 export { SelectionManager, type SelectionEvent } from './interaction/SelectionManager';
-export { FilterManager, type FilterCriteria, type FilterChangeEvent } from './interaction/FilterManager';
+export {
+	FilterManager,
+	type FilterCriteria,
+	type FilterChangeEvent
+} from './interaction/FilterManager';
 export { Minimap } from './ui';
 export { FilterPanel } from './ui';
 export { ViewSwitcher, type ViewType } from './ui';

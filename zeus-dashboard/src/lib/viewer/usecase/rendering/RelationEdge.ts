@@ -6,9 +6,9 @@ import { TEXT_RESOLUTION, COMMON_COLORS } from './constants';
 
 // 色定義（Factorio テーマ準拠）
 const COLORS = {
-	include: 0x66cc99,     // 緑（include）
-	extend: 0xffcc00,      // 黄（extend）
-	generalize: 0x4488ff,  // 青（generalize）
+	include: 0x66cc99, // 緑（include）
+	extend: 0xffcc00, // 黄（extend）
+	generalize: 0x4488ff, // 青（generalize）
 	default: COMMON_COLORS.textMuted,
 	highlighted: COMMON_COLORS.highlighted
 };
@@ -18,7 +18,7 @@ const LINE_WIDTH = 2;
 const DASH_LENGTH = 8;
 const GAP_LENGTH = 4;
 const ARROW_SIZE = 10;
-const ARROW_ANGLE = Math.PI / 6;  // 30度
+const ARROW_ANGLE = Math.PI / 6; // 30度
 const LABEL_OFFSET = 10;
 
 /**
@@ -107,7 +107,7 @@ export class RelationEdge extends Graphics {
 
 		const color = this.isHighlighted
 			? COLORS.highlighted
-			: (COLORS[this.relationType] || COLORS.default);
+			: COLORS[this.relationType] || COLORS.default;
 		const width = this.isHighlighted ? LINE_WIDTH + 1 : LINE_WIDTH;
 
 		if (this.relationType === 'generalize') {
@@ -209,7 +209,7 @@ export class RelationEdge extends Graphics {
 		this.lineTo(arrowX1, arrowY1);
 		this.lineTo(arrowX2, arrowY2);
 		this.closePath();
-		this.fill({ color: 0x2d2d2d });  // 内部は背景色
+		this.fill({ color: 0x2d2d2d }); // 内部は背景色
 		this.stroke({ width: LINE_WIDTH, color });
 	}
 
@@ -325,8 +325,8 @@ export class ActorUseCaseEdge extends Graphics {
 	draw(): void {
 		this.clear();
 
-		const color = this.isHighlighted ? 0xff9533 : (this.isPrimary ? 0xe0e0e0 : 0x888888);
-		const width = this.isHighlighted ? 3 : (this.isPrimary ? 2 : 1);
+		const color = this.isHighlighted ? 0xff9533 : this.isPrimary ? 0xe0e0e0 : 0x888888;
+		const width = this.isHighlighted ? 3 : this.isPrimary ? 2 : 1;
 		const alpha = this.isPrimary ? 1.0 : 0.6;
 
 		this.moveTo(this.fromX, this.fromY);

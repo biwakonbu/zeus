@@ -80,7 +80,7 @@ Zeus Project Status
 Project: My Project
 Health:  good
 
-Tasks Summary:
+Activities Summary:
   Total:       10
   Completed:   5
   In Progress: 3
@@ -96,7 +96,7 @@ Pending Approvals: 1
 
 ---
 
-### 2.2 タスク管理
+### 2.2 エンティティ管理
 
 #### add
 
@@ -106,28 +106,28 @@ zeus add <entity> <name>
 ```
 
 **説明**
-新しいエンティティ（タスク等）を追加します。
+新しいエンティティ（Activity 等）を追加します。
 
 **引数**
 | 引数 | 必須 | 説明 |
 |-----|------|-----|
-| `entity` | はい | エンティティタイプ（例: task） |
+| `entity` | はい | エンティティタイプ（例: activity） |
 | `name` | はい | エンティティ名 |
 
 **使用例**
 ```bash
-# タスクを追加
-zeus add task "新機能の実装"
+# Activity を追加
+zeus add activity "新機能の実装"
 ```
 
 **出力例**
 ```
-✓ Added task: 新機能の実装 (ID: task-abc123)
+✓ Added activity: 新機能の実装 (ID: act-abc123)
 ```
 
 承認が必要な場合（`automation_level: approve` の場合）:
 ```
-⏳ task '新機能の実装' は承認待ちキューに追加されました
+⏳ activity '新機能の実装' は承認待ちキューに追加されました
    承認ID: appr-xyz789
    'zeus pending' で確認、'zeus approve <id>' で承認できます
 ```
@@ -1079,21 +1079,21 @@ settings:
   ai_provider: "claude-code"
 ```
 
-### 4.2 Task
+### 4.2 Activity
 
-タスクの構造です。
+Activity の構造です（Simple モード）。
 
 ```yaml
-id: "task-001"
-title: "タスクタイトル"
-description: "タスクの説明"
+id: "act-001"
+title: "Activity タイトル"
+description: "Activity の説明"
 status: "pending"              # pending|in_progress|completed|blocked
 priority: "medium"             # high|medium|low
 assignee: "user"
 estimate_hours: 8.0
 actual_hours: 0.0
 dependencies:
-  - "task-000"
+  - "act-000"
 approval_level: "auto"         # auto|notify|approve
 created_at: "2026-01-15T10:00:00Z"
 updated_at: "2026-01-15T10:00:00Z"
@@ -1106,7 +1106,7 @@ updated_at: "2026-01-15T10:00:00Z"
 ```yaml
 timestamp: "2026-01-15T10:00:00Z"
 summary:
-  total_tasks: 10
+  total_activities: 10
   completed: 5
   in_progress: 3
   pending: 2
@@ -1121,7 +1121,7 @@ risks:
 
 ```yaml
 id: "sug-001"
-type: "new_task"               # new_task|priority_change|dependency|risk_mitigation
+type: "new_activity"           # new_activity|priority_change|dependency|risk_mitigation
 description: "提案の説明"
 rationale: "提案の理由"
 impact: "high"                 # high|medium|low

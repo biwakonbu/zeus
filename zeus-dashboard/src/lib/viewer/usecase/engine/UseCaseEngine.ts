@@ -23,10 +23,10 @@ export interface UseCaseEngineData extends UseCaseDiagramResponse {
 }
 
 // レイアウト定数
-const ACTOR_MARGIN = 80;        // アクター間の垂直マージン
-const USECASE_MARGIN_X = 40;    // ユースケース間の水平マージン
-const USECASE_MARGIN_Y = 30;    // ユースケース間の垂直マージン
-const BOUNDARY_PADDING = 60;    // 境界内のパディング
+const ACTOR_MARGIN = 80; // アクター間の垂直マージン
+const USECASE_MARGIN_X = 40; // ユースケース間の水平マージン
+const USECASE_MARGIN_Y = 30; // ユースケース間の垂直マージン
+const BOUNDARY_PADDING = 60; // 境界内のパディング
 const ACTOR_BOUNDARY_GAP = 100; // アクターとシステム境界の間隔
 
 // ビューポート設定
@@ -58,7 +58,7 @@ function getDefaultConfig(): UseCaseEngineConfig {
 	return {
 		backgroundColor: 0x1a1a1a,
 		antialias: true,
-		resolution: typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1
+		resolution: typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
 	};
 }
 
@@ -401,7 +401,7 @@ export class UseCaseEngine {
 	 * ユースケースにサブシステム参照があるかチェック
 	 */
 	private hasUseCasesWithSubsystem(usecases: UseCaseItem[]): boolean {
-		return usecases.some(uc => uc.subsystem_id);
+		return usecases.some((uc) => uc.subsystem_id);
 	}
 
 	/**
@@ -494,17 +494,11 @@ export class UseCaseEngine {
 		// 境界サイズを計算（実際のノードサイズから）
 		const totalHeight = currentY + rowMaxHeight + BOUNDARY_PADDING;
 
-		const boundaryWidth = Math.max(
-			300,
-			maxRowWidth + BOUNDARY_PADDING
-		);
-		const boundaryHeight = Math.max(
-			200,
-			totalHeight
-		);
+		const boundaryWidth = Math.max(300, maxRowWidth + BOUNDARY_PADDING);
+		const boundaryHeight = Math.max(200, totalHeight);
 
 		// 境界位置を保存
-		this.systemBoundary = null;  // 後で作成
+		this.systemBoundary = null; // 後で作成
 		this.boundarySize = { width: boundaryWidth, height: boundaryHeight };
 		this.boundaryPosition = { x: boundaryX, y: 0 };
 	}
@@ -542,7 +536,7 @@ export class UseCaseEngine {
 		const SUBSYSTEM_GAP = 30;
 		const SUBSYSTEM_PADDING = SubsystemBoundary.getPadding();
 		const SUBSYSTEM_TITLE_HEIGHT = SubsystemBoundary.getTitleHeight();
-		const maxCols = 2;  // サブシステム内は2列
+		const maxCols = 2; // サブシステム内は2列
 
 		let currentSubsystemX = BOUNDARY_PADDING;
 		let currentSubsystemY = SystemBoundary.getTitleHeight() + BOUNDARY_PADDING;
@@ -566,9 +560,13 @@ export class UseCaseEngine {
 			if (usecases.length === 0) continue;
 
 			// サブシステム情報を取得
-			const subsystem = subsystemId === UNCATEGORIZED_SUBSYSTEM.id
-				? UNCATEGORIZED_SUBSYSTEM
-				: this.subsystems.find(s => s.id === subsystemId) || { id: subsystemId, name: subsystemId };
+			const subsystem =
+				subsystemId === UNCATEGORIZED_SUBSYSTEM.id
+					? UNCATEGORIZED_SUBSYSTEM
+					: this.subsystems.find((s) => s.id === subsystemId) || {
+							id: subsystemId,
+							name: subsystemId
+						};
 
 			// サブシステム内のユースケースを配置
 			let ucX = SUBSYSTEM_PADDING;
@@ -938,7 +936,10 @@ export class UseCaseEngine {
 		if (!this.worldContainer || !this.app) return;
 
 		// 全体のバウンディングボックスを計算
-		let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+		let minX = Infinity,
+			minY = Infinity,
+			maxX = -Infinity,
+			maxY = -Infinity;
 
 		for (const node of this.actorNodes.values()) {
 			minX = Math.min(minX, node.x);
@@ -1237,7 +1238,7 @@ export class UseCaseEngine {
 			// ユースケースが選択された場合
 			visibleUseCaseIds.add(usecaseId);
 
-			const usecase = this.currentData.usecases.find(u => u.id === usecaseId);
+			const usecase = this.currentData.usecases.find((u) => u.id === usecaseId);
 			if (usecase) {
 				// 関連するアクターを追加
 				for (const actorRef of usecase.actors) {
@@ -1291,7 +1292,7 @@ export class UseCaseEngine {
 			// 表示される UseCase の subsystem_id を収集
 			const visibleSubsystemIds = new Set<string>();
 			for (const ucId of visibleUseCaseIds) {
-				const usecase = this.currentData.usecases.find(u => u.id === ucId);
+				const usecase = this.currentData.usecases.find((u) => u.id === ucId);
 				if (usecase) {
 					const subsystemId = usecase.subsystem_id || UNCATEGORIZED_SUBSYSTEM.id;
 					visibleSubsystemIds.add(subsystemId);

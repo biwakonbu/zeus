@@ -50,7 +50,9 @@
 				<p style="color: var(--text-secondary); font-size: 13px; margin: 0;">
 					左上に配置されたオーバーレイパネルです。
 				</p>
-				<ul style="color: var(--text-secondary); font-size: 13px; padding-left: 20px; margin: 12px 0 0;">
+				<ul
+					style="color: var(--text-secondary); font-size: 13px; padding-left: 20px; margin: 12px 0 0;"
+				>
 					<li>項目 1</li>
 					<li>項目 2</li>
 					<li>項目 3</li>
@@ -163,7 +165,9 @@
 				</div>
 				<div style="margin-bottom: 16px;">
 					<span style="color: var(--text-muted); font-size: 11px;">タイトル</span>
-					<p style="color: var(--text-primary); font-size: 14px; margin: 4px 0 0;">ダッシュボード実装</p>
+					<p style="color: var(--text-primary); font-size: 14px; margin: 4px 0 0;">
+						ダッシュボード実装
+					</p>
 				</div>
 				<div style="margin-bottom: 16px;">
 					<span style="color: var(--text-muted); font-size: 11px;">ステータス</span>
@@ -171,7 +175,9 @@
 				</div>
 				<div style="margin-bottom: 16px;">
 					<span style="color: var(--text-muted); font-size: 11px;">進捗</span>
-					<div style="margin-top: 8px; height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden;">
+					<div
+						style="margin-top: 8px; height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden;"
+					>
 						<div style="width: 65%; height: 100%; background: var(--accent-primary);"></div>
 					</div>
 					<p style="color: var(--text-secondary); font-size: 12px; margin: 4px 0 0;">65%</p>

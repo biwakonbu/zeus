@@ -69,12 +69,12 @@ type TimelineItem struct {
 
 // TimelineStats はタイムライン統計
 type TimelineStats struct {
-	TotalTasks      int     `json:"total_tasks"`
-	TasksWithDates  int     `json:"tasks_with_dates"`
-	OnCriticalPath  int     `json:"on_critical_path"`
-	AverageSlack    float64 `json:"average_slack"`
-	OverdueTasks    int     `json:"overdue_tasks"`
-	CompletedOnTime int     `json:"completed_on_time"`
+	TotalActivities     int     `json:"total_activities"`
+	ActivitiesWithDates int     `json:"activities_with_dates"`
+	OnCriticalPath      int     `json:"on_critical_path"`
+	AverageSlack        float64 `json:"average_slack"`
+	OverdueActivities   int     `json:"overdue_activities"`
+	CompletedOnTime     int     `json:"completed_on_time"`
 }
 
 // DownstreamResponse は下流タスク API のレスポンス
@@ -250,12 +250,12 @@ func (s *Server) handleAPITimeline(w http.ResponseWriter, r *http.Request) {
 		ProjectEnd:    timeline.ProjectEnd,
 		TotalDuration: timeline.TotalDuration,
 		Stats: TimelineStats{
-			TotalTasks:      timeline.Stats.TotalTasks,
-			TasksWithDates:  timeline.Stats.TasksWithDates,
-			OnCriticalPath:  timeline.Stats.OnCriticalPath,
-			AverageSlack:    timeline.Stats.AverageSlack,
-			OverdueTasks:    timeline.Stats.OverdueTasks,
-			CompletedOnTime: timeline.Stats.CompletedOnTime,
+			TotalActivities:     timeline.Stats.TotalActivities,
+			ActivitiesWithDates: timeline.Stats.ActivitiesWithDates,
+			OnCriticalPath:      timeline.Stats.OnCriticalPath,
+			AverageSlack:        timeline.Stats.AverageSlack,
+			OverdueActivities:   timeline.Stats.OverdueActivities,
+			CompletedOnTime:     timeline.Stats.CompletedOnTime,
 		},
 	}
 

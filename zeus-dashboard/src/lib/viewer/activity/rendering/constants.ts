@@ -131,12 +131,12 @@ export const NODE_COLORS = {
 		shadow: 0x111111, // シャドウ追加
 		// 3層グロー設定（強化）
 		baseGlow: 0x888888,
-		baseGlowAlpha: 0.10, // 0.05 → 0.10
+		baseGlowAlpha: 0.1, // 0.05 → 0.10
 		hoverGlowAlpha: 0.2,
 		selectedGlowAlpha: 0.35,
 		// アクセントライン追加
 		accentLine: 0xaaaaaa,
-		accentLineAlpha: 0.20
+		accentLineAlpha: 0.2
 	}
 };
 
@@ -160,11 +160,11 @@ export const METAL_EFFECT = {
 	bevelWidth: 1.5,
 	innerBevelWidth: 1,
 	// 上部ハイライト（金属光沢）- 領域を拡大
-	topHighlightAlpha: 0.20, // 0.25 → 0.20（光沢を適度に）
+	topHighlightAlpha: 0.2, // 0.25 → 0.20（光沢を適度に）
 	topHighlightRatio: 0.45, // 0.35 → 0.45（領域拡大）
 	// 下部シャドウ（凹み感）- 開始位置を上げて重なりを作る
-	bottomShadowAlpha: 0.10, // 0.15 → 0.10（下部影は最小限）
-	bottomShadowRatio: 0.40 // 0.3 → 0.40（60% 位置から開始、45% のハイライトと 5% 重複）
+	bottomShadowAlpha: 0.1, // 0.15 → 0.10（下部影は最小限）
+	bottomShadowRatio: 0.4 // 0.3 → 0.40（60% 位置から開始、45% のハイライトと 5% 重複）
 } as const;
 
 // ステータス別スタイル

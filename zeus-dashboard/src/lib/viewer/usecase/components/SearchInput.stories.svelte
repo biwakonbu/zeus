@@ -43,20 +43,32 @@
 <!-- 入力値あり -->
 <Story name="WithValue">
 	<div style="width: 300px; padding: 24px; background: var(--bg-primary);">
-		<SearchInput value="ユースケース" placeholder="検索..." onInput={handleInput} onClear={handleClear} />
+		<SearchInput
+			value="ユースケース"
+			placeholder="検索..."
+			onInput={handleInput}
+			onClear={handleClear}
+		/>
 	</div>
 </Story>
 
 <!-- カスタムプレースホルダー -->
 <Story name="CustomPlaceholder">
 	<div style="width: 300px; padding: 24px; background: var(--bg-primary);">
-		<SearchInput value="" placeholder="Actor / UseCase を検索..." onInput={handleInput} onClear={handleClear} />
+		<SearchInput
+			value=""
+			placeholder="Actor / UseCase を検索..."
+			onInput={handleInput}
+			onClear={handleClear}
+		/>
 	</div>
 </Story>
 
 <!-- 幅バリエーション -->
 <Story name="WidthVariations">
-	<div style="display: flex; flex-direction: column; gap: 16px; padding: 24px; background: var(--bg-primary);">
+	<div
+		style="display: flex; flex-direction: column; gap: 16px; padding: 24px; background: var(--bg-primary);"
+	>
 		<div style="width: 200px;">
 			<p style="color: var(--text-muted); font-size: 10px; margin-bottom: 4px;">200px</p>
 			<SearchInput value="" placeholder="検索..." onInput={handleInput} />
@@ -75,7 +87,12 @@
 <!-- インタラクティブ -->
 <Story name="Interactive">
 	<div style="width: 300px; padding: 24px; background: var(--bg-primary);">
-		<SearchInput value={searchValue} placeholder="入力してみてください..." onInput={handleInput} onClear={handleClear} />
+		<SearchInput
+			value={searchValue}
+			placeholder="入力してみてください..."
+			onInput={handleInput}
+			onClear={handleClear}
+		/>
 		<p style="color: var(--text-muted); font-size: 12px; margin-top: 12px;">
 			入力値: "{searchValue}"
 		</p>

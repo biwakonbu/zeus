@@ -3,7 +3,13 @@
 import { Text, TextStyle, CanvasTextMetrics } from 'pixi.js';
 import type { ActivityNodeItem } from '$lib/types/api';
 import { ActivityNodeBase } from './ActivityNodeBase';
-import { ACTION_NODE_SIZE, NODE_COLORS, COMMON_COLORS, TEXT_RESOLUTION, METAL_EFFECT } from './constants';
+import {
+	ACTION_NODE_SIZE,
+	NODE_COLORS,
+	COMMON_COLORS,
+	TEXT_RESOLUTION,
+	METAL_EFFECT
+} from './constants';
 
 /**
  * ActionNode - アクションノード
@@ -61,7 +67,10 @@ export class ActionNode extends ActivityNodeBase {
 		});
 		const metrics = CanvasTextMetrics.measureText(name, style);
 
-		const width = Math.max(ACTION_NODE_SIZE.minWidth, metrics.width + ACTION_NODE_SIZE.paddingH * 2);
+		const width = Math.max(
+			ACTION_NODE_SIZE.minWidth,
+			metrics.width + ACTION_NODE_SIZE.paddingH * 2
+		);
 		const height = Math.min(
 			ACTION_NODE_SIZE.maxHeight,
 			Math.max(ACTION_NODE_SIZE.minHeight, metrics.height + ACTION_NODE_SIZE.paddingV * 2)
@@ -94,21 +103,19 @@ export class ActionNode extends ActivityNodeBase {
 		// 最外層グロー（常時微弱グロー - Factorio らしさ）
 		const baseGlowColor = 'baseGlow' in colors ? colors.baseGlow : COMMON_COLORS.accent;
 		const baseGlowAlpha = 'baseGlowAlpha' in colors ? colors.baseGlowAlpha : 0.06;
-		this.background.roundRect(
-			-8,
-			-8,
-			this.nodeWidth + 16,
-			this.nodeHeight + 16,
-			borderRadius + 8
-		);
+		this.background.roundRect(-8, -8, this.nodeWidth + 16, this.nodeHeight + 16, borderRadius + 8);
 		this.background.fill({ color: baseGlowColor, alpha: baseGlowAlpha });
 
 		// 中間グロー（ホバー/選択時に強化）
 		if (this.isSelected || this.isHovered) {
 			const glowColor = this.isSelected ? COMMON_COLORS.borderSelected : COMMON_COLORS.borderHover;
 			const glowAlpha = this.isSelected
-				? ('selectedGlowAlpha' in colors ? colors.selectedGlowAlpha : 0.4)
-				: ('hoverGlowAlpha' in colors ? colors.hoverGlowAlpha : 0.25);
+				? 'selectedGlowAlpha' in colors
+					? colors.selectedGlowAlpha
+					: 0.4
+				: 'hoverGlowAlpha' in colors
+					? colors.hoverGlowAlpha
+					: 0.25;
 
 			// 中間グロー層
 			this.background.roundRect(
@@ -121,13 +128,7 @@ export class ActionNode extends ActivityNodeBase {
 			this.background.fill({ color: glowColor, alpha: glowAlpha * 0.6 });
 
 			// 内側グロー層
-			this.background.roundRect(
-				-3,
-				-3,
-				this.nodeWidth + 6,
-				this.nodeHeight + 6,
-				borderRadius + 3
-			);
+			this.background.roundRect(-3, -3, this.nodeWidth + 6, this.nodeHeight + 6, borderRadius + 3);
 			this.background.fill({ color: glowColor, alpha: glowAlpha });
 		}
 
@@ -172,7 +173,11 @@ export class ActionNode extends ActivityNodeBase {
 		// Layer 5: 外側ハイライト（上部ボーダー）
 		this.background.moveTo(borderRadius, 1);
 		this.background.lineTo(this.nodeWidth - borderRadius, 1);
-		this.background.stroke({ width: METAL_EFFECT.bevelWidth, color: colors.borderHighlight, alpha: METAL_EFFECT.outerHighlightAlpha });
+		this.background.stroke({
+			width: METAL_EFFECT.bevelWidth,
+			color: colors.borderHighlight,
+			alpha: METAL_EFFECT.outerHighlightAlpha
+		});
 
 		// 下部シャドウ（凹み感）
 		this.background.roundRect(

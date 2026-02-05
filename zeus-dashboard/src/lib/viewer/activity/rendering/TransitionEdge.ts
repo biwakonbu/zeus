@@ -212,7 +212,10 @@ export class TransitionEdge extends Graphics {
 
 		// 背景（角丸矩形）
 		this.guardBackground.roundRect(0, 0, bgWidth, bgHeight, GUARD_LABEL_STYLE.borderRadius);
-		this.guardBackground.fill({ color: style.background, alpha: GUARD_LABEL_STYLE.backgroundAlpha });
+		this.guardBackground.fill({
+			color: style.background,
+			alpha: GUARD_LABEL_STYLE.backgroundAlpha
+		});
 		this.guardBackground.stroke({ width: GUARD_LABEL_STYLE.borderWidth, color: style.border });
 
 		// テキストを中央配置
@@ -221,10 +224,8 @@ export class TransitionEdge extends Graphics {
 		this.guardText.style.fill = style.text;
 
 		// コンテナを線の法線方向にオフセットして中央配置
-		this.guardContainer.x =
-			midX + offset * Math.cos(angle + Math.PI / 2) - bgWidth / 2;
-		this.guardContainer.y =
-			midY + offset * Math.sin(angle + Math.PI / 2) - bgHeight / 2;
+		this.guardContainer.x = midX + offset * Math.cos(angle + Math.PI / 2) - bgWidth / 2;
+		this.guardContainer.y = midY + offset * Math.sin(angle + Math.PI / 2) - bgHeight / 2;
 	}
 
 	/**

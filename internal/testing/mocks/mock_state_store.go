@@ -26,11 +26,11 @@ type MockStateStore struct {
 func NewMockStateStore() *MockStateStore {
 	return &MockStateStore{
 		currentState: &core.ProjectState{
-			Summary: core.TaskStats{
-				TotalTasks: 0,
-				Completed:  0,
-				InProgress: 0,
-				Pending:    0,
+			Summary: core.SummaryStats{
+				TotalActivities: 0,
+				Completed:       0,
+				InProgress:      0,
+				Pending:         0,
 			},
 			Health: "good",
 		},
@@ -128,8 +128,8 @@ func (m *MockStateStore) RestoreSnapshot(ctx context.Context, timestamp string) 
 
 // CalculateState はリスト項目から状態を計算
 func (m *MockStateStore) CalculateState(items []core.ListItem) *core.ProjectState {
-	stats := core.TaskStats{
-		TotalTasks: len(items),
+	stats := core.SummaryStats{
+		TotalActivities: len(items),
 	}
 
 	for _, item := range items {
@@ -144,8 +144,8 @@ func (m *MockStateStore) CalculateState(items []core.ListItem) *core.ProjectStat
 	}
 
 	health := core.HealthGood
-	if stats.TotalTasks > 0 {
-		completionRate := float64(stats.Completed) / float64(stats.TotalTasks)
+	if stats.TotalActivities > 0 {
+		completionRate := float64(stats.Completed) / float64(stats.TotalActivities)
 		if completionRate < 0.3 {
 			health = core.HealthPoor
 		} else if completionRate < 0.7 {

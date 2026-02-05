@@ -18,7 +18,7 @@ paths:
 | `docs/api-spec.md` | API 仕様書 |
 | `docs/api-reference.md` | API リファレンス |
 | `docs/user-guide.md` | ユーザーガイド |
-| `docs/specs/` | 機能別仕様書（requirements.md, design.md） |
+| `docs/design/` | 設計ドキュメント（Affinity Canvas 等） |
 
 ## 記載基準
 
@@ -30,7 +30,7 @@ paths:
 
 1. **コード例の更新**: API 変更時は対応するドキュメントのコード例も更新
 2. **フェーズ記載**: 実装フェーズの状態は CLAUDE.md で管理（docs は詳細のみ）
-3. **specs ディレクトリ**: 新機能は `docs/specs/<feature>/` に requirements.md と design.md を配置
+3. **設計ドキュメント**: 新機能の設計書は `docs/design/<feature>.md` に配置
 
 ## 命名規則
 

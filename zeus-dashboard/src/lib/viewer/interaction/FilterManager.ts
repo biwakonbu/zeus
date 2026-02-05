@@ -1,12 +1,12 @@
 // フィルタリング管理クラス
 
-import type { GraphNode, TaskStatus, Priority } from '$lib/types/api';
+import type { GraphNode, EntityStatus, Priority } from '$lib/types/api';
 
 /**
  * フィルター条件
  */
 export interface FilterCriteria {
-	statuses?: TaskStatus[];
+	statuses?: EntityStatus[];
 	priorities?: Priority[];
 	assignees?: string[];
 	searchText?: string;
@@ -73,7 +73,7 @@ export class FilterManager {
 	/**
 	 * ステータスフィルターをトグル
 	 */
-	toggleStatus(status: TaskStatus): void {
+	toggleStatus(status: EntityStatus): void {
 		const statuses = this.criteria.statuses || [];
 		const index = statuses.indexOf(status);
 		if (index >= 0) {
@@ -250,7 +250,7 @@ export class FilterManager {
 	private matchesCriteria(node: GraphNode): boolean {
 		// ステータスフィルター
 		if (this.criteria.statuses && this.criteria.statuses.length > 0) {
-			const nodeStatus = node.status as TaskStatus;
+			const nodeStatus = node.status as EntityStatus;
 			if (!this.criteria.statuses.includes(nodeStatus)) {
 				return false;
 			}

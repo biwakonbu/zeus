@@ -360,9 +360,9 @@ func WriteFile(path string, v interface{}) error {
 ```go
 package analysis
 
-// AnalysisTask は分析用のタスク型
-// core.Task とは独立して定義し、変換関数で連携
-type AnalysisTask struct {
+// AnalysisActivity は分析用の Activity 型
+// core.Activity とは独立して定義し、変換関数で連携
+type AnalysisActivity struct {
     ID           string
     Title        string
     Status       string
@@ -374,9 +374,9 @@ type AnalysisTask struct {
     CompletedAt  *time.Time
 }
 
-// TaskConverter は core.Task から AnalysisTask への変換インターフェース
-type TaskConverter interface {
-    ToAnalysisTask() AnalysisTask
+// ActivityConverter は core.Activity から AnalysisActivity への変換インターフェース
+type ActivityConverter interface {
+    ToAnalysisActivity() AnalysisActivity
 }
 ```
 
@@ -1091,14 +1091,14 @@ func NewHandlers(projectPath string) *Handlers {
 
 // StatusResponse はステータス API のレスポンス
 type StatusResponse struct {
-    ProjectName string  `json:"project_name"`
-    Description string  `json:"description"`
-    Progress    float64 `json:"progress"`
-    Health      string  `json:"health"`
-    TotalTasks  int     `json:"total_tasks"`
-    Completed   int     `json:"completed"`
-    InProgress  int     `json:"in_progress"`
-    Pending     int     `json:"pending"`
+    ProjectName     string  `json:"project_name"`
+    Description     string  `json:"description"`
+    Progress        float64 `json:"progress"`
+    Health          string  `json:"health"`
+    TotalActivities int     `json:"total_activities"`
+    Completed       int     `json:"completed"`
+    InProgress      int     `json:"in_progress"`
+    Pending         int     `json:"pending"`
 }
 
 // HandleStatus はプロジェクト状態を返す
@@ -1111,14 +1111,14 @@ func (h *Handlers) HandleStatus(w http.ResponseWriter, r *http.Request) {
     }
 
     resp := StatusResponse{
-        ProjectName: status.ProjectName,
-        Description: status.Description,
-        Progress:    status.Progress,
-        Health:      status.Health,
-        TotalTasks:  status.TotalTasks,
-        Completed:   status.Completed,
-        InProgress:  status.InProgress,
-        Pending:     status.Pending,
+        ProjectName:     status.ProjectName,
+        Description:     status.Description,
+        Progress:        status.Progress,
+        Health:          status.Health,
+        TotalActivities: status.TotalActivities,
+        Completed:       status.Completed,
+        InProgress:      status.InProgress,
+        Pending:         status.Pending,
     }
 
     w.Header().Set("Content-Type", "application/json")
@@ -1219,13 +1219,13 @@ func (h *Handlers) HandlePredict(w http.ResponseWriter, r *http.Request) {
         </section>
 
         <section id="stats" class="card">
-            <h2>Task Statistics</h2>
-            <div id="task-stats"></div>
+            <h2>Activity Statistics</h2>
+            <div id="activity-stats"></div>
         </section>
 
-        <section id="tasks" class="card">
-            <h2>Tasks</h2>
-            <table id="task-table">
+        <section id="activities" class="card">
+            <h2>Activities</h2>
+            <table id="activity-table">
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -1476,9 +1476,9 @@ import (
 
 func TestDependencyGraph_DetectCycles(t *testing.T) {
     g := NewDependencyGraph()
-    g.AddNode("A", "Task A", "pending")
-    g.AddNode("B", "Task B", "pending")
-    g.AddNode("C", "Task C", "pending")
+    g.AddNode("A", "Activity A", "pending")
+    g.AddNode("B", "Activity B", "pending")
+    g.AddNode("C", "Activity C", "pending")
 
     // A -> B -> C -> A（循環）
     g.AddEdge("A", "B")
@@ -1493,8 +1493,8 @@ func TestDependencyGraph_DetectCycles(t *testing.T) {
 
 func TestDependencyGraph_ToMermaid(t *testing.T) {
     g := NewDependencyGraph()
-    g.AddNode("A", "Task A", "completed")
-    g.AddNode("B", "Task B", "in_progress")
+    g.AddNode("A", "Activity A", "completed")
+    g.AddNode("B", "Activity B", "in_progress")
     g.AddEdge("A", "B")
 
     output := g.ToMermaid()

@@ -20,8 +20,8 @@ func TestMockStateStore_GetCurrentState(t *testing.T) {
 		t.Fatalf("GetCurrentState failed: %v", err)
 	}
 
-	if state.Summary.TotalTasks != 0 {
-		t.Errorf("Expected 0 tasks, got %d", state.Summary.TotalTasks)
+	if state.Summary.TotalActivities != 0 {
+		t.Errorf("Expected 0 tasks, got %d", state.Summary.TotalActivities)
 	}
 }
 
@@ -228,8 +228,8 @@ func TestMockStateStoreCalculateState(t *testing.T) {
 
 	state := mockState.CalculateState(tasks)
 
-	if state.Summary.TotalTasks != 4 {
-		t.Errorf("Expected 4 total tasks, got %d", state.Summary.TotalTasks)
+	if state.Summary.TotalActivities != 4 {
+		t.Errorf("Expected 4 total tasks, got %d", state.Summary.TotalActivities)
 	}
 
 	if state.Summary.Completed != 2 {

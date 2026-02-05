@@ -34,7 +34,7 @@ const DEFAULT_CONFIG: ViewerConfig = {
 function getDefaultConfig(): ViewerConfig {
 	return {
 		...DEFAULT_CONFIG,
-		resolution: typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1
+		resolution: typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
 	};
 }
 
@@ -137,10 +137,14 @@ export class ViewerEngine {
 		stage.hitArea = this.app.screen;
 
 		// マウスホイールでズーム
-		this.app.canvas.addEventListener('wheel', (e: WheelEvent) => {
-			e.preventDefault();
-			this.handleZoom(e);
-		}, { passive: false });
+		this.app.canvas.addEventListener(
+			'wheel',
+			(e: WheelEvent) => {
+				e.preventDefault();
+				this.handleZoom(e);
+			},
+			{ passive: false }
+		);
 
 		// パン操作
 		stage.on('pointerdown', (e: FederatedPointerEvent) => this.handlePanStart(e));

@@ -74,7 +74,9 @@
 
 <!-- Actor のみ -->
 <Story name="ActorsOnly">
-	<div style="width: 300px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<GroupedList
 			items={actorItems}
 			groupBy={false}
@@ -87,7 +89,9 @@
 
 <!-- UseCase のみ -->
 <Story name="UseCasesOnly">
-	<div style="width: 300px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<GroupedList
 			items={useCaseItems}
 			groupBy={false}
@@ -100,7 +104,9 @@
 
 <!-- グループ化表示 -->
 <Story name="Grouped">
-	<div style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<GroupedList
 			items={allItems}
 			groupBy={true}
@@ -113,7 +119,9 @@
 
 <!-- 選択状態 -->
 <Story name="WithSelection">
-	<div style="width: 300px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 400px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<GroupedList
 			items={useCaseItems}
 			groupBy={false}
@@ -126,20 +134,18 @@
 
 <!-- 空リスト -->
 <Story name="Empty">
-	<div style="width: 300px; height: 300px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
-		<GroupedList
-			items={[]}
-			groupBy={false}
-			selectedId={null}
-			actors={[]}
-			onSelect={handleSelect}
-		/>
+	<div
+		style="width: 300px; height: 300px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
+		<GroupedList items={[]} groupBy={false} selectedId={null} actors={[]} onSelect={handleSelect} />
 	</div>
 </Story>
 
 <!-- インタラクティブ -->
 <Story name="Interactive">
-	<div style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;">
+	<div
+		style="width: 300px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: hidden;"
+	>
 		<GroupedList
 			items={allItems}
 			groupBy={true}

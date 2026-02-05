@@ -89,7 +89,6 @@ export async function fetchDownstream(taskId: string): Promise<DownstreamRespons
 	return fetchJSON<DownstreamResponse>(`/downstream?task_id=${encodeURIComponent(taskId)}`);
 }
 
-
 // =============================================================================
 // UML UseCase API
 // =============================================================================
@@ -205,11 +204,7 @@ export interface DashboardData {
 }
 
 export async function fetchAllData(): Promise<DashboardData> {
-	const results = await Promise.allSettled([
-		fetchStatus(),
-		fetchGraph(),
-		fetchPredict()
-	]);
+	const results = await Promise.allSettled([fetchStatus(), fetchGraph(), fetchPredict()]);
 
 	return {
 		status: results[0].status === 'fulfilled' ? results[0].value : null,

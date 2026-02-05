@@ -41,19 +41,19 @@
 
 				// WBS データを取得（Graph View 用）
 				fetchWBSAsGraphData()
-					.then(data => {
+					.then((data) => {
 						wbsGraphData = data;
 					})
-					.catch(err => {
+					.catch((err) => {
 						console.warn('WBS data fetch failed:', err);
 					});
 
 				// Activity データを取得（UseCase View の関連 Activity 表示用）
 				fetchActivities()
-					.then(data => {
+					.then((data) => {
 						activitiesData = data.activities || [];
 					})
-					.catch(err => {
+					.catch((err) => {
 						console.warn('Activities data fetch failed:', err);
 					});
 
@@ -125,7 +125,7 @@
 	{#if $currentView === 'graph'}
 		<FactorioViewer
 			graphData={wbsGraphData}
-			selectedTaskId={selectedTaskId}
+			{selectedTaskId}
 			onTaskSelect={handleTaskSelect}
 			onTaskHover={handleTaskHover}
 		/>
@@ -138,12 +138,12 @@
 
 <!-- 選択ノード詳細パネル（Graph View） -->
 {#if $currentView === 'graph' && selectedTaskId && wbsGraphData}
-	{@const selectedNode = wbsGraphData.nodes.find(n => n.id === selectedTaskId)}
+	{@const selectedNode = wbsGraphData.nodes.find((n) => n.id === selectedTaskId)}
 	{#if selectedNode}
 		<div class="task-detail-panel">
 			<div class="panel-header">
 				<h3 class="panel-title">NODE DETAIL</h3>
-				<button class="close-btn" onclick={() => selectedTaskId = null}>x</button>
+				<button class="close-btn" onclick={() => (selectedTaskId = null)}>x</button>
 			</div>
 			<div class="task-detail-content">
 				<div class="detail-row">
@@ -156,7 +156,9 @@
 				</div>
 				<div class="detail-row">
 					<span class="detail-label">Type</span>
-					<span class="detail-value node-type-{selectedNode.node_type}">{selectedNode.node_type}</span>
+					<span class="detail-value node-type-{selectedNode.node_type}"
+						>{selectedNode.node_type}</span
+					>
 				</div>
 				<div class="detail-row">
 					<span class="detail-label">Status</span>
@@ -165,7 +167,9 @@
 				{#if selectedNode.priority}
 					<div class="detail-row">
 						<span class="detail-label">Priority</span>
-						<span class="detail-value priority-{selectedNode.priority}">{selectedNode.priority}</span>
+						<span class="detail-value priority-{selectedNode.priority}"
+							>{selectedNode.priority}</span
+						>
 					</div>
 				{/if}
 				<div class="detail-row">

@@ -26,15 +26,15 @@ type ProjectInfo struct {
 // ProjectState はプロジェクト状態
 type ProjectState struct {
 	Health  string
-	Summary TaskStats
+	Summary SummaryStats
 }
 
-// TaskStats はタスク統計
-type TaskStats struct {
-	TotalTasks int
-	Completed  int
-	InProgress int
-	Pending    int
+// SummaryStats はサマリー統計（Activity 統計）
+type SummaryStats struct {
+	TotalActivities int // JSON 互換のため "TotalActivities" を維持
+	Completed       int
+	InProgress      int
+	Pending         int
 }
 
 // Generator はレポートを生成
@@ -62,8 +62,8 @@ type ReportData struct {
 	Health      string
 	HealthClass string
 
-	// タスク統計
-	TaskStats         TaskStats
+	// サマリー統計
+	TaskStats         SummaryStats
 	CompletionPercent int
 	CompletedPercent  int
 	InProgressPercent int
@@ -172,8 +172,8 @@ func (g *Generator) buildReportData() *ReportData {
 	}
 
 	// 完了率を計算
-	if g.state.Summary.TotalTasks > 0 {
-		total := float64(g.state.Summary.TotalTasks)
+	if g.state.Summary.TotalActivities > 0 {
+		total := float64(g.state.Summary.TotalActivities)
 		data.CompletionPercent = int(float64(g.state.Summary.Completed) / total * 100)
 		data.CompletedPercent = data.CompletionPercent
 		data.InProgressPercent = int(float64(g.state.Summary.InProgress) / total * 100)

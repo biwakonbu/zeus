@@ -19,11 +19,21 @@ import {
 // PixiJS Graphics をモック
 vi.mock('pixi.js', () => ({
 	Graphics: class MockGraphics {
-		clear() { return this; }
-		moveTo() { return this; }
-		lineTo() { return this; }
-		bezierCurveTo() { return this; }
-		stroke() { return this; }
+		clear() {
+			return this;
+		}
+		moveTo() {
+			return this;
+		}
+		lineTo() {
+			return this;
+		}
+		bezierCurveTo() {
+			return this;
+		}
+		stroke() {
+			return this;
+		}
 		destroy() {}
 	}
 }));
@@ -63,9 +73,13 @@ describe('EdgeFactory パフォーマンステスト', () => {
 			}
 
 			// 既存エッジの再取得
-			const result = measurePerformance(() => {
-				factory.getOrCreate('node-500', 'node-501');
-			}, 1000, 100);
+			const result = measurePerformance(
+				() => {
+					factory.getOrCreate('node-500', 'node-501');
+				},
+				1000,
+				100
+			);
 
 			console.log(formatPerformanceResult('既存エッジ取得', result));
 
@@ -89,9 +103,13 @@ describe('EdgeFactory パフォーマンステスト', () => {
 
 			const threshold = PERFORMANCE_THRESHOLDS.edgeFactory.getEdgesForNode;
 
-			const result = measurePerformance(() => {
-				factory.getEdgesForNode('node-0');
-			}, 1000, 100);
+			const result = measurePerformance(
+				() => {
+					factory.getEdgesForNode('node-0');
+				},
+				1000,
+				100
+			);
 
 			console.log(formatPerformanceResult('getEdgesForNode', result));
 			assertPerformance(result, threshold, 'getEdgesForNode');
@@ -119,9 +137,13 @@ describe('EdgeFactory パフォーマンステスト', () => {
 				factory.getOrCreate('hub-node', `spoke-${i}`);
 			}
 
-			const result = measurePerformance(() => {
-				factory.getEdgeCountForNode('hub-node');
-			}, 1000, 100);
+			const result = measurePerformance(
+				() => {
+					factory.getEdgeCountForNode('hub-node');
+				},
+				1000,
+				100
+			);
 
 			console.log(formatPerformanceResult('getEdgeCountForNode', result));
 
@@ -139,11 +161,15 @@ describe('EdgeFactory パフォーマンステスト', () => {
 
 			const threshold = PERFORMANCE_THRESHOLDS.edgeFactory.remove;
 
-			const result = measurePerformance(() => {
-				// 存在するエッジを削除（毎回再作成してから削除）
-				factory.getOrCreate('test-from', 'test-to');
-				factory.remove('test-from', 'test-to');
-			}, 100, 20);
+			const result = measurePerformance(
+				() => {
+					// 存在するエッジを削除（毎回再作成してから削除）
+					factory.getOrCreate('test-from', 'test-to');
+					factory.remove('test-from', 'test-to');
+				},
+				100,
+				20
+			);
 
 			console.log(formatPerformanceResult('エッジ削除', result));
 			assertPerformance(result, threshold, 'エッジ削除');
@@ -167,14 +193,18 @@ describe('EdgeFactory パフォーマンステスト', () => {
 			// 5000エッジのグラフを構築
 			for (let i = 0; i < 5000; i++) {
 				const from = `node-${Math.floor(i / 10)}`;
-				const to = `node-${i % 500 + 500}`;
+				const to = `node-${(i % 500) + 500}`;
 				factory.getOrCreate(from, to);
 			}
 
 			// 多くのエッジを持つノードの検索
-			const result = measurePerformance(() => {
-				factory.getEdgesForNode('node-0');
-			}, 500, 50);
+			const result = measurePerformance(
+				() => {
+					factory.getEdgesForNode('node-0');
+				},
+				500,
+				50
+			);
 
 			console.log(formatPerformanceResult('大規模グラフ検索', result));
 
@@ -199,9 +229,13 @@ describe('EdgeFactory パフォーマンステスト', () => {
 					testFactory.getOrCreate('target-node', `connected-${i}`);
 				}
 
-				const result = measurePerformance(() => {
-					testFactory.getEdgesForNode('target-node');
-				}, 200, 50);
+				const result = measurePerformance(
+					() => {
+						testFactory.getEdgesForNode('target-node');
+					},
+					200,
+					50
+				);
 
 				times.push({ size, avgTime: result.avgPerIteration });
 				testFactory.clear();

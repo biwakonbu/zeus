@@ -110,7 +110,9 @@
 
 <!-- アクティビティ情報のみ -->
 <Story name="ActivityInfo">
-	<div style="width: 360px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;">
+	<div
+		style="width: 360px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;"
+	>
 		<ActivityDetailPanel
 			activity={sampleActivity}
 			selectedNode={null}
@@ -122,7 +124,9 @@
 
 <!-- ノード選択済み（アクション） -->
 <Story name="ActionNodeSelected">
-	<div style="width: 360px; height: 600px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;">
+	<div
+		style="width: 360px; height: 600px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;"
+	>
 		<ActivityDetailPanel
 			activity={sampleActivity}
 			selectedNode={sampleActivity.nodes[1]}
@@ -134,7 +138,9 @@
 
 <!-- ノード選択済み（分岐） -->
 <Story name="DecisionNodeSelected">
-	<div style="width: 360px; height: 600px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;">
+	<div
+		style="width: 360px; height: 600px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;"
+	>
 		<ActivityDetailPanel
 			activity={sampleActivity}
 			selectedNode={sampleActivity.nodes[2]}
@@ -146,7 +152,9 @@
 
 <!-- 複雑なアクティビティ -->
 <Story name="ComplexActivity">
-	<div style="width: 360px; height: 700px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;">
+	<div
+		style="width: 360px; height: 700px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;"
+	>
 		<ActivityDetailPanel
 			activity={complexActivity}
 			selectedNode={null}
@@ -158,7 +166,9 @@
 
 <!-- 複雑なアクティビティ（Fork 選択） -->
 <Story name="ForkNodeSelected">
-	<div style="width: 360px; height: 700px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;">
+	<div
+		style="width: 360px; height: 700px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;"
+	>
 		<ActivityDetailPanel
 			activity={complexActivity}
 			selectedNode={complexActivity.nodes[3]}
@@ -170,7 +180,9 @@
 
 <!-- 下書き状態のアクティビティ -->
 <Story name="DraftActivity">
-	<div style="width: 360px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;">
+	<div
+		style="width: 360px; height: 500px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;"
+	>
 		<ActivityDetailPanel
 			activity={draftActivity}
 			selectedNode={null}
@@ -182,7 +194,9 @@
 
 <!-- 未選択状態 -->
 <Story name="Empty">
-	<div style="width: 360px; height: 300px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;">
+	<div
+		style="width: 360px; height: 300px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;"
+	>
 		<ActivityDetailPanel
 			activity={null}
 			selectedNode={null}
@@ -194,7 +208,9 @@
 
 <!-- インタラクティブ -->
 <Story name="Interactive">
-	<div style="width: 360px; height: 600px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;">
+	<div
+		style="width: 360px; height: 600px; background: var(--bg-panel); border: 1px solid var(--border-metal); border-radius: 8px; overflow: auto; padding: 12px;"
+	>
 		<ActivityDetailPanel
 			activity={sampleActivity}
 			{selectedNode}

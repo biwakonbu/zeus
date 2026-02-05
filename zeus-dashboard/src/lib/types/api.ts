@@ -19,20 +19,20 @@ export interface ProjectInfo {
 
 export interface ProjectState {
 	health: HealthStatus;
-	summary: TaskStats;
+	summary: SummaryStats;
 }
 
 export type HealthStatus = 'good' | 'fair' | 'poor';
 
-export interface TaskStats {
-	total_tasks: number;
+export interface SummaryStats {
+	total_activities: number;
 	completed: number;
 	in_progress: number;
 	pending: number;
 }
 
-// TaskStatus と Priority は TimelineItem, WBSNode 等で使用される共通型
-export type TaskStatus = 'completed' | 'in_progress' | 'pending' | 'blocked';
+// EntityStatus と Priority は TimelineItem, WBSNode 等で使用される共通型
+export type EntityStatus = 'completed' | 'in_progress' | 'pending' | 'blocked';
 export type Priority = 'high' | 'medium' | 'low';
 
 // グラフ API レスポンス
@@ -120,7 +120,7 @@ export interface WBSNode {
 	title: string;
 	node_type: WBSNodeType;
 	wbs_code: string;
-	status: string;  // 各ノードタイプで異なるステータス
+	status: string; // 各ノードタイプで異なるステータス
 	progress: number;
 	priority: string;
 	assignee: string;
@@ -153,7 +153,7 @@ export interface TimelineItem {
 	start_date: string;
 	end_date: string;
 	progress: number;
-	status: TaskStatus;
+	status: EntityStatus;
 	priority: Priority;
 	assignee: string;
 	is_on_critical_path: boolean;
@@ -162,11 +162,11 @@ export interface TimelineItem {
 }
 
 export interface TimelineStats {
-	total_tasks: number;
-	tasks_with_dates: number;
+	total_activities: number;
+	activities_with_dates: number;
 	on_critical_path: number;
 	average_slack: number;
-	overdue_tasks: number;
+	overdue_activities: number;
 	completed_on_time: number;
 }
 
@@ -418,7 +418,7 @@ export interface GraphNode {
 	priority?: string;
 	assignee?: string;
 	wbs_code?: string;
-	dependencies: string[];  // 親ノードへの依存（エッジ用）
+	dependencies: string[]; // 親ノードへの依存（エッジ用）
 }
 
 // グラフビュー用のエッジデータ
@@ -538,7 +538,7 @@ export interface UseCaseItem {
 	description?: string;
 	status: UseCaseStatus;
 	objective_id?: string;
-	subsystem_id?: string;  // サブシステム参照（オプション）
+	subsystem_id?: string; // サブシステム参照（オプション）
 	actors: UseCaseActorRef[];
 	relations: UseCaseRelation[];
 	scenario?: UseCaseScenario;
@@ -564,13 +564,13 @@ export interface UseCaseDiagramResponse {
 
 // アクティビティノードタイプ
 export type ActivityNodeType =
-	| 'initial'    // 開始ノード（黒丸）
-	| 'final'      // 終了ノード（二重丸）
-	| 'action'     // アクション（角丸四角形）
-	| 'decision'   // 分岐（ひし形）
-	| 'merge'      // 合流（ひし形）
-	| 'fork'       // 並列分岐（太い横線）
-	| 'join';      // 並列合流（太い横線）
+	| 'initial' // 開始ノード（黒丸）
+	| 'final' // 終了ノード（二重丸）
+	| 'action' // アクション（角丸四角形）
+	| 'decision' // 分岐（ひし形）
+	| 'merge' // 合流（ひし形）
+	| 'fork' // 並列分岐（太い横線）
+	| 'join'; // 並列合流（太い横線）
 
 // アクティビティステータス
 export type ActivityStatus = 'draft' | 'active' | 'deprecated';

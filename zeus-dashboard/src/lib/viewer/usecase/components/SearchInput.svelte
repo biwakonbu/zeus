@@ -42,11 +42,7 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.5rem 0.75rem;
-		background: linear-gradient(
-			180deg,
-			rgba(25, 25, 25, 0.9) 0%,
-			rgba(20, 20, 20, 0.95) 100%
-		);
+		background: linear-gradient(180deg, rgba(25, 25, 25, 0.9) 0%, rgba(20, 20, 20, 0.95) 100%);
 		border: 2px solid var(--border-metal);
 		border-radius: var(--border-radius-sm);
 		/* インナーシャドウで凹み感 */

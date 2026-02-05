@@ -793,9 +793,7 @@ export class ActivityEngine {
 		const startY = this.worldContainer.y;
 
 		// 移動距離が小さい場合はアニメーションをスキップ
-		const distance = Math.sqrt(
-			Math.pow(targetX - startX, 2) + Math.pow(targetY - startY, 2)
-		);
+		const distance = Math.sqrt(Math.pow(targetX - startX, 2) + Math.pow(targetY - startY, 2));
 		if (distance < 1) return;
 
 		this.animationState = {

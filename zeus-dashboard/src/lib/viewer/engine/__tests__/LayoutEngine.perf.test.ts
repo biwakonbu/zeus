@@ -41,10 +41,14 @@ describe('LayoutEngine パフォーマンステスト', () => {
 			const tasks = generateMockTasks(100);
 			const threshold = PERFORMANCE_THRESHOLDS.layout.small;
 
-			const result = measurePerformance(() => {
-				engine.clearCache();
-				engine.layout(tasks);
-			}, 20, 5);
+			const result = measurePerformance(
+				() => {
+					engine.clearCache();
+					engine.layout(tasks);
+				},
+				20,
+				5
+			);
 
 			console.log(formatPerformanceResult('100ノード レイアウト', result));
 			assertPerformance(result, threshold, '100ノード レイアウト');
@@ -54,10 +58,14 @@ describe('LayoutEngine パフォーマンステスト', () => {
 			const tasks = generateMockTasks(500);
 			const threshold = PERFORMANCE_THRESHOLDS.layout.medium;
 
-			const result = measurePerformance(() => {
-				engine.clearCache();
-				engine.layout(tasks);
-			}, 10, 3);
+			const result = measurePerformance(
+				() => {
+					engine.clearCache();
+					engine.layout(tasks);
+				},
+				10,
+				3
+			);
 
 			console.log(formatPerformanceResult('500ノード レイアウト', result));
 			assertPerformance(result, threshold, '500ノード レイアウト');
@@ -67,10 +75,14 @@ describe('LayoutEngine パフォーマンステスト', () => {
 			const tasks = generateMockTasks(1000);
 			const threshold = PERFORMANCE_THRESHOLDS.layout.large;
 
-			const result = measurePerformance(() => {
-				engine.clearCache();
-				engine.layout(tasks);
-			}, 5, 2);
+			const result = measurePerformance(
+				() => {
+					engine.clearCache();
+					engine.layout(tasks);
+				},
+				5,
+				2
+			);
 
 			console.log(formatPerformanceResult('1000ノード レイアウト', result));
 			assertPerformance(result, threshold, '1000ノード レイアウト');
@@ -86,9 +98,13 @@ describe('LayoutEngine パフォーマンステスト', () => {
 			engine.layout(tasks);
 
 			// 2回目以降（キャッシュヒット）
-			const result = measurePerformance(() => {
-				engine.layout(tasks);
-			}, 100, 10);
+			const result = measurePerformance(
+				() => {
+					engine.layout(tasks);
+				},
+				100,
+				10
+			);
 
 			console.log(formatPerformanceResult('キャッシュヒット', result));
 			assertPerformance(result, threshold, 'キャッシュヒット');
@@ -138,17 +154,23 @@ describe('LayoutEngine パフォーマンステスト', () => {
 
 			for (const size of sizes) {
 				const tasks = generateMockTasks(size);
-				const result = measurePerformance(() => {
-					engine.clearCache();
-					engine.layout(tasks);
-				}, 5, 2);
+				const result = measurePerformance(
+					() => {
+						engine.clearCache();
+						engine.layout(tasks);
+					},
+					5,
+					2
+				);
 				times.push({ size, avgTime: result.avgPerIteration });
 			}
 
 			console.log('\nスケーラビリティ分析:');
 			for (const { size, avgTime } of times) {
 				const perNode = avgTime / size;
-				console.log(`  ${size}ノード: ${avgTime.toFixed(2)}ms (${(perNode * 1000).toFixed(3)}µs/ノード)`);
+				console.log(
+					`  ${size}ノード: ${avgTime.toFixed(2)}ms (${(perNode * 1000).toFixed(3)}µs/ノード)`
+				);
 			}
 
 			// 最小と最大のノード数における1ノードあたりの時間を比較
@@ -181,9 +203,36 @@ describe('LayoutEngine パフォーマンステスト', () => {
 		it('依存関係のあるノードは異なるレイヤーに配置される', () => {
 			// 明示的な依存チェーン: task-0 -> task-1 -> task-2
 			const nodes = [
-				{ id: 'task-0', title: 'Task 0', node_type: 'task' as const, status: 'pending' as const, progress: 0, priority: 'medium' as const, assignee: 'user-0', dependencies: [] },
-				{ id: 'task-1', title: 'Task 1', node_type: 'task' as const, status: 'pending' as const, progress: 0, priority: 'medium' as const, assignee: 'user-0', dependencies: ['task-0'] },
-				{ id: 'task-2', title: 'Task 2', node_type: 'task' as const, status: 'pending' as const, progress: 0, priority: 'medium' as const, assignee: 'user-0', dependencies: ['task-1'] }
+				{
+					id: 'task-0',
+					title: 'Task 0',
+					node_type: 'task' as const,
+					status: 'pending' as const,
+					progress: 0,
+					priority: 'medium' as const,
+					assignee: 'user-0',
+					dependencies: []
+				},
+				{
+					id: 'task-1',
+					title: 'Task 1',
+					node_type: 'task' as const,
+					status: 'pending' as const,
+					progress: 0,
+					priority: 'medium' as const,
+					assignee: 'user-0',
+					dependencies: ['task-0']
+				},
+				{
+					id: 'task-2',
+					title: 'Task 2',
+					node_type: 'task' as const,
+					status: 'pending' as const,
+					progress: 0,
+					priority: 'medium' as const,
+					assignee: 'user-0',
+					dependencies: ['task-1']
+				}
 			];
 
 			const result = engine.layout(nodes);

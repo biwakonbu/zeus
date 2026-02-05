@@ -63,11 +63,11 @@ func TestSaveCurrentState(t *testing.T) {
 	// 状態を保存
 	state := &ProjectState{
 		Timestamp: Now(),
-		Summary: TaskStats{
-			TotalTasks: 10,
-			Completed:  5,
-			InProgress: 3,
-			Pending:    2,
+		Summary: SummaryStats{
+			TotalActivities: 10,
+			Completed:       5,
+			InProgress:      3,
+			Pending:         2,
 		},
 		Health: HealthGood,
 		Risks:  []string{},
@@ -83,8 +83,8 @@ func TestSaveCurrentState(t *testing.T) {
 	if err != nil {
 		t.Errorf("GetCurrentState() error = %v", err)
 	}
-	if loaded.Summary.TotalTasks != 10 {
-		t.Errorf("expected TotalTasks 10, got %d", loaded.Summary.TotalTasks)
+	if loaded.Summary.TotalActivities != 10 {
+		t.Errorf("expected TotalActivities 10, got %d", loaded.Summary.TotalActivities)
 	}
 }
 
@@ -250,7 +250,7 @@ func TestRestoreSnapshot(t *testing.T) {
 	// 状態を変更
 	newState := &ProjectState{
 		Timestamp: Now(),
-		Summary:   TaskStats{TotalTasks: 100},
+		Summary:   SummaryStats{TotalActivities: 100},
 		Health:    HealthPoor,
 	}
 	_ = z.stateStore.SaveCurrentState(ctx, newState)
@@ -263,8 +263,8 @@ func TestRestoreSnapshot(t *testing.T) {
 
 	// 復元された状態を確認
 	restored, _ := z.stateStore.GetCurrentState(ctx)
-	if restored.Summary.TotalTasks != 0 {
-		t.Errorf("expected restored TotalTasks 0, got %d", restored.Summary.TotalTasks)
+	if restored.Summary.TotalActivities != 0 {
+		t.Errorf("expected restored TotalActivities 0, got %d", restored.Summary.TotalActivities)
 	}
 }
 
@@ -288,8 +288,8 @@ func TestCalculateState(t *testing.T) {
 
 	state := sm.CalculateState(tasks)
 
-	if state.Summary.TotalTasks != 5 {
-		t.Errorf("expected TotalTasks 5, got %d", state.Summary.TotalTasks)
+	if state.Summary.TotalActivities != 5 {
+		t.Errorf("expected TotalActivities 5, got %d", state.Summary.TotalActivities)
 	}
 	if state.Summary.Completed != 2 {
 		t.Errorf("expected Completed 2, got %d", state.Summary.Completed)

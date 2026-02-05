@@ -24,7 +24,7 @@
 
 <script lang="ts">
 	import { fn } from '@storybook/test';
-	import type { TaskStatus, Priority } from '$lib/types/api';
+	import type { EntityStatus, Priority } from '$lib/types/api';
 
 	// Action ハンドラー
 	const handleStatusToggle = fn();
@@ -49,7 +49,7 @@
 	// インタラクティブ用の状態
 	let interactiveCriteria: FilterCriteria = $state({});
 
-	function toggleStatus(status: TaskStatus) {
+	function toggleStatus(status: EntityStatus) {
 		const statuses = interactiveCriteria.statuses || [];
 		const index = statuses.indexOf(status);
 		if (index >= 0) {
@@ -169,14 +169,17 @@
 </Story>
 
 <!-- インタラクティブ -->
-<Story name="Interactive" args={{
-	criteria: interactiveCriteria,
-	onStatusToggle: toggleStatus,
-	onPriorityToggle: togglePriority,
-	onAssigneeToggle: toggleAssignee,
-	onSearchChange: changeSearch,
-	onClear: clearAll
-}}>
+<Story
+	name="Interactive"
+	args={{
+		criteria: interactiveCriteria,
+		onStatusToggle: toggleStatus,
+		onPriorityToggle: togglePriority,
+		onAssigneeToggle: toggleAssignee,
+		onSearchChange: changeSearch,
+		onClear: clearAll
+	}}
+>
 	<div class="filter-story-wrapper">
 		<FilterPanel
 			criteria={interactiveCriteria}

@@ -22,7 +22,11 @@ export abstract class ActivityNodeBase extends Container {
 
 	// イベントコールバック
 	private onClickCallback?: (node: ActivityNodeBase, event?: FederatedPointerEvent) => void;
-	private onHoverCallback?: (node: ActivityNodeBase, isHovered: boolean, event?: MouseEvent) => void;
+	private onHoverCallback?: (
+		node: ActivityNodeBase,
+		isHovered: boolean,
+		event?: MouseEvent
+	) => void;
 
 	constructor(nodeData: ActivityNodeItem) {
 		super();
@@ -152,7 +156,9 @@ export abstract class ActivityNodeBase extends Container {
 		this.onClickCallback = callback;
 	}
 
-	onHover(callback: (node: ActivityNodeBase, isHovered: boolean, event?: MouseEvent) => void): void {
+	onHover(
+		callback: (node: ActivityNodeBase, isHovered: boolean, event?: MouseEvent) => void
+	): void {
 		this.onHoverCallback = callback;
 	}
 

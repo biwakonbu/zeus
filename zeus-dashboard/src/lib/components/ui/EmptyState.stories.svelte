@@ -73,7 +73,9 @@
 
 <!-- 各種バリエーション -->
 <Story name="Variations">
-	<div style="display: flex; flex-direction: column; gap: 32px; background: var(--bg-primary); padding: 24px;">
+	<div
+		style="display: flex; flex-direction: column; gap: 32px; background: var(--bg-primary); padding: 24px;"
+	>
 		<div style="border: 1px solid var(--border-metal); border-radius: 8px;">
 			<EmptyState
 				icon="ClipboardList"

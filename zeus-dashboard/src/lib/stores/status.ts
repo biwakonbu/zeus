@@ -23,7 +23,7 @@ export const projectState = derived(statusData, ($status): ProjectState | null =
 
 // 健全性の派生ストア
 export const health = derived(projectState, ($state): HealthStatus | null => {
-	return $state?.health as HealthStatus ?? null;
+	return ($state?.health as HealthStatus) ?? null;
 });
 
 // 承認待ち件数の派生ストア
@@ -33,10 +33,10 @@ export const pendingApprovals = derived(statusData, ($status): number => {
 
 // 進捗率の派生ストア
 export const progressPercent = derived(projectState, ($state): number => {
-	if (!$state?.summary || $state.summary.total_tasks === 0) {
+	if (!$state?.summary || $state.summary.total_activities === 0) {
 		return 0;
 	}
-	return Math.round(($state.summary.completed / $state.summary.total_tasks) * 100);
+	return Math.round(($state.summary.completed / $state.summary.total_activities) * 100);
 });
 
 // ステータスを更新

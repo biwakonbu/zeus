@@ -160,7 +160,12 @@ export class UseCaseNode extends Container {
 
 		// グロー効果
 		if (glowAlpha > 0) {
-			this.background.ellipse(centerX, centerY, this.ellipseWidth / 2 + 4, this.ellipseHeight / 2 + 4);
+			this.background.ellipse(
+				centerX,
+				centerY,
+				this.ellipseWidth / 2 + 4,
+				this.ellipseHeight / 2 + 4
+			);
 			this.background.fill({ color: borderColor, alpha: glowAlpha });
 		}
 
@@ -170,7 +175,12 @@ export class UseCaseNode extends Container {
 		this.background.stroke({ width: borderWidth, color: borderColor });
 
 		// 上部ハイライト（金属感）
-		this.background.ellipse(centerX, centerY - 5, this.ellipseWidth / 2 - 15, this.ellipseHeight / 2 - 15);
+		this.background.ellipse(
+			centerX,
+			centerY - 5,
+			this.ellipseWidth / 2 - 15,
+			this.ellipseHeight / 2 - 15
+		);
 		this.background.stroke({ width: 1, color: 0x666666, alpha: 0.3 });
 	}
 

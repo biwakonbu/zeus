@@ -49,7 +49,7 @@ func runHistory(cmd *cobra.Command, args []string) error {
 		fmt.Printf("%d. %s%s\n", i+1, s.Timestamp, label)
 		fmt.Printf("   Health: %s | Tasks: %d (Completed: %d, In Progress: %d, Pending: %d)\n",
 			healthColor(string(s.State.Health)),
-			s.State.Summary.TotalTasks,
+			s.State.Summary.TotalActivities,
 			s.State.Summary.Completed,
 			s.State.Summary.InProgress,
 			s.State.Summary.Pending)

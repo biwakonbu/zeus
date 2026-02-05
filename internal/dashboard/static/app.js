@@ -90,7 +90,7 @@ function renderOverview(status) {
   healthBadge.className = 'health-badge ' + status.state.health.toLowerCase();
 
   // 進捗率
-  const total = status.state.summary.total_tasks || 0;
+  const total = status.state.summary.total_activities || 0;
   const completed = status.state.summary.completed || 0;
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
@@ -98,9 +98,9 @@ function renderOverview(status) {
   document.getElementById('progress-text').textContent = percent + '%';
 }
 
-// タスク統計
+// Activity 統計
 function renderStats(status) {
-  document.getElementById('stat-total').textContent = status.state.summary.total_tasks || 0;
+  document.getElementById('stat-total').textContent = status.state.summary.total_activities || 0;
   document.getElementById('stat-completed').textContent = status.state.summary.completed || 0;
   document.getElementById('stat-in-progress').textContent = status.state.summary.in_progress || 0;
   document.getElementById('stat-pending').textContent = status.state.summary.pending || 0;

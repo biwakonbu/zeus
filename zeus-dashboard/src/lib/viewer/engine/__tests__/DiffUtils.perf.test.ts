@@ -30,9 +30,13 @@ describe('DiffUtils パフォーマンステスト', () => {
 			const tasks = generateMockTasks(1000);
 			const threshold = PERFORMANCE_THRESHOLDS.diffUpdate.computeHash;
 
-			const result = measurePerformance(() => {
-				computeTasksHash(tasks);
-			}, 100, 20);
+			const result = measurePerformance(
+				() => {
+					computeTasksHash(tasks);
+				},
+				100,
+				20
+			);
 
 			console.log(formatPerformanceResult('タスクハッシュ計算 (1000)', result));
 			assertPerformance(result, threshold, 'タスクハッシュ計算');
@@ -42,9 +46,13 @@ describe('DiffUtils パフォーマンステスト', () => {
 			const tasks = generateMockTasks(1000);
 			const threshold = PERFORMANCE_THRESHOLDS.diffUpdate.computeHash;
 
-			const result = measurePerformance(() => {
-				computeDependencyHash(tasks);
-			}, 100, 20);
+			const result = measurePerformance(
+				() => {
+					computeDependencyHash(tasks);
+				},
+				100,
+				20
+			);
 
 			console.log(formatPerformanceResult('依存関係ハッシュ計算 (1000)', result));
 			assertPerformance(result, threshold, '依存関係ハッシュ計算');
@@ -88,9 +96,13 @@ describe('DiffUtils パフォーマンステスト', () => {
 			const threshold = PERFORMANCE_THRESHOLDS.diffUpdate.detectChanges;
 
 			// 2回目以降（変更なし）
-			const result = measurePerformance(() => {
-				detectTaskChanges(tasks, state);
-			}, 100, 20);
+			const result = measurePerformance(
+				() => {
+					detectTaskChanges(tasks, state);
+				},
+				100,
+				20
+			);
 
 			console.log(formatPerformanceResult('変更検出 (変更なし)', result));
 			assertPerformance(result, threshold, '変更検出');
@@ -256,9 +268,13 @@ describe('DiffUtils パフォーマンステスト', () => {
 				currentVisible.add(`node-${i}`);
 			}
 
-			const result = measurePerformance(() => {
-				computeVisibilityDiff(currentVisible, previousVisible);
-			}, 100, 20);
+			const result = measurePerformance(
+				() => {
+					computeVisibilityDiff(currentVisible, previousVisible);
+				},
+				100,
+				20
+			);
 
 			console.log(formatPerformanceResult('可視性差分計算 (1000)', result));
 			expect(result.avgPerIteration).toBeLessThanOrEqual(5);
@@ -273,9 +289,13 @@ describe('DiffUtils パフォーマンステスト', () => {
 			for (const size of sizes) {
 				const tasks = generateMockTasks(size);
 
-				const result = measurePerformance(() => {
-					computeTasksHash(tasks);
-				}, 20, 5);
+				const result = measurePerformance(
+					() => {
+						computeTasksHash(tasks);
+					},
+					20,
+					5
+				);
 
 				times.push({ size, avgTime: result.avgPerIteration });
 			}

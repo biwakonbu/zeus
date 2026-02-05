@@ -221,7 +221,7 @@ func (d *Doctor) checkStateExists(ctx context.Context) CheckResult {
 		FixFunc: func(ctx context.Context) error {
 			state := &core.ProjectState{
 				Timestamp: core.Now(),
-				Summary:   core.TaskStats{},
+				Summary:   core.SummaryStats{},
 				Health:    core.HealthUnknown,
 				Risks:     []string{},
 			}

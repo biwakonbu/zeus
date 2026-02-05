@@ -49,7 +49,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	// Tasks 表示
 	fmt.Println("Tasks Summary:")
-	fmt.Printf("  Total:       %d\n", result.State.Summary.TotalTasks)
+	fmt.Printf("  Total:       %d\n", result.State.Summary.TotalActivities)
 	fmt.Printf("  Completed:   %d\n", result.State.Summary.Completed)
 	fmt.Printf("  In Progress: %d\n", result.State.Summary.InProgress)
 	fmt.Printf("  Pending:     %d\n", result.State.Summary.Pending)

@@ -349,7 +349,7 @@
 					<div class="detail-content">
 						<ActivityDetailPanel
 							activity={currentActivity}
-							selectedNode={selectedNode}
+							{selectedNode}
 							onNodeClick={handleNodeClickFromPanel}
 						/>
 					</div>
@@ -422,8 +422,11 @@
 		width: 100%;
 		height: 100%;
 		background-color: #1a1a1a;
-		background-image:
-			radial-gradient(circle at 1px 1px, rgba(255, 149, 51, 0.08) 1px, transparent 0);
+		background-image: radial-gradient(
+			circle at 1px 1px,
+			rgba(255, 149, 51, 0.08) 1px,
+			transparent 0
+		);
 		background-size: 24px 24px;
 	}
 
