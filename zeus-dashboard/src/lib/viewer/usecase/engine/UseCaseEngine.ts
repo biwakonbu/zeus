@@ -810,8 +810,12 @@ export class UseCaseEngine {
 
 	/**
 	 * アクターを選択
+	 * 冪等性保証: 既に同じ ID が選択済みの場合は何もしない
 	 */
 	selectActor(actorId: string): void {
+		// 冪等性ガード: 既に選択済みならスキップ
+		if (this.selectedActorId === actorId) return;
+
 		// 以前の選択を解除
 		if (this.selectedActorId) {
 			const prevNode = this.actorNodes.get(this.selectedActorId);
@@ -836,8 +840,12 @@ export class UseCaseEngine {
 
 	/**
 	 * ユースケースを選択
+	 * 冪等性保証: 既に同じ ID が選択済みの場合は何もしない
 	 */
 	selectUseCase(usecaseId: string): void {
+		// 冪等性ガード: 既に選択済みならスキップ
+		if (this.selectedUseCaseId === usecaseId) return;
+
 		// 以前の選択を解除
 		if (this.selectedUseCaseId) {
 			const prevNode = this.usecaseNodes.get(this.selectedUseCaseId);

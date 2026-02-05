@@ -117,10 +117,6 @@
 	let engineInitializing = false;
 	let engineInitialized = false;
 
-	// ナビゲーションによる選択がエンジンに反映済みかどうか
-	// 重複呼び出しを防ぐためのフラグ
-	let selectionAppliedToEngine = false;
-
 	// エンジン初期化（一度だけ実行）
 	async function initEngine(): Promise<void> {
 		if (!canvasContainer || engineInitializing || engineInitialized) return;
@@ -211,12 +207,11 @@
 	}
 
 	// Actor/UseCase クリック（リストから）
+	// エンジンへの反映は選択同期 Effect が担当
 	function handleActorClick(actor: ActorItem) {
 		selectedActorId = actor.id;
 		selectedUseCaseId = null;
 		showDetailPanel = true;
-		engine?.selectActor(actor.id);
-		selectionAppliedToEngine = true; // 重複呼び出し防止
 		onActorSelect?.(actor);
 	}
 
@@ -224,8 +219,6 @@
 		selectedUseCaseId = usecase.id;
 		selectedActorId = null;
 		showDetailPanel = true;
-		engine?.selectUseCase(usecase.id);
-		selectionAppliedToEngine = true; // 重複呼び出し防止
 		onUseCaseSelect?.(usecase);
 	}
 
@@ -288,23 +281,32 @@
 	});
 
 	// データ設定 Effect（エンジン初期化後、data または subsystems が変更されたら）
+	// 選択状態の反映は選択同期 Effect に任せる
+	// 注意: この Effect は選択同期 Effect より先に定義する必要がある
+	//       Svelte 5 では Effect は定義順に実行されるため、
+	//       setData() → 選択反映 の順序が保証される
 	$effect(() => {
 		if (engineInitialized && engine && data) {
 			const engineData: UseCaseEngineData = { ...data, subsystems };
 			engine.setData(engineData);
 			syncStoreState();
+		}
+	});
 
-			// 選択状態をエンジンに反映（ナビゲーション後の遅延初期化対応）
-			// 既にナビゲーション Effect で反映済みならスキップ（重複呼び出し防止）
-			if (!selectionAppliedToEngine) {
-				if (selectedUseCaseId) {
-					engine.selectUseCase(selectedUseCaseId);
-					selectionAppliedToEngine = true;
-				} else if (selectedActorId) {
-					engine.selectActor(selectedActorId);
-					selectionAppliedToEngine = true;
-				}
-			}
+	// 選択状態の同期 Effect（選択状態が変更されたらエンジンに反映）
+	// データ設定後の setData() による選択リセットに対応
+	// 注意: この Effect はデータ設定 Effect の後に定義すること
+	//       エンジン側で冪等性が保証されているため重複呼び出しは問題ない
+	$effect(() => {
+		if (!engineInitialized || !engine) return;
+
+		if (selectedUseCaseId) {
+			engine.selectUseCase(selectedUseCaseId);
+		} else if (selectedActorId) {
+			engine.selectActor(selectedActorId);
+		} else {
+			// 両方 null の場合、視覚的な選択のみ解除（hideAll は呼ばない）
+			engine.clearSelectionVisual();
 		}
 	});
 
@@ -321,16 +323,12 @@
 	});
 
 	// ナビゲーションによる自動選択 Effect
-	// engineInitialized 条件を削除: ビュー切り替え直後はエンジンが未初期化のため、
-	// 選択状態のみ先に設定し、エンジンへの反映はデータ設定 Effect で行う
+	// ローカル状態の更新のみ行う。エンジンへの反映は選択同期 Effect が担当
 	$effect(() => {
 		// ローカル変数に代入することで TypeScript の型推論を活用し、
 		// 以降のコードで null チェック後の型が確定する
 		const nav = $pendingNavigation;
 		if (!nav || nav.view !== 'usecase' || !data) return;
-
-		// 新しいナビゲーションが来たのでフラグをリセット
-		selectionAppliedToEngine = false;
 
 		if (nav.entityType === 'usecase' && nav.entityId) {
 			// UseCase を選択
@@ -339,11 +337,6 @@
 				selectedUseCaseId = usecase.id;
 				selectedActorId = null;
 				showDetailPanel = true;
-				// エンジンが初期化済みなら選択を反映
-				if (engineInitialized && engine) {
-					engine.selectUseCase(usecase.id);
-					selectionAppliedToEngine = true;
-				}
 				onUseCaseSelect?.(usecase);
 			}
 			clearPendingNavigation();
@@ -354,11 +347,6 @@
 				selectedActorId = actor.id;
 				selectedUseCaseId = null;
 				showDetailPanel = true;
-				// エンジンが初期化済みなら選択を反映
-				if (engineInitialized && engine) {
-					engine.selectActor(actor.id);
-					selectionAppliedToEngine = true;
-				}
 				onActorSelect?.(actor);
 			}
 			clearPendingNavigation();
