@@ -125,7 +125,7 @@ Zeusは、AIによるプロジェクトマネジメントを「神の視点」�
 | モジュール | 責務 |
 |-----------|------|
 | Server | HTTP サーバー管理、静的ファイル配信 |
-| Handlers | REST API ハンドラー（/api/status, /api/tasks, /api/graph, /api/predict） |
+| Handlers | REST API ハンドラー（/api/status, /api/activities, /api/graph, /api/predict） |
 
 **設計ポイント:**
 - Go 標準ライブラリのみ使用（net/http, embed）
@@ -322,12 +322,12 @@ zeus dashboard --no-open      # ブラウザ自動起動を無効化
 | エンドポイント | メソッド | 説明 |
 |---------------|---------|------|
 | `/api/status` | GET | プロジェクト状態（名前、進捗率、健全性） |
-| `/api/tasks` | GET | タスク一覧（JSON配列） |
+| `/api/activities` | GET | Activity 一覧（JSON配列） |
 | `/api/graph` | GET | 依存関係グラフ（Mermaid形式） |
 | `/api/predict` | GET | 予測分析結果 |
 | `/api/wbs` | GET | WBS 階層構造（Phase 6） |
 | `/api/timeline` | GET | タイムラインとクリティカルパス（Phase 6） |
-| `/api/downstream` | GET | 下流・上流タスク取得（Phase 6） |
+| `/api/downstream` | GET | 下流・上流 Activity 取得（Phase 6） |
 
 #### 3.5.3 Factorio 風ビューワー
 
@@ -702,7 +702,7 @@ export async function projectScan(context) {
 
 ### 9.6 Phase 5（Web ダッシュボード）- 完了
 1. HTTP サーバー（Go 標準 net/http）
-2. REST API（/api/status, /api/tasks, /api/graph, /api/predict, /api/events）
+2. REST API（/api/status, /api/activities, /api/graph, /api/predict, /api/events）
 3. 静的ファイル埋め込み（//go:embed）
 4. Mermaid.js によるグラフ表示
 5. SSE（Server-Sent Events）によるリアルタイム更新

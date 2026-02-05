@@ -144,7 +144,7 @@ zeus-dashboard/
 | エンドポイント | 説明 |
 |---------------|------|
 | `GET /api/status` | プロジェクト状態 |
-| `GET /api/tasks` | タスク一覧 |
+| `GET /api/activities` | Activity 一覧 |
 | `GET /api/graph` | 依存関係グラフ（Mermaid 形式） |
 | `GET /api/predict` | 予測分析結果 |
 | `GET /api/events` | SSE ストリーム |

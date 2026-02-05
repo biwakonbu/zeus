@@ -165,7 +165,7 @@ zeus update-claude                              # Claude Code ファイル再生
 
 ### Activity
 
-> **Note:** Task は Activity に統合されました。旧 Task API (`/api/tasks`) は Activity を TaskItem 形式で返します。内部的には `ListItem` 型を使用。
+> **Note:** Task は Activity に統合されました。`/api/activities` で Activity 一覧を取得できます。
 
 Activity は「実行可能な作業単位」として 2 つのモードを持つ:
 
