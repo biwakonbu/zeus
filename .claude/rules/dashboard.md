@@ -336,8 +336,6 @@ unregister();
 
 **ビュー別移動ロジック:**
 - Graph View: 依存関係順
-- WBS View: リスト順
-- Timeline View: 時系列順
 
 ### モバイル対応
 

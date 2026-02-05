@@ -18,15 +18,14 @@ paths:
 .claude/
 ├── agents/                   # エージェント定義
 │   ├── zeus-orchestrator.md  # 全コマンド一覧・オーケストレーション
-│   ├── zeus-planner.md       # WBS・タイムライン設計
+│   ├── zeus-planner.md       # 計画立案・階層設計
 │   └── zeus-reviewer.md      # 分析・レビュー
 ├── skills/                   # スキル定義
 │   ├── zeus-e2e-tester/      # E2E テストスキル
 │   │   ├── SKILL.md          # スキル定義
 │   │   └── resources/        # ゴールデンファイル・シナリオ
 │   ├── zeus-suggest/         # 提案生成
-│   ├── zeus-risk-analysis/   # リスク分析
-│   └── zeus-wbs-design/      # WBS 階層設計
+│   └── zeus-risk-analysis/   # リスク分析
 └── rules/                    # ルール定義（このファイル群）
 ```
 

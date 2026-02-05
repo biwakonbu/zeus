@@ -31,12 +31,6 @@
   },
   "validation_rules": {
     "dependency_chain_exists": true,
-    "all_tasks_on_critical_path": true,
     "sse_sync_verified": true
-  },
-  "critical_path": {
-    "_comment": "全タスクが直列のためクリティカルパス上にある",
-    "expected_count": 3,
-    "slack_values": [0, 0, 0]
   }
 }

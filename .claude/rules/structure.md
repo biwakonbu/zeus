@@ -16,7 +16,6 @@ zeus/
 │   ├── snapshot.go           # zeus snapshot
 │   ├── history.go            # zeus history
 │   ├── graph.go              # zeus graph（依存関係グラフ）
-│   ├── predict.go            # zeus predict（予測分析）
 │   ├── report.go             # zeus report（レポート生成）
 │   ├── dashboard.go          # zeus dashboard（Webダッシュボード）
 │   └── ...
@@ -36,9 +35,7 @@ zeus/
 │   │       └── mock_file_store.go
 │   ├── analysis/             # 分析機能（Phase 4）
 │   │   ├── types.go          # 分析用型定義（独立）
-│   │   ├── graph.go          # 依存関係グラフ構築・可視化
-│   │   ├── wbs.go            # WBS 階層構築
-│   │   └── predict.go        # 予測分析（完了日、リスク、ベロシティ）
+│   │   └── graph.go          # 依存関係グラフ構築・可視化
 │   ├── report/               # レポート生成（Phase 4）
 │   │   ├── generator.go      # レポート生成ロジック
 │   │   └── templates.go      # 出力テンプレート（TEXT/HTML/Markdown）

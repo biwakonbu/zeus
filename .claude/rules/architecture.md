@@ -23,14 +23,10 @@ paths:
 |-----------|------|
 | GraphBuilder | Activity 依存関係グラフの構築 |
 | DependencyGraph | グラフ構造、循環検出、統計計算、可視化出力、下流/上流 Activity 取得 |
-| Predictor | 完了日予測、リスク分析、ベロシティ計算 |
-| WBSBuilder | WBS 階層構築、ParentID 循環参照検出 |
-| TimelineBuilder | タイムライン構築、クリティカルパス計算（CPM） |
 
 **設計ポイント:**
 - `analysis` パッケージは `core` からの import cycle を避けるため独自の型を定義
 - `core.Zeus` から `analysis` への変換関数で連携
-- WBS と依存関係グラフは独立した循環検出を持つ（ParentID vs Dependencies）
 
 ## レポートモジュール (internal/report/)
 

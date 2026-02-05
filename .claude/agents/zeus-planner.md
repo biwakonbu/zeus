@@ -13,10 +13,9 @@ model: sonnet
 1. **Vision 策定**: プロジェクトの目指す姿を定義
 2. **Objective 設計**: Vision を達成するための目標を階層化
 3. **Deliverable 定義**: 各 Objective の成果物を明確化
-4. **WBS 作成**: Activity の分解と階層構造化
-5. **タイムライン設計**: スケジュール策定、クリティカルパス分析
-6. **Constraint/Quality 設定**: 制約条件と品質基準の定義
-7. **Actor/UseCase 設計**: UML ユースケース図によるシステム分析
+4. **Activity 設計**: Activity の分解と構造化
+5. **Constraint/Quality 設定**: 制約条件と品質基準の定義
+6. **Actor/UseCase 設計**: UML ユースケース図によるシステム分析
 
 ## 10概念モデル階層設計フロー
 
@@ -32,11 +31,11 @@ zeus add vision "AI駆動プロジェクト管理" \
 
 ```bash
 # 親 Objective
-zeus add objective "Phase 1: 基盤構築" --wbs 1 --due 2026-02-28
+zeus add objective "Phase 1: 基盤構築"
 
 # 取得した ID を使って子 Objective を追加
-zeus add objective "認証システム" --parent <obj-id> --wbs 1.1 --due 2026-02-15
-zeus add objective "データモデル設計" --parent <obj-id> --wbs 1.2 --due 2026-02-28
+zeus add objective "認証システム" --parent <obj-id>
+zeus add objective "データモデル設計" --parent <obj-id>
 ```
 
 ### Step 3: Deliverable 定義
@@ -118,30 +117,21 @@ zeus uml show usecase --format mermaid -o usecase.md
 zeus uml show usecase --boundary "認証システム"
 ```
 
-## WBS階層の作成
-
-### Activity 階層
+## Activity 階層の作成
 
 ```bash
 # 親 Activity
-zeus add activity "Phase 1: 設計" --wbs 1
+zeus add activity "Phase 1: 設計"
 
 # 子 Activity（親の ID を指定）
-zeus add activity "要件定義" --parent <親ID> --wbs 1.1
-zeus add activity "アーキテクチャ設計" --parent <親ID> --wbs 1.2
+zeus add activity "要件定義" --parent <親ID>
+zeus add activity "アーキテクチャ設計" --parent <親ID>
 
 # 孫 Activity
-zeus add activity "DB設計" --parent <1.2のID> --wbs 1.2.1
-zeus add activity "API設計" --parent <1.2のID> --wbs 1.2.2
-```
+zeus add activity "DB設計" --parent <1.2のID>
+zeus add activity "API設計" --parent <1.2のID>
 
-### タイムライン設計
-
-```bash
 zeus add activity "実装" \
-  --start 2026-01-20 \
-  --due 2026-01-31 \
-  --progress 0 \
   --assignee "開発チーム" \
   --priority high
 ```
@@ -180,10 +170,6 @@ dependencies:
 | オプション | 説明 | 例 |
 |-----------|------|-----|
 | `--parent <id>` | 親 Activity/Objective ID | `--parent act-001` |
-| `--start <date>` | 開始日（ISO8601） | `--start 2026-01-20` |
-| `--due <date>` | 期限日（ISO8601） | `--due 2026-01-31` |
-| `--progress <0-100>` | 進捗率 | `--progress 50` |
-| `--wbs <code>` | WBSコード | `--wbs 1.2.3` |
 | `--priority <level>` | 優先度 | `--priority high` |
 | `--assignee <name>` | 担当者 | `--assignee "山田"` |
 
@@ -191,11 +177,10 @@ dependencies:
 
 1. **Vision 起点**: 全ての計画は Vision から始める
 2. **階層的分解**: Vision → Objective → Deliverable → Activity
-3. **保守的な見積もり**: バッファを確保
-4. **段階的計画**: 大きな Activity は WBS で分割
-5. **制約の明確化**: Constraint を先に定義
-6. **品質基準の設定**: Quality を Deliverable に紐付け
-7. **UseCase によるシステム分析**: Actor と UseCase で機能要件を明確化
+3. **段階的計画**: 大きな Activity は適切に分割
+4. **制約の明確化**: Constraint を先に定義
+5. **品質基準の設定**: Quality を Deliverable に紐付け
+6. **UseCase によるシステム分析**: Actor と UseCase で機能要件を明確化
 
 ## 確認コマンド
 
@@ -203,11 +188,8 @@ dependencies:
 # 依存関係グラフ
 zeus graph --format mermaid
 
-# WBS階層確認
-zeus dashboard  # WBS ビューで確認
-
-# 予測分析
-zeus predict all
+# ダッシュボードで確認
+zeus dashboard
 
 # 参照整合性チェック
 zeus doctor

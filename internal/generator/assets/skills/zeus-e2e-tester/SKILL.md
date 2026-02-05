@@ -103,13 +103,6 @@ window.__ZEUS__ = {
     totalCount: number
   }),
 
-  // クリティカルパス状態を返す
-  getCriticalPathState: () => ({
-    enabled: boolean,
-    criticalPathIds: string[],
-    criticalPathCount: number
-  }),
-
   // 描画完了を待機
   isReady: () => boolean,
 
