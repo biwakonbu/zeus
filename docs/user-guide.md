@@ -1,626 +1,207 @@
 # Zeus ユーザーガイド
 
-## 1. はじめに
+> 現行仕様の正本入口: `docs/README.md`
 
-### 1.1 Zeus とは
+## 1. Zeus とは
 
-Zeus は「神の視点」でプロジェクト管理を支援する AI 駆動型 CLI システムです。タスク管理、進捗追跡、AI による提案機能を提供し、プロジェクトの上流工程（方針立案から WBS 化、タイムライン設計まで）を支援します。
+Zeus は、YAML ベースでプロジェクト構造を管理する CLI + Web ダッシュボードです。Activity、UseCase、Deliverable、Objective を統合的に可視化し、日次運用と設計レビューを支援します。
 
-### 1.2 主な機能
+## 2. はじめ方
 
-- **ファイルベース管理**: 外部データベース不要、YAML ファイルで人間可読
-- **3段階承認フロー**: auto / notify / approve の承認レベル
-- **スナップショット**: プロジェクト状態の保存と復元
-- **AI 提案**: タスク追加、優先度変更、リスク対策の提案
-- **予測分析**: 完了日予測、リスク予測、ベロシティ分析
-- **依存関係グラフ**: タスク間の依存関係を可視化
-- **Web ダッシュボード**: ブラウザでプロジェクト状態をリアルタイム可視化
-
-### 1.3 対象ユーザー
-
-- プロジェクトマネージャー
-- 技術リーダー / アーキテクト
-- プロダクトマネージャー
-- 個人開発者
-
-## 2. インストール
-
-### 2.1 前提条件
-
-- Go 1.21 以上
-- Git（ソースコードの取得用）
-
-### 2.2 ソースからのビルド
+## 2.1 インストール（ソースから）
 
 ```bash
-# リポジトリをクローン
 git clone https://github.com/biwakonbu/zeus.git
 cd zeus
-
-# ビルド
 make build
-
-# インストール（$GOPATH/bin にコピー）
-make install
 ```
 
-### 2.3 動作確認
+## 2.2 初期化
 
 ```bash
-# バージョン確認
-zeus --help
-```
-
-出力例:
-```
-Zeus は AI によるプロジェクトマネジメントを「神の視点」で
-俯瞰するシステムです。上流工程（方針立案からWBS化、タイムライン設計、
-仕様作成まで）を支援します。
-
-Usage:
-  zeus [command]
-
-Available Commands:
-  add         エンティティを追加
-  apply       AI提案を適用
-  approve     アイテムを承認
-  doctor      システムの健全性を診断
-  ...
-```
-
-## 3. クイックスタート
-
-### 3.1 5分で始める Zeus
-
-```bash
-# 1. プロジェクトディレクトリに移動
 cd your-project
-
-# 2. Zeus を初期化
-zeus init
-
-# 3. アクティビティを追加
-zeus add activity "ドキュメント作成"
-
-# 4. 状態を確認
-zeus status
-```
-
-### 3.2 出力例
-
-```
-Zeus Project Status
-═══════════════════════════════════════════════════════════
-Project: New Zeus Project
-Health:  good
-
-Activities Summary:
-  Total:       1
-  Completed:   0
-  In Progress: 0
-  Pending:     1
-═══════════════════════════════════════════════════════════
-```
-
-## 4. 基本的な使い方
-
-### 4.1 プロジェクト初期化
-
-`zeus init` コマンドでプロジェクトを初期化します。
-
-```bash
-# プロジェクトを初期化
 zeus init
 ```
 
-初期化により以下が作成されます:
-
-- `.zeus/` ディレクトリ（タスク、状態、承認管理用）
-- `.claude/` ディレクトリ（Claude Code 連携用）
-- デフォルトの `automation_level` は `auto`（即時実行、承認不要）
-
-**承認フローの設定:**
-
-承認フローは `zeus.yaml` の `automation_level` で設定できます:
-
-| 値 | 説明 | 動作 |
-|---|------|------|
-| auto | 自動承認（デフォルト） | 即時実行、承認不要 |
-| notify | 通知のみ | 実行時に通知、ログ記録 |
-| approve | 事前承認必須 | 承認待ちキューに追加 |
-
-### 4.2 状態確認
-
-`zeus status` コマンドでプロジェクトの状態を確認できます。
+## 2.3 最初の確認
 
 ```bash
 zeus status
-```
-
-### 4.3 アクティビティ管理
-
-#### アクティビティの追加
-
-```bash
-zeus add activity "新機能の実装"
-```
-
-出力例:
-```
-✓ Added activity: 新機能の実装 (ID: act-abc123)
-```
-
-Note: `automation_level` が `approve` の場合、アクティビティ追加時に承認フローが適用されます。
-
-#### アクティビティ一覧の表示
-
-```bash
-# 全アクティビティを表示
-zeus list
-
-# アクティビティのみ表示
 zeus list activities
 ```
 
-出力例:
-```
-Activities (3 items)
-────────────────────────────────────────
-[pending] act-001 - ドキュメント作成
-[in_progress] act-002 - 新機能の実装
-[completed] act-003 - バグ修正
+## 3. 基本操作
+
+## 3.1 エンティティ追加
+
+```bash
+zeus add vision "AIで設計品質を上げる"
+zeus add objective "設計レビュー自動化"
+zeus add deliverable "運用設計書" --objective obj-001 --format document
+zeus add activity "API一覧を整備" --priority high --assignee "team"
 ```
 
-### 4.4 診断と修復
+## 3.2 一覧確認
 
-#### システム診断
+```bash
+zeus list
+zeus list objectives
+zeus list deliverables
+zeus list activities --status in_progress
+```
+
+## 3.3 品質確認
 
 ```bash
 zeus doctor
-```
-
-出力例:
-```
-Zeus Doctor - System Diagnosis
-═══════════════════════════════════════════════════════════
-✓ zeus_yaml: zeus.yaml exists and is valid
-✓ activities_dir: activities directory exists
-⚠ backup_health: No recent backups found
-═══════════════════════════════════════════════════════════
-Overall: fair
-
-1 issue(s) can be fixed automatically. Run 'zeus fix' to repair.
-```
-
-#### 自動修復
-
-```bash
-# プレビュー（実行せずに確認）
 zeus fix --dry-run
-
-# 実行
-zeus fix
 ```
 
-## 5. 承認フロー
+## 4. 承認フロー
 
-### 5.1 承認レベル
-
-Zeus は3段階の承認レベルをサポートしています。
-
-| レベル | 説明 | 適用例 |
-|--------|------|--------|
-| auto | 自動承認（即時実行） | 読み取り操作、レポート生成 |
-| notify | 通知付き実行 | ステータス更新、軽微な変更 |
-| approve | 事前承認必須 | 重要な変更、スコープ変更 |
-
-### 5.2 承認待ちの管理
+## 4.1 承認待ち確認
 
 ```bash
-# 承認待ちアイテムを表示
 zeus pending
 ```
 
-出力例:
-```
-Pending Approvals
-═══════════════════════════════════════════════════════════
-[approve] appr-001 - タスク追加: 新機能の実装
-    Type: add_task | Created: 2026-01-15T10:00:00Z
-═══════════════════════════════════════════════════════════
-Total: 1 item(s)
-
-Use 'zeus approve <id>' to approve or 'zeus reject <id>' to reject.
-```
-
-### 5.3 承認と却下
+## 4.2 承認/却下
 
 ```bash
-# 承認
-zeus approve appr-001
-
-# 却下（理由付き）
-zeus reject appr-001 --reason "優先度が低いため"
+zeus approve <id>
+zeus reject <id> --reason "理由"
 ```
 
-## 6. スナップショットと履歴
+## 5. AI 支援
 
-### 6.1 スナップショット
-
-プロジェクトの状態をスナップショットとして保存できます。
+## 5.1 提案生成
 
 ```bash
-# スナップショット作成
-zeus snapshot create
-
-# ラベル付きで作成
-zeus snapshot create "リリース前"
-
-# スナップショット一覧
-zeus snapshot list
-
-# スナップショットから復元
-zeus snapshot restore 2026-01-15T10:00:00Z
+zeus suggest --limit 5 --impact high
 ```
 
-### 6.2 履歴
-
-プロジェクトの履歴を確認できます。
+## 5.2 提案適用
 
 ```bash
-# 履歴表示（デフォルト10件）
-zeus history
-
-# 件数指定
-zeus history -n 5
-```
-
-出力例:
-```
-Project History
-═══════════════════════════════════════════════════════════
-1. 2026-01-15T10:00:00Z [リリース前]
-   Health: good | Activities: 10 (Completed: 8, In Progress: 1, Pending: 1)
-
-2. 2026-01-14T18:00:00Z
-   Health: fair | Activities: 10 (Completed: 5, In Progress: 3, Pending: 2)
-═══════════════════════════════════════════════════════════
-Use 'zeus snapshot restore <timestamp>' to restore a snapshot.
-```
-
-## 7. AI機能
-
-### 7.1 提案機能
-
-Zeus は現在のプロジェクト状態を分析し、改善提案を生成します。
-
-```bash
-# 提案を生成
-zeus suggest
-
-# 件数制限
-zeus suggest --limit 3
-
-# 影響度でフィルタ
-zeus suggest --impact high
-```
-
-出力例:
-```
-[SUGGESTIONS] 2件の提案が生成されました:
-
-1. [high] テストタスクの追加を推奨
-   理由: テストカバレッジが不足しています
-   ID: sug-001
-   見積: 4.0時間
-
-2. [medium] 優先度の見直しを推奨
-   理由: ブロックされているタスクがあります
-   ID: sug-002
-
-[HINT] 提案を適用するには: zeus apply <suggestion-id>
-```
-
-#### 提案の適用
-
-```bash
-# 個別適用
-zeus apply sug-001
-
-# 全て適用
-zeus apply --all
-
-# プレビュー
+zeus apply <suggestion-id>
+# または
 zeus apply --all --dry-run
 ```
 
-### 7.2 説明機能
-
-エンティティの詳細説明を生成します。
+## 5.3 詳細解説
 
 ```bash
-# プロジェクト全体の説明
-zeus explain project
-
-# 特定アクティビティの説明
-zeus explain act-001
-
-# コンテキスト情報を含む
 zeus explain act-001 --context
 ```
 
-### 7.3 予測分析
+## 6. 可視化とレポート
 
-プロジェクトの予測分析を表示します。
-
-```bash
-# 全ての予測
-zeus predict
-
-# 完了日予測のみ
-zeus predict completion
-
-# リスク予測のみ
-zeus predict risk
-
-# ベロシティ分析のみ
-zeus predict velocity
-```
-
-出力例:
-```
-Zeus Prediction Analysis
-============================================================
-
-[COMPLETION PREDICTION]
-  Estimated Completion: 2026-02-15
-  Margin:               +/- 5 days
-  Average Velocity:     3.5 activities/week
-  Remaining Activities: 12
-  Confidence:           75%
-
-[RISK PREDICTION]
-  Overall Risk Level:   Medium
-  Risk Score:           45/100
-
-  Risk Factors:
-    - 依存関係の複雑さ (Impact: 6/10)
-      複数のタスクが相互依存しています
-
-[VELOCITY ANALYSIS]
-  Last 7 days:          4 activities completed
-  Last 14 days:         7 activities completed
-  Last 30 days:         15 activities completed
-  Weekly Average:       3.5 activities
-  Trend:                Stable
-============================================================
-```
-
-### 7.4 依存関係グラフ
-
-タスク間の依存関係を可視化します。
+## 6.1 依存グラフ
 
 ```bash
-# テキスト形式で表示
 zeus graph
-
-# Graphviz DOT 形式
-zeus graph --format=dot
-
-# Mermaid 形式
-zeus graph --format=mermaid
-
-# ファイルに出力
-zeus graph --format=mermaid --output=deps.md
+zeus graph --format mermaid -o docs/deps.md
 ```
 
-### 7.5 レポート生成
-
-プロジェクトの包括的なレポートを生成します。
+## 6.2 統合グラフ
 
 ```bash
-# テキスト形式
-zeus report
-
-# HTML 形式
-zeus report --format=html --output=report.html
-
-# Markdown 形式
-zeus report --format=markdown --output=report.md
+zeus graph --unified
+zeus graph --unified --layers structural,reference
+zeus graph --unified --relations depends_on,produces
+zeus graph --unified --focus act-001 --depth 2
 ```
 
-### 7.6 Web ダッシュボード
-
-ブラウザでプロジェクト状態をリアルタイム可視化します。SvelteKit で実装された Factorio 風インダストリアル UI を採用。
+## 6.3 レポート出力
 
 ```bash
-# デフォルト設定で起動（ポート8080、ブラウザ自動起動）
-zeus dashboard
+zeus report --format markdown -o report.md
+zeus report --format html -o report.html
+```
 
-# ポート番号を指定
-zeus dashboard --port 3000
+## 6.4 ダッシュボード
 
-# ブラウザを自動で開かない
-zeus dashboard --no-open
+```bash
+zeus dashboard --port 8080
+```
 
-# 開発モード（CORS 有効、Vite Dev Server との連携用）
+開発モード:
+
+```bash
 zeus dashboard --dev --port 8080
 ```
 
-出力例:
-```
-Zeus Dashboard
-═══════════════════════════════════════════════════════════
-Mode: Production
-Starting server on port 8080...
+## 7. UML 操作
 
-Dashboard: http://127.0.0.1:8080
+## 7.1 UseCase 図を出力
 
-Press Ctrl+C to stop the server
-═══════════════════════════════════════════════════════════
-```
-
-**ダッシュボード機能:**
-
-ダッシュボードは「神の視点」で大量のタスクを俯瞰できる Factorio 風ビューワーを採用しています。
-
-**主な特徴:**
-
-- **無限キャンバス**: 全タスクを一枚の空間で表示
-- **滑らかなズーム/パン**: マウスホイールとドラッグで自在に移動
-- **段階的情報開示**: ズームレベルに応じて表示情報が変化（LOD システム）
-- **1000以上のタスク対応**: WebGL 描画で高パフォーマンスを維持
-
-**操作方法:**
-
-| 操作 | 動作 |
-|------|------|
-| マウスホイール | ズームイン/アウト |
-| ドラッグ | パン（ビューポート移動） |
-| クリック | タスクを選択 |
-| Ctrl+クリック | 複数選択に追加/削除 |
-| ダブルクリック | タスクにフォーカス（中央表示） |
-
-**ズームレベルと表示:**
-
-| レベル | 表示内容 |
-|-------|---------|
-| 俯瞰（Macro） | ステータス色のみ（全体像把握） |
-| 中間（Meso） | ステータス + タスクID |
-| 詳細（Micro） | 全情報（タイトル、担当者、進捗バー） |
-
-**UI コンポーネント:**
-
-| コンポーネント | 位置 | 機能 |
-|--------------|------|------|
-| ミニマップ | 右下 | 全体図を表示、クリックでジャンプ |
-| フィルターパネル | 左上 | ステータス/優先度/担当者でフィルタリング |
-| 選択情報 | 左下 | 選択中のタスク数を表示 |
-
-**フィルター機能:**
-
-フィルターパネルを展開すると、以下の条件でタスクを絞り込めます:
-
-- **検索**: タスク ID またはタイトルで検索
-- **ステータス**: Completed / In Progress / Pending / Blocked
-- **優先度**: High / Medium / Low
-- **担当者**: プロジェクト内の担当者一覧から選択
-
-**エッジ（接続線）の種類:**
-
-| 種類 | 色 | 意味 |
-|------|---|------|
-| 通常 | 緑 | 完了した依存関係 |
-| 進行中 | 青 | 進行中の依存関係 |
-| 保留 | グレー | 未着手の依存関係 |
-| ブロック | 赤 | ブロックされた依存関係 |
-| クリティカル | オレンジ（太線） | クリティカルパス上の依存関係 |
-
-**ベストプラクティス:**
-
-1. **全体把握**: 最初はズームアウトして全体像を確認
-2. **問題箇所の特定**: 赤い（ブロック）ノードやエッジを探す
-3. **詳細確認**: 気になるタスクにズームインして詳細を確認
-4. **フィルター活用**: 特定のステータスや担当者に絞って確認
-5. **ミニマップ活用**: 大規模プロジェクトでは素早く移動
-
-## 8. ベストプラクティス
-
-### 8.1 推奨ワークフロー
-
-**毎日の作業:**
-1. `zeus status` でプロジェクト状態を確認
-2. `zeus pending` で承認待ちを確認
-3. 作業完了時にタスクステータスを更新
-
-**週次レビュー:**
-1. `zeus predict` で進捗を分析
-2. `zeus suggest` で改善提案を確認
-3. `zeus snapshot create "週次バックアップ"` でスナップショット作成
-4. `zeus dashboard` でチームと進捗を共有
-
-### 8.2 Tips
-
-- スナップショットは重要なマイルストーン前に作成する
-- `zeus doctor` は定期的に実行して問題を早期発見する
-- `--dry-run` オプションを活用して操作結果を事前確認する
-- ダッシュボードはチームミーティングでの進捗共有に便利
-
-### 8.3 避けるべきこと
-
-- `.zeus/` ディレクトリ内のファイルを手動で編集しない（`zeus` コマンドを使用）
-- バックアップディレクトリを削除しない
-- 承認待ちアイテムを長期間放置しない
-
-## 9. トラブルシューティング
-
-### 9.1 よくある問題
-
-#### 「zeus.yaml が見つからない」
-
-**原因**: プロジェクトが初期化されていない
-
-**解決方法**:
 ```bash
-zeus init
+zeus uml show usecase --format mermaid -o docs/usecase.md
 ```
 
-#### 「YAML シンタックスエラー」
+## 7.2 UseCase と Actor の関連付け
 
-**原因**: YAML ファイルの形式が不正
-
-**解決方法**:
 ```bash
-# 診断
+zeus usecase add-actor uc-001 actor-001 --role primary
+```
+
+## 7.3 UseCase 関係追加
+
+```bash
+zeus usecase link uc-001 --include uc-002
+zeus usecase link uc-001 --extend uc-003 --condition "任意機能選択時" --extension-point "決済方式"
+zeus usecase link uc-001 --generalize uc-004
+```
+
+## 8. API を使った確認
+
+```bash
+curl -s http://127.0.0.1:8080/api/status | jq '.state.health'
+curl -s http://127.0.0.1:8080/api/unified-graph | jq '.stats'
+curl -s http://127.0.0.1:8080/api/affinity | jq '.stats'
+curl -s http://127.0.0.1:8080/api/actors | jq '.total'
+curl -s http://127.0.0.1:8080/api/usecases | jq '.total'
+curl -s http://127.0.0.1:8080/api/subsystems | jq '.total'
+curl -s "http://127.0.0.1:8080/api/uml/usecase?boundary=System" | jq '.boundary'
+curl -s http://127.0.0.1:8080/api/activities | jq '.total'
+curl -s "http://127.0.0.1:8080/api/uml/activity?id=act-001" | jq '.activity.id'
+```
+
+SSE:
+
+```bash
+curl -N http://127.0.0.1:8080/api/events
+```
+
+## 9. よくある問題
+
+## 9.1 ダッシュボードが起動しない
+
+```bash
+zeus dashboard --port 18080
+```
+
+## 9.2 整合性エラーが出る
+
+```bash
 zeus doctor
-
-# 修復
-zeus fix
+zeus fix --dry-run
 ```
 
-#### 「承認待ちアイテムが処理できない」
+## 9.3 グラフが空になる
 
-**原因**: 指定した ID が存在しない、または既に処理済み
-
-**解決方法**:
 ```bash
-# 承認待ち一覧を確認
-zeus pending
-
-# 正しい ID で再実行
-zeus approve <正しいID>
+zeus list activities
+zeus uml show usecase --format text
+zeus list objectives
 ```
 
-#### 「ダッシュボードが起動しない」
+## 10. 関連文書
 
-**原因**: ポートが既に使用中
+- 正本入口: `docs/README.md`
+- 運用手順: `docs/operations-manual.md`
+- 設計: `docs/system-design.md`
+- CLI/API 契約: `docs/api-reference.md`
+- 開発要約: `CLAUDE.md`
 
-**解決方法**:
-```bash
-# 別のポートを指定
-zeus dashboard --port 3001
-```
-
-### 9.2 エラーメッセージの読み方
-
-Zeus のエラーメッセージは以下の形式で表示されます:
-
-```
-Error: <エラーの概要>
-  <詳細情報>
-```
-
-詳細情報には、問題の原因と推奨される対処方法が含まれています。
-
-### 9.3 サポート
-
-問題が解決しない場合:
-
-1. `zeus doctor` で診断結果を確認
-2. GitHub Issues で報告: https://github.com/biwakonbu/zeus/issues
-
----
-
-*Zeus User Guide v1.2*
-*作成日: 2026-01-15*
-*更新日: 2026-01-16（Factorio 風ビューワー追加）*
+*更新日: 2026-02-06（実装同期版）*

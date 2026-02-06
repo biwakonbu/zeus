@@ -1,694 +1,212 @@
 # Zeus 運用マニュアル
 
-## 1. クイックスタート
+> 正本判定: `docs/README.md` を参照。CLI は `cmd/*.go`、HTTP API は `internal/dashboard/server.go` を正本とする。
 
-### 1.1 インストール
+## 1. 目的
+
+本書は、現行実装に基づく Zeus の運用手順を定義する。日次運用、障害一次対応、CLI/API の確認手順を対象とする。
+
+## 2. 運用開始
+
+### 2.1 初期化
+
 ```bash
-# Claude Code Pluginとしてインストール
-claude plugin install zeus
-
-# または、ローカルからインストール
-claude plugin add ./zeus-plugin
-```
-
-### 1.2 プロジェクト初期化
-```bash
-# プロジェクト初期化（全機能を使用可能な状態で初期化）
 zeus init
 ```
 
-### 1.3 最初のステータス確認
+### 2.2 状態確認
+
 ```bash
 zeus status
+zeus doctor
 ```
 
-## 2. ユーザー別ガイド
+### 2.3 ダッシュボード起動
 
-### 2.1 プロジェクトマネージャー向け
-
-#### 日常業務
 ```bash
-# 朝のチェック
-zeus status                    # プロジェクト状況確認
-zeus pending                   # 承認待ちアイテム確認
-
-# アクティビティ管理
-zeus list activities --status=in_progress  # 進行中アクティビティ
-zeus suggest                   # AI提案を確認
-zeus apply <id>                # 提案を適用
-
-# 週次レビュー
-zeus report --format=html      # レポート生成
-zeus predict                   # 予測分析
+zeus dashboard --port 8080
 ```
 
-#### 承認ワークフロー
+開発モード（Vite + Go API 分離）:
+
 ```bash
-# 承認待ちの確認
-zeus pending
-
-# 詳細確認
-zeus suggest --detail <id>
-
-# 承認/却下
-zeus approve <id>
-zeus reject <id> --reason "理由をここに記述"
+zeus dashboard --dev --port 8080
 ```
 
-#### ビュー切替
-```bash
-# 詳細ビュー
-zeus status
+## 3. フェーズ定義（運用表現の統一）
 
-# ダッシュボードで可視化
-zeus dashboard
+### 3.1 機能フェーズ
+
+| フェーズ | 内容 | 状態 |
+|---|---|---|
+| Phase 1 | init, status, add, list, doctor, fix | 完了 |
+| Phase 2 | pending, approve, reject, snapshot, history | 完了 |
+| Phase 3 | suggest, apply, explain, update-claude | 完了 |
+| Phase 4 | graph, report | 完了 |
+| Phase 5 | dashboard, REST API, SSE | 完了 |
+| Phase 7 | Affinity 可視化 (`/api/affinity`) | 完了 |
+| 概念モデル Phase 1-3 | Vision〜Quality, Actor/UseCase/Subsystem, Activity | 完了 |
+
+### 3.2 外部連携フェーズ
+
+| 項目 | 状態 | 備考 |
+|---|---|---|
+| Git 自動連携 | 未実装 | 現在は手動 Git 運用を前提 |
+| Slack/Email 通知 | 未実装 | SSE と CLI で状態確認 |
+| 認証・認可 | 未実装 | `127.0.0.1` バインド前提のローカル運用 |
+
+## 4. CLI 運用リファレンス
+
+### 4.1 コア操作
+
+| コマンド | 用途 |
+|---|---|
+| `zeus init` | プロジェクト初期化 |
+| `zeus status` | 状態確認 |
+| `zeus add <entity> <name>` | エンティティ追加 |
+| `zeus list [entity]` | 一覧確認 |
+| `zeus doctor` | 整合性診断 |
+| `zeus fix [--dry-run]` | 自動修復 |
+
+### 4.2 AI 支援
+
+| コマンド | 用途 |
+|---|---|
+| `zeus suggest [--limit N] [--impact high|medium|low]` | 提案生成 |
+| `zeus apply [suggestion-id] [--all] [--dry-run]` | 提案適用 |
+| `zeus explain <entity-id> [--context]` | エンティティ解説 |
+
+### 4.3 承認・履歴
+
+| コマンド | 用途 |
+|---|---|
+| `zeus pending` | 承認待ち一覧 |
+| `zeus approve <id>` | 承認 |
+| `zeus reject <id> --reason "..."` | 却下 |
+| `zeus snapshot create [label]` | スナップショット作成 |
+| `zeus snapshot list [-n N]` | スナップショット一覧 |
+| `zeus snapshot restore <timestamp>` | スナップショット復元 |
+| `zeus history [-n N]` | 履歴表示 |
+
+### 4.4 可視化・レポート
+
+| コマンド | 用途 |
+|---|---|
+| `zeus graph [--format text|dot|mermaid] [-o file]` | 依存グラフ |
+| `zeus graph --unified [--focus ID] [--depth N]` | 統合グラフ |
+| `zeus graph --unified --layers structural,reference` | 2層フィルタ |
+| `zeus graph --unified --relations ...` | 関係種別フィルタ |
+| `zeus report [--format text|html|markdown] [-o file]` | レポート出力 |
+| `zeus dashboard [--port N] [--no-open] [--dev]` | Web ダッシュボード |
+
+### 4.5 UML 操作
+
+| コマンド | 用途 |
+|---|---|
+| `zeus uml show usecase [--boundary NAME] [--format text|mermaid] [-o file]` | ユースケース図出力 |
+| `zeus usecase add-actor <usecase-id> <actor-id> [--role primary|secondary]` | UseCase と Actor の関連付け |
+| `zeus usecase link <usecase-id> --include|--extend|--generalize ...` | UseCase 関係追加 |
+
+## 5. API 運用チェック
+
+ダッシュボード起動後、以下で API 契約の実在確認を行う。
+
+```bash
+curl -s http://127.0.0.1:8080/api/status | jq '.state.health'
+curl -s http://127.0.0.1:8080/api/graph | jq '.stats'
+curl -s "http://127.0.0.1:8080/api/unified-graph?layers=structural" | jq '.stats'
+curl -s "http://127.0.0.1:8080/api/affinity?max_siblings=20&min_score=0.2" | jq '.stats'
+curl -s http://127.0.0.1:8080/api/actors | jq '.total'
+curl -s http://127.0.0.1:8080/api/usecases | jq '.total'
+curl -s http://127.0.0.1:8080/api/subsystems | jq '.total'
+curl -s "http://127.0.0.1:8080/api/uml/usecase?boundary=System" | jq '.boundary'
+curl -s http://127.0.0.1:8080/api/activities | jq '.total'
+curl -s "http://127.0.0.1:8080/api/uml/activity?id=act-001" | jq '.activity.id'
 ```
 
-### 2.2 技術リーダー/アーキテクト向け
+SSE 接続確認:
 
-#### アクティビティ分析
 ```bash
-# アクティビティ構造の確認
-zeus list activities           # アクティビティ一覧
-zeus explain <activity-id>     # AI解説
-zeus graph                     # 依存関係グラフ
-
-# リスク分析
-zeus predict risk              # リスク予測
-zeus doctor                    # プロジェクト診断
+curl -N http://127.0.0.1:8080/api/events
 ```
 
-#### YAML直接編集
+## 6. 日次運用手順
+
+1. `zeus status` で全体状態を確認する。
+2. `zeus pending` を確認し、承認・却下を処理する。
+3. `zeus doctor` を実行し、必要なら `zeus fix --dry-run` で修復内容を確認する。
+4. `zeus graph --unified --layers structural,reference` で関係変化を確認する。
+5. 必要に応じて `zeus report --format markdown -o report.md` を出力する。
+
+## 7. 週次運用手順
+
+1. `zeus snapshot create "weekly-review"` を実行する。
+2. `zeus history -n 20` で推移を確認する。
+3. `zeus dashboard` で API と可視化を目視確認する。
+4. 変更内容を Git にコミットし、差分レビューを行う。
+
+## 8. 障害一次対応
+
+### 8.1 ポート競合
+
+症状:
+- `zeus dashboard` 起動時にバインド失敗。
+
+対応:
+
 ```bash
-# .zeus/activities/*.yaml を直接編集
-# 編集後は zeus doctor で構文チェック
+zeus dashboard --port 18080
 ```
 
-### 2.3 プロダクトマネージャー向け
+### 8.2 UML Activity API が 400 を返す
 
-#### 目標管理
+症状:
+- `/api/uml/activity` が `id パラメータが必要です` を返す。
+
+対応:
+
 ```bash
-# アクティビティ一覧の確認
+curl -s "http://127.0.0.1:8080/api/uml/activity?id=act-001" | jq
+```
+
+### 8.3 グラフが空になる
+
+症状:
+- `/api/unified-graph` が空配列を返す。
+
+確認:
+
+```bash
 zeus list activities
-
-# 新規アクティビティ追加
-zeus add activity "新機能の実装" --due 2026-03-31
-
-# 進捗確認
-zeus status
+zeus uml show usecase --format text
+zeus list objectives
 ```
 
-#### 優先順位調整
+### 8.4 承認待ちが滞留する
+
+症状:
+- `zeus pending` に項目が残り続ける。
+
+対応:
+
 ```bash
-# AI提案の確認
-zeus suggest
-
-# 提案を適用
-zeus apply <suggestion-id>
-```
-
-### 2.4 経営層/ステークホルダー向け
-
-#### ダッシュボード
-```bash
-# Web ダッシュボードで可視化
-zeus dashboard
-
-# 簡潔なステータス
-zeus status
-```
-
-#### レポート
-```bash
-# HTMLレポート生成
-zeus report --format=html -o report.html
-
-# Markdown レポート
-zeus report --format=markdown -o report.md
-```
-
-## 3. コマンドリファレンス
-
-### 3.1 Core コマンド
-
-| コマンド | 説明 | オプション |
-|---------|------|-----------|
-| `zeus init` | プロジェクト初期化 | - |
-| `zeus status` | ステータス表示 | - |
-| `zeus add` | エンティティ追加 | `<entity> <name>` |
-| `zeus list` | 一覧表示 | `[entity] [--status]` |
-| `zeus doctor` | システム診断 | - |
-| `zeus fix` | 自動修復 | `--dry-run` |
-
-### 3.2 AI コマンド
-
-| コマンド | 説明 | オプション |
-|---------|------|-----------|
-| `zeus suggest` | AI提案一覧 | `--detail <id>`, `--category` |
-| `zeus apply` | 提案適用 | `<id>`, `--dry-run` |
-| `zeus explain` | AI解説 | `<entity-id>` |
-
-### 3.3 承認コマンド
-
-| コマンド | 説明 | オプション |
-|---------|------|-----------|
-| `zeus pending` | 承認待ち一覧 | - |
-| `zeus approve` | 承認 | `<id>` |
-| `zeus reject` | 却下 | `<id> [--reason ""]` |
-| `zeus snapshot` | スナップショット管理 | `create\|list\|restore` |
-| `zeus history` | 履歴表示 | `-n <limit>` |
-
-### 3.4 分析コマンド（Phase 4）
-
-| コマンド | 説明 | オプション |
-|---------|------|-----------|
-| `zeus graph` | 依存関係グラフ表示 | `--format text\|dot\|mermaid`, `-o <file>` |
-| `zeus predict` | 予測分析 | `completion\|risk\|velocity\|all` |
-| `zeus report` | レポート生成 | `--format text\|html\|markdown`, `-o <file>` |
-
-### 3.5 ダッシュボードコマンド（Phase 5）
-
-| コマンド | 説明 | オプション |
-|---------|------|-----------|
-| `zeus dashboard` | Web ダッシュボード起動 | `--port <port>`, `--no-open` |
-
-### 3.6 ユーティリティコマンド
-
-| コマンド | 説明 | オプション |
-|---------|------|-----------|
-| `zeus update-claude` | Claude Code 連携ファイル再生成 | - |
-
-## 4. 分析機能の運用（Phase 4）
-
-### 4.1 依存関係グラフ（graph コマンド）
-
-#### 基本的な使い方
-```bash
-# テキスト形式で表示（CLI確認用）
-zeus graph
-
-# Graphviz DOT形式で出力
-zeus graph --format dot -o dependencies.dot
-dot -Tpng dependencies.dot -o dependencies.png
-
-# Mermaid形式でMarkdownに出力
-zeus graph --format mermaid -o docs/dependencies.md
-```
-
-#### 出力形式の選択ガイド
-
-| 形式 | 用途 | 出力例 |
-|------|------|--------|
-| text | CLI での簡易確認 | `act-001 --> act-002` |
-| dot | 画像生成（Graphviz） | digraph G {...} |
-| mermaid | ドキュメント埋め込み | ```mermaid graph TD ...``` |
-
-#### 循環依存の検出
-```bash
-# グラフに循環依存がある場合、警告が表示される
-zeus graph
-# 出力例:
-# Warning: Circular dependency detected!
-#   act-001 -> act-002 -> act-003 -> act-001
-```
-
-### 4.2 予測分析（predict コマンド）
-
-#### 完了日予測
-```bash
-zeus predict completion
-# 出力例:
-# Completion Prediction
-# =====================
-# Estimated completion: 2024-03-15
-# Confidence interval: 2024-03-10 ~ 2024-03-20
-# Remaining Activities: 12
-# Average velocity: 2.5 Activities/day
-```
-
-#### リスク分析
-```bash
-zeus predict risk
-# 出力例:
-# Risk Analysis
-# =============
-# Overall risk level: MEDIUM
-#
-# Risk factors:
-#   [HIGH] Dependency complexity - 3 Activities have 5+ dependencies
-#   [MEDIUM] Estimation accuracy - 30% of Activities exceeded estimates
-#   [LOW] Scope creep - 2 new Activities added this week
-```
-
-#### ベロシティ分析
-```bash
-zeus predict velocity
-# 出力例:
-# Velocity Analysis
-# =================
-# Current velocity: 2.5 Activities/day
-# Trend: +0.3 (improving)
-# 7-day average: 2.2 Activities/day
-# 30-day average: 2.0 Activities/day
-```
-
-#### 全予測を一度に表示
-```bash
-zeus predict
+zeus approve <id>
 # または
-zeus predict all
+zeus reject <id> --reason "判断理由"
 ```
 
-### 4.3 レポート生成（report コマンド）
+## 9. 運用上の禁止事項
 
-#### テキストレポート
-```bash
-zeus report
-# プロジェクト概要、進捗、タスク一覧を標準出力に表示
-```
+- 実装に存在しない CLI/API を運用手順へ記載しない。
+- 履歴資料を現行仕様の判断根拠にしない。
+- Phase 表現で「機能完了」と「外部連携未実装」を混在させる場合、必ず別表で管理する。
 
-#### HTMLレポート
-```bash
-# HTMLファイルとして出力
-zeus report --format html -o report.html
+## 10. 関連文書
 
-# ブラウザで確認
-open report.html
-```
+- 正本入口: `docs/README.md`
+- 設計: `docs/system-design.md`
+- 契約: `docs/api-reference.md`
+- 利用者向け: `docs/user-guide.md`
+- 開発要約: `CLAUDE.md`
 
-#### Markdownレポート
-```bash
-# Markdownファイルとして出力
-zeus report --format markdown -o docs/STATUS.md
-
-# GitHubなどで表示
-```
-
-#### レポート内容
-1. プロジェクト概要（名前、説明、開始日）
-2. 進捗サマリー（完了率、残 Activity 数）
-3. Activity 一覧（ステータス別）
-4. 依存関係グラフ（Mermaid形式、HTML/Markdownのみ）
-5. 予測分析結果
-6. リスク・課題
-
-## 5. Webダッシュボードの運用（Phase 5）
-
-### 5.1 ダッシュボードの起動
-
-#### 基本起動
-```bash
-# デフォルトポート(8080)で起動し、ブラウザを自動で開く
-zeus dashboard
-```
-
-#### カスタムポート
-```bash
-# ポート3000で起動
-zeus dashboard --port 3000
-```
-
-#### ブラウザ自動起動の無効化
-```bash
-# ヘッドレスサーバーとして起動（CIなど）
-zeus dashboard --no-open
-```
-
-### 5.2 ダッシュボードの停止
-
-```bash
-# Ctrl+C でサーバーを停止
-# または、別ターミナルから
-kill $(lsof -t -i:8080)
-```
-
-### 5.3 アクセス方法
-
-ダッシュボードは **ローカルホストのみ** からアクセス可能です:
-- URL: `http://localhost:8080` （または指定ポート）
-- 外部ネットワークからのアクセスは不可（セキュリティ対策）
-
-### 5.4 ダッシュボード機能
-
-| 機能 | 説明 |
-|------|------|
-| プロジェクト概要 | 名前、説明、進捗率、健全性をカード表示 |
-| Activity 統計 | 完了/進行中/保留の内訳 |
-| Activity 一覧 | テーブル形式、ステータス色分け |
-| 依存関係グラフ | Mermaid.js でインタラクティブ表示 |
-| 予測分析 | 完了日、リスク、ベロシティ |
-| 自動更新 | 5秒間隔で最新データを取得 |
-
-### 5.5 REST API の利用
-
-プログラムからダッシュボードAPIを利用:
-
-```bash
-# プロジェクト状態を取得
-curl http://localhost:8080/api/status | jq
-
-# アクティビティ一覧を取得
-curl http://localhost:8080/api/activities | jq
-
-# 依存関係グラフ（Mermaid形式）を取得
-curl http://localhost:8080/api/graph
-
-# 予測分析結果を取得
-curl http://localhost:8080/api/predict | jq
-```
-
-### 5.6 ダッシュボード計測ログ（Graph View）
-
-Graph View の描画/更新メトリクスを自動保存できます。
-
-- 開発時: `http://localhost:5173/?metricsAutoSave`
-- 本番時: `http://localhost:8080/?metricsAutoSave`
-- テストモード（`import.meta.env.MODE === 'test'`）では自動記録が常時有効
-
-保存先:
-
-- `.zeus/metrics/dashboard-metrics-<session>.jsonl`（JSON Lines）
-
-補足:
-
-- 手動ダウンロードは `?metrics` で有効化後、Graph View 右上の `DL` ボタン
-- 自動保存は `/api/metrics` に送信され、サーバー側で追記保存される
-
-### 5.7 トラブルシューティング
-
-#### ポートが使用中の場合
-```bash
-# 別のポートを指定
-zeus dashboard --port 3000
-
-# または、使用中のプロセスを終了
-lsof -i:8080
-kill <PID>
-```
-
-#### ブラウザが開かない場合
-```bash
-# 手動でブラウザを開く
-zeus dashboard --no-open
-# 別ターミナルで
-open http://localhost:8080
-```
-
-## 6. ワークフロー
-
-### 6.1 標準的な1日の流れ
-
-```
-Morning Check (朝)
-├── zeus status          # 全体状況確認
-├── zeus pending         # 承認待ち確認
-└── zeus suggest         # AI提案確認
-
-Work Session (作業中)
-├── zeus approve/reject  # 提案への対応
-├── zeus add activity    # アクティビティ追加
-└── zeus apply           # AI提案の適用
-
-End of Day (終業時)
-├── zeus status          # 最終確認
-└── zeus report          # 日次レポート（オプション）
-```
-
-### 6.2 週次レビューフロー
-
-```bash
-# Step 1: 依存関係の確認
-zeus graph --format mermaid
-
-# Step 2: 予測分析の確認
-zeus predict
-
-# Step 3: レポート生成
-zeus report --format=html -o weekly_report.html
-```
-
-### 6.3 分析ワークフロー
-
-```bash
-# Step 1: 依存関係の確認
-zeus graph --format mermaid
-
-# Step 2: 循環依存のチェック
-zeus graph | grep -i "circular"
-
-# Step 3: 予測の確認
-zeus predict
-
-# Step 4: レポート生成
-zeus report --format html -o analysis_report.html
-```
-
-### 6.4 ダッシュボードを使った運用
-
-```bash
-# Step 1: ダッシュボードを起動（バックグラウンド）
-zeus dashboard &
-
-# Step 2: ブラウザで確認しながら作業
-#   - プロジェクト概要を確認
-#   - Activity 進捗を監視
-#   - 依存関係グラフでボトルネックを特定
-
-# Step 3: 作業完了後に停止
-fg
-# Ctrl+C
-```
-
-### 6.5 問題発生時のフロー
-
-```bash
-# Step 1: 診断
-zeus doctor
-
-# Step 2: 問題確認
-# → 修復可能な問題が表示される
-
-# Step 3: 修復（プレビュー）
-zeus fix --dry-run
-
-# Step 4: 修復実行
-zeus fix
-
-# Step 5: 状態確認
-zeus status
-```
-
-## 7. 承認レベルの理解
-
-### 7.1 auto（自動実行）
-人間の確認なしで実行される操作:
-- 読み取り操作
-- 計算処理
-- レポート生成
-- 完了 Activity のアーカイブ
-
-### 7.2 notify（通知付き実行）
-実行後に通知される操作:
-- ステータス更新
-- 見積もり更新（20%以内の変更）
-- 依存関係追加
-
-### 7.3 approve（事前承認必須）
-実行前に承認が必要な操作:
-- マイルストーン変更
-- リソースアサイン
-- スコープ変更
-- 3 Activity 以上に影響する変更
-- 信頼度70%未満のAI提案
-
-## 8. トラブルシューティング
-
-### 8.1 よくある問題と解決方法
-
-#### zeus.yaml が見つからない
-```bash
-# 原因: 初期化されていない
-# 解決:
-zeus init
-```
-
-#### YAMLシンタックスエラー
-```bash
-# 診断
-zeus doctor
-
-# 結果例:
-# [FAIL] yaml_syntax: 2 YAML syntax errors found
-#   - activities/act-001.yaml: invalid indentation
-
-# 解決: エディタで修正
-vim .zeus/activities/act-001.yaml
-```
-
-#### 状態の不整合
-```bash
-# 診断
-zeus doctor
-
-# 結果例:
-# [WARN] state_integrity: State may be out of sync
-
-# 解決
-zeus fix
-```
-
-#### バックアップがない
-```bash
-# 診断
-zeus doctor
-
-# 結果例:
-# [WARN] backup_health: No recent backups found
-
-# 解決
-zeus fix  # 自動でバックアップを作成
-```
-
-### 8.2 グレースフルデグラデーション
-
-Zeusは問題発生時に段階的に機能を制限します：
-
-| レベル | 状態 | 利用可能機能 |
-|--------|------|-------------|
-| Normal | 正常 | 全機能 |
-| Limited | 一部制限 | AI提案停止、読み書き可能 |
-| Read-only | 読み取り専用 | 閲覧のみ |
-| Safe | セーフモード | 復旧機能のみ |
-
-```bash
-# 現在のモード確認
-zeus status
-
-# 問題の診断と修復
-zeus doctor
-zeus fix
-```
-
-## 9. ベストプラクティス
-
-### 9.1 効果的な運用のコツ
-
-1. **毎日のチェック習慣化**
-   - 朝一番に `zeus status` と `zeus pending` を確認
-
-2. **AI提案の活用**
-   - `zeus suggest` で改善提案を取得
-   - `zeus apply` で提案を適用
-
-3. **週次レビューの実施**
-   - `zeus predict` で予測分析
-   - `zeus report` でレポート生成
-
-4. **直接編集の活用**
-   - 複雑な変更は `.zeus/activities/*.yaml` を直接編集
-   - Gitでの差分管理が容易
-
-5. **分析機能の活用**
-   - `zeus graph` で依存関係を可視化
-   - `zeus predict` でリスクを早期発見
-   - `zeus dashboard` でリアルタイム監視
-
-### 9.2 避けるべきこと
-
-1. **長期間の承認放置**
-   - 7日以上放置すると警告が表示される
-
-2. **バックアップの削除**
-   - `.zeus/backups/` は手動で削除しない
-
-3. **YAMLの直接編集でのシンタックスエラー**
-   - 編集後は `zeus doctor` で確認
-
-4. **ダッシュボードの外部公開**
-   - セキュリティリスクがあるため、常にローカルアクセスのみ
-
-## 10. 設定カスタマイズ
-
-### 10.1 自動化ポリシーの調整
-```yaml
-# .zeus/config/automation.yaml
-automation:
-  overrides:
-    # notifyをautoに昇格
-    promote_to_auto:
-      - "update_status"
-
-    # notifyをapproveに降格
-    demote_to_approve:
-      - "add_dependency"
-```
-
-### 10.2 通知設定
-```yaml
-# .zeus/config/notifications.yaml
-notifications:
-  cli_output: true      # CLIへの出力
-  log_file: true        # ログファイルへの記録
-  # 将来の拡張
-  # slack: false
-  # email: false
-```
-
-### 10.3 ビュー設定
-```yaml
-# .zeus/config/views.yaml
-views:
-  default: "manager"
-  quick:
-    show_risks: false
-    max_tasks: 5
-  detailed:
-    show_history: true
-    depth: 3
-```
-
-### 10.4 ダッシュボード設定
-```yaml
-# .zeus/config/dashboard.yaml
-dashboard:
-  default_port: 8080
-  auto_open: true
-  refresh_interval: 5000  # ミリ秒
-```
-
-## 11. 用語集
-
-| 用語 | 説明 |
-|------|------|
-| Objective | プロジェクトの目標・マイルストーン |
-| Activity | 具体的な作業項目（Simple/Flow モード） |
-| Entity | Zeus管理対象（Activity, Objective, Deliverable等） |
-| Approval | 承認プロセス |
-| Override | 人間によるAI提案の上書き |
-| Snapshot | 特定時点の状態保存 |
-| Health | プロジェクトの健全性指標 |
-| Graph | 依存関係グラフ |
-| Velocity | Activity 完了速度 |
-| Dashboard | Webベースの管理画面 |
-
-## 12. サポート
-
-### 12.1 ヘルプの確認
-```bash
-zeus --help
-zeus <command> --help
-```
-
-### 12.2 バージョン確認
-```bash
-zeus --version
-```
-
-### 12.3 問題報告
-- GitHub Issues: https://github.com/biwakonbu/zeus/issues
-
----
-
-*Zeus Operations Manual v1.2*
-*作成日: 2026-01-14*
-*更新日: 2026-01-17（未実装コマンドを削除、実装済み機能のみに整理）*
+*更新日: 2026-02-06（実装同期版）*

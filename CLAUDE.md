@@ -1,248 +1,112 @@
 # CLAUDE.md
 
-Zeus は「神の視点」でプロジェクト管理を支援する AI 駆動型 CLI システム。Go + Cobra で実装。
+Zeus は「神の視点」でプロジェクト構造を扱う AI 駆動 CLI/ダッシュボード基盤。実装は Go + Cobra + YAML ストレージ。
 
-## 設計哲学
+## 正本ルール
 
-- ファイルベース: 外部 DB 不要、YAML で人間可読
-- 人間中心: AI は提案者、人間が最終決定者
-- シンプルな初期化: 単一の `zeus init` コマンドで全機能を利用可能
-- Git 親和性: 全データがテキストで差分追跡可能
-- 構造可視化特化: 進捗管理は対象外（Jira, Linear 等と棲み分け）
+- 正本入口: `docs/README.md`
+- CLI 契約正本: `cmd/*.go` の `cobra.Command`
+- HTTP 契約正本: `internal/dashboard/server.go` の `mux.HandleFunc`
+- 履歴資料は現行仕様の判断根拠に使わない
 
 ## 技術スタック
 
-**バックエンド:** Go 1.21+, Cobra, gopkg.in/yaml.v3, fatih/color, github.com/google/uuid
-
-> **Note:** Go 1.21+ は `min()`, `max()` 組み込み関数のため必須。`slices` パッケージも使用。
-
-**フロントエンド:** SvelteKit + TypeScript, PixiJS (WebGL), SSE, Factorio 風デザイン
-
-## コーディング規約
-
-- **Go**: 標準規約（gofmt, go vet）に準拠
-- **TypeScript/Svelte**: oxlint（.ts）+ ESLint（.svelte）+ Prettier
-- **コメント**: 日本語
-- **変数・関数名**: 英語（国際標準）
+- Backend: Go 1.21+, Cobra, YAML
+- Frontend: SvelteKit + TypeScript + PixiJS
+- 配信: REST API + SSE
 
 ## 開発コマンド
 
 ```bash
-make build              # ビルド
-make test               # テスト実行
-go test -v ./internal/core/...  # 単一パッケージテスト
-go run . <command>      # 開発実行
+make build
+make test
+go test ./...
 
 # ダッシュボード開発
-make dashboard-deps     # npm 依存関係インストール（初回のみ）
-make dashboard-dev      # Vite 開発サーバー起動
-go run . dashboard --dev  # Go サーバー起動（CORS 有効）
-make build-all          # 統合ビルド
+make dashboard-deps
+make dashboard-dev
+go run . dashboard --dev
 ```
 
 ## 実装フェーズ
 
+### 機能フェーズ
+
 | Phase | 内容 | 状態 |
-|-------|------|------|
-| Phase 1 (MVP) | init, status, add, list, doctor, fix | 完了 |
-| Phase 2 (Standard) | pending, approve, reject, snapshot, history | 完了 |
-| Phase 2.5-2.7 | セキュリティ、DI/Context、suggest/apply | 完了 |
-| Phase 3 (AI統合) | Claude Code 連携、explain | 完了 |
-| Phase 4 (分析) | graph, report | 完了 |
-| Phase 5 (ダッシュボード) | Factorio風ビューワー、SSE | 完了 |
-| Phase 7 (Affinity Canvas) | 機能間関連性可視化、フォースダイレクテッド | 完了 |
-| 10概念モデル Phase 1 | Vision, Objective, Deliverable, 参照整合性 | 完了 |
-| 10概念モデル Phase 2+3 | Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality | 完了 (M1-M3対応推奨) |
-| UML UseCase | Actor, UseCase, シナリオ、PixiJS ビューワー | 完了 |
-| UML Activity | アクティビティ図、ノード/遷移、PixiJS ビューワー | 完了 |
-| UML Subsystem | サブシステム分類、UseCase グルーピング、境界描画 | 完了 |
-| Activity 拡張 | Simple/Flow モード、UnifiedGraph | 完了 |
+|---|---|---|
+| Phase 1 | init, status, add, list, doctor, fix | 完了 |
+| Phase 2 | pending, approve, reject, snapshot, history | 完了 |
+| Phase 3 | suggest, apply, explain, update-claude | 完了 |
+| Phase 4 | graph, report | 完了 |
+| Phase 5 | dashboard, REST API, SSE | 完了 |
+| Phase 7 | Affinity Canvas API | 完了 |
+| 概念モデル Phase 1-3 | Vision〜Quality + UML + Activity | 完了 |
 
-> **Note:** Phase 6 (WBS・タイムライン) は v2.0 で削除されました。詳細は `docs/specs/remove-progress-features/` を参照。
+### 外部連携フェーズ
 
-## 実装済みコマンド
+| 項目 | 状態 | 備考 |
+|---|---|---|
+| Git 自動連携 | 未実装 | 手動運用前提 |
+| Slack/Email 通知 | 未実装 | SSE/CLI で代替 |
+| 認証・認可 | 未実装 | 127.0.0.1 バインド運用 |
 
-```bash
-# コア操作
-zeus init                                       # プロジェクト初期化
-zeus status                                     # 状態表示
-zeus add <entity> <name> [options]              # エンティティ追加
-  # entity: vision, objective, deliverable, activity, consideration, decision,
-  #         problem, risk, assumption, constraint, quality, actor, usecase, subsystem
-  # --parent <id>  --statement <text>  --objective <id>  --format <type>  --subsystem <id>
-  # Activity 用: --depends <ids>  --assignee <name>  --priority <level>
-zeus list [entity]                              # 一覧表示
-  # entity: vision, objectives, deliverables, activities, considerations, decisions,
-  #         problems, risks, assumptions, constraints, quality, actors, usecases, subsystems
-zeus doctor                                     # 診断（参照整合性・循環参照・Lint チェック含む）
-zeus fix [--dry-run]                            # 修復
-
-# 承認管理
-zeus pending                                    # 承認待ち一覧
-zeus approve <id>                               # 承認
-zeus reject <id> [--reason ""]                  # 却下
-zeus snapshot create|list|restore              # スナップショット管理
-zeus history [-n limit]                         # 履歴表示
-
-# AI 機能
-zeus suggest [--limit N] [--impact level]       # 提案生成
-zeus apply <suggestion-id>                      # 提案適用
-zeus explain <entity-id> [--context]            # 詳細説明
-
-# 分析・可視化
-zeus graph [--format text|dot|mermaid] [-o file]    # 依存関係グラフ
-zeus graph --unified                                 # 統合グラフ（Activity, UseCase, Deliverable, Objective）
-zeus graph --unified --focus act-001 --depth 3      # 指定 ID を中心に表示
-zeus graph --unified --types activity,deliverable   # タイプでフィルタ
-zeus report [--format text|html|markdown] [-o file] # レポート生成
-zeus dashboard [--port 8080] [--no-open] [--dev]    # Web ダッシュボード
-
-# ユーティリティ
-zeus update-claude                              # Claude Code ファイル再生成
-```
-
-## 承認レベル
-
-| レベル | 説明 | デフォルト |
-|--------|------|-----------|
-| auto | 自動承認（即時実行） | ✓ |
-| notify | 通知のみ（ログ記録して実行） | |
-| approve | 明示的承認必要 | |
-
-`zeus.yaml` の `automation_level` で変更可能。
-
-## Claude Code 連携
-
-`zeus init` で `.claude/` ディレクトリに連携ファイルを生成。
-既存プロジェクトの更新: `zeus update-claude`
-
-**生成ファイル:**
-- `agents/zeus-orchestrator.md` - 全コマンド一覧
-- `agents/zeus-planner.md` - 設計支援
-- `agents/zeus-reviewer.md` - 分析・レビュー
-- `skills/zeus-suggest/SKILL.md` - 提案生成
-- `skills/zeus-risk-analysis/SKILL.md` - リスク分析
-
-## 10概念モデル
-
-プロジェクト管理の本質的な概念を表現する 10 概念モデル。
-
-### Phase 1 実装済み（3概念）
-
-| 概念 | 説明 | ファイル |
-|------|------|----------|
-| Vision | プロジェクトの目指す姿（単一） | `.zeus/vision.yaml` |
-| Objective | 達成目標（階層構造可） | `.zeus/objectives/obj-NNN.yaml` |
-| Deliverable | 成果物定義 | `.zeus/deliverables/del-NNN.yaml` |
-
-### Phase 2 実装済み（5概念）
-
-| 概念 | 説明 | ファイル | 特性 |
-|------|------|----------|------|
-| Consideration | 検討事項（複数オプション） | `.zeus/considerations/con-NNN.yaml` | 検討プロセス記録 |
-| Decision | 意思決定（イミュータブル） | `.zeus/decisions/dec-NNN.yaml` | 一度決定後は変更不可 |
-| Problem | 問題報告 | `.zeus/problems/prob-NNN.yaml` | 重大度レベル記録 |
-| Risk | リスク管理 | `.zeus/risks/risk-NNN.yaml` | スコア自動計算 |
-| Assumption | 前提条件 | `.zeus/assumptions/assum-NNN.yaml` | 検証ステータス記録 |
-
-### Phase 3 実装済み（2概念）
-
-| 概念 | 説明 | ファイル | 特性 |
-|------|------|----------|------|
-| Constraint | 制約条件 | `.zeus/constraints.yaml` | グローバル単一ファイル |
-| Quality | 品質基準 | `.zeus/quality/qual-NNN.yaml` | メトリクス・ゲート管理 |
-
-### UML 拡張
-
-| 概念 | 説明 | ファイル | 特性 |
-|------|------|----------|------|
-| Actor | アクター定義 | `.zeus/actors.yaml` | 単一ファイル |
-| UseCase | ユースケース定義 | `.zeus/usecases/uc-NNN.yaml` | Objective 参照必須 |
-| Subsystem | サブシステム定義 | `.zeus/subsystems.yaml` | 単一ファイル、UseCase グルーピング |
-| Activity | アクティビティ（作業単位 + プロセス可視化） | `.zeus/activities/act-NNN.yaml` | Simple/Flow 2モード対応 |
-
-### Activity
-
-> **Note:** Task は Activity に統合されました。`/api/activities` で Activity 一覧を取得できます。
-
-Activity は「実行可能な作業単位」として 2 つのモードを持つ:
-
-| モード | 用途 | 判定条件 |
-|--------|------|----------|
-| Simple | 作業追跡 | `len(Nodes) == 0` |
-| Flow | プロセス可視化（アクティビティ図） | `len(Nodes) > 0` |
-
-**Activity のフィールド（Simple モード用）:**
-- `dependencies`: 依存先 Activity ID
-- `parent_id`: 親 Activity ID
-- `assignee`: 担当者
-- `priority`: 優先度（high/medium/low）
-- `status`: 状態（pending, in_progress, completed, blocked）
-
-**UnifiedGraph:**
-
-Activity, UseCase, Deliverable, Objective を統合した依存関係グラフ。
-異なるエンティティ間の関連を横断的に可視化。
+## 実装済み CLI（公開）
 
 ```bash
-zeus graph --unified                           # 統合グラフを表示
-zeus graph --unified --focus act-001           # act-001 を中心に表示
-zeus graph --unified --types activity,usecase  # Activity と UseCase のみ
-zeus graph --unified --hide-completed          # 完了済みを非表示
+# Core
+zeus init
+zeus status
+zeus add <entity> <name>
+zeus list [entity]
+zeus doctor
+zeus fix [--dry-run]
+
+# Approval / History
+zeus pending
+zeus approve <id>
+zeus reject <id> [--reason TEXT]
+zeus snapshot create|list|restore
+zeus history [-n N]
+
+# AI
+zeus suggest [--limit N] [--impact high|medium|low]
+zeus apply [suggestion-id] [--all] [--dry-run]
+zeus explain <entity-id> [--context]
+zeus update-claude
+
+# Analysis / Visualization
+zeus graph [--format text|dot|mermaid] [-o FILE]
+zeus graph --unified [--focus ID] [--depth N] [--types ...] [--layers ...] [--relations ...]
+zeus report [--format text|html|markdown] [-o FILE]
+zeus dashboard [--port N] [--no-open] [--dev]
+
+# UML
+zeus uml show usecase [--boundary NAME] [--format text|mermaid] [-o FILE]
+zeus usecase add-actor <usecase-id> <actor-id> [--role primary|secondary]
+zeus usecase link <usecase-id> --include|--extend|--generalize ...
 ```
 
-**API エンドポイント:**
-- `GET /api/unified-graph` - UnifiedGraph を取得
-- クエリパラメータ: `focus`, `depth`, `types`, `hide-completed`, `hide-draft`
+## 実装済み HTTP API（公開）
 
-**Activity action name 記載ルール:**
-- 形式: `<目的語> + <動詞（体言止め）>`（例: `.zeus ディレクトリ作成`）
-- 粒度: 1 Activity あたり 5-15 アクション
-- 詳細: `docs/detailed-design.md` セクション 11 参照
+- `GET /api/status`
+- `GET /api/graph`
+- `GET /api/affinity`
+- `GET /api/actors`
+- `GET /api/usecases`
+- `GET /api/subsystems`
+- `GET /api/uml/usecase`
+- `GET /api/activities`
+- `GET /api/uml/activity`
+- `GET /api/unified-graph`
+- `GET /api/events` (SSE)
 
-### 参照整合性
+## 参照先
 
-- `zeus doctor` で全参照をチェック：
-  - Deliverable → Objective（必須）
-  - Objective → Objective (親)（任意、循環参照チェック）
-  - Decision → Consideration（必須）
-  - Quality → Deliverable（必須）
-  - Problem/Risk/Assumption → Objective/Deliverable（任意）
-  - UseCase → Subsystem（任意、警告レベル）
-  - Activity → UseCase（任意）
-  - Activity → Deliverable（RelatedDeliverables、推奨）
-  - Activity → Activity（Dependencies、任意、循環参照チェック）
-  - Activity.Node → Deliverable（DeliverableIDs、任意）
-- 循環参照検出実装済み
-- **Lint チェック:**
-  - ID フォーマット検証（全エンティティ）
-- セキュリティ: ValidatePath, ValidateID, Sanitizer
+- 正本入口: `docs/README.md`
+- 運用手順: `docs/operations-manual.md`
+- 設計: `docs/system-design.md`
+- API 契約: `docs/api-reference.md`
+- ユーザー向け: `docs/user-guide.md`
+- 履歴資料: `docs/implementation-guide.md`, `docs/specs/remove-progress-features/README.md`
 
-## ドキュメント
-
-- `docs/system-design.md` - システム設計書（必読）
-- `docs/implementation-guide.md` - Go 実装ガイド
-- `docs/operations-manual.md` - 運用マニュアル
-- `docs/detailed-design.md` - 10概念モデル詳細設計
-- `docs/design/affinity-canvas.md` - Affinity Canvas 設計書（Phase 7）
-- `docs/security.md` - セキュリティ実装ガイド
-- `docs/specs/remove-progress-features/` - 進捗管理機能削除の経緯
-
-## 詳細情報
-
-詳細なアーキテクチャ、プロジェクト構造、ダッシュボード設計は `.claude/rules/` を参照:
-- `architecture.md` - コアモジュール、DI パターン、セキュリティ対策
-- `dashboard.md` - フロントエンド/バックエンド設計、API エンドポイント、メトリクス計測
-- `structure.md` - ディレクトリ構造の詳細
-- `testing.md` - E2E テスト、ゴールデンテストの詳細
-
-## テスト
-
-```bash
-go test ./...                    # 全テスト
-go test -v ./internal/core/...   # 詳細出力
-go test -cover ./...             # カバレッジ
-go test -v ./tests/e2e/...       # E2E テスト
-```
-
-E2E テスト詳細は `.claude/rules/testing.md` を参照。
+*更新日: 2026-02-06（実装同期版）*

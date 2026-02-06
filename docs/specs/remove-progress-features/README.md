@@ -1,3 +1,6 @@
+> **履歴資料（非正本）**  
+> この文書は履歴資料。現行仕様の正本は `/Users/biwakonbu/github/zeus/docs/README.md` 参照。
+
 # 進捗速度・タスク進行管理機能の削除
 
 ## 概要
