@@ -106,10 +106,12 @@ zeus-dashboard/
 | -------------- | --------------------------------------------- |
 | FactorioViewer | メインビューワーコンポーネント（PixiJS 描画） |
 | ViewerEngine   | PixiJS 初期化・管理                           |
-| LayoutEngine   | 自動レイアウト（トポロジカル + 力学）         |
+| LayoutEngine   | 自動レイアウト（50px 格子 + 構造連結成分境界） |
+| OrthogonalRouter | 直交配線ルーター（10px サブグリッド）       |
 | SpatialIndex   | Quadtree 空間インデックス                     |
-| TaskNode       | タスクノード描画（LOD 対応）                  |
-| TaskEdge       | エッジ描画                                    |
+| GraphNode      | タスクノード描画（LOD 対応）                  |
+| GraphEdge      | エッジ描画（直交 polyline + flow dots）       |
+| GraphGroupBoundary | 構造連結成分の境界描画                     |
 | Minimap        | ミニマップ                                    |
 | FilterPanel    | フィルターパネル                              |
 
@@ -151,9 +153,33 @@ zeus-dashboard/
 | --------------------- | ------------------------------ |
 | `GET /api/status`     | プロジェクト状態               |
 | `GET /api/activities` | Activity 一覧                  |
-| `GET /api/graph`      | 依存関係グラフ（Mermaid 形式） |
+| `GET /api/unified-graph` | Unified Graph（2層モデル） |
+| `GET /api/graph`      | 依存関係グラフ（Mermaid, 旧互換） |
 | `GET /api/predict`    | 予測分析結果                   |
 | `GET /api/events`     | SSE ストリーム                 |
+
+### Unified Graph（2層モデル）
+
+- `layer`: `structural` / `reference`
+- `relation`: `parent` / `depends_on` / `implements` / `contributes` / `fulfills` / `produces`
+- Graph View のノード配置は `LAYOUT_GRID_UNIT=50` にスナップ
+- エッジ配線は `EDGE_ROUTING_GRID_UNIT=10`（ノード格子の 1/5）で直交ルーティング
+- エッジ接点はノード辺に対して垂直、流向は flow dots で可視化
+- グループ境界は structural の無向連結成分単位で描画（ラベルは代表ノード `title`）
+- `structural_depth` がある場合は深さ決定で優先、欠損時のみ構造層計算を使用
+- Alt+クリック / 右クリックの依存フィルターは既定で `reference` を探索
+  - `reference` の関連が 0 件のときのみ `structural` をフォールバック探索
+  - `Include structural edges in impact filter` を ON にすると `structural` も常時探索
+
+`/api/unified-graph` クエリ:
+
+- `focus=<node_id>`
+- `depth=<int>`（未指定時は `3`）
+- `types=activity,usecase,deliverable,objective`
+- `layers=structural,reference`
+- `relations=parent,depends_on,implements,contributes,fulfills,produces`
+- `hide-completed=true|false`
+- `hide-draft=true|false`
 
 ### SSE イベント
 
