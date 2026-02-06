@@ -3,6 +3,7 @@
 	import { Icon } from '$lib/components/ui';
 	import { shortcutsList, formatShortcutKey } from '$lib/stores/keyboard';
 	import { currentView } from '$lib/stores/view';
+	import type { ViewType } from '$lib/viewer';
 
 	interface Props {
 		onClose: () => void;
@@ -11,7 +12,7 @@
 	let { onClose }: Props = $props();
 
 	// ビューごとの操作ヒント定義
-	const viewHints: Record<string, { description: string; key: string }[]> = {
+	const viewHints: Record<ViewType, { description: string; key: string }[]> = {
 		graph: [
 			{ description: 'ズーム', key: 'Scroll' },
 			{ description: 'パン（移動）', key: 'Shift+Drag' },
@@ -32,7 +33,7 @@
 	};
 
 	// 現在のビューのラベル
-	const viewLabels: Record<string, string> = {
+	const viewLabels: Record<ViewType, string> = {
 		graph: 'Graph View',
 		usecase: 'UseCase View',
 		activity: 'Activity View'

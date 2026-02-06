@@ -1589,7 +1589,6 @@
 			</div>
 		</OverlayPanel>
 	{/if}
-
 </div>
 
 <style>
