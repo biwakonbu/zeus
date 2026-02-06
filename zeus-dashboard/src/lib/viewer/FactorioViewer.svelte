@@ -841,6 +841,7 @@
 
 		// フィルター適用
 		visibleTaskIds = new Set(filterManager.getVisibleIds());
+		previousLODLevel = null; // 新ノードは Micro 初期値なのでリセットし、次の updateLOD() で強制適用
 		updateVisibility();
 
 		// ビューを中央に
@@ -895,7 +896,15 @@
 		for (const id of currentVisibleIds) {
 			if (!previousVisibleNodeIds.has(id)) {
 				const node = nodeMap.get(id);
-				if (node) node.visible = true;
+				if (node) {
+					node.visible = true;
+					// ビューポート外にいた間にLODが変わっている可能性があるため適用
+					// Note: renderGraphNodes() 直後は previousLODLevel === null のため
+					// setLOD はスキップされ、次の updateLOD() で全ノードに適用される
+					if (previousLODLevel !== null) {
+						node.setLOD(previousLODLevel);
+					}
+				}
 			}
 		}
 

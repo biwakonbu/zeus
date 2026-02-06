@@ -171,6 +171,7 @@ export class GraphNodeView extends Container {
 			},
 			resolution: TEXT_RESOLUTION
 		});
+		this.typeText.anchor.set(0.5, 0.5);
 		this.idText = new Text({
 			text: '',
 			style: { fontSize: 12, fill: COLORS.text, fontFamily: 'IBM Plex Mono, monospace' },
@@ -453,31 +454,21 @@ export class GraphNodeView extends Container {
 		this.typeIndicator.fill(typeColors.indicator);
 		this.typeIndicator.stroke({ width: 1, color: 0x1a1a1a });
 
-		// ラベル文字（V/O/D/A/U）を円の中央に配置
+		// ラベル文字（V/O/D/A/U）を円の中央に配置（anchor ベース）
 		const label = getNodeTypeLabel(this.nodeType);
 		this.typeText.text = label;
-		// テキストを円の中央に配置（テキストの幅・高さを考慮）
-		this.typeText.x = badgeX + badgeSize / 2 - this.typeText.width / 2;
-		this.typeText.y = badgeY + badgeSize / 2 - this.typeText.height / 2;
+		this.typeText.x = badgeX + badgeSize / 2;
+		this.typeText.y = badgeY + badgeSize / 2;
 	}
 
 	/**
 	 * テキストを描画
+	 * テキスト内容は LOD に関係なく常に更新し、可視性は updateLODVisibility() で制御
 	 */
 	private drawTexts(): void {
 		const contentWidth = NODE_WIDTH - CONTENT_LEFT - PADDING;
 
-		if (this.currentLOD === LODLevel.Macro) {
-			// マクロレベルでは非表示
-			this.idText.visible = false;
-			this.titleText.visible = false;
-			this.metaText.visible = false;
-			return;
-		}
-
-		this.idText.visible = true;
-
-		// ID テキスト（上部）
+		// ID テキスト（上部）- 常に内容を更新
 		const displayId = this.graphNode.id;
 		const maxIdChars = Math.floor(contentWidth / 7); // 等幅フォントで概算
 		const shortId =
@@ -486,18 +477,7 @@ export class GraphNodeView extends Container {
 		this.idText.x = CONTENT_LEFT;
 		this.idText.y = PADDING;
 
-		if (this.currentLOD === LODLevel.Meso) {
-			// メソレベルではIDのみ
-			this.titleText.visible = false;
-			this.metaText.visible = false;
-			return;
-		}
-
-		// マイクロレベルでは全情報表示
-		this.titleText.visible = true;
-		this.metaText.visible = true;
-
-		// タイトル（中央）
+		// タイトル（中央）- 常に内容を更新
 		const maxTitleChars = Math.floor(contentWidth / 6.5);
 		const title =
 			this.graphNode.title.length > maxTitleChars
@@ -507,7 +487,7 @@ export class GraphNodeView extends Container {
 		this.titleText.x = CONTENT_LEFT;
 		this.titleText.y = PADDING + 16;
 
-		// メタ情報（担当者または進捗 - 下部）
+		// メタ情報（担当者または進捗 - 下部）- 常に内容を更新
 		const assignee = this.graphNode.assignee || '';
 		const progressPct = `${Math.round(this.progress)}%`;
 		const metaInfo = assignee ? `@${assignee}` : progressPct;
@@ -517,6 +497,9 @@ export class GraphNodeView extends Container {
 		this.metaText.text = displayMeta;
 		this.metaText.x = CONTENT_LEFT;
 		this.metaText.y = NODE_HEIGHT - PADDING - 12;
+
+		// LOD に応じた可視性制御
+		this.updateLODVisibility();
 	}
 
 	/**
