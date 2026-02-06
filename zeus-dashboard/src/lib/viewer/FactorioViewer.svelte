@@ -3,10 +3,17 @@
 	import type { EntityStatus, Priority, GraphNode, GraphEdge } from '$lib/types/api';
 	import { NODE_TYPE_CONFIG } from './config/nodeTypes';
 	import { ViewerEngine, type Viewport } from './engine/ViewerEngine';
-	import { LayoutEngine, type NodePosition } from './engine/LayoutEngine';
+	import {
+		LayoutEngine,
+		EDGE_ROUTING_GRID_UNIT,
+		type NodePosition,
+		type LayoutGroupBounds
+	} from './engine/LayoutEngine';
+	import { OrthogonalRouter } from './engine/OrthogonalRouter';
 	import { SpatialIndex } from './engine/SpatialIndex';
 	import { GraphNodeView, LODLevel } from './rendering/GraphNode';
 	import { EdgeFactory, EdgeType } from './rendering/GraphEdge';
+	import { GraphGroupBoundary } from './rendering/GraphGroupBoundary';
 	import { SelectionManager } from './interaction/SelectionManager';
 	import { FilterManager, type FilterCriteria } from './interaction/FilterManager';
 	import Minimap from './ui/Minimap.svelte';
@@ -14,7 +21,7 @@
 	import { OverlayPanel } from '$lib/components/ui';
 	import { updateGraphViewState, resetGraphViewState } from '$lib/stores/view';
 	import { Container, Graphics } from 'pixi.js';
-	import type { FederatedPointerEvent } from 'pixi.js';
+	import type { FederatedPointerEvent, Ticker } from 'pixi.js';
 
 	// グラフデータ型（GraphNode/Edge の組み合わせ）
 	interface GraphData {
@@ -40,13 +47,12 @@
 
 	// 内部で使用するエッジリスト
 	let graphEdges = $derived(graphData?.edges ?? []);
-	let structuralEdges = $derived(graphEdges.filter((e) => e.layer === 'structural'));
-	let referenceEdges = $derived(graphEdges.filter((e) => e.layer === 'reference'));
 
 	// 内部状態
 	let containerElement: HTMLDivElement;
 	let engine: ViewerEngine | null = null;
 	let layoutEngine: LayoutEngine | null = null;
+	let orthogonalRouter: OrthogonalRouter | null = null;
 	let spatialIndex: SpatialIndex | null = null;
 	let selectionManager: SelectionManager | null = null;
 	let filterManager: FilterManager | null = null;
@@ -56,6 +62,10 @@
 	let engineReady = $state(false); // エンジン初期化完了フラグ（$effect の依存関係用）
 	let positions: Map<string, NodePosition> = $state(new Map());
 	let layoutBounds = $state({ minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 });
+	const FLOW_FRAME_INTERVAL_MS = 1000 / 24;
+	const FLOW_SPEED_PX_PER_SEC = 180;
+	let flowTickerCallback: ((ticker: Ticker) => void) | null = null;
+	let lastFlowAnimationMs = 0;
 
 	// 差分更新用のキャッシュ
 	let previousTasksHash: string = '';
@@ -408,6 +418,36 @@
 		}
 	});
 
+	function startFlowAnimation(): void {
+		if (!engine || flowTickerCallback) return;
+		const app = engine.getApp();
+		if (!app) return;
+
+		lastFlowAnimationMs = 0;
+		flowTickerCallback = (_ticker: Ticker) => {
+			const now = nowMs();
+			if (now - lastFlowAnimationMs < FLOW_FRAME_INTERVAL_MS) return;
+			lastFlowAnimationMs = now;
+			const phase = (now / 1000) * FLOW_SPEED_PX_PER_SEC;
+
+			for (const edge of edgeFactory.getAll()) {
+				if (!edge.visible) continue;
+				edge.updateFlowAnimation(phase);
+			}
+		};
+
+		app.ticker.add(flowTickerCallback);
+	}
+
+	function stopFlowAnimation(): void {
+		if (!engine || !flowTickerCallback) return;
+		const app = engine.getApp();
+		if (app) {
+			app.ticker.remove(flowTickerCallback);
+		}
+		flowTickerCallback = null;
+	}
+
 	// E2E テスト用: 開発/テスト環境でのみグローバルにデバッグヘルパーを公開
 	$effect(() => {
 		if ((import.meta.env.DEV || import.meta.env.MODE === 'test') && engine) {
@@ -496,6 +536,11 @@
 		const initStart = nowMs();
 		engine = new ViewerEngine();
 		layoutEngine = new LayoutEngine();
+		orthogonalRouter = new OrthogonalRouter(
+			GraphNodeView.getWidth(),
+			GraphNodeView.getHeight(),
+			EDGE_ROUTING_GRID_UNIT
+		);
 		selectionManager = new SelectionManager();
 		filterManager = new FilterManager();
 
@@ -601,9 +646,11 @@
 
 		// エンジン準備完了を通知（$effect をトリガー）
 		engineReady = true;
+		startFlowAnimation();
 	}
 
 	onDestroy(() => {
+		stopFlowAnimation();
 		window.removeEventListener('keydown', handleKeyDown);
 		window.removeEventListener('keyup', handleKeyUp);
 		resizeObserver?.disconnect();
@@ -619,6 +666,7 @@
 		nodeMap.clear();
 		selectionManager?.destroy();
 		filterManager?.destroy();
+		orthogonalRouter = null;
 
 		if (METRICS_AUTOSAVE) {
 			void flushMetrics('destroy', true);
@@ -721,7 +769,8 @@
 
 		const nodeContainer = engine.getNodeContainer();
 		const edgeContainer = engine.getEdgeContainer();
-		if (!nodeContainer || !edgeContainer) return;
+		const groupContainer = engine.getGroupContainer();
+		if (!nodeContainer || !edgeContainer || !groupContainer) return;
 
 		// 構造変更時は依存関係フィルター状態をリセット
 		if (dependencyFilterNodeId !== null) {
@@ -737,11 +786,11 @@
 
 		// レイアウト計算（GraphNode で）
 		const layoutStart = nowMs();
-		const layout = layoutEngine.layout(nodeList, structuralEdges);
+		const layout = layoutEngine.layout(nodeList, edgeList);
 		const layoutMs = nowMs() - layoutStart;
 		positions = layout.positions;
 		layoutBounds = layout.bounds;
-		// layers は将来のグループ化機能用に保持可能だが、現在は不使用
+		const componentCount = layout.groups.length;
 
 		// 空間インデックスをクリアして再構築
 		spatialIndex.clear();
@@ -758,6 +807,7 @@
 		nodeContainer.removeChildren();
 		edgeFactory.clear();
 		edgeContainer.removeChildren();
+		renderGroupBoundaries(layout.groups);
 
 		// ノードIDのセットを作成
 		const nodeIds = new Set(nodeList.map((n) => n.id));
@@ -794,6 +844,8 @@
 		}
 
 		const nodeByID = new Map(nodeList.map((n) => [n.id, n]));
+		let orthogonalEdgeCount = 0;
+		let routeFallbackCount = 0;
 		for (const edgeData of edgeList) {
 			if (!nodeIds.has(edgeData.from) || !nodeIds.has(edgeData.to)) continue;
 			const fromPos = positions.get(edgeData.from);
@@ -806,8 +858,15 @@
 				edgeData.layer,
 				edgeData.relation
 			);
-			const endpoints = layoutEngine!.computeEdgeEndpoints(fromPos, toPos);
-			edge.setEndpoints(endpoints.fromX, endpoints.fromY, endpoints.toX, endpoints.toY);
+			const route = orthogonalRouter?.route(edgeData.from, edgeData.to, positions);
+			if (route && route.points.length >= 2) {
+				edge.setPolyline(route.points);
+				orthogonalEdgeCount++;
+				if (route.usedFallback) routeFallbackCount++;
+			} else {
+				const endpoints = layoutEngine!.computeEdgeEndpoints(fromPos, toPos);
+				edge.setEndpoints(endpoints.fromX, endpoints.fromY, endpoints.toX, endpoints.toY);
+			}
 
 			const fromNode = nodeByID.get(edgeData.from);
 			const toNode = nodeByID.get(edgeData.to);
@@ -851,12 +910,34 @@
 				boundsW: Math.round(layout.bounds.width),
 				boundsH: Math.round(layout.bounds.height),
 				layers: layout.layers.length,
+				groupCount: layout.groups.length,
+				componentCount,
+				laneCount: componentCount,
+				layoutVersion: layout.layoutVersion,
+				gridUnit: orthogonalRouter?.getGridUnit() ?? EDGE_ROUTING_GRID_UNIT,
+				orthogonalEdgeCount,
+				routeFallbackCount,
 				visibleFilterCount: visibleTaskIds.size,
 				viewportScale: Number(currentViewport.scale.toFixed(2)),
 				mode: isWBSMode ? 'wbs' : 'task'
 			},
 			true
 		);
+	}
+
+	/**
+	 * グループ境界を描画
+	 */
+	function renderGroupBoundaries(groups: LayoutGroupBounds[]): void {
+		if (!engine) return;
+		const groupContainer = engine.getGroupContainer();
+		if (!groupContainer) return;
+
+		groupContainer.removeChildren();
+		for (const group of groups) {
+			const boundary = new GraphGroupBoundary(group);
+			groupContainer.addChild(boundary);
+		}
 	}
 
 	/**
@@ -1219,9 +1300,16 @@
 		for (const edge of edgeFactory.getAll()) {
 			const fromPos = posMap.get(edge.getFromId());
 			const toPos = posMap.get(edge.getToId());
-			if (fromPos && toPos && layoutEngine) {
-				const endpoints = layoutEngine.computeEdgeEndpoints(fromPos, toPos);
-				edge.setEndpoints(endpoints.fromX, endpoints.fromY, endpoints.toX, endpoints.toY);
+			if (fromPos && toPos) {
+				const route = orthogonalRouter?.route(edge.getFromId(), edge.getToId(), posMap);
+				if (route && route.points.length >= 2) {
+					edge.setPolyline(route.points);
+					continue;
+				}
+				if (layoutEngine) {
+					const endpoints = layoutEngine.computeEdgeEndpoints(fromPos, toPos);
+					edge.setEndpoints(endpoints.fromX, endpoints.fromY, endpoints.toX, endpoints.toY);
+				}
 			}
 		}
 	}
@@ -1291,7 +1379,7 @@
 		}
 
 		// フィルター対象のみで再レイアウト
-		const filteredLayout = layoutEngine.layoutSubset(graphNodes, structuralEdges, dependencyFilterIds);
+		const filteredLayout = layoutEngine.layoutSubset(graphNodes, graphEdges, dependencyFilterIds);
 
 		// 可視性を更新
 		visibleTaskIds = dependencyFilterIds;
@@ -1300,6 +1388,7 @@
 		// 位置を更新
 		updateNodePositions(filteredLayout.positions);
 		layoutBounds = filteredLayout.bounds;
+		renderGroupBoundaries(filteredLayout.groups);
 
 		// ビューをフィルター結果に合わせてフィット
 		fitToView();
@@ -1326,8 +1415,9 @@
 
 			// layoutBounds も再計算
 			if (layoutEngine) {
-				const fullLayout = layoutEngine.layout(graphNodes, structuralEdges);
+				const fullLayout = layoutEngine.layout(graphNodes, graphEdges);
 				layoutBounds = fullLayout.bounds;
+				renderGroupBoundaries(fullLayout.groups);
 			}
 
 			originalPositions = null;

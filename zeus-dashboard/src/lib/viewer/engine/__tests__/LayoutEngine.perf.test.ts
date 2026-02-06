@@ -18,9 +18,9 @@ import {
 	formatPerformanceResult
 } from './performance-helper';
 
-// TaskNode をモック（PixiJS 依存を回避）
-vi.mock('../../rendering/TaskNode', () => ({
-	TaskNode: {
+// GraphNodeView をモック（PixiJS 依存を回避）
+vi.mock('../../rendering/GraphNode', () => ({
+	GraphNodeView: {
 		getWidth: () => 200,
 		getHeight: () => 80
 	}

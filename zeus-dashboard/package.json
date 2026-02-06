@@ -19,7 +19,7 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
-		"test:perf": "vitest run --reporter=verbose src/**/*.perf.test.ts"
+		"test:perf": "vitest run --reporter=verbose src/lib/viewer/engine/__tests__/*.perf.test.ts"
 	},
 	"devDependencies": {
 		"@storybook/addon-essentials": "^8.6.12",

@@ -15,12 +15,19 @@ export enum EdgeType {
 // 矢印設定
 const ARROW_SIZE = 8;
 const ARROW_ANGLE = Math.PI / 6;
+const FLOW_DOT_RADIUS = 2.4;
+const FLOW_DOT_MIN_SPACING = 110;
 
 interface SemanticStyle {
 	core: number;
 	outer: number;
 	widthCore: number;
 	widthOuter: number;
+}
+
+interface PolylinePoint {
+	x: number;
+	y: number;
 }
 
 function semanticStyle(layer: GraphEdgeLayer, relation: GraphEdgeRelation): SemanticStyle {
@@ -64,6 +71,8 @@ export class GraphEdge extends Graphics {
 	private fromY = 0;
 	private toX = 0;
 	private toY = 0;
+	private polyline: PolylinePoint[] | null = null;
+	private flowPhase = 0;
 
 	constructor(
 		fromId: string,
@@ -83,6 +92,30 @@ export class GraphEdge extends Graphics {
 		this.fromY = fromY;
 		this.toX = toX;
 		this.toY = toY;
+		this.polyline = null;
+		this.draw();
+	}
+
+	setPolyline(points: PolylinePoint[]): void {
+		const normalized = this.normalizePolyline(points);
+		if (normalized.length >= 2) {
+			this.polyline = normalized;
+			const first = normalized[0];
+			const last = normalized[normalized.length - 1];
+			this.fromX = first.x;
+			this.fromY = first.y;
+			this.toX = last.x;
+			this.toY = last.y;
+		} else {
+			this.polyline = null;
+		}
+		this.draw();
+	}
+
+	updateFlowAnimation(phase: number): void {
+		if (!this.polyline || this.polyline.length < 2) return;
+		if (Math.abs(this.flowPhase - phase) < 0.5) return;
+		this.flowPhase = phase;
 		this.draw();
 	}
 
@@ -136,8 +169,15 @@ export class GraphEdge extends Graphics {
 			widthOuter = semantic.widthOuter;
 		}
 
-		const { cp1x, cp1y, cp2x, cp2y } = this.calculateControlPoints();
+		if (this.polyline && this.polyline.length >= 2) {
+			this.drawPolyline(this.polyline, widthOuter, outer, widthCore, core);
+			this.drawFlowDots(this.polyline, core, outer);
+			const arrowFrom = this.findArrowSource(this.polyline);
+			this.drawArrow(arrowFrom.x, arrowFrom.y, this.toX, this.toY, core, outer);
+			return;
+		}
 
+		const { cp1x, cp1y, cp2x, cp2y } = this.calculateControlPoints();
 		this.moveTo(this.fromX, this.fromY);
 		this.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, this.toX, this.toY);
 		this.stroke({ width: widthOuter, color: outer, alpha: this.layer === 'reference' ? 0.9 : 1 });
@@ -147,6 +187,96 @@ export class GraphEdge extends Graphics {
 		this.stroke({ width: widthCore, color: core, alpha: 1 });
 
 		this.drawArrow(cp2x, cp2y, this.toX, this.toY, core, outer);
+	}
+
+	private drawPolyline(
+		points: PolylinePoint[],
+		widthOuter: number,
+		outer: number,
+		widthCore: number,
+		core: number
+	): void {
+		this.moveTo(points[0].x, points[0].y);
+		for (let i = 1; i < points.length; i++) {
+			this.lineTo(points[i].x, points[i].y);
+		}
+		this.stroke({ width: widthOuter, color: outer, alpha: this.layer === 'reference' ? 0.9 : 1 });
+
+		this.moveTo(points[0].x, points[0].y);
+		for (let i = 1; i < points.length; i++) {
+			this.lineTo(points[i].x, points[i].y);
+		}
+		this.stroke({ width: widthCore, color: core, alpha: 1 });
+	}
+
+	private findArrowSource(points: PolylinePoint[]): PolylinePoint {
+		for (let i = points.length - 2; i >= 0; i--) {
+			const p = points[i];
+			if (p.x !== this.toX || p.y !== this.toY) {
+				return p;
+			}
+		}
+		return points[0];
+	}
+
+	private normalizePolyline(points: PolylinePoint[]): PolylinePoint[] {
+		const deduped: PolylinePoint[] = [];
+		for (const point of points) {
+			const prev = deduped[deduped.length - 1];
+			if (!prev || prev.x !== point.x || prev.y !== point.y) {
+				deduped.push(point);
+			}
+		}
+		return deduped;
+	}
+
+	private drawFlowDots(points: PolylinePoint[], core: number, outer: number): void {
+		const totalLength = this.computePolylineLength(points);
+		if (totalLength < FLOW_DOT_MIN_SPACING) return;
+
+		const spacing = Math.max(FLOW_DOT_MIN_SPACING, Math.floor(totalLength / 3));
+		const dotCount = Math.max(2, Math.min(4, Math.floor(totalLength / spacing) + 1));
+		const offset = ((this.flowPhase % spacing) + spacing) % spacing;
+
+		for (let i = 0; i < dotCount; i++) {
+			const distance = (offset + i * spacing) % totalLength;
+			const point = this.getPointAtDistance(points, distance);
+			this.circle(point.x, point.y, FLOW_DOT_RADIUS + 1);
+			this.fill({ color: outer, alpha: 0.45 });
+			this.circle(point.x, point.y, FLOW_DOT_RADIUS);
+			this.fill({ color: core, alpha: 0.9 });
+		}
+	}
+
+	private computePolylineLength(points: PolylinePoint[]): number {
+		let length = 0;
+		for (let i = 1; i < points.length; i++) {
+			length += Math.abs(points[i].x - points[i - 1].x) + Math.abs(points[i].y - points[i - 1].y);
+		}
+		return length;
+	}
+
+	private getPointAtDistance(points: PolylinePoint[], distance: number): PolylinePoint {
+		if (points.length === 0) return { x: 0, y: 0 };
+		if (points.length === 1) return points[0];
+
+		let remaining = distance;
+		for (let i = 1; i < points.length; i++) {
+			const from = points[i - 1];
+			const to = points[i];
+			const segmentLength = Math.abs(to.x - from.x) + Math.abs(to.y - from.y);
+			if (segmentLength <= 0) continue;
+			if (remaining <= segmentLength) {
+				const ratio = remaining / segmentLength;
+				return {
+					x: from.x + (to.x - from.x) * ratio,
+					y: from.y + (to.y - from.y) * ratio
+				};
+			}
+			remaining -= segmentLength;
+		}
+
+		return points[points.length - 1];
 	}
 
 	private calculateControlPoints(): { cp1x: number; cp1y: number; cp2x: number; cp2y: number } {

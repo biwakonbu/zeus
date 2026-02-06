@@ -28,6 +28,9 @@ vi.mock('pixi.js', () => ({
 		lineTo() {
 			return this;
 		}
+		circle() {
+			return this;
+		}
 		bezierCurveTo() {
 			return this;
 		}

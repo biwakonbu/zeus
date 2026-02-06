@@ -58,6 +58,7 @@ export class ViewerEngine {
 	private app: Application | null = null;
 	private worldContainer: Container | null = null;
 	private gridContainer: Container | null = null;
+	private groupContainer: Container | null = null;
 	private edgeContainer: Container | null = null;
 	private nodeContainer: Container | null = null;
 
@@ -106,10 +107,12 @@ export class ViewerEngine {
 		// コンテナ階層を構築
 		this.worldContainer = new Container();
 		this.gridContainer = new Container();
+		this.groupContainer = new Container();
 		this.edgeContainer = new Container();
 		this.nodeContainer = new Container();
 
 		this.worldContainer.addChild(this.gridContainer);
+		this.worldContainer.addChild(this.groupContainer);
 		this.worldContainer.addChild(this.edgeContainer);
 		this.worldContainer.addChild(this.nodeContainer);
 		this.app.stage.addChild(this.worldContainer);
@@ -379,6 +382,13 @@ export class ViewerEngine {
 	}
 
 	/**
+	 * グループ境界コンテナを取得
+	 */
+	getGroupContainer(): Container | null {
+		return this.groupContainer;
+	}
+
+	/**
 	 * PixiJS Application インスタンスを取得
 	 * ヒットテスト等の低レベル操作に使用
 	 */
@@ -496,6 +506,7 @@ export class ViewerEngine {
 
 		this.worldContainer = null;
 		this.gridContainer = null;
+		this.groupContainer = null;
 		this.edgeContainer = null;
 		this.nodeContainer = null;
 	}

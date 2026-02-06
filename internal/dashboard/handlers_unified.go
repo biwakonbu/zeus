@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -230,6 +231,15 @@ func convertUnifiedGraphToResponse(graph *analysis.UnifiedGraph, filter *analysi
 		}
 		nodes = append(nodes, item)
 	}
+	sort.Slice(nodes, func(i, j int) bool {
+		if nodes[i].Type != nodes[j].Type {
+			return nodes[i].Type < nodes[j].Type
+		}
+		if nodes[i].StructuralDepth != nodes[j].StructuralDepth {
+			return nodes[i].StructuralDepth < nodes[j].StructuralDepth
+		}
+		return nodes[i].ID < nodes[j].ID
+	})
 
 	// エッジの変換
 	edges := make([]UnifiedGraphEdgeItem, len(graph.Edges))
@@ -241,6 +251,18 @@ func convertUnifiedGraphToResponse(graph *analysis.UnifiedGraph, filter *analysi
 			Relation: string(edge.Relation),
 		}
 	}
+	sort.Slice(edges, func(i, j int) bool {
+		if edges[i].Source != edges[j].Source {
+			return edges[i].Source < edges[j].Source
+		}
+		if edges[i].Target != edges[j].Target {
+			return edges[i].Target < edges[j].Target
+		}
+		if edges[i].Layer != edges[j].Layer {
+			return edges[i].Layer < edges[j].Layer
+		}
+		return edges[i].Relation < edges[j].Relation
+	})
 
 	// NodesByType の変換（EntityType → string）
 	nodesByType := make(map[string]int)
