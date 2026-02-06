@@ -2,6 +2,14 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { FederatedPointerEvent } from 'pixi.js';
 import type { GraphNode, GraphNodeType } from '$lib/types/api';
+import {
+	NODE_TYPE_CONFIG,
+	DEFAULT_NODE_TYPE,
+	getNodeTypeColors,
+	getNodeTypeLabel,
+	shouldShowBadge,
+	shouldShowAccentLine
+} from '../config/nodeTypes';
 
 // ノードサイズ定数
 const NODE_WIDTH = 200;
@@ -32,37 +40,10 @@ const COLORS = {
 		medium: 0xffcc00,
 		low: 0x44cc44
 	},
-	// ノードタイプ別の色（左側インジケーター・背景グラデーション）
-	nodeType: {
-		vision: {
-			indicator: 0xffd700, // ゴールド - 最上位の目標
-			background: 0x3d3520, // 暗めの金色
-			border: 0xffd700,
-			borderHighlight: 0xffee88,
-			borderShadow: 0x2a2510
-		},
-		objective: {
-			indicator: 0x6699ff, // ブルー - 目標
-			background: 0x2d3550, // 暗めの青
-			border: 0x6699ff,
-			borderHighlight: 0x99bbff,
-			borderShadow: 0x1a2030
-		},
-		deliverable: {
-			indicator: 0x66cc99, // グリーン - 成果物
-			background: 0x2d4035, // 暗めの緑
-			border: 0x66cc99,
-			borderHighlight: 0x99eebb,
-			borderShadow: 0x1a2a20
-		},
-		task: {
-			indicator: 0x888888, // グレー - タスク（既存の動作）
-			background: 0x2d2d2d, // 標準背景
-			border: 0x4a4a4a,
-			borderHighlight: 0x777777,
-			borderShadow: 0x1a1a1a
-		}
-	} as Record<
+	// ノードタイプ別の色（NODE_TYPE_CONFIG から生成）
+	nodeType: Object.fromEntries(
+		Object.entries(NODE_TYPE_CONFIG).map(([key, config]) => [key, config.colors])
+	) as Record<
 		GraphNodeType,
 		{
 			indicator: number;
@@ -133,7 +114,7 @@ export enum LODLevel {
 }
 
 /**
- * GraphNodeView - WBS ノード（Vision, Objective, Deliverable, Task）の視覚的表現
+ * GraphNodeView - グラフノード（Vision, Objective, Deliverable, Activity, UseCase）の視覚的表現
  *
  * 責務:
  * - ノードのグラフィカル表示
@@ -302,7 +283,7 @@ export class GraphNodeView extends Container {
 		this.background.clear();
 
 		// ノードタイプ別の基本色を取得
-		const typeColors = COLORS.nodeType[this.nodeType] || COLORS.nodeType.task;
+		const typeColors = COLORS.nodeType[this.nodeType] || COLORS.nodeType[DEFAULT_NODE_TYPE];
 		let bgColor = typeColors.background;
 		let borderColor = typeColors.border;
 		let borderWidth = 2;
@@ -412,8 +393,8 @@ export class GraphNodeView extends Container {
 		);
 		this.background.fill({ color: 0x000000, alpha: METAL_EFFECT.bottomShadowAlpha });
 
-		// === アクセントライン（上部オレンジ - タスク以外）===
-		if (this.nodeType !== 'task') {
+		// === アクセントライン（ノードタイプ設定に基づく）===
+		if (shouldShowAccentLine(this.nodeType)) {
 			this.background.moveTo(CORNER_RADIUS + 4, 2);
 			this.background.lineTo(NODE_WIDTH - CORNER_RADIUS - 4, 2);
 			this.background.stroke({ width: 1, color: typeColors.indicator, alpha: 0.15 });
@@ -451,8 +432,8 @@ export class GraphNodeView extends Container {
 	private drawTypeIndicator(): void {
 		this.typeIndicator.clear();
 
-		// Task 以外のノードタイプのみバッジ表示
-		if (this.nodeType === 'task') {
+		// ノードタイプ設定に基づいてバッジ表示を判定
+		if (!shouldShowBadge(this.nodeType)) {
 			this.typeIndicator.visible = false;
 			this.typeText.visible = false;
 			return;
@@ -461,13 +442,7 @@ export class GraphNodeView extends Container {
 		this.typeIndicator.visible = true;
 		this.typeText.visible = true;
 
-		const typeColors = COLORS.nodeType[this.nodeType];
-		const typeLabels: Record<GraphNodeType, string> = {
-			vision: 'V',
-			objective: 'O',
-			deliverable: 'D',
-			task: 'T'
-		};
+		const typeColors = getNodeTypeColors(this.nodeType);
 
 		const badgeSize = 20;
 		const badgeX = NODE_WIDTH - badgeSize - 4;
@@ -478,8 +453,8 @@ export class GraphNodeView extends Container {
 		this.typeIndicator.fill(typeColors.indicator);
 		this.typeIndicator.stroke({ width: 1, color: 0x1a1a1a });
 
-		// ラベル文字（V/O/D/T）を円の中央に配置
-		const label = typeLabels[this.nodeType];
+		// ラベル文字（V/O/D/A/U）を円の中央に配置
+		const label = getNodeTypeLabel(this.nodeType);
 		this.typeText.text = label;
 		// テキストを円の中央に配置（テキストの幅・高さを考慮）
 		this.typeText.x = badgeX + badgeSize / 2 - this.typeText.width / 2;

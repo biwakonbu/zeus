@@ -19,7 +19,7 @@
 	interface EntityDetail {
 		id: string;
 		title: string;
-		type: 'vision' | 'objective' | 'deliverable' | 'task';
+		type: 'vision' | 'objective' | 'deliverable' | 'activity' | 'usecase';
 		status: string;
 		progress: number;
 		description?: string;
@@ -46,7 +46,7 @@
 					'This is a placeholder description for the entity. The actual content will be loaded from the API.',
 				relatedEntities: [
 					{ id: 'DEL-001', title: 'Related Deliverable 1', type: 'deliverable' },
-					{ id: 'TASK-001', title: 'Related Task 1', type: 'task' }
+					{ id: 'ACT-001', title: 'Related Activity 1', type: 'activity' }
 				],
 				history: [
 					{ date: '2026-01-21 10:30', action: 'Progress updated to 65%' },
@@ -61,11 +61,12 @@
 	});
 
 	// ID プレフィックスからエンティティタイプを推測
-	function detectEntityType(id: string): 'vision' | 'objective' | 'deliverable' | 'task' {
+	function detectEntityType(id: string): 'vision' | 'objective' | 'deliverable' | 'activity' | 'usecase' {
 		if (id.startsWith('VIS') || id.startsWith('vis')) return 'vision';
 		if (id.startsWith('OBJ') || id.startsWith('obj')) return 'objective';
 		if (id.startsWith('DEL') || id.startsWith('del')) return 'deliverable';
-		return 'task';
+		if (id.startsWith('UC') || id.startsWith('uc')) return 'usecase';
+		return 'activity';
 	}
 
 	// 戻るボタンハンドラ
@@ -114,8 +115,10 @@
 				return 'Flag';
 			case 'deliverable':
 				return 'Package';
-			case 'task':
+			case 'activity':
 				return 'CheckSquare';
+			case 'usecase':
+				return 'Users';
 			default:
 				return 'Circle';
 		}

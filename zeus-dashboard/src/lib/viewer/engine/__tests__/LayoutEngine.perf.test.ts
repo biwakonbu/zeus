@@ -206,7 +206,7 @@ describe('LayoutEngine パフォーマンステスト', () => {
 				{
 					id: 'task-0',
 					title: 'Task 0',
-					node_type: 'task' as const,
+					node_type: 'activity' as const,
 					status: 'pending' as const,
 					progress: 0,
 					priority: 'medium' as const,
@@ -216,7 +216,7 @@ describe('LayoutEngine パフォーマンステスト', () => {
 				{
 					id: 'task-1',
 					title: 'Task 1',
-					node_type: 'task' as const,
+					node_type: 'activity' as const,
 					status: 'pending' as const,
 					progress: 0,
 					priority: 'medium' as const,
@@ -226,7 +226,7 @@ describe('LayoutEngine パフォーマンステスト', () => {
 				{
 					id: 'task-2',
 					title: 'Task 2',
-					node_type: 'task' as const,
+					node_type: 'activity' as const,
 					status: 'pending' as const,
 					progress: 0,
 					priority: 'medium' as const,

@@ -153,7 +153,7 @@ describe('DiffUtils パフォーマンステスト', () => {
 			tasks.push({
 				id: 'new-task',
 				title: 'New Task',
-				node_type: 'task',
+				node_type: 'activity',
 				status: 'pending',
 				progress: 0,
 				priority: 'medium',
@@ -208,7 +208,7 @@ describe('DiffUtils パフォーマンステスト', () => {
 				{
 					id: 'task-5',
 					title: 'Task 5',
-					node_type: 'task',
+					node_type: 'activity',
 					status: 'pending',
 					progress: 0,
 					priority: 'medium',

@@ -164,7 +164,7 @@ export function assertPerformanceOnce(duration: number, threshold: number, label
 export interface MockGraphNode {
 	id: string;
 	title: string;
-	node_type: 'task' | 'vision' | 'objective' | 'deliverable';
+	node_type: 'activity' | 'vision' | 'objective' | 'deliverable' | 'usecase';
 	status: 'pending' | 'in_progress' | 'completed' | 'blocked';
 	progress: number;
 	priority: 'high' | 'medium' | 'low';
@@ -201,7 +201,7 @@ export function generateMockTasks(count: number, maxDependencies = 3): MockGraph
 		nodes.push({
 			id,
 			title: `Task ${i}`,
-			node_type: 'task',
+			node_type: 'activity',
 			status: statuses[Math.floor(Math.random() * statuses.length)],
 			progress: Math.floor(Math.random() * 101),
 			priority: priorities[Math.floor(Math.random() * priorities.length)],

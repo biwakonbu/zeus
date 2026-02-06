@@ -29,7 +29,7 @@ const mockGraphNodes: GraphNode[] = [
 	{
 		id: 'task-1',
 		title: 'プロジェクト初期化',
-		node_type: 'task',
+		node_type: 'activity',
 		status: 'completed',
 		priority: 'high',
 		assignee: 'alice',
@@ -38,7 +38,7 @@ const mockGraphNodes: GraphNode[] = [
 	{
 		id: 'task-2',
 		title: 'データベース設計',
-		node_type: 'task',
+		node_type: 'activity',
 		status: 'completed',
 		priority: 'high',
 		assignee: 'bob',
@@ -47,7 +47,7 @@ const mockGraphNodes: GraphNode[] = [
 	{
 		id: 'task-3',
 		title: 'API 実装',
-		node_type: 'task',
+		node_type: 'activity',
 		status: 'in_progress',
 		priority: 'high',
 		assignee: 'alice',
@@ -56,7 +56,7 @@ const mockGraphNodes: GraphNode[] = [
 	{
 		id: 'task-4',
 		title: 'フロントエンド実装',
-		node_type: 'task',
+		node_type: 'activity',
 		status: 'in_progress',
 		priority: 'medium',
 		assignee: 'charlie',
@@ -65,7 +65,7 @@ const mockGraphNodes: GraphNode[] = [
 	{
 		id: 'task-5',
 		title: 'テスト作成',
-		node_type: 'task',
+		node_type: 'activity',
 		status: 'pending',
 		priority: 'medium',
 		assignee: 'bob',
@@ -74,7 +74,7 @@ const mockGraphNodes: GraphNode[] = [
 	{
 		id: 'task-6',
 		title: 'デプロイメント設定',
-		node_type: 'task',
+		node_type: 'activity',
 		status: 'blocked',
 		priority: 'low',
 		assignee: 'alice',

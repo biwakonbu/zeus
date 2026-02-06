@@ -288,8 +288,9 @@ export type QualityStatus = 'not_checked' | 'passing' | 'failing';
 // グラフビュー用統一ノード型
 // =============================================================================
 
-// グラフノードの種別（WBS 階層 + Task）
-export type GraphNodeType = 'vision' | 'objective' | 'deliverable' | 'task';
+// グラフノードの種別（UnifiedGraph 対応）
+// Note: 'task' は Activity に統合されたため除去。色・ラベル定義は $lib/viewer/config/nodeTypes.ts で一元管理。
+export type GraphNodeType = 'vision' | 'objective' | 'deliverable' | 'activity' | 'usecase';
 
 // グラフビュー用の統一ノードデータ
 export interface GraphNode {

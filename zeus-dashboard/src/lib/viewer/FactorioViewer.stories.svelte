@@ -36,7 +36,7 @@
 		{
 			id: 'task-1',
 			title: 'プロジェクト設計',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'completed',
 			priority: 'high',
 			assignee: 'alice',
@@ -45,7 +45,7 @@
 		{
 			id: 'task-2',
 			title: 'データベース設計',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'completed',
 			priority: 'high',
 			assignee: 'bob',
@@ -54,7 +54,7 @@
 		{
 			id: 'task-3',
 			title: 'API 実装',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'in_progress',
 			priority: 'high',
 			assignee: 'alice',
@@ -63,7 +63,7 @@
 		{
 			id: 'task-4',
 			title: 'フロントエンド実装',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'pending',
 			priority: 'medium',
 			assignee: 'charlie',
@@ -72,7 +72,7 @@
 		{
 			id: 'task-5',
 			title: '統合テスト',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'blocked',
 			priority: 'high',
 			assignee: 'bob',
@@ -86,7 +86,7 @@
 		{
 			id: 't1',
 			title: 'プロジェクト立ち上げ',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'completed',
 			priority: 'high',
 			assignee: 'alice',
@@ -96,7 +96,7 @@
 		{
 			id: 't2',
 			title: '要件定義',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'completed',
 			priority: 'high',
 			assignee: 'bob',
@@ -105,7 +105,7 @@
 		{
 			id: 't3',
 			title: 'チーム編成',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'completed',
 			priority: 'medium',
 			assignee: 'charlie',
@@ -115,7 +115,7 @@
 		{
 			id: 't4',
 			title: 'アーキテクチャ設計',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'completed',
 			priority: 'high',
 			assignee: 'alice',
@@ -124,7 +124,7 @@
 		{
 			id: 't5',
 			title: 'UI/UX デザイン',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'in_progress',
 			priority: 'medium',
 			assignee: 'charlie',
@@ -133,7 +133,7 @@
 		{
 			id: 't6',
 			title: 'インフラ設計',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'completed',
 			priority: 'medium',
 			assignee: 'bob',
@@ -143,7 +143,7 @@
 		{
 			id: 't7',
 			title: 'バックエンド開発',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'in_progress',
 			priority: 'high',
 			assignee: 'alice',
@@ -152,7 +152,7 @@
 		{
 			id: 't8',
 			title: 'フロントエンド開発',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'pending',
 			priority: 'high',
 			assignee: 'charlie',
@@ -161,7 +161,7 @@
 		{
 			id: 't9',
 			title: 'CI/CD 構築',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'in_progress',
 			priority: 'medium',
 			assignee: 'bob',
@@ -171,7 +171,7 @@
 		{
 			id: 't10',
 			title: 'API 統合',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'pending',
 			priority: 'high',
 			assignee: 'alice',
@@ -180,7 +180,7 @@
 		{
 			id: 't11',
 			title: 'パフォーマンス最適化',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'blocked',
 			priority: 'medium',
 			assignee: 'bob',
@@ -190,7 +190,7 @@
 		{
 			id: 't12',
 			title: '結合テスト',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'pending',
 			priority: 'high',
 			assignee: 'bob',
@@ -199,7 +199,7 @@
 		{
 			id: 't13',
 			title: 'セキュリティ監査',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'pending',
 			priority: 'high',
 			assignee: 'charlie',
@@ -209,7 +209,7 @@
 		{
 			id: 't14',
 			title: 'ステージングデプロイ',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'pending',
 			priority: 'medium',
 			assignee: 'bob',
@@ -219,7 +219,7 @@
 		{
 			id: 't15',
 			title: '本番リリース',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'pending',
 			priority: 'high',
 			assignee: 'alice',
@@ -317,11 +317,11 @@
 <!-- 全ステータスのノード -->
 <Story name="AllStatuses">
 	{@const allStatusNodes: GraphNode[] = [
-		{ id: 'completed-1', title: '完了タスク 1', node_type: 'task', status: 'completed', priority: 'high', assignee: 'alice', dependencies: [] },
-		{ id: 'completed-2', title: '完了タスク 2', node_type: 'task', status: 'completed', priority: 'medium', assignee: 'bob', dependencies: ['completed-1'] },
-		{ id: 'in_progress-1', title: '進行中タスク', node_type: 'task', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['completed-2'] },
-		{ id: 'pending-1', title: '未着手タスク', node_type: 'task', status: 'pending', priority: 'medium', assignee: 'alice', dependencies: ['completed-2'] },
-		{ id: 'blocked-1', title: 'ブロック中タスク', node_type: 'task', status: 'blocked', priority: 'high', assignee: 'bob', dependencies: ['in_progress-1', 'pending-1'] }
+		{ id: 'completed-1', title: '完了タスク 1', node_type: 'activity', status: 'completed', priority: 'high', assignee: 'alice', dependencies: [] },
+		{ id: 'completed-2', title: '完了タスク 2', node_type: 'activity', status: 'completed', priority: 'medium', assignee: 'bob', dependencies: ['completed-1'] },
+		{ id: 'in_progress-1', title: '進行中タスク', node_type: 'activity', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['completed-2'] },
+		{ id: 'pending-1', title: '未着手タスク', node_type: 'activity', status: 'pending', priority: 'medium', assignee: 'alice', dependencies: ['completed-2'] },
+		{ id: 'blocked-1', title: 'ブロック中タスク', node_type: 'activity', status: 'blocked', priority: 'high', assignee: 'bob', dependencies: ['in_progress-1', 'pending-1'] }
 	]}
 	<div style="height: 500px; background: var(--bg-primary);">
 		<FactorioViewer
@@ -361,7 +361,7 @@
 				nodes.push({
 					id,
 					title: `タスク ${layer + 1}-${node + 1}`,
-					node_type: 'task',
+					node_type: 'activity',
 					status: statuses[statusIdx],
 					priority: priorities[node % 3],
 					assignee: assignees[node % 5],
@@ -394,10 +394,10 @@
 		{ id: 'del-1', title: 'CLI ツール', node_type: 'deliverable', status: 'completed', priority: 'high', assignee: 'alice', dependencies: ['obj-1'] },
 		{ id: 'del-2', title: 'ダッシュボード', node_type: 'deliverable', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['obj-2'] },
 		// Tasks
-		{ id: 'task-1', title: 'CLI 基盤実装', node_type: 'task', status: 'completed', priority: 'high', assignee: 'alice', dependencies: ['del-1'] },
-		{ id: 'task-2', title: 'YAML パーサー', node_type: 'task', status: 'completed', priority: 'high', assignee: 'bob', dependencies: ['del-1'] },
-		{ id: 'task-3', title: 'UI 実装', node_type: 'task', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['del-2'] },
-		{ id: 'task-4', title: 'API 連携', node_type: 'task', status: 'pending', priority: 'medium', assignee: 'bob', dependencies: ['del-2'] }
+		{ id: 'task-1', title: 'CLI 基盤実装', node_type: 'activity', status: 'completed', priority: 'high', assignee: 'alice', dependencies: ['del-1'] },
+		{ id: 'task-2', title: 'YAML パーサー', node_type: 'activity', status: 'completed', priority: 'high', assignee: 'bob', dependencies: ['del-1'] },
+		{ id: 'task-3', title: 'UI 実装', node_type: 'activity', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['del-2'] },
+		{ id: 'task-4', title: 'API 連携', node_type: 'activity', status: 'pending', priority: 'medium', assignee: 'bob', dependencies: ['del-2'] }
 	]}
 	<div style="height: 700px; background: var(--bg-primary);">
 		<FactorioViewer

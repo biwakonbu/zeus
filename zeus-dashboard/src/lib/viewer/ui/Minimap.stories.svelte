@@ -10,7 +10,7 @@
 		{
 			id: 'task-1',
 			title: 'タスク 1',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'completed',
 			priority: 'high',
 			assignee: 'alice',
@@ -19,7 +19,7 @@
 		{
 			id: 'task-2',
 			title: 'タスク 2',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'completed',
 			priority: 'medium',
 			assignee: 'bob',
@@ -28,7 +28,7 @@
 		{
 			id: 'task-3',
 			title: 'タスク 3',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'in_progress',
 			priority: 'high',
 			assignee: 'alice',
@@ -37,7 +37,7 @@
 		{
 			id: 'task-4',
 			title: 'タスク 4',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'pending',
 			priority: 'medium',
 			assignee: 'charlie',
@@ -46,7 +46,7 @@
 		{
 			id: 'task-5',
 			title: 'タスク 5',
-			node_type: 'task',
+			node_type: 'activity',
 			status: 'blocked',
 			priority: 'low',
 			assignee: 'bob',

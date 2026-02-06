@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import type { EntityStatus, Priority, GraphNode, GraphEdge } from '$lib/types/api';
+	import { NODE_TYPE_CONFIG } from './config/nodeTypes';
 	import { ViewerEngine, type Viewport } from './engine/ViewerEngine';
 	import { LayoutEngine, type NodePosition } from './engine/LayoutEngine';
 	import { SpatialIndex } from './engine/SpatialIndex';
@@ -1546,25 +1547,15 @@
 		>
 			<div class="legend-content">
 				{#if isWBSMode}
-					<!-- WBS モード: ノードタイプ凡例 -->
+					<!-- WBS モード: ノードタイプ凡例（NODE_TYPE_CONFIG から生成） -->
 					<div class="legend-section">
 						<div class="legend-section-title">NODE TYPE</div>
-						<div class="legend-item">
-							<span class="legend-dot vision"></span>
-							<span>Vision</span>
-						</div>
-						<div class="legend-item">
-							<span class="legend-dot objective"></span>
-							<span>Objective</span>
-						</div>
-						<div class="legend-item">
-							<span class="legend-dot deliverable"></span>
-							<span>Deliverable</span>
-						</div>
-						<div class="legend-item">
-							<span class="legend-dot task"></span>
-							<span>Task</span>
-						</div>
+						{#each Object.entries(NODE_TYPE_CONFIG) as [type, config]}
+							<div class="legend-item">
+								<span class="legend-dot" style:background-color={config.cssColor}></span>
+								<span>{type[0].toUpperCase() + type.slice(1)}</span>
+							</div>
+						{/each}
 					</div>
 				{/if}
 				<div class="legend-section">
@@ -1663,20 +1654,5 @@
 		background-color: var(--status-poor);
 	}
 
-	/* WBS ノードタイプ別の色（TaskNode.ts と同期） */
-	.legend-dot.vision {
-		background-color: #ffd700; /* ゴールド - 最上位の目標 */
-	}
-
-	.legend-dot.objective {
-		background-color: #6699ff; /* ブルー - 目標 */
-	}
-
-	.legend-dot.deliverable {
-		background-color: #66cc99; /* グリーン - 成果物 */
-	}
-
-	.legend-dot.task {
-		background-color: #888888; /* グレー - タスク */
-	}
+	/* WBS ノードタイプ別の色は NODE_TYPE_CONFIG から inline style で適用 */
 </style>

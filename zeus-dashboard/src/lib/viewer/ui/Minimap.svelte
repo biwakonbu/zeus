@@ -2,6 +2,7 @@
 	import type { GraphNode, GraphNodeType } from '$lib/types/api';
 	import type { NodePosition, LayoutResult } from '../engine/LayoutEngine';
 	import type { Viewport } from '../engine/ViewerEngine';
+	import { getNodeTypeCSSColor } from '../config/nodeTypes';
 
 	// Props
 	interface Props {
@@ -106,19 +107,9 @@
 		}
 	}
 
-	// ノードタイプ色マッピング（TaskNode.ts と同期）
+	// ノードタイプ色マッピング（NODE_TYPE_CONFIG から取得）
 	function getNodeTypeColor(nodeType: GraphNodeType): string {
-		switch (nodeType) {
-			case 'vision':
-				return '#ffd700'; // ゴールド
-			case 'objective':
-				return '#6699ff'; // ブルー
-			case 'deliverable':
-				return '#66cc99'; // グリーン
-			case 'task':
-			default:
-				return '#888888'; // グレー
-		}
+		return getNodeTypeCSSColor(nodeType);
 	}
 
 	// モードに応じた色を取得

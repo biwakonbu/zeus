@@ -7,6 +7,7 @@
 	import { setConnected, setDisconnected, setConnecting } from '$lib/stores/connection';
 	import { connectSSE, disconnectSSE } from '$lib/api/sse';
 	import { fetchActivities, fetchUnifiedGraph } from '$lib/api/client';
+	import { NODE_TYPE_CONFIG, DEFAULT_NODE_TYPE } from '$lib/viewer/config/nodeTypes';
 	import type {
 		ActivityItem,
 		GraphNode,
@@ -21,12 +22,20 @@
 		edges: GraphEdge[];
 	}
 
+	// バックエンドの型をフロントエンドの GraphNodeType に安全にマッピング
+	function mapNodeType(backendType: string): GraphNodeType {
+		if (backendType in NODE_TYPE_CONFIG) {
+			return backendType as GraphNodeType;
+		}
+		return DEFAULT_NODE_TYPE;
+	}
+
 	// UnifiedGraph を GraphData に変換するヘルパー
 	function convertUnifiedGraphToGraphData(unified: UnifiedGraphResponse): GraphData {
 		const nodes: GraphNode[] = unified.nodes.map((n) => ({
 			id: n.id,
 			title: n.title,
-			node_type: n.type as GraphNodeType,
+			node_type: mapNodeType(n.type),
 			status: n.status,
 			priority: n.priority,
 			assignee: n.assignee,
@@ -332,7 +341,7 @@
 		color: var(--priority-low);
 	}
 
-	/* ノードタイプ色 */
+	/* ノードタイプ色（NODE_TYPE_CONFIG と同期） */
 	.node-type-vision {
 		color: #ffd700;
 	}
@@ -345,7 +354,11 @@
 		color: #66cc99;
 	}
 
-	.node-type-task {
-		color: #888888;
+	.node-type-activity {
+		color: #cc8844;
+	}
+
+	.node-type-usecase {
+		color: #9966cc;
 	}
 </style>
