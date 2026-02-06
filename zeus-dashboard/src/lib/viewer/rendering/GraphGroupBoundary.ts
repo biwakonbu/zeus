@@ -14,14 +14,18 @@ const TEXT_RESOLUTION =
  */
 export class GraphGroupBoundary extends Container {
 	private bounds: LayoutGroupBounds;
-	private graphics: Graphics;
+	private boundaryGraphics: Graphics;
+	private labelContainer: Container;
+	private titleGraphics: Graphics;
 	private labelText: Text;
 
 	constructor(bounds: LayoutGroupBounds) {
 		super();
 
 		this.bounds = bounds;
-		this.graphics = new Graphics();
+		this.boundaryGraphics = new Graphics();
+		this.labelContainer = new Container();
+		this.titleGraphics = new Graphics();
 		this.labelText = new Text({
 			text: '',
 			style: {
@@ -34,8 +38,10 @@ export class GraphGroupBoundary extends Container {
 		});
 
 		this.eventMode = 'none';
-		this.addChild(this.graphics);
-		this.addChild(this.labelText);
+		this.labelContainer.eventMode = 'none';
+		this.addChild(this.boundaryGraphics);
+		this.labelContainer.addChild(this.titleGraphics);
+		this.labelContainer.addChild(this.labelText);
 		this.draw();
 	}
 
@@ -48,22 +54,27 @@ export class GraphGroupBoundary extends Container {
 		return this.bounds.groupId;
 	}
 
+	getLabelContainer(): Container {
+		return this.labelContainer;
+	}
+
 	private draw(): void {
-		this.graphics.clear();
+		this.boundaryGraphics.clear();
+		this.titleGraphics.clear();
 
 		const { minX, minY, width, height, color, label } = this.bounds;
 		this.labelText.text = label;
 
 		// 背景
-		this.graphics.roundRect(minX, minY, width, height, CORNER_RADIUS);
-		this.graphics.fill({ color, alpha: 0.08 });
-		this.graphics.stroke({ width: BORDER_WIDTH, color, alpha: 0.35 });
+		this.boundaryGraphics.roundRect(minX, minY, width, height, CORNER_RADIUS);
+		this.boundaryGraphics.fill({ color, alpha: 0.08 });
+		this.boundaryGraphics.stroke({ width: BORDER_WIDTH, color, alpha: 0.35 });
 
 		// タイトルバー
 		const titleWidth = Math.max(56, this.labelText.width + TITLE_PADDING_X * 2);
-		this.graphics.roundRect(minX + 8, minY + 6, titleWidth, TITLE_HEIGHT, 8);
-		this.graphics.fill({ color, alpha: 0.22 });
-		this.graphics.stroke({ width: 1, color, alpha: 0.5 });
+		this.titleGraphics.roundRect(minX + 8, minY + 6, titleWidth, TITLE_HEIGHT, 8);
+		this.titleGraphics.fill({ color, alpha: 0.22 });
+		this.titleGraphics.stroke({ width: 1, color, alpha: 0.5 });
 
 		this.labelText.x = minX + 8 + TITLE_PADDING_X;
 		this.labelText.y = minY + 6 + (TITLE_HEIGHT - this.labelText.height) / 2;

@@ -18,6 +18,8 @@
 	import { FilterManager, type FilterCriteria } from './interaction/FilterManager';
 	import Minimap from './ui/Minimap.svelte';
 	import FilterPanel from './ui/FilterPanel.svelte';
+	import GraphListPanel from './graph/GraphListPanel.svelte';
+	import GraphDetailPanel from './graph/GraphDetailPanel.svelte';
 	import { OverlayPanel } from '$lib/components/ui';
 	import { updateGraphViewState, resetGraphViewState } from '$lib/stores/view';
 	import { Container, Graphics } from 'pixi.js';
@@ -166,8 +168,21 @@
 
 
 	// UI パネル表示状態（Header 連携用）
+	let showListPanel: boolean = $state(true);
+	let showDetailPanel: boolean = $state(false);
 	let showFilterPanel: boolean = $state(true);
 	let showLegend: boolean = $state(true);
+	let graphListSearchQuery: string = $state('');
+
+	const selectedGraphNode = $derived.by(() => {
+		if (!selectedTaskId) return null;
+		return graphNodes.find((node) => node.id === selectedTaskId) ?? null;
+	});
+
+	const visibleGraphNodes = $derived.by(() => {
+		if (visibleTaskIds.size === 0) return graphNodes;
+		return graphNodes.filter((node) => visibleTaskIds.has(node.id));
+	});
 
 	// 影響範囲可視化（下流タスクのハイライト）
 	let highlightedDownstream: Set<string> = $state(new Set());
@@ -582,9 +597,11 @@
 			// 最初の選択IDを親に通知
 			if (event.taskIds.length > 0) {
 				if (event.type === 'select') {
+					showDetailPanel = true;
 					onTaskSelect?.(event.taskIds[0]);
 				} else if (event.type === 'clear' || event.type === 'deselect') {
 					if (selectedIds.length === 0) {
+						showDetailPanel = false;
 						onTaskSelect?.(null);
 					}
 				}
@@ -757,6 +774,10 @@
 		}
 	});
 
+	$effect(() => {
+		showDetailPanel = selectedTaskId !== null;
+	});
+
 	/**
 	 * グラフノードをレンダリング
 	 */
@@ -770,7 +791,8 @@
 		const nodeContainer = engine.getNodeContainer();
 		const edgeContainer = engine.getEdgeContainer();
 		const groupContainer = engine.getGroupContainer();
-		if (!nodeContainer || !edgeContainer || !groupContainer) return;
+		const groupLabelContainer = engine.getGroupLabelContainer();
+		if (!nodeContainer || !edgeContainer || !groupContainer || !groupLabelContainer) return;
 
 		// 構造変更時は依存関係フィルター状態をリセット
 		if (dependencyFilterNodeId !== null) {
@@ -931,12 +953,15 @@
 	function renderGroupBoundaries(groups: LayoutGroupBounds[]): void {
 		if (!engine) return;
 		const groupContainer = engine.getGroupContainer();
-		if (!groupContainer) return;
+		const groupLabelContainer = engine.getGroupLabelContainer();
+		if (!groupContainer || !groupLabelContainer) return;
 
 		groupContainer.removeChildren();
+		groupLabelContainer.removeChildren();
 		for (const group of groups) {
 			const boundary = new GraphGroupBoundary(group);
 			groupContainer.addChild(boundary);
+			groupLabelContainer.addChild(boundary.getLabelContainer());
 		}
 	}
 
@@ -1233,10 +1258,10 @@
 			if (visited.has(current)) continue;
 			visited.add(current);
 
-			// このノードが依存しているエッジを探す（edge.to === current）
+			// このノードが依存しているエッジを探す（edge.from === current）
 			for (const edge of traversableEdges) {
-				if (edge.getToId() === current && !visited.has(edge.getFromId())) {
-					queue.push(edge.getFromId());
+				if (edge.getFromId() === current && !visited.has(edge.getToId())) {
+					queue.push(edge.getToId());
 				}
 			}
 		}
@@ -1259,10 +1284,10 @@
 			if (visited.has(current)) continue;
 			visited.add(current);
 
-			// このノードに依存しているエッジを探す（edge.from === current）
+			// このノードに依存しているエッジを探す（edge.to === current）
 			for (const edge of traversableEdges) {
-				if (edge.getFromId() === current && !visited.has(edge.getToId())) {
-					queue.push(edge.getToId());
+				if (edge.getToId() === current && !visited.has(edge.getFromId())) {
+					queue.push(edge.getFromId());
 				}
 			}
 		}
@@ -1579,12 +1604,50 @@
 	let visibleCount = $derived(Array.from(nodeMap.values()).filter((n) => n.visible).length);
 
 	// パネルトグル関数
+	function toggleListPanel(): void {
+		showListPanel = !showListPanel;
+	}
+
+	function closeListPanel(): void {
+		showListPanel = false;
+	}
+
 	function toggleFilterPanel(): void {
 		showFilterPanel = !showFilterPanel;
 	}
 
 	function toggleLegend(): void {
 		showLegend = !showLegend;
+	}
+
+	function closeDetailPanel(): void {
+		showDetailPanel = false;
+		if (selectionManager) {
+			selectionManager.clearSelection();
+		} else {
+			onTaskSelect?.(null);
+		}
+	}
+
+	function handleGraphListSearchChange(value: string): void {
+		graphListSearchQuery = value;
+	}
+
+	function handleGraphNodeSelectFromPanel(nodeId: string): void {
+		if (selectionManager) {
+			if (selectedTaskId !== nodeId || selectedIds.length !== 1) {
+				selectionManager.clearSelection();
+				selectionManager.toggleSelect(nodeId, false);
+			}
+		} else {
+			onTaskSelect?.(nodeId);
+		}
+
+		showDetailPanel = true;
+		const pos = positions.get(nodeId);
+		if (pos && engine) {
+			engine.panTo(pos.x, pos.y, false);
+		}
 	}
 
 	/**
@@ -1597,6 +1660,7 @@
 			onZoomIn: zoomIn,
 			onZoomOut: zoomOut,
 			onZoomReset: resetZoom,
+			onToggleListPanel: toggleListPanel,
 			onToggleFilterPanel: toggleFilterPanel,
 			onToggleLegend: toggleLegend,
 			onClearDependencyFilter: clearDependencyFilter
@@ -1613,6 +1677,7 @@
 			nodeCount: graphNodes.length,
 			visibleCount,
 			mode: isWBSMode ? 'wbs' : 'task',
+			showListPanel,
 			showFilterPanel,
 			showLegend,
 			hasDependencyFilter: dependencyFilterNodeId !== null,
@@ -1636,6 +1701,7 @@
 				graphNodes.length !== undefined ||
 				visibleCount !== undefined ||
 				isWBSMode !== undefined ||
+				showListPanel !== undefined ||
 				showFilterPanel !== undefined ||
 				showLegend !== undefined ||
 				dependencyFilterNodeId !== undefined)
@@ -1649,11 +1715,52 @@
 	<!-- キャンバスコンテナ -->
 	<div class="canvas-container" bind:this={containerElement}></div>
 
+	<!-- ノード一覧パネル（オーバーレイ） -->
+	{#if showListPanel}
+		<OverlayPanel
+			title="NODE LIST"
+			position="top-left"
+			panelId="graph-list"
+			defaultWidthPreset="medium"
+			onClose={closeListPanel}
+		>
+			<GraphListPanel
+				nodes={visibleGraphNodes}
+				selectedNodeId={selectedTaskId ?? null}
+				searchQuery={graphListSearchQuery}
+				visibleCount={visibleGraphNodes.length}
+				totalCount={graphNodes.length}
+				onNodeSelect={handleGraphNodeSelectFromPanel}
+				onSearchChange={handleGraphListSearchChange}
+			/>
+		</OverlayPanel>
+	{/if}
+
+	<!-- 詳細パネル（オーバーレイ） -->
+	{#if showDetailPanel && selectedGraphNode}
+		<OverlayPanel
+			title="PROPERTIES"
+			position="top-right"
+			panelId="graph-detail"
+			defaultWidthPreset="medium"
+			onClose={closeDetailPanel}
+		>
+			<div class="detail-content">
+				<GraphDetailPanel
+					node={selectedGraphNode}
+					nodes={graphNodes}
+					edges={graphEdges}
+					onNodeSelect={handleGraphNodeSelectFromPanel}
+				/>
+			</div>
+		</OverlayPanel>
+	{/if}
+
 	<!-- フィルターパネル（オーバーレイ） -->
 	{#if showFilterPanel}
 		<OverlayPanel
 			title="FILTER"
-			position="top-right"
+			position="bottom-right"
 			panelId="graph-filter"
 			defaultWidthPreset="narrow"
 			onClose={toggleFilterPanel}
@@ -1684,7 +1791,7 @@
 	{#if showLegend}
 		<OverlayPanel
 			title="LEGEND"
-			position="top-left"
+			position="bottom-left"
 			panelId="graph-legend"
 			defaultWidthPreset="narrow"
 			onClose={toggleLegend}
@@ -1765,6 +1872,10 @@
 
 	.canvas-container :global(canvas) {
 		display: block;
+	}
+
+	.detail-content {
+		padding: 12px;
 	}
 
 	/* 凡例（オーバーレイパネル内） */

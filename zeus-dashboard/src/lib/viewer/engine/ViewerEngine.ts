@@ -61,6 +61,7 @@ export class ViewerEngine {
 	private groupContainer: Container | null = null;
 	private edgeContainer: Container | null = null;
 	private nodeContainer: Container | null = null;
+	private groupLabelContainer: Container | null = null;
 
 	private config: ViewerConfig;
 	private viewport: Viewport = {
@@ -110,11 +111,13 @@ export class ViewerEngine {
 		this.groupContainer = new Container();
 		this.edgeContainer = new Container();
 		this.nodeContainer = new Container();
+		this.groupLabelContainer = new Container();
 
 		this.worldContainer.addChild(this.gridContainer);
 		this.worldContainer.addChild(this.groupContainer);
 		this.worldContainer.addChild(this.edgeContainer);
 		this.worldContainer.addChild(this.nodeContainer);
+		this.worldContainer.addChild(this.groupLabelContainer);
 		this.app.stage.addChild(this.worldContainer);
 
 		// インタラクションを設定
@@ -389,6 +392,13 @@ export class ViewerEngine {
 	}
 
 	/**
+	 * グループラベルコンテナを取得
+	 */
+	getGroupLabelContainer(): Container | null {
+		return this.groupLabelContainer;
+	}
+
+	/**
 	 * PixiJS Application インスタンスを取得
 	 * ヒットテスト等の低レベル操作に使用
 	 */
@@ -509,5 +519,6 @@ export class ViewerEngine {
 		this.groupContainer = null;
 		this.edgeContainer = null;
 		this.nodeContainer = null;
+		this.groupLabelContainer = null;
 	}
 }

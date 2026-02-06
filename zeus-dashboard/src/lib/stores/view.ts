@@ -82,6 +82,7 @@ export interface GraphViewState {
 	visibleCount: number;
 	mode: 'task' | 'wbs';
 	// 機能トグル状態
+	showListPanel: boolean;
 	showFilterPanel: boolean;
 	showLegend: boolean;
 	// 依存関係フィルター
@@ -91,6 +92,7 @@ export interface GraphViewState {
 	onZoomIn?: () => void;
 	onZoomOut?: () => void;
 	onZoomReset?: () => void;
+	onToggleListPanel?: () => void;
 	onToggleFilterPanel?: () => void;
 	onToggleLegend?: () => void;
 	onClearDependencyFilter?: () => void;
@@ -101,6 +103,7 @@ const defaultGraphViewState: GraphViewState = {
 	nodeCount: 0,
 	visibleCount: 0,
 	mode: 'task',
+	showListPanel: true,
 	showFilterPanel: true,
 	showLegend: true,
 	hasDependencyFilter: false,

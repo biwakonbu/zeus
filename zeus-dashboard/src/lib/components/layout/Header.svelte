@@ -65,6 +65,10 @@
 		$graphViewState.onZoomReset?.();
 	}
 
+	function handleGraphToggleListPanel() {
+		$graphViewState.onToggleListPanel?.();
+	}
+
 	function handleGraphToggleFilterPanel() {
 		$graphViewState.onToggleFilterPanel?.();
 	}
@@ -170,6 +174,17 @@
 						<span class="badge-separator">|</span>
 						<span>{$graphViewState.visibleCount}/{$graphViewState.nodeCount}</span>
 					</div>
+
+					<!-- リストパネルトグル -->
+					<button
+						class="control-btn"
+						class:active={$graphViewState.showListPanel}
+						onclick={handleGraphToggleListPanel}
+						aria-label="ノード一覧"
+						title="ノード一覧 (L)"
+					>
+						<Icon name="List" size={16} />
+					</button>
 
 					<!-- フィルターパネルトグル -->
 					<button
