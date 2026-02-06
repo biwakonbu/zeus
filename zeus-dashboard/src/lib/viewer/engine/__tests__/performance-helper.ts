@@ -4,6 +4,7 @@
  * 非機能要件として閾値を定義し、パフォーマンス計測を行う
  */
 import { expect } from 'vitest';
+import type { GraphEdge, GraphNode } from '$lib/types/api';
 
 /**
  * パフォーマンス計測結果
@@ -161,15 +162,41 @@ export function assertPerformanceOnce(duration: number, threshold: number, label
  * テスト用のグラフノードデータを生成
  * GraphNode と互換性を持つ型
  */
-export interface MockGraphNode {
-	id: string;
-	title: string;
-	node_type: 'activity' | 'vision' | 'objective' | 'deliverable' | 'usecase';
+export interface MockGraphNode extends GraphNode {
+	node_type: 'activity';
 	status: 'pending' | 'in_progress' | 'completed' | 'blocked';
-	progress: number;
 	priority: 'high' | 'medium' | 'low';
 	assignee: string;
-	dependencies: string[];
+}
+
+export interface MockGraphData {
+	nodes: MockGraphNode[];
+	edges: GraphEdge[];
+	structuralEdges: GraphEdge[];
+	referenceEdges: GraphEdge[];
+	dependencyMap: Map<string, string[]>;
+}
+
+function generateDependencyMap(count: number, maxDependencies = 3): Map<string, string[]> {
+	const deps = new Map<string, string[]>();
+
+	for (let i = 0; i < count; i++) {
+		const id = `task-${i}`;
+		const dependencyIds: string[] = [];
+		const numDeps = Math.min(i, Math.floor(Math.random() * (maxDependencies + 1)));
+
+		for (let j = 0; j < numDeps; j++) {
+			const depIndex = Math.floor(Math.random() * i);
+			const depId = `task-${depIndex}`;
+			if (!dependencyIds.includes(depId)) {
+				dependencyIds.push(depId);
+			}
+		}
+
+		deps.set(id, dependencyIds);
+	}
+
+	return deps;
 }
 
 /**
@@ -181,36 +208,79 @@ export interface MockGraphNode {
 export function generateMockTasks(count: number, maxDependencies = 3): MockGraphNode[] {
 	const statuses: MockGraphNode['status'][] = ['pending', 'in_progress', 'completed', 'blocked'];
 	const priorities: MockGraphNode['priority'][] = ['high', 'medium', 'low'];
-
+	const dependencyMap = generateDependencyMap(count, maxDependencies);
 	const nodes: MockGraphNode[] = [];
 
 	for (let i = 0; i < count; i++) {
 		const id = `task-${i}`;
-
-		// 自分より前のノードから依存を選択
-		const dependencies: string[] = [];
-		const numDeps = Math.min(i, Math.floor(Math.random() * (maxDependencies + 1)));
-		for (let j = 0; j < numDeps; j++) {
-			const depIndex = Math.floor(Math.random() * i);
-			const depId = `task-${depIndex}`;
-			if (!dependencies.includes(depId)) {
-				dependencies.push(depId);
-			}
-		}
 
 		nodes.push({
 			id,
 			title: `Task ${i}`,
 			node_type: 'activity',
 			status: statuses[Math.floor(Math.random() * statuses.length)],
-			progress: Math.floor(Math.random() * 101),
 			priority: priorities[Math.floor(Math.random() * priorities.length)],
 			assignee: `user-${Math.floor(Math.random() * 5)}`,
-			dependencies
+			// structural_depth は tests で未使用
+			structural_depth: dependencyMap.get(id)?.length ?? 0
 		});
 	}
 
 	return nodes;
+}
+
+/**
+ * ノードリストから 2層エッジを生成
+ *
+ * - structural: child -> parent（レイアウト用）
+ * - reference: dependency -> dependent（depends_on）
+ */
+export function generateMockEdges(
+	nodes: MockGraphNode[],
+	maxDependencies = 3
+): Pick<MockGraphData, 'edges' | 'structuralEdges' | 'referenceEdges' | 'dependencyMap'> {
+	const dependencyMap = generateDependencyMap(nodes.length, maxDependencies);
+	const nodeIds = new Set(nodes.map((n) => n.id));
+	const structuralEdges: GraphEdge[] = [];
+	const referenceEdges: GraphEdge[] = [];
+
+	for (const node of nodes) {
+		const deps = dependencyMap.get(node.id) ?? [];
+		for (const depId of deps) {
+			if (!nodeIds.has(depId)) continue;
+			structuralEdges.push({
+				from: node.id,
+				to: depId,
+				layer: 'structural',
+				relation: 'parent'
+			});
+			referenceEdges.push({
+				from: depId,
+				to: node.id,
+				layer: 'reference',
+				relation: 'depends_on'
+			});
+		}
+	}
+
+	return {
+		edges: [...structuralEdges, ...referenceEdges],
+		structuralEdges,
+		referenceEdges,
+		dependencyMap
+	};
+}
+
+/**
+ * ノード + エッジをまとめて生成
+ */
+export function generateMockGraph(count: number, maxDependencies = 3): MockGraphData {
+	const nodes = generateMockTasks(count, maxDependencies);
+	const edgeBundle = generateMockEdges(nodes, maxDependencies);
+	return {
+		nodes,
+		...edgeBundle
+	};
 }
 
 /**

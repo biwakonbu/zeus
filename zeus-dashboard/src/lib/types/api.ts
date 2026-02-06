@@ -300,13 +300,24 @@ export interface GraphNode {
 	status: string;
 	priority?: string;
 	assignee?: string;
-	dependencies: string[]; // 親ノードへの依存（エッジ用）
+	structural_depth?: number;
 }
+
+export type GraphEdgeLayer = 'structural' | 'reference';
+export type GraphEdgeRelation =
+	| 'parent'
+	| 'depends_on'
+	| 'implements'
+	| 'contributes'
+	| 'fulfills'
+	| 'produces';
 
 // グラフビュー用のエッジデータ
 export interface GraphEdge {
 	from: string;
 	to: string;
+	layer: GraphEdgeLayer;
+	relation: GraphEdgeRelation;
 }
 
 
@@ -503,28 +514,34 @@ export interface UnifiedGraphNodeItem {
 	type: string;
 	title: string;
 	status: string;
-	depth: number;
+	structural_depth: number;
 	mode?: string;
 	assignee?: string;
 	priority?: string;
-	parents?: string[];
-	children?: string[];
+	structural_parents?: string[];
+	structural_children?: string[];
 }
 
 // UnifiedGraph エッジ
 export interface UnifiedGraphEdgeItem {
 	source: string;
 	target: string;
-	type: string;
-	label?: string;
+	layer: GraphEdgeLayer;
+	relation: GraphEdgeRelation;
 }
 
 // UnifiedGraph 統計情報
 export interface UnifiedGraphStats {
 	total_nodes: number;
-	by_type: Record<string, number>;
-	by_status: Record<string, number>;
-	max_depth: number;
+	total_edges: number;
+	total_activities: number;
+	completed_activities: number;
+	max_structural_depth: number;
+	cycle_count: number;
+	isolated_count: number;
+	nodes_by_type: Record<string, number>;
+	edges_by_layer: Record<string, number>;
+	edges_by_relation: Record<string, number>;
 }
 
 // UnifiedGraph API レスポンス

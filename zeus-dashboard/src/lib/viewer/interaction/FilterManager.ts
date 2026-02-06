@@ -1,6 +1,6 @@
 // フィルタリング管理クラス
 
-import type { GraphNode, EntityStatus, Priority } from '$lib/types/api';
+import type { GraphEdge, GraphNode, EntityStatus, Priority } from '$lib/types/api';
 
 /**
  * フィルター条件
@@ -35,16 +35,26 @@ export interface FilterChangeEvent {
  */
 export class FilterManager {
 	private nodes: GraphNode[] = [];
+	private edges: GraphEdge[] = [];
 	private criteria: FilterCriteria = {};
 	private visibleIds: Set<string> = new Set();
 	private listeners: ((event: FilterChangeEvent) => void)[] = [];
+	private edgeCountByNode: Map<string, number> = new Map();
 
 	/**
-	 * ノードデータを設定
+	 * グラフデータを設定
+	 */
+	setGraph(nodes: GraphNode[], edges: GraphEdge[]): void {
+		this.nodes = nodes;
+		this.edges = edges;
+		this.applyFilter();
+	}
+
+	/**
+	 * ノードデータのみ更新（後方互換）
 	 */
 	setNodes(nodes: GraphNode[]): void {
-		this.nodes = nodes;
-		this.applyFilter();
+		this.setGraph(nodes, this.edges);
 	}
 
 	/**
@@ -212,6 +222,11 @@ export class FilterManager {
 	 */
 	private applyFilter(): void {
 		this.visibleIds.clear();
+		this.edgeCountByNode.clear();
+		for (const edge of this.edges) {
+			this.edgeCountByNode.set(edge.from, (this.edgeCountByNode.get(edge.from) ?? 0) + 1);
+			this.edgeCountByNode.set(edge.to, (this.edgeCountByNode.get(edge.to) ?? 0) + 1);
+		}
 
 		for (const node of this.nodes) {
 			if (this.matchesCriteria(node)) {
@@ -270,7 +285,7 @@ export class FilterManager {
 
 		// 依存関係フィルター
 		if (this.criteria.hasDependencies !== undefined) {
-			const hasDeps = node.dependencies.length > 0;
+			const hasDeps = (this.edgeCountByNode.get(node.id) ?? 0) > 0;
 			if (this.criteria.hasDependencies !== hasDeps) {
 				return false;
 			}
@@ -301,8 +316,10 @@ export class FilterManager {
 	 */
 	destroy(): void {
 		this.nodes = [];
+		this.edges = [];
 		this.visibleIds.clear();
 		this.listeners = [];
 		this.criteria = {};
+		this.edgeCountByNode.clear();
 	}
 }

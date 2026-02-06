@@ -31,7 +31,13 @@ vi.mock('pixi.js', () => ({
 		bezierCurveTo() {
 			return this;
 		}
+		closePath() {
+			return this;
+		}
 		stroke() {
+			return this;
+		}
+		fill() {
 			return this;
 		}
 		destroy() {}
@@ -43,6 +49,16 @@ import { EdgeFactory, GraphEdge } from '../../rendering/GraphEdge';
 
 describe('EdgeFactory パフォーマンステスト', () => {
 	let factory: EdgeFactory;
+	const DEFAULT_LAYER = 'reference' as const;
+	const DEFAULT_RELATION = 'depends_on' as const;
+
+	function createEdge(fromId: string, toId: string) {
+		return factory.getOrCreate(fromId, toId, DEFAULT_LAYER, DEFAULT_RELATION);
+	}
+
+	function removeEdge(fromId: string, toId: string) {
+		return factory.remove(fromId, toId, DEFAULT_LAYER, DEFAULT_RELATION);
+	}
 
 	beforeEach(() => {
 		factory = new EdgeFactory();
@@ -58,7 +74,7 @@ describe('EdgeFactory パフォーマンステスト', () => {
 
 			const duration = measureOnce(() => {
 				for (let i = 0; i < 1000; i++) {
-					factory.getOrCreate(`node-${i}`, `node-${i + 1}`);
+					createEdge(`node-${i}`, `node-${i + 1}`);
 				}
 			});
 
@@ -69,13 +85,13 @@ describe('EdgeFactory パフォーマンステスト', () => {
 		it('既存エッジの取得が新規作成より高速', () => {
 			// 最初に1000エッジを作成
 			for (let i = 0; i < 1000; i++) {
-				factory.getOrCreate(`node-${i}`, `node-${i + 1}`);
+				createEdge(`node-${i}`, `node-${i + 1}`);
 			}
 
 			// 既存エッジの再取得
 			const result = measurePerformance(
 				() => {
-					factory.getOrCreate('node-500', 'node-501');
+					createEdge('node-500', 'node-501');
 				},
 				1000,
 				100
@@ -93,12 +109,12 @@ describe('EdgeFactory パフォーマンステスト', () => {
 			// 複数の接続を持つグラフを構築
 			// node-0 は多くのノードに接続
 			for (let i = 1; i <= 50; i++) {
-				factory.getOrCreate('node-0', `node-${i}`);
+				createEdge('node-0', `node-${i}`);
 			}
 
 			// 他のノード間のエッジも追加
 			for (let i = 1; i < 500; i++) {
-				factory.getOrCreate(`node-${i}`, `node-${i + 1}`);
+				createEdge(`node-${i}`, `node-${i + 1}`);
 			}
 
 			const threshold = PERFORMANCE_THRESHOLDS.edgeFactory.getEdgesForNode;
@@ -116,10 +132,10 @@ describe('EdgeFactory パフォーマンステスト', () => {
 		});
 
 		it('getEdgesForNode が正確なエッジを返す', () => {
-			factory.getOrCreate('node-a', 'node-b');
-			factory.getOrCreate('node-a', 'node-c');
-			factory.getOrCreate('node-b', 'node-c');
-			factory.getOrCreate('node-d', 'node-a');
+			createEdge('node-a', 'node-b');
+			createEdge('node-a', 'node-c');
+			createEdge('node-b', 'node-c');
+			createEdge('node-d', 'node-a');
 
 			const edgesForA = factory.getEdgesForNode('node-a');
 			expect(edgesForA.length).toBe(3); // a->b, a->c, d->a
@@ -134,7 +150,7 @@ describe('EdgeFactory パフォーマンステスト', () => {
 		it('getEdgeCountForNode が O(1) で動作する', () => {
 			// 大量のエッジを持つノードを作成
 			for (let i = 0; i < 100; i++) {
-				factory.getOrCreate('hub-node', `spoke-${i}`);
+				createEdge('hub-node', `spoke-${i}`);
 			}
 
 			const result = measurePerformance(
@@ -156,7 +172,7 @@ describe('EdgeFactory パフォーマンステスト', () => {
 		it('エッジ削除が閾値以内で完了する', () => {
 			// エッジを作成
 			for (let i = 0; i < 100; i++) {
-				factory.getOrCreate(`node-${i}`, `node-${i + 1}`);
+				createEdge(`node-${i}`, `node-${i + 1}`);
 			}
 
 			const threshold = PERFORMANCE_THRESHOLDS.edgeFactory.remove;
@@ -164,8 +180,8 @@ describe('EdgeFactory パフォーマンステスト', () => {
 			const result = measurePerformance(
 				() => {
 					// 存在するエッジを削除（毎回再作成してから削除）
-					factory.getOrCreate('test-from', 'test-to');
-					factory.remove('test-from', 'test-to');
+					createEdge('test-from', 'test-to');
+					removeEdge('test-from', 'test-to');
 				},
 				100,
 				20
@@ -176,12 +192,12 @@ describe('EdgeFactory パフォーマンステスト', () => {
 		});
 
 		it('削除後にインデックスが正しく更新される', () => {
-			factory.getOrCreate('node-a', 'node-b');
-			factory.getOrCreate('node-a', 'node-c');
+			createEdge('node-a', 'node-b');
+			createEdge('node-a', 'node-c');
 
 			expect(factory.getEdgeCountForNode('node-a')).toBe(2);
 
-			factory.remove('node-a', 'node-b');
+			removeEdge('node-a', 'node-b');
 
 			expect(factory.getEdgeCountForNode('node-a')).toBe(1);
 			expect(factory.getEdgeCountForNode('node-b')).toBe(0);
@@ -194,7 +210,7 @@ describe('EdgeFactory パフォーマンステスト', () => {
 			for (let i = 0; i < 5000; i++) {
 				const from = `node-${Math.floor(i / 10)}`;
 				const to = `node-${(i % 500) + 500}`;
-				factory.getOrCreate(from, to);
+				createEdge(from, to);
 			}
 
 			// 多くのエッジを持つノードの検索
@@ -222,11 +238,21 @@ describe('EdgeFactory パフォーマンステスト', () => {
 
 				// グラフを構築
 				for (let i = 0; i < size; i++) {
-					testFactory.getOrCreate(`node-${i}`, `node-${i + 1}`);
+					testFactory.getOrCreate(
+						`node-${i}`,
+						`node-${i + 1}`,
+						DEFAULT_LAYER,
+						DEFAULT_RELATION
+					);
 				}
 				// 特定ノードに複数の接続を追加
 				for (let i = 0; i < 20; i++) {
-					testFactory.getOrCreate('target-node', `connected-${i}`);
+					testFactory.getOrCreate(
+						'target-node',
+						`connected-${i}`,
+						DEFAULT_LAYER,
+						DEFAULT_RELATION
+					);
 				}
 
 				const result = measurePerformance(
@@ -257,12 +283,12 @@ describe('EdgeFactory パフォーマンステスト', () => {
 
 	describe('GraphEdge 静的メソッド', () => {
 		it('createKey が一意のキーを生成する', () => {
-			const key1 = GraphEdge.createKey('a', 'b');
-			const key2 = GraphEdge.createKey('b', 'a');
-			const key3 = GraphEdge.createKey('a', 'b');
+			const key1 = GraphEdge.createKey('a', 'b', DEFAULT_LAYER, DEFAULT_RELATION);
+			const key2 = GraphEdge.createKey('b', 'a', DEFAULT_LAYER, DEFAULT_RELATION);
+			const key3 = GraphEdge.createKey('a', 'b', DEFAULT_LAYER, DEFAULT_RELATION);
 
-			expect(key1).toBe('a-->b');
-			expect(key2).toBe('b-->a');
+			expect(key1).toBe('a-->b::reference:depends_on');
+			expect(key2).toBe('b-->a::reference:depends_on');
 			expect(key1).toBe(key3);
 			expect(key1).not.toBe(key2);
 		});

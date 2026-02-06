@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/biwakonbu/zeus/internal/analysis"
@@ -1244,7 +1245,12 @@ func (z *Zeus) BuildUnifiedGraph(ctx context.Context, filter *analysis.GraphFilt
 		builder = builder.WithFilter(filter)
 	}
 
-	return builder.Build(), nil
+	graph := builder.Build()
+	if errs := builder.ValidationErrors(); len(errs) > 0 {
+		return nil, fmt.Errorf("unified graph relation validation failed: %s", strings.Join(errs, "; "))
+	}
+
+	return graph, nil
 }
 
 // GetActivityHandler は ActivityHandler を返す

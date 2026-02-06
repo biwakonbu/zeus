@@ -39,12 +39,14 @@
 			status: n.status,
 			priority: n.priority,
 			assignee: n.assignee,
-			dependencies: n.parents || []
+			structural_depth: n.structural_depth
 		}));
 
 		const edges: GraphEdge[] = unified.edges.map((e) => ({
 			from: e.source,
-			to: e.target
+			to: e.target,
+			layer: e.layer,
+			relation: e.relation
 		}));
 
 		return { nodes, edges };
@@ -61,6 +63,16 @@
 
 	// 選択中のタスク
 	let selectedTaskId: string | null = $state(null);
+
+	const selectedNode = $derived.by(() => {
+		if (!selectedTaskId) return null;
+		return graphData.nodes.find((n) => n.id === selectedTaskId) ?? null;
+	});
+
+	const selectedNodeRelationCount = $derived.by(() => {
+		if (!selectedNode) return 0;
+		return graphData.edges.filter((e) => e.from === selectedNode.id || e.to === selectedNode.id).length;
+	});
 
 	onMount(() => {
 		// SSE 失敗時のフォールバックハンドラー
@@ -178,54 +190,51 @@
 </div>
 
 <!-- 選択ノード詳細パネル（Graph View） -->
-{#if $currentView === 'graph' && selectedTaskId && graphData}
-	{@const selectedNode = graphData.nodes.find((n) => n.id === selectedTaskId)}
-	{#if selectedNode}
-		<div class="task-detail-panel">
-			<div class="panel-header">
-				<h3 class="panel-title">NODE DETAIL</h3>
-				<button class="close-btn" onclick={() => (selectedTaskId = null)}>x</button>
-			</div>
-			<div class="task-detail-content">
-				<div class="detail-row">
-					<span class="detail-label">ID</span>
-					<span class="detail-value">{selectedNode.id}</span>
-				</div>
-				<div class="detail-row">
-					<span class="detail-label">Title</span>
-					<span class="detail-value">{selectedNode.title}</span>
-				</div>
-				<div class="detail-row">
-					<span class="detail-label">Type</span>
-					<span class="detail-value node-type-{selectedNode.node_type}"
-						>{selectedNode.node_type}</span
-					>
-				</div>
-				<div class="detail-row">
-					<span class="detail-label">Status</span>
-					<span class="detail-value status-{selectedNode.status}">{selectedNode.status}</span>
-				</div>
-				{#if selectedNode.priority}
-					<div class="detail-row">
-						<span class="detail-label">Priority</span>
-						<span class="detail-value priority-{selectedNode.priority}"
-							>{selectedNode.priority}</span
-						>
-					</div>
-				{/if}
-				<div class="detail-row">
-					<span class="detail-label">Assignee</span>
-					<span class="detail-value">{selectedNode.assignee || 'Unassigned'}</span>
-				</div>
-				{#if selectedNode.dependencies.length > 0}
-					<div class="detail-row">
-						<span class="detail-label">Dependencies</span>
-						<span class="detail-value">{selectedNode.dependencies.length} nodes</span>
-					</div>
-				{/if}
-			</div>
+{#if $currentView === 'graph' && selectedNode}
+	<div class="task-detail-panel">
+		<div class="panel-header">
+			<h3 class="panel-title">NODE DETAIL</h3>
+			<button class="close-btn" onclick={() => (selectedTaskId = null)}>x</button>
 		</div>
-	{/if}
+		<div class="task-detail-content">
+			<div class="detail-row">
+				<span class="detail-label">ID</span>
+				<span class="detail-value">{selectedNode.id}</span>
+			</div>
+			<div class="detail-row">
+				<span class="detail-label">Title</span>
+				<span class="detail-value">{selectedNode.title}</span>
+			</div>
+			<div class="detail-row">
+				<span class="detail-label">Type</span>
+				<span class="detail-value node-type-{selectedNode.node_type}">{selectedNode.node_type}</span>
+			</div>
+			<div class="detail-row">
+				<span class="detail-label">Role</span>
+				<span class="detail-value">{selectedNode.node_type.toUpperCase()}</span>
+			</div>
+			<div class="detail-row">
+				<span class="detail-label">Status</span>
+				<span class="detail-value status-{selectedNode.status}">{selectedNode.status}</span>
+			</div>
+			{#if selectedNode.priority}
+				<div class="detail-row">
+					<span class="detail-label">Priority</span>
+					<span class="detail-value priority-{selectedNode.priority}">{selectedNode.priority}</span>
+				</div>
+			{/if}
+			<div class="detail-row">
+				<span class="detail-label">Assignee</span>
+				<span class="detail-value">{selectedNode.assignee || 'Unassigned'}</span>
+			</div>
+			{#if selectedNodeRelationCount > 0}
+				<div class="detail-row">
+					<span class="detail-label">Relations</span>
+					<span class="detail-value">{selectedNodeRelationCount} edges</span>
+				</div>
+			{/if}
+		</div>
+	</div>
 {/if}
 
 <!-- UseCase View / Activity View は内部で詳細パネルを管理 -->

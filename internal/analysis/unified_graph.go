@@ -9,11 +9,12 @@ import (
 
 // UnifiedGraphBuilder は統合グラフを構築する
 type UnifiedGraphBuilder struct {
-	activities   []ActivityInfo
-	usecases     []UseCaseInfo
-	deliverables []DeliverableInfo
-	objectives   []ObjectiveInfo
-	filter       *GraphFilter
+	activities       []ActivityInfo
+	usecases         []UseCaseInfo
+	deliverables     []DeliverableInfo
+	objectives       []ObjectiveInfo
+	filter           *GraphFilter
+	validationErrors []string
 }
 
 // NewUnifiedGraphBuilder は新しい UnifiedGraphBuilder を作成
@@ -59,16 +60,26 @@ func (b *UnifiedGraphBuilder) WithFilter(filter *GraphFilter) *UnifiedGraphBuild
 	return b
 }
 
+// ValidationErrors は構築時に検出された関係定義違反を返す
+func (b *UnifiedGraphBuilder) ValidationErrors() []string {
+	out := make([]string, len(b.validationErrors))
+	copy(out, b.validationErrors)
+	return out
+}
+
 // Build は統合グラフを構築
 func (b *UnifiedGraphBuilder) Build() *UnifiedGraph {
+	b.validationErrors = nil
+
 	graph := &UnifiedGraph{
 		Nodes:    make(map[string]*UnifiedGraphNode),
 		Edges:    []UnifiedEdge{},
 		Cycles:   [][]string{},
 		Isolated: []string{},
 		Stats: UnifiedGraphStats{
-			NodesByType: make(map[EntityType]int),
-			EdgesByType: make(map[UnifiedEdgeType]int),
+			NodesByType:     make(map[EntityType]int),
+			EdgesByLayer:    make(map[UnifiedEdgeLayer]int),
+			EdgesByRelation: make(map[UnifiedEdgeRelation]int),
 		},
 	}
 
@@ -81,8 +92,8 @@ func (b *UnifiedGraphBuilder) Build() *UnifiedGraph {
 	// 3. フィルタを適用
 	b.applyFilter(graph)
 
-	// 4. 深さを計算
-	b.calculateDepth(graph)
+	// 4. 構造層深さを計算
+	b.calculateStructuralDepth(graph)
 
 	// 5. 循環を検出
 	b.detectCycles(graph)
@@ -96,20 +107,113 @@ func (b *UnifiedGraphBuilder) Build() *UnifiedGraph {
 	return graph
 }
 
+// validateEdgeRule は relation/layer の許容行列を検証する
+func validateEdgeRule(fromType, toType EntityType, layer UnifiedEdgeLayer, relation UnifiedEdgeRelation) error {
+	// レイヤーと relation の整合性
+	switch layer {
+	case EdgeLayerStructural:
+		if !slices.Contains([]UnifiedEdgeRelation{RelationParent, RelationImplements, RelationContributes, RelationFulfills}, relation) {
+			return fmt.Errorf("relation %q is not allowed in structural layer", relation)
+		}
+	case EdgeLayerReference:
+		if !slices.Contains([]UnifiedEdgeRelation{RelationDependsOn, RelationProduces}, relation) {
+			return fmt.Errorf("relation %q is not allowed in reference layer", relation)
+		}
+	default:
+		return fmt.Errorf("unknown edge layer: %q", layer)
+	}
+
+	// relation ごとの許容型
+	switch relation {
+	case RelationParent:
+		if (fromType == EntityTypeActivity && toType == EntityTypeActivity) ||
+			(fromType == EntityTypeObjective && toType == EntityTypeObjective) {
+			return nil
+		}
+		return fmt.Errorf("parent must connect activity->activity or objective->objective (got %s->%s)", fromType, toType)
+	case RelationDependsOn:
+		if fromType == EntityTypeActivity && toType == EntityTypeActivity {
+			return nil
+		}
+		return fmt.Errorf("depends_on must connect activity->activity (got %s->%s)", fromType, toType)
+	case RelationImplements:
+		if fromType == EntityTypeActivity && toType == EntityTypeUseCase {
+			return nil
+		}
+		return fmt.Errorf("implements must connect activity->usecase (got %s->%s)", fromType, toType)
+	case RelationContributes:
+		if fromType == EntityTypeUseCase && toType == EntityTypeObjective {
+			return nil
+		}
+		return fmt.Errorf("contributes must connect usecase->objective (got %s->%s)", fromType, toType)
+	case RelationFulfills:
+		if fromType == EntityTypeDeliverable && toType == EntityTypeObjective {
+			return nil
+		}
+		return fmt.Errorf("fulfills must connect deliverable->objective (got %s->%s)", fromType, toType)
+	case RelationProduces:
+		if fromType == EntityTypeActivity && toType == EntityTypeDeliverable {
+			return nil
+		}
+		return fmt.Errorf("produces must connect activity->deliverable (got %s->%s)", fromType, toType)
+	default:
+		return fmt.Errorf("unknown edge relation: %q", relation)
+	}
+}
+
+// addEdge は関係ルールを検証した上でエッジを追加
+func (b *UnifiedGraphBuilder) addEdge(graph *UnifiedGraph, fromID, toID string, layer UnifiedEdgeLayer, relation UnifiedEdgeRelation) bool {
+	fromNode, fromOK := graph.Nodes[fromID]
+	toNode, toOK := graph.Nodes[toID]
+	if !fromOK || !toOK {
+		return false
+	}
+
+	if err := validateEdgeRule(fromNode.Type, toNode.Type, layer, relation); err != nil {
+		b.validationErrors = append(b.validationErrors,
+			fmt.Sprintf("invalid edge %s -> %s (%s/%s): %v", fromID, toID, layer, relation, err))
+		return false
+	}
+
+	graph.Edges = append(graph.Edges, UnifiedEdge{
+		From:     fromID,
+		To:       toID,
+		Layer:    layer,
+		Relation: relation,
+	})
+
+	return true
+}
+
+// addStructuralEdge は structural エッジを追加し、構造親子関係を更新する
+func (b *UnifiedGraphBuilder) addStructuralEdge(graph *UnifiedGraph, childID, parentID string, relation UnifiedEdgeRelation) {
+	if !b.addEdge(graph, childID, parentID, EdgeLayerStructural, relation) {
+		return
+	}
+
+	childNode := graph.Nodes[childID]
+	parentNode := graph.Nodes[parentID]
+	if childNode == nil || parentNode == nil {
+		return
+	}
+	childNode.StructuralParents = append(childNode.StructuralParents, parentID)
+	parentNode.StructuralChildren = append(parentNode.StructuralChildren, childID)
+}
+
 // buildNodes はノードを構築
 func (b *UnifiedGraphBuilder) buildNodes(graph *UnifiedGraph) {
 	// Activity ノード
 	for _, a := range b.activities {
 		node := &UnifiedGraphNode{
-			ID:       a.ID,
-			Type:     EntityTypeActivity,
-			Title:    a.Title,
-			Status:   a.Status,
-			Priority: a.Priority,
-			Assignee: a.Assignee,
-			Mode:     a.Mode,
-			Parents:  []string{},
-			Children: []string{},
+			ID:                 a.ID,
+			Type:               EntityTypeActivity,
+			Title:              a.Title,
+			Status:             a.Status,
+			Priority:           a.Priority,
+			Assignee:           a.Assignee,
+			Mode:               a.Mode,
+			StructuralParents:  []string{},
+			StructuralChildren: []string{},
 		}
 		graph.Nodes[a.ID] = node
 	}
@@ -117,12 +221,12 @@ func (b *UnifiedGraphBuilder) buildNodes(graph *UnifiedGraph) {
 	// UseCase ノード
 	for _, u := range b.usecases {
 		node := &UnifiedGraphNode{
-			ID:       u.ID,
-			Type:     EntityTypeUseCase,
-			Title:    u.Title,
-			Status:   u.Status,
-			Parents:  []string{},
-			Children: []string{},
+			ID:                 u.ID,
+			Type:               EntityTypeUseCase,
+			Title:              u.Title,
+			Status:             u.Status,
+			StructuralParents:  []string{},
+			StructuralChildren: []string{},
 		}
 		graph.Nodes[u.ID] = node
 	}
@@ -130,12 +234,12 @@ func (b *UnifiedGraphBuilder) buildNodes(graph *UnifiedGraph) {
 	// Deliverable ノード
 	for _, d := range b.deliverables {
 		node := &UnifiedGraphNode{
-			ID:       d.ID,
-			Type:     EntityTypeDeliverable,
-			Title:    d.Title,
-			Status:   d.Status,
-			Parents:  []string{},
-			Children: []string{},
+			ID:                 d.ID,
+			Type:               EntityTypeDeliverable,
+			Title:              d.Title,
+			Status:             d.Status,
+			StructuralParents:  []string{},
+			StructuralChildren: []string{},
 		}
 		graph.Nodes[d.ID] = node
 	}
@@ -143,116 +247,60 @@ func (b *UnifiedGraphBuilder) buildNodes(graph *UnifiedGraph) {
 	// Objective ノード
 	for _, o := range b.objectives {
 		node := &UnifiedGraphNode{
-			ID:       o.ID,
-			Type:     EntityTypeObjective,
-			Title:    o.Title,
-			Status:   o.Status,
-			Parents:  []string{},
-			Children: []string{},
+			ID:                 o.ID,
+			Type:               EntityTypeObjective,
+			Title:              o.Title,
+			Status:             o.Status,
+			StructuralParents:  []string{},
+			StructuralChildren: []string{},
 		}
 		graph.Nodes[o.ID] = node
 	}
 }
 
-// addHierarchyEdge は階層関係のエッジを追加し、Parents/Children を更新する
-// 深さ計算（calculateDepth）に反映するため、階層関係では Parents/Children を更新する
-func (b *UnifiedGraphBuilder) addHierarchyEdge(graph *UnifiedGraph, childID, parentID string, edgeType UnifiedEdgeType, label string) {
-	childNode, childOk := graph.Nodes[childID]
-	parentNode, parentOk := graph.Nodes[parentID]
-	if !childOk || !parentOk {
-		return
-	}
-
-	edge := UnifiedEdge{
-		From:  childID,
-		To:    parentID,
-		Type:  edgeType,
-		Label: label,
-	}
-	graph.Edges = append(graph.Edges, edge)
-
-	// Parents/Children を更新（深さ計算に反映）
-	childNode.Parents = append(childNode.Parents, parentID)
-	parentNode.Children = append(parentNode.Children, childID)
-}
-
 // buildEdges はエッジを構築
 func (b *UnifiedGraphBuilder) buildEdges(graph *UnifiedGraph) {
-	// Activity の依存関係エッジ
+	// Activity 起点の関係
 	for _, a := range b.activities {
-		// 依存関係
+		// depends_on (reference): Activity -> Activity
 		for _, depID := range a.Dependencies {
-			if _, exists := graph.Nodes[depID]; exists {
-				edge := UnifiedEdge{
-					From: a.ID,
-					To:   depID,
-					Type: EdgeTypeDependency,
-				}
-				graph.Edges = append(graph.Edges, edge)
-				// ノードの Parents/Children を更新
-				graph.Nodes[a.ID].Parents = append(graph.Nodes[a.ID].Parents, depID)
-				graph.Nodes[depID].Children = append(graph.Nodes[depID].Children, a.ID)
-			}
+			b.addEdge(graph, a.ID, depID, EdgeLayerReference, RelationDependsOn)
 		}
 
-		// 親子関係
+		// parent (structural): Activity -> Activity
 		if a.ParentID != "" {
-			if _, exists := graph.Nodes[a.ParentID]; exists {
-				edge := UnifiedEdge{
-					From: a.ID,
-					To:   a.ParentID,
-					Type: EdgeTypeParent,
-				}
-				graph.Edges = append(graph.Edges, edge)
-			}
+			b.addStructuralEdge(graph, a.ID, a.ParentID, RelationParent)
 		}
 
-		// Activity → UseCase 関連（階層関係: Activity は UseCase の下に配置）
+		// implements (structural): Activity -> UseCase
 		if a.UseCaseID != "" {
-			b.addHierarchyEdge(graph, a.ID, a.UseCaseID, EdgeTypeRelates, "implements")
+			b.addStructuralEdge(graph, a.ID, a.UseCaseID, RelationImplements)
 		}
 
-		// Activity → Deliverable 関連
-		// NOTE: produces 関係は「成果物への出力」を示し、階層関係ではないため
-		// Parents/Children は更新しない（深さ計算に影響させない）
+		// produces (reference): Activity -> Deliverable
 		for _, delID := range a.RelatedDeliverables {
-			if _, exists := graph.Nodes[delID]; exists {
-				edge := UnifiedEdge{
-					From:  a.ID,
-					To:    delID,
-					Type:  EdgeTypeRelates,
-					Label: "produces",
-				}
-				graph.Edges = append(graph.Edges, edge)
-			}
+			b.addEdge(graph, a.ID, delID, EdgeLayerReference, RelationProduces)
 		}
 	}
 
-	// UseCase → Objective 関連（階層関係: UseCase は Objective の下に配置）
+	// contributes (structural): UseCase -> Objective
 	for _, u := range b.usecases {
 		if u.ObjectiveID != "" {
-			b.addHierarchyEdge(graph, u.ID, u.ObjectiveID, EdgeTypeContributes, "contributes")
+			b.addStructuralEdge(graph, u.ID, u.ObjectiveID, RelationContributes)
 		}
 	}
 
-	// Deliverable → Objective 関連（階層関係: Deliverable は Objective の下に配置）
+	// fulfills (structural): Deliverable -> Objective
 	for _, d := range b.deliverables {
 		if d.ObjectiveID != "" {
-			b.addHierarchyEdge(graph, d.ID, d.ObjectiveID, EdgeTypeContributes, "fulfills")
+			b.addStructuralEdge(graph, d.ID, d.ObjectiveID, RelationFulfills)
 		}
 	}
 
-	// Objective の親子関係
+	// parent (structural): Objective -> Objective
 	for _, o := range b.objectives {
 		if o.ParentID != "" {
-			if _, exists := graph.Nodes[o.ParentID]; exists {
-				edge := UnifiedEdge{
-					From: o.ID,
-					To:   o.ParentID,
-					Type: EdgeTypeParent,
-				}
-				graph.Edges = append(graph.Edges, edge)
-			}
+			b.addStructuralEdge(graph, o.ID, o.ParentID, RelationParent)
 		}
 	}
 }
@@ -263,108 +311,107 @@ func (b *UnifiedGraphBuilder) applyFilter(graph *UnifiedGraph) {
 		return
 	}
 
-	// 削除するノード ID を収集
+	// 1. ノード削除候補を収集
 	toRemove := make(map[string]bool)
-
 	for id, node := range graph.Nodes {
-		// タイプフィルタ
-		if len(b.filter.IncludeTypes) > 0 {
-			if !slices.Contains(b.filter.IncludeTypes, node.Type) {
-				toRemove[id] = true
-				continue
-			}
+		if len(b.filter.IncludeTypes) > 0 && !slices.Contains(b.filter.IncludeTypes, node.Type) {
+			toRemove[id] = true
+			continue
 		}
-
 		if slices.Contains(b.filter.ExcludeTypes, node.Type) {
 			toRemove[id] = true
+			continue
 		}
-
-		// 完了済みフィルタ
-		if b.filter.HideCompleted {
-			if node.Status == "completed" {
-				toRemove[id] = true
-				continue
-			}
+		if b.filter.HideCompleted && node.Status == "completed" {
+			toRemove[id] = true
+			continue
 		}
-
-		// ドラフトフィルタ
-		if b.filter.HideDraft {
-			if node.Status == "draft" {
-				toRemove[id] = true
-				continue
-			}
+		if b.filter.HideDraft && node.Status == "draft" {
+			toRemove[id] = true
+			continue
 		}
 	}
 
-	// フォーカスフィルタ
-	if b.filter.FocusID != "" && b.filter.FocusDepth > 0 {
-		reachable := b.findReachableNodes(graph, b.filter.FocusID, b.filter.FocusDepth)
-		for id := range graph.Nodes {
-			if !reachable[id] {
-				toRemove[id] = true
-			}
-		}
-	}
-
-	// ノードを削除
 	for id := range toRemove {
 		delete(graph.Nodes, id)
 	}
 
-	// エッジをフィルタ（両端がグラフに存在するもののみ残す）
-	filteredEdges := []UnifiedEdge{}
-	for _, edge := range graph.Edges {
-		if _, fromExists := graph.Nodes[edge.From]; !fromExists {
-			continue
+	// 2. エッジをフィルタ（存在ノード + レイヤー + relation）
+	graph.Edges = b.filterEdgesByRule(graph.Nodes, graph.Edges)
+
+	// 3. フォーカスフィルタ
+	if b.filter.FocusID != "" && b.filter.FocusDepth > 0 {
+		reachable := b.findReachableNodes(graph, b.filter.FocusID, b.filter.FocusDepth)
+		for id := range graph.Nodes {
+			if !reachable[id] {
+				delete(graph.Nodes, id)
+			}
 		}
-		if _, toExists := graph.Nodes[edge.To]; !toExists {
-			continue
-		}
-		filteredEdges = append(filteredEdges, edge)
+		graph.Edges = b.filterEdgesByRule(graph.Nodes, graph.Edges)
 	}
-	graph.Edges = filteredEdges
 
-	// Parents/Children を更新
+	// 4. 構造親子を再構築
+	b.rebuildStructuralAdjacency(graph)
+}
+
+func (b *UnifiedGraphBuilder) filterEdgesByRule(nodes map[string]*UnifiedGraphNode, edges []UnifiedEdge) []UnifiedEdge {
+	filtered := make([]UnifiedEdge, 0, len(edges))
+	for _, edge := range edges {
+		if _, fromExists := nodes[edge.From]; !fromExists {
+			continue
+		}
+		if _, toExists := nodes[edge.To]; !toExists {
+			continue
+		}
+		if len(b.filter.IncludeLayers) > 0 && !slices.Contains(b.filter.IncludeLayers, edge.Layer) {
+			continue
+		}
+		if len(b.filter.IncludeRelations) > 0 && !slices.Contains(b.filter.IncludeRelations, edge.Relation) {
+			continue
+		}
+		filtered = append(filtered, edge)
+	}
+	return filtered
+}
+
+func (b *UnifiedGraphBuilder) rebuildStructuralAdjacency(graph *UnifiedGraph) {
 	for _, node := range graph.Nodes {
-		filteredParents := []string{}
-		for _, p := range node.Parents {
-			if _, exists := graph.Nodes[p]; exists {
-				filteredParents = append(filteredParents, p)
-			}
-		}
-		node.Parents = filteredParents
+		node.StructuralParents = []string{}
+		node.StructuralChildren = []string{}
+	}
 
-		filteredChildren := []string{}
-		for _, c := range node.Children {
-			if _, exists := graph.Nodes[c]; exists {
-				filteredChildren = append(filteredChildren, c)
-			}
+	for _, edge := range graph.Edges {
+		if edge.Layer != EdgeLayerStructural {
+			continue
 		}
-		node.Children = filteredChildren
+		fromNode := graph.Nodes[edge.From]
+		toNode := graph.Nodes[edge.To]
+		if fromNode == nil || toNode == nil {
+			continue
+		}
+		fromNode.StructuralParents = append(fromNode.StructuralParents, edge.To)
+		toNode.StructuralChildren = append(toNode.StructuralChildren, edge.From)
 	}
 }
 
 // findReachableNodes はフォーカスノードから指定深さまで到達可能なノードを検索
-// パフォーマンス改善: 隣接リストを事前構築して O(V + E) で探索
 func (b *UnifiedGraphBuilder) findReachableNodes(graph *UnifiedGraph, focusID string, depth int) map[string]bool {
 	reachable := make(map[string]bool)
 	if _, exists := graph.Nodes[focusID]; !exists {
 		return reachable
 	}
 
-	// 隣接リストを事前構築（双方向）
 	adjacency := make(map[string][]string)
 	for _, edge := range graph.Edges {
 		adjacency[edge.From] = append(adjacency[edge.From], edge.To)
 		adjacency[edge.To] = append(adjacency[edge.To], edge.From)
 	}
 
-	// BFS で探索
 	type queueItem struct {
 		id    string
 		depth int
 	}
-	queue := []queueItem{{focusID, 0}}
+	queue := []queueItem{{id: focusID, depth: 0}}
 	visited := make(map[string]bool)
 
 	for len(queue) > 0 {
@@ -381,27 +428,9 @@ func (b *UnifiedGraphBuilder) findReachableNodes(graph *UnifiedGraph, focusID st
 			continue
 		}
 
-		node := graph.Nodes[current.id]
-		if node == nil {
-			continue
-		}
-
-		// 親と子を探索
-		for _, parentID := range node.Parents {
-			if !visited[parentID] {
-				queue = append(queue, queueItem{parentID, current.depth + 1})
-			}
-		}
-		for _, childID := range node.Children {
-			if !visited[childID] {
-				queue = append(queue, queueItem{childID, current.depth + 1})
-			}
-		}
-
-		// 隣接リストから接続ノードを探索
 		for _, neighborID := range adjacency[current.id] {
 			if !visited[neighborID] {
-				queue = append(queue, queueItem{neighborID, current.depth + 1})
+				queue = append(queue, queueItem{id: neighborID, depth: current.depth + 1})
 			}
 		}
 	}
@@ -409,27 +438,25 @@ func (b *UnifiedGraphBuilder) findReachableNodes(graph *UnifiedGraph, focusID st
 	return reachable
 }
 
-// calculateDepth はノードの深さを計算
-func (b *UnifiedGraphBuilder) calculateDepth(graph *UnifiedGraph) {
-	// 依存関係がないノードを起点として深さを計算
+// calculateStructuralDepth は構造層ノードの深さを計算
+func (b *UnifiedGraphBuilder) calculateStructuralDepth(graph *UnifiedGraph) {
 	for _, node := range graph.Nodes {
-		if len(node.Parents) == 0 {
-			node.Depth = 0
+		if len(node.StructuralParents) == 0 {
+			node.StructuralDepth = 0
 		} else {
-			node.Depth = -1 // 未計算
+			node.StructuralDepth = -1
 		}
 	}
 
-	// 繰り返し深さを更新
 	changed := true
 	for changed {
 		changed = false
 		for _, node := range graph.Nodes {
-			if node.Depth >= 0 {
-				for _, childID := range node.Children {
+			if node.StructuralDepth >= 0 {
+				for _, childID := range node.StructuralChildren {
 					child := graph.Nodes[childID]
-					if child != nil && (child.Depth < 0 || child.Depth < node.Depth+1) {
-						child.Depth = node.Depth + 1
+					if child != nil && (child.StructuralDepth < 0 || child.StructuralDepth < node.StructuralDepth+1) {
+						child.StructuralDepth = node.StructuralDepth + 1
 						changed = true
 					}
 				}
@@ -437,19 +464,22 @@ func (b *UnifiedGraphBuilder) calculateDepth(graph *UnifiedGraph) {
 		}
 	}
 
-	// 未計算のノード（循環の一部）には深さ 0 を設定
 	for _, node := range graph.Nodes {
-		if node.Depth < 0 {
-			node.Depth = 0
+		if node.StructuralDepth < 0 {
+			node.StructuralDepth = 0
 		}
 	}
 }
 
-// detectCycles は循環依存を検出
+// detectCycles は循環依存を検出（全レイヤー対象）
 func (b *UnifiedGraphBuilder) detectCycles(graph *UnifiedGraph) {
-	// 訪問状態: 0=未訪問, 1=訪問中, 2=訪問済み
-	visited := make(map[string]int)
-	var path []string
+	visited := make(map[string]int) // 0=未訪問, 1=訪問中, 2=訪問済み
+	path := []string{}
+
+	adj := make(map[string][]string)
+	for _, edge := range graph.Edges {
+		adj[edge.From] = append(adj[edge.From], edge.To)
+	}
 
 	var dfs func(id string)
 	dfs = func(id string) {
@@ -457,7 +487,6 @@ func (b *UnifiedGraphBuilder) detectCycles(graph *UnifiedGraph) {
 			return
 		}
 		if visited[id] == 1 {
-			// 循環検出
 			cycleStart := -1
 			for i, pid := range path {
 				if pid == id {
@@ -476,14 +505,9 @@ func (b *UnifiedGraphBuilder) detectCycles(graph *UnifiedGraph) {
 
 		visited[id] = 1
 		path = append(path, id)
-
-		node := graph.Nodes[id]
-		if node != nil {
-			for _, parentID := range node.Parents {
-				dfs(parentID)
-			}
+		for _, nextID := range adj[id] {
+			dfs(nextID)
 		}
-
 		path = path[:len(path)-1]
 		visited[id] = 2
 	}
@@ -497,7 +521,7 @@ func (b *UnifiedGraphBuilder) detectCycles(graph *UnifiedGraph) {
 
 // detectIsolated は孤立ノードを検出
 func (b *UnifiedGraphBuilder) detectIsolated(graph *UnifiedGraph) {
-	for id, node := range graph.Nodes {
+	for id := range graph.Nodes {
 		hasEdge := false
 		for _, edge := range graph.Edges {
 			if edge.From == id || edge.To == id {
@@ -505,7 +529,7 @@ func (b *UnifiedGraphBuilder) detectIsolated(graph *UnifiedGraph) {
 				break
 			}
 		}
-		if !hasEdge && len(node.Parents) == 0 && len(node.Children) == 0 {
+		if !hasEdge {
 			graph.Isolated = append(graph.Isolated, id)
 		}
 	}
@@ -520,7 +544,6 @@ func (b *UnifiedGraphBuilder) calculateStats(graph *UnifiedGraph) {
 	stats.IsolatedCount = len(graph.Isolated)
 	stats.CycleCount = len(graph.Cycles)
 
-	// タイプ別ノード数
 	for _, node := range graph.Nodes {
 		stats.NodesByType[node.Type]++
 		if node.Type == EntityTypeActivity {
@@ -531,64 +554,100 @@ func (b *UnifiedGraphBuilder) calculateStats(graph *UnifiedGraph) {
 		}
 	}
 
-	// タイプ別エッジ数
 	for _, edge := range graph.Edges {
-		stats.EdgesByType[edge.Type]++
+		stats.EdgesByLayer[edge.Layer]++
+		stats.EdgesByRelation[edge.Relation]++
 	}
 
-	// 最大深さ
 	for _, node := range graph.Nodes {
-		if node.Depth > stats.MaxDepth {
-			stats.MaxDepth = node.Depth
+		if node.StructuralDepth > stats.MaxStructuralDepth {
+			stats.MaxStructuralDepth = node.StructuralDepth
 		}
 	}
+}
+
+func sortEdges(edges []UnifiedEdge) {
+	sort.Slice(edges, func(i, j int) bool {
+		if edges[i].From != edges[j].From {
+			return edges[i].From < edges[j].From
+		}
+		if edges[i].To != edges[j].To {
+			return edges[i].To < edges[j].To
+		}
+		if edges[i].Layer != edges[j].Layer {
+			return edges[i].Layer < edges[j].Layer
+		}
+		return edges[i].Relation < edges[j].Relation
+	})
 }
 
 // ToText はテキスト形式で出力
 func (g *UnifiedGraph) ToText() string {
 	var sb strings.Builder
 
-	sb.WriteString("=== Unified Graph ===\n\n")
-
-	// 統計情報
+	sb.WriteString("=== Unified Graph (Two-Layer Model) ===\n\n")
 	fmt.Fprintf(&sb, "Total Nodes: %d\n", g.Stats.TotalNodes)
 	fmt.Fprintf(&sb, "Total Edges: %d\n", g.Stats.TotalEdges)
-	fmt.Fprintf(&sb, "Max Depth: %d\n", g.Stats.MaxDepth)
+	fmt.Fprintf(&sb, "Max Structural Depth: %d\n", g.Stats.MaxStructuralDepth)
 	if g.Stats.TotalActivities > 0 {
 		fmt.Fprintf(&sb, "Activity Progress: %d/%d\n", g.Stats.CompletedActivities, g.Stats.TotalActivities)
 	}
 	sb.WriteString("\n")
 
-	// ノード別
 	sb.WriteString("--- Nodes by Type ---\n")
-	for t, count := range g.Stats.NodesByType {
-		fmt.Fprintf(&sb, "  %s: %d\n", t, count)
+	types := make([]string, 0, len(g.Stats.NodesByType))
+	for t := range g.Stats.NodesByType {
+		types = append(types, string(t))
+	}
+	sort.Strings(types)
+	for _, t := range types {
+		fmt.Fprintf(&sb, "  %s: %d\n", t, g.Stats.NodesByType[EntityType(t)])
 	}
 	sb.WriteString("\n")
 
-	// ノード一覧
 	sb.WriteString("--- Nodes ---\n")
-	// ID でソート
 	ids := make([]string, 0, len(g.Nodes))
 	for id := range g.Nodes {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-
 	for _, id := range ids {
 		node := g.Nodes[id]
-		fmt.Fprintf(&sb, "[%s] %s (%s) - %s", node.Type, node.ID, node.Title, node.Status)
+		fmt.Fprintf(&sb, "[%s] %s (%s) - %s [depth=%d]", node.Type, node.ID, node.Title, node.Status, node.StructuralDepth)
 		if node.Assignee != "" {
 			fmt.Fprintf(&sb, " @%s", node.Assignee)
 		}
 		sb.WriteString("\n")
-		if len(node.Parents) > 0 {
-			fmt.Fprintf(&sb, "    depends on: %v\n", node.Parents)
+		if len(node.StructuralParents) > 0 {
+			fmt.Fprintf(&sb, "    structural_parents: %v\n", node.StructuralParents)
 		}
 	}
 	sb.WriteString("\n")
 
-	// 循環依存
+	structural := make([]UnifiedEdge, 0)
+	reference := make([]UnifiedEdge, 0)
+	for _, edge := range g.Edges {
+		if edge.Layer == EdgeLayerStructural {
+			structural = append(structural, edge)
+		} else {
+			reference = append(reference, edge)
+		}
+	}
+	sortEdges(structural)
+	sortEdges(reference)
+
+	sb.WriteString("--- Structural Relations ---\n")
+	for _, edge := range structural {
+		fmt.Fprintf(&sb, "  %s -[%s]-> %s\n", edge.From, edge.Relation, edge.To)
+	}
+	sb.WriteString("\n")
+
+	sb.WriteString("--- Reference Relations ---\n")
+	for _, edge := range reference {
+		fmt.Fprintf(&sb, "  %s -[%s]-> %s\n", edge.From, edge.Relation, edge.To)
+	}
+	sb.WriteString("\n")
+
 	if len(g.Cycles) > 0 {
 		sb.WriteString("--- Cycles Detected ---\n")
 		for _, cycle := range g.Cycles {
@@ -597,7 +656,6 @@ func (g *UnifiedGraph) ToText() string {
 		sb.WriteString("\n")
 	}
 
-	// 孤立ノード
 	if len(g.Isolated) > 0 {
 		sb.WriteString("--- Isolated Nodes ---\n")
 		for _, id := range g.Isolated {
@@ -609,6 +667,25 @@ func (g *UnifiedGraph) ToText() string {
 	return sb.String()
 }
 
+func dotEdgeStyle(edge UnifiedEdge) (style string, color string, label string) {
+	switch edge.Relation {
+	case RelationParent:
+		return "dashed", "#666666", "parent"
+	case RelationImplements:
+		return "bold", "#1f77b4", "implements"
+	case RelationContributes:
+		return "bold", "#7f3fbf", "contributes"
+	case RelationFulfills:
+		return "bold", "#2ca02c", "fulfills"
+	case RelationDependsOn:
+		return "solid", "#222222", "depends_on"
+	case RelationProduces:
+		return "dotted", "#ff7f0e", "produces"
+	default:
+		return "solid", "#333333", string(edge.Relation)
+	}
+}
+
 // ToDot は DOT 形式で出力
 func (g *UnifiedGraph) ToDot() string {
 	var sb strings.Builder
@@ -617,66 +694,62 @@ func (g *UnifiedGraph) ToDot() string {
 	sb.WriteString("  rankdir=TB;\n")
 	sb.WriteString("  node [shape=box];\n\n")
 
-	// ノードのスタイル定義
 	sb.WriteString("  // Node styles by type\n")
 	for id, node := range g.Nodes {
-		var style, color string
+		var shape, fill string
 		switch node.Type {
 		case EntityTypeActivity:
-			if node.Mode == "flow" {
-				style = "rounded"
-			} else {
-				style = "filled,rounded"
-			}
-			color = "#4CAF50"
+			shape = "box"
+			fill = "#4CAF50"
 		case EntityTypeUseCase:
-			style = "ellipse"
-			color = "#2196F3"
+			shape = "ellipse"
+			fill = "#2196F3"
 		case EntityTypeDeliverable:
-			style = "folder"
-			color = "#FF9800"
+			shape = "folder"
+			fill = "#FF9800"
 		case EntityTypeObjective:
-			style = "diamond"
-			color = "#9C27B0"
+			shape = "diamond"
+			fill = "#9C27B0"
+		default:
+			shape = "box"
+			fill = "#888888"
 		}
-
 		label := fmt.Sprintf("%s\\n%s", node.ID, node.Title)
-
-		fmt.Fprintf(&sb, "  \"%s\" [label=\"%s\", style=\"%s\", fillcolor=\"%s\"];\n",
-			id, label, style, color)
+		fmt.Fprintf(&sb, "  \"%s\" [label=\"%s\", shape=\"%s\", style=\"filled\", fillcolor=\"%s\"];\n", id, label, shape, fill)
 	}
 	sb.WriteString("\n")
 
-	// エッジ
+	edges := make([]UnifiedEdge, len(g.Edges))
+	copy(edges, g.Edges)
+	sortEdges(edges)
+
 	sb.WriteString("  // Edges\n")
-	for _, edge := range g.Edges {
-		var style, color string
-		switch edge.Type {
-		case EdgeTypeDependency:
-			style = "solid"
-			color = "black"
-		case EdgeTypeParent:
-			style = "dashed"
-			color = "gray"
-		case EdgeTypeRelates:
-			style = "dotted"
-			color = "blue"
-		case EdgeTypeContributes:
-			style = "bold"
-			color = "purple"
-		}
-
-		label := ""
-		if edge.Label != "" {
-			label = fmt.Sprintf(", label=\"%s\"", edge.Label)
-		}
-
-		fmt.Fprintf(&sb, "  \"%s\" -> \"%s\" [style=%s, color=\"%s\"%s];\n",
-			edge.From, edge.To, style, color, label)
+	for _, edge := range edges {
+		style, color, label := dotEdgeStyle(edge)
+		fmt.Fprintf(&sb, "  \"%s\" -> \"%s\" [style=%s, color=\"%s\", label=\"%s\"];\n", edge.From, edge.To, style, color, label)
 	}
 
 	sb.WriteString("}\n")
 	return sb.String()
+}
+
+func mermaidArrow(edge UnifiedEdge) string {
+	switch edge.Relation {
+	case RelationParent:
+		return "-.->|parent|"
+	case RelationImplements:
+		return "==>|implements|"
+	case RelationContributes:
+		return "==>|contributes|"
+	case RelationFulfills:
+		return "==>|fulfills|"
+	case RelationDependsOn:
+		return "-->|depends_on|"
+	case RelationProduces:
+		return "-.->|produces|"
+	default:
+		return "-->"
+	}
 }
 
 // ToMermaid は Mermaid 形式で出力
@@ -685,66 +758,57 @@ func (g *UnifiedGraph) ToMermaid() string {
 
 	sb.WriteString("```mermaid\ngraph TD\n")
 
-	// ノード定義
-	for id, node := range g.Nodes {
-		var shape string
+	ids := make([]string, 0, len(g.Nodes))
+	for id := range g.Nodes {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+
+	for _, id := range ids {
+		node := g.Nodes[id]
 		title := escapeMermaidText(node.Title)
 		switch node.Type {
 		case EntityTypeActivity:
 			if node.Mode == "flow" {
-				shape = fmt.Sprintf("  %s([%s: %s])", id, id, title)
+				fmt.Fprintf(&sb, "  %s([%s: %s])\n", id, id, title)
 			} else {
-				shape = fmt.Sprintf("  %s[%s: %s]", id, id, title)
+				fmt.Fprintf(&sb, "  %s[%s: %s]\n", id, id, title)
 			}
 		case EntityTypeUseCase:
-			shape = fmt.Sprintf("  %s((%s: %s))", id, id, title)
+			fmt.Fprintf(&sb, "  %s((%s: %s))\n", id, id, title)
 		case EntityTypeDeliverable:
-			shape = fmt.Sprintf("  %s[/%s: %s/]", id, id, title)
+			fmt.Fprintf(&sb, "  %s[/%s: %s/]\n", id, id, title)
 		case EntityTypeObjective:
-			shape = fmt.Sprintf("  %s{%s: %s}", id, id, title)
+			fmt.Fprintf(&sb, "  %s{%s: %s}\n", id, id, title)
 		}
-		sb.WriteString(shape + "\n")
 	}
-
 	sb.WriteString("\n")
 
-	// エッジ定義
-	for _, edge := range g.Edges {
-		var arrow string
-		switch edge.Type {
-		case EdgeTypeDependency:
-			arrow = "-->"
-		case EdgeTypeParent:
-			arrow = "-.->|parent|"
-		case EdgeTypeRelates:
-			if edge.Label != "" {
-				arrow = fmt.Sprintf("-.->|%s|", edge.Label)
-			} else {
-				arrow = "-.->"
-			}
-		case EdgeTypeContributes:
-			if edge.Label != "" {
-				arrow = fmt.Sprintf("==>|%s|", edge.Label)
-			} else {
-				arrow = "==>"
-			}
+	edges := make([]UnifiedEdge, len(g.Edges))
+	copy(edges, g.Edges)
+	sortEdges(edges)
+
+	structuralEdgeIndexes := make([]int, 0)
+	referenceEdgeIndexes := make([]int, 0)
+	for i, edge := range edges {
+		fmt.Fprintf(&sb, "  %s %s %s\n", edge.From, mermaidArrow(edge), edge.To)
+		if edge.Layer == EdgeLayerStructural {
+			structuralEdgeIndexes = append(structuralEdgeIndexes, i)
+		} else {
+			referenceEdgeIndexes = append(referenceEdgeIndexes, i)
 		}
-		fmt.Fprintf(&sb, "  %s %s %s\n", edge.From, arrow, edge.To)
 	}
 
-	// スタイル
 	sb.WriteString("\n  %% Styles\n")
 	sb.WriteString("  classDef activity fill:#4CAF50,stroke:#333,color:#fff\n")
 	sb.WriteString("  classDef usecase fill:#2196F3,stroke:#333,color:#fff\n")
 	sb.WriteString("  classDef deliverable fill:#FF9800,stroke:#333,color:#fff\n")
 	sb.WriteString("  classDef objective fill:#9C27B0,stroke:#333,color:#fff\n")
 
-	// クラス適用
-	for id, node := range g.Nodes {
-		var class string
+	for _, id := range ids {
+		node := g.Nodes[id]
+		class := "activity"
 		switch node.Type {
-		case EntityTypeActivity:
-			class = "activity"
 		case EntityTypeUseCase:
 			class = "usecase"
 		case EntityTypeDeliverable:
@@ -753,6 +817,13 @@ func (g *UnifiedGraph) ToMermaid() string {
 			class = "objective"
 		}
 		fmt.Fprintf(&sb, "  class %s %s\n", id, class)
+	}
+
+	for _, i := range structuralEdgeIndexes {
+		fmt.Fprintf(&sb, "  linkStyle %d stroke:#444,stroke-width:2px\n", i)
+	}
+	for _, i := range referenceEdgeIndexes {
+		fmt.Fprintf(&sb, "  linkStyle %d stroke:#1f77b4,stroke-dasharray:4 4\n", i)
 	}
 
 	sb.WriteString("```\n")

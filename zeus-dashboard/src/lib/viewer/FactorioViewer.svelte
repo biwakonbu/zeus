@@ -40,6 +40,8 @@
 
 	// 内部で使用するエッジリスト
 	let graphEdges = $derived(graphData?.edges ?? []);
+	let structuralEdges = $derived(graphEdges.filter((e) => e.layer === 'structural'));
+	let referenceEdges = $derived(graphEdges.filter((e) => e.layer === 'reference'));
 
 	// 内部状態
 	let containerElement: HTMLDivElement;
@@ -58,7 +60,7 @@
 	// 差分更新用のキャッシュ
 	let previousTasksHash: string = '';
 	let previousTaskIds: Set<string> = new Set();
-	let previousDependencyHash: string = '';
+	let previousEdgeHash: string = '';
 
 	// Visibility/LOD 差分更新用
 	let previousVisibleNodeIds: Set<string> = new Set();
@@ -77,9 +79,9 @@
 	/**
 	 * 依存関係のハッシュを計算（構造変更の検出用）
 	 */
-	function computeDependencyHash(nodeList: GraphNode[]): string {
-		return nodeList
-			.map((n) => `${n.id}:${n.dependencies.join(',')}`)
+	function computeEdgeHash(edgeList: GraphEdge[]): string {
+		return edgeList
+			.map((e) => `${e.from}->${e.to}:${e.layer}:${e.relation}`)
 			.sort()
 			.join('|');
 	}
@@ -88,19 +90,19 @@
 	 * ノードが変更されたかチェック
 	 * @returns 変更タイプ: 'none' | 'data' | 'structure'
 	 */
-	function detectNodeChanges(newNodes: GraphNode[]): 'none' | 'data' | 'structure' {
+	function detectNodeChanges(newNodes: GraphNode[], newEdges: GraphEdge[]): 'none' | 'data' | 'structure' {
 		const newHash = computeNodesHash(newNodes);
-		const newDepHash = computeDependencyHash(newNodes);
+		const newEdgeHash = computeEdgeHash(newEdges);
 		const newIds = new Set(newNodes.map((n) => n.id));
 
 		// 構造変更（追加/削除/依存関係変更）をチェック
 		if (
-			newDepHash !== previousDependencyHash ||
+			newEdgeHash !== previousEdgeHash ||
 			newIds.size !== previousTaskIds.size ||
 			!Array.from(newIds).every((id) => previousTaskIds.has(id))
 		) {
 			previousTasksHash = newHash;
-			previousDependencyHash = newDepHash;
+			previousEdgeHash = newEdgeHash;
 			previousTaskIds = newIds;
 			return 'structure';
 		}
@@ -161,6 +163,7 @@
 	let highlightedDownstream: Set<string> = $state(new Set());
 	let highlightedUpstream: Set<string> = $state(new Set());
 	let showImpactHighlight: boolean = $state(true);
+	let includeStructuralInTraversal: boolean = $state(false);
 
 	type MetricsEntry = {
 		timestamp: string;
@@ -631,9 +634,10 @@
 	// そのため graphNodes と engineReady を条件の外で明示的に読み取り、依存関係として登録する
 	$effect(() => {
 		const currentNodes = graphNodes; // 依存関係を明示的に登録
+		const currentEdges = graphEdges;
 		const ready = engineReady; // エンジン初期化完了を依存関係に追加
 		if (ready && engine && layoutEngine) {
-			const changeType = detectNodeChanges(currentNodes);
+			const changeType = detectNodeChanges(currentNodes, currentEdges);
 
 			if (changeType === 'none') {
 				// 変更なし - 何もしない
@@ -642,10 +646,10 @@
 
 			if (changeType === 'data') {
 				// データのみ変更 - ノードの表示を更新
-				updateGraphNodes(currentNodes);
+				updateGraphNodes(currentNodes, currentEdges);
 			} else {
 				// 構造変更 - フルレンダリング
-				renderGraphNodes(currentNodes);
+				renderGraphNodes(currentNodes, currentEdges);
 			}
 		}
 	});
@@ -654,7 +658,7 @@
 	/**
 	 * 既存ノードのデータを更新（差分更新 - レイアウト再計算なし）
 	 */
-	function updateGraphNodes(nodeList: GraphNode[]): void {
+	function updateGraphNodes(nodeList: GraphNode[], edgeList: GraphEdge[]): void {
 		if (!filterManager || !selectionManager) return;
 
 		const updateStart = nowMs();
@@ -664,7 +668,8 @@
 		const graphNodeMap = new Map(nodeList.map((n) => [n.id, n]));
 
 		// フィルターマネージャーを更新
-		filterManager.setNodes(nodeList);
+		filterManager.setGraph(nodeList, edgeList);
+		selectionManager.setGraph(nodeList, edgeList);
 		availableAssignees = filterManager.getAvailableAssignees();
 
 		// 既存ノードのデータを更新
@@ -707,15 +712,12 @@
 	/**
 	 * グラフノードをレンダリング
 	 */
-	function renderGraphNodes(nodeList: GraphNode[]): void {
+	function renderGraphNodes(nodeList: GraphNode[], edgeList: GraphEdge[]): void {
 		if (!engine || !layoutEngine || !spatialIndex || !filterManager || !selectionManager) return;
 
 		const renderStart = nowMs();
 		const renderSeq = ++renderSequence;
-		let dependencyCount = 0;
-		for (const gn of nodeList) {
-			dependencyCount += gn.dependencies.length;
-		}
+		const relationCount = edgeList.length;
 
 		const nodeContainer = engine.getNodeContainer();
 		const edgeContainer = engine.getEdgeContainer();
@@ -729,13 +731,13 @@
 		}
 
 		// マネージャーに GraphNode を設定
-		filterManager.setNodes(nodeList);
-		selectionManager.setNodes(nodeList);
+		filterManager.setGraph(nodeList, edgeList);
+		selectionManager.setGraph(nodeList, edgeList);
 		availableAssignees = filterManager.getAvailableAssignees();
 
 		// レイアウト計算（GraphNode で）
 		const layoutStart = nowMs();
-		const layout = layoutEngine.layout(nodeList);
+		const layout = layoutEngine.layout(nodeList, structuralEdges);
 		const layoutMs = nowMs() - layoutStart;
 		positions = layout.positions;
 		layoutBounds = layout.bounds;
@@ -791,52 +793,37 @@
 			});
 		}
 
-		// エッジを作成（WBS モードの場合は graphEdges を使用）
-		if (isWBSMode && graphEdges.length > 0) {
-			// WBS モード: graphEdges から直接エッジを作成
-			for (const edge of graphEdges) {
-				if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) continue;
+		const nodeByID = new Map(nodeList.map((n) => [n.id, n]));
+		for (const edgeData of edgeList) {
+			if (!nodeIds.has(edgeData.from) || !nodeIds.has(edgeData.to)) continue;
+			const fromPos = positions.get(edgeData.from);
+			const toPos = positions.get(edgeData.to);
+			if (!fromPos || !toPos) continue;
 
-				const fromPos = positions.get(edge.from);
-				const toPos = positions.get(edge.to);
-				if (!fromPos || !toPos) continue;
+			const edge = edgeFactory.getOrCreate(
+				edgeData.from,
+				edgeData.to,
+				edgeData.layer,
+				edgeData.relation
+			);
+			const endpoints = layoutEngine!.computeEdgeEndpoints(fromPos, toPos);
+			edge.setEndpoints(endpoints.fromX, endpoints.fromY, endpoints.toX, endpoints.toY);
 
-				const taskEdge = edgeFactory.getOrCreate(edge.from, edge.to);
-				const endpoints = layoutEngine!.computeEdgeEndpoints(fromPos, toPos);
-				taskEdge.setEndpoints(endpoints.fromX, endpoints.fromY, endpoints.toX, endpoints.toY);
-				taskEdge.setType(EdgeType.Normal);
-
-				edgeContainer.addChild(taskEdge);
+			const fromNode = nodeByID.get(edgeData.from);
+			const toNode = nodeByID.get(edgeData.to);
+			if (
+				edgeData.relation === 'depends_on' &&
+				fromNode &&
+				toNode &&
+				fromNode.status !== 'completed' &&
+				toNode.status === 'blocked'
+			) {
+				edge.setType(EdgeType.Blocked);
+			} else {
+				edge.setType(EdgeType.Normal);
 			}
-		} else {
-			// Task モード: dependencies からエッジを作成
-			for (const gn of nodeList) {
-				const toPos = positions.get(gn.id);
-				if (!toPos) continue;
 
-				for (const depId of gn.dependencies) {
-					if (!nodeIds.has(depId)) continue;
-
-					const fromPos = positions.get(depId);
-					if (!fromPos) continue;
-
-					const edge = edgeFactory.getOrCreate(depId, gn.id);
-					const endpoints = layoutEngine!.computeEdgeEndpoints(fromPos, toPos);
-					edge.setEndpoints(endpoints.fromX, endpoints.fromY, endpoints.toX, endpoints.toY);
-
-					// エッジタイプを設定
-					const depNode = nodeList.find((n) => n.id === depId);
-					if (depNode) {
-						if (depNode.status !== 'completed' && gn.status === 'blocked') {
-							edge.setType(EdgeType.Blocked);
-						} else {
-							edge.setType(EdgeType.Normal);
-						}
-					}
-
-					edgeContainer.addChild(edge);
-				}
-			}
+			edgeContainer.addChild(edge);
 		}
 
 		// フィルター適用
@@ -857,7 +844,7 @@
 			{
 				seq: renderSeq,
 				nodes: nodeList.length,
-				dependencies: dependencyCount,
+				relations: relationCount,
 				renderedNodes: nodeMap.size,
 				edges: edgeFactory.getAll().length,
 				layoutMs: Math.round(layoutMs),
@@ -1068,6 +1055,45 @@
 		}
 	}
 
+	function getTraversableEdges(includeStructural: boolean = includeStructuralInTraversal) {
+		return edgeFactory.getAll().filter((e) => includeStructural || e.getLayer() === 'reference');
+	}
+
+	/**
+	 * 関連ノード集合を取得（無向連結成分）
+	 *
+	 * 依存の向きが途中で切り替わるパターン
+	 * （A <- B -> C など）も取りこぼさないため、
+	 * Alt+クリックのフィルターは無向探索で算出する。
+	 */
+	function getConnectedNodes(nodeId: string, includeStructural: boolean = includeStructuralInTraversal): string[] {
+		const visited = new Set<string>([nodeId]);
+		const queue = [nodeId];
+		const traversableEdges = getTraversableEdges(includeStructural);
+
+		while (queue.length > 0) {
+			const current = queue.shift()!;
+			for (const edge of traversableEdges) {
+				if (edge.getFromId() === current) {
+					const neighbor = edge.getToId();
+					if (!visited.has(neighbor)) {
+						visited.add(neighbor);
+						queue.push(neighbor);
+					}
+				} else if (edge.getToId() === current) {
+					const neighbor = edge.getFromId();
+					if (!visited.has(neighbor)) {
+						visited.add(neighbor);
+						queue.push(neighbor);
+					}
+				}
+			}
+		}
+
+		visited.delete(nodeId);
+		return Array.from(visited);
+	}
+
 	/**
 	 * ノード右クリック処理 - 依存関係フィルター
 	 * フロントエンドの edges データを使用して依存関係を計算
@@ -1082,21 +1108,28 @@
 			return;
 		}
 
-		// フロントエンドで依存関係を計算
-		const upstream = getUpstreamNodes(nodeId);
-		const downstream = getDownstreamNodes(nodeId);
+		// 関連ノードを計算（無向探索）
+		let relatedNodes = getConnectedNodes(nodeId);
+		let usedStructuralFallback = false;
+		if (relatedNodes.length === 0 && !includeStructuralInTraversal) {
+			const structuralRelated = getConnectedNodes(nodeId, true);
+			if (structuralRelated.length > 0) {
+				relatedNodes = structuralRelated;
+				usedStructuralFallback = true;
+			}
+		}
 
 		console.log(
 			'[DependencyFilter] Node:',
 			nodeId,
-			'Upstream:',
-			upstream.length,
-			'Downstream:',
-			downstream.length
+			'Related:',
+			relatedNodes.length,
+			'StructuralFallback:',
+			usedStructuralFallback
 		);
 
-		// 表示対象: 選択ノード + 上流 + 下流
-		const filterIds = new Set<string>([nodeId, ...upstream, ...downstream]);
+		// 表示対象: 選択ノード + 関連ノード
+		const filterIds = new Set<string>([nodeId, ...relatedNodes]);
 
 		dependencyFilterNodeId = nodeId;
 		dependencyFilterIds = filterIds;
@@ -1112,6 +1145,7 @@
 	function getUpstreamNodes(nodeId: string): string[] {
 		const visited = new Set<string>();
 		const queue = [nodeId];
+		const traversableEdges = getTraversableEdges();
 
 		while (queue.length > 0) {
 			const current = queue.shift()!;
@@ -1119,7 +1153,7 @@
 			visited.add(current);
 
 			// このノードが依存しているエッジを探す（edge.to === current）
-			for (const edge of edgeFactory.getAll()) {
+			for (const edge of traversableEdges) {
 				if (edge.getToId() === current && !visited.has(edge.getFromId())) {
 					queue.push(edge.getFromId());
 				}
@@ -1137,6 +1171,7 @@
 	function getDownstreamNodes(nodeId: string): string[] {
 		const visited = new Set<string>();
 		const queue = [nodeId];
+		const traversableEdges = getTraversableEdges();
 
 		while (queue.length > 0) {
 			const current = queue.shift()!;
@@ -1144,7 +1179,7 @@
 			visited.add(current);
 
 			// このノードに依存しているエッジを探す（edge.from === current）
-			for (const edge of edgeFactory.getAll()) {
+			for (const edge of traversableEdges) {
 				if (edge.getFromId() === current && !visited.has(edge.getToId())) {
 					queue.push(edge.getToId());
 				}
@@ -1256,7 +1291,7 @@
 		}
 
 		// フィルター対象のみで再レイアウト
-		const filteredLayout = layoutEngine.layoutSubset(graphNodes, dependencyFilterIds);
+		const filteredLayout = layoutEngine.layoutSubset(graphNodes, structuralEdges, dependencyFilterIds);
 
 		// 可視性を更新
 		visibleTaskIds = dependencyFilterIds;
@@ -1291,7 +1326,7 @@
 
 			// layoutBounds も再計算
 			if (layoutEngine) {
-				const fullLayout = layoutEngine.layout(graphNodes);
+				const fullLayout = layoutEngine.layout(graphNodes, structuralEdges);
 				layoutBounds = fullLayout.bounds;
 			}
 
@@ -1300,6 +1335,16 @@
 
 		// ビューをリセット
 		fitToView();
+	}
+
+	function handleTraversalToggle(e: Event): void {
+		includeStructuralInTraversal = (e.currentTarget as HTMLInputElement).checked;
+		if (!dependencyFilterNodeId) return;
+
+		// トグル変更時に現在のフィルターを再計算
+		const relatedNodes = getConnectedNodes(dependencyFilterNodeId, includeStructuralInTraversal);
+		dependencyFilterIds = new Set([dependencyFilterNodeId, ...relatedNodes]);
+		applyDependencyFilter();
 	}
 
 	// 前回ハイライトしたエッジを追跡（差分更新用）
@@ -1567,8 +1612,8 @@
 						{/each}
 					</div>
 				{/if}
-				<div class="legend-section">
-					<div class="legend-section-title">STATUS</div>
+					<div class="legend-section">
+						<div class="legend-section-title">STATUS</div>
 					<div class="legend-item">
 						<span class="legend-dot completed"></span>
 						<span>Completed</span>
@@ -1584,12 +1629,34 @@
 					<div class="legend-item">
 						<span class="legend-dot blocked"></span>
 						<span>Blocked</span>
+						</div>
+					</div>
+					<div class="legend-section">
+						<div class="legend-section-title">RELATION</div>
+						<div class="legend-item">
+							<span class="legend-line structural"></span>
+							<span>Structural (parent / implements / contributes / fulfills)</span>
+						</div>
+						<div class="legend-item">
+							<span class="legend-line reference"></span>
+							<span>Reference (depends_on / produces)</span>
+						</div>
+					</div>
+					<div class="legend-section">
+						<div class="legend-section-title">TRAVERSAL</div>
+						<label class="legend-toggle">
+								<input
+									type="checkbox"
+									checked={includeStructuralInTraversal}
+									onchange={handleTraversalToggle}
+								/>
+							<span>Include structural edges in impact filter</span>
+						</label>
 					</div>
 				</div>
-			</div>
-		</OverlayPanel>
-	{/if}
-</div>
+			</OverlayPanel>
+		{/if}
+	</div>
 
 <style>
 	.factorio-viewer {
@@ -1661,6 +1728,35 @@
 
 	.legend-dot.blocked {
 		background-color: var(--status-poor);
+	}
+
+	.legend-line {
+		display: inline-block;
+		width: 16px;
+		height: 2px;
+	}
+
+	.legend-line.structural {
+		background-color: #88b8ff;
+		height: 3px;
+	}
+
+	.legend-line.reference {
+		background: repeating-linear-gradient(
+			to right,
+			#1f77b4 0px,
+			#1f77b4 4px,
+			transparent 4px,
+			transparent 7px
+		);
+	}
+
+	.legend-toggle {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		color: var(--text-secondary);
+		font-size: 0.72rem;
 	}
 
 	/* WBS ノードタイプ別の色は NODE_TYPE_CONFIG から inline style で適用 */

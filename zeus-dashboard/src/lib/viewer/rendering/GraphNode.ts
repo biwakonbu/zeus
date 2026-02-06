@@ -161,13 +161,13 @@ export class GraphNodeView extends Container {
 		this.background = new Graphics();
 		this.statusIndicator = new Graphics();
 		this.typeIndicator = new Graphics();
-		this.typeText = new Text({
-			text: '',
-			style: {
-				fontSize: 11,
-				fill: 0x1a1a1a,
-				fontFamily: 'IBM Plex Mono, monospace',
-				fontWeight: 'bold'
+			this.typeText = new Text({
+				text: '',
+				style: {
+					fontSize: 9,
+					fill: 0x1a1a1a,
+					fontFamily: 'IBM Plex Mono, monospace',
+					fontWeight: 'bold'
 			},
 			resolution: TEXT_RESOLUTION
 		});
@@ -445,20 +445,21 @@ export class GraphNodeView extends Container {
 
 		const typeColors = getNodeTypeColors(this.nodeType);
 
-		const badgeSize = 20;
-		const badgeX = NODE_WIDTH - badgeSize - 4;
-		const badgeY = 4;
+		const label = getNodeTypeLabel(this.nodeType);
+		const badgeWidth = Math.max(22, label.length * 7 + 8);
+		const badgeHeight = 16;
+		const badgeX = NODE_WIDTH - badgeWidth - 4;
+		const badgeY = 6;
 
-		// バッジ背景（円形）
-		this.typeIndicator.circle(badgeX + badgeSize / 2, badgeY + badgeSize / 2, badgeSize / 2);
+		// バッジ背景（角丸ピル）
+		this.typeIndicator.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 7);
 		this.typeIndicator.fill(typeColors.indicator);
 		this.typeIndicator.stroke({ width: 1, color: 0x1a1a1a });
 
-		// ラベル文字（V/O/D/A/U）を円の中央に配置（anchor ベース）
-		const label = getNodeTypeLabel(this.nodeType);
+		// ラベル文字を中央配置
 		this.typeText.text = label;
-		this.typeText.x = badgeX + badgeSize / 2;
-		this.typeText.y = badgeY + badgeSize / 2;
+		this.typeText.x = badgeX + badgeWidth / 2;
+		this.typeText.y = badgeY + badgeHeight / 2 + 0.5;
 	}
 
 	/**

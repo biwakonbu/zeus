@@ -35,6 +35,8 @@ var graphCmd = &cobra.Command{
   --focus <id>  - 指定IDを中心にグラフを表示
   --depth <n>   - フォーカスからの深さ（デフォルト: 無制限）
   --types <t>   - 表示するエンティティタイプ（カンマ区切り: activity,usecase,deliverable,objective）
+  --layers <l>  - 表示するレイヤー（カンマ区切り: structural,reference）
+  --relations <r> - 表示する関係種別（parent,depends_on,implements,contributes,fulfills,produces）
   --hide-completed - 完了済みを非表示
   --hide-draft     - ドラフトを非表示
 
@@ -44,7 +46,9 @@ var graphCmd = &cobra.Command{
   zeus graph -f mermaid -o deps.md     # Mermaid形式でファイル出力
   zeus graph --unified                 # 統合グラフを表示
   zeus graph --unified --focus act-001 # act-001 を中心に表示
-  zeus graph --unified --types activity,deliverable  # Activity と Deliverable のみ`,
+  zeus graph --unified --types activity,deliverable  # Activity と Deliverable のみ
+  zeus graph --unified --layers structural           # 構造層のみ
+  zeus graph --unified --relations parent,implements # 関係種別で絞り込み`,
 	RunE: runGraph,
 }
 
@@ -55,6 +59,8 @@ var (
 	graphFocus        string
 	graphDepth        int
 	graphTypes        string
+	graphLayers       string
+	graphRelations    string
 	graphHideComplete bool
 	graphHideDraft    bool
 )
@@ -67,6 +73,8 @@ func init() {
 	graphCmd.Flags().StringVar(&graphFocus, "focus", "", "フォーカスするエンティティID")
 	graphCmd.Flags().IntVar(&graphDepth, "depth", 0, "フォーカスからの深さ（0=無制限）")
 	graphCmd.Flags().StringVar(&graphTypes, "types", "", "表示するエンティティタイプ（カンマ区切り）")
+	graphCmd.Flags().StringVar(&graphLayers, "layers", "", "表示するレイヤー（カンマ区切り: structural,reference）")
+	graphCmd.Flags().StringVar(&graphRelations, "relations", "", "表示する関係種別（カンマ区切り）")
 	graphCmd.Flags().BoolVar(&graphHideComplete, "hide-completed", false, "完了済みを非表示")
 	graphCmd.Flags().BoolVar(&graphHideDraft, "hide-draft", false, "ドラフトを非表示")
 }
@@ -148,6 +156,14 @@ func runUnifiedGraph(ctx context.Context, zeus *core.Zeus) error {
 		types := parseEntityTypes(graphTypes)
 		filter = filter.WithIncludeTypes(types...)
 	}
+	if graphLayers != "" {
+		layers := parseEdgeLayers(graphLayers)
+		filter = filter.WithIncludeLayers(layers...)
+	}
+	if graphRelations != "" {
+		relations := parseEdgeRelations(graphRelations)
+		filter = filter.WithIncludeRelations(relations...)
+	}
 
 	if graphHideComplete {
 		filter = filter.WithHideCompleted(true)
@@ -211,6 +227,7 @@ func runUnifiedGraph(ctx context.Context, zeus *core.Zeus) error {
 	fmt.Printf("Statistics:\n")
 	fmt.Printf("  Total Nodes: %d\n", graph.Stats.TotalNodes)
 	fmt.Printf("  Total Edges: %d\n", graph.Stats.TotalEdges)
+	fmt.Printf("  Max Structural Depth: %d\n", graph.Stats.MaxStructuralDepth)
 	if graph.Stats.TotalActivities > 0 {
 		fmt.Printf("  Activities: %d/%d completed\n", graph.Stats.CompletedActivities, graph.Stats.TotalActivities)
 	}
@@ -235,4 +252,42 @@ func parseEntityTypes(typesStr string) []analysis.EntityType {
 		}
 	}
 	return types
+}
+
+// parseEdgeLayers はカンマ区切り文字列を UnifiedEdgeLayer 配列に変換
+func parseEdgeLayers(layersStr string) []analysis.UnifiedEdgeLayer {
+	var layers []analysis.UnifiedEdgeLayer
+	for _, l := range strings.Split(layersStr, ",") {
+		l = strings.TrimSpace(strings.ToLower(l))
+		switch l {
+		case string(analysis.EdgeLayerStructural):
+			layers = append(layers, analysis.EdgeLayerStructural)
+		case string(analysis.EdgeLayerReference):
+			layers = append(layers, analysis.EdgeLayerReference)
+		}
+	}
+	return layers
+}
+
+// parseEdgeRelations はカンマ区切り文字列を UnifiedEdgeRelation 配列に変換
+func parseEdgeRelations(relationsStr string) []analysis.UnifiedEdgeRelation {
+	var relations []analysis.UnifiedEdgeRelation
+	for _, r := range strings.Split(relationsStr, ",") {
+		r = strings.TrimSpace(strings.ToLower(r))
+		switch r {
+		case string(analysis.RelationParent):
+			relations = append(relations, analysis.RelationParent)
+		case string(analysis.RelationDependsOn):
+			relations = append(relations, analysis.RelationDependsOn)
+		case string(analysis.RelationImplements):
+			relations = append(relations, analysis.RelationImplements)
+		case string(analysis.RelationContributes):
+			relations = append(relations, analysis.RelationContributes)
+		case string(analysis.RelationFulfills):
+			relations = append(relations, analysis.RelationFulfills)
+		case string(analysis.RelationProduces):
+			relations = append(relations, analysis.RelationProduces)
+		}
+	}
+	return relations
 }

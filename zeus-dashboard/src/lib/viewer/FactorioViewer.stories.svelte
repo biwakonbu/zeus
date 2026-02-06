@@ -27,12 +27,16 @@
 		edges: GraphEdge[];
 	}
 
+	interface StoryNode extends GraphNode {
+		dependencies: string[];
+	}
+
 	// Action ハンドラー
 	const handleTaskSelect = fn();
 	const handleTaskHover = fn();
 
 	// モックノード（少数）
-	const simpleNodes: GraphNode[] = [
+	const simpleNodes: StoryNode[] = [
 		{
 			id: 'task-1',
 			title: 'プロジェクト設計',
@@ -81,7 +85,7 @@
 	];
 
 	// より多くのノード
-	const complexNodes: GraphNode[] = [
+	const complexNodes: StoryNode[] = [
 		// レイヤー1
 		{
 			id: 't1',
@@ -228,14 +232,40 @@
 	];
 
 	// 空のノード
-	const emptyNodes: GraphNode[] = [];
+	const emptyNodes: StoryNode[] = [];
 
 	// GraphNode 配列を GraphData に変換するヘルパー
-	function toGraphData(nodes: GraphNode[]): GraphData {
-		const edges = nodes.flatMap((node) =>
-			node.dependencies.map((dep) => ({ from: dep, to: node.id }))
-		);
-		return { nodes, edges };
+	function toGraphData(nodes: StoryNode[]): GraphData {
+		const nodeById = new Map(nodes.map((node) => [node.id, node]));
+		const edges: GraphEdge[] = [];
+
+		for (const node of nodes) {
+			for (const dep of node.dependencies) {
+				const depNode = nodeById.get(dep);
+				if (!depNode) continue;
+
+				// structural は child -> parent（レイアウト用）
+				edges.push({
+					from: node.id,
+					to: dep,
+					layer: 'structural',
+					relation: 'parent'
+				});
+
+				// reference は activity の depends_on を可視化
+				if (node.node_type === 'activity' && depNode.node_type === 'activity') {
+					edges.push({
+						from: dep,
+						to: node.id,
+						layer: 'reference',
+						relation: 'depends_on'
+					});
+				}
+			}
+		}
+
+		const graphNodes: GraphNode[] = nodes.map(({ dependencies: _dependencies, ...node }) => node);
+		return { nodes: graphNodes, edges };
 	}
 
 	// 選択中のタスクID
@@ -316,7 +346,7 @@
 
 <!-- 全ステータスのノード -->
 <Story name="AllStatuses">
-	{@const allStatusNodes: GraphNode[] = [
+	{@const allStatusNodes: StoryNode[] = [
 		{ id: 'completed-1', title: '完了タスク 1', node_type: 'activity', status: 'completed', priority: 'high', assignee: 'alice', dependencies: [] },
 		{ id: 'completed-2', title: '完了タスク 2', node_type: 'activity', status: 'completed', priority: 'medium', assignee: 'bob', dependencies: ['completed-1'] },
 		{ id: 'in_progress-1', title: '進行中タスク', node_type: 'activity', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['completed-2'] },
@@ -335,7 +365,7 @@
 <!-- 大規模グラフ（100+ ノード） -->
 <Story name="LargeGraph">
 	{@const generateLargeNodes = () => {
-		const nodes: GraphNode[] = [];
+		const nodes: StoryNode[] = [];
 		const assignees = ['alice', 'bob', 'charlie', 'david', 'eve'];
 		const priorities = ['high', 'medium', 'low'] as const;
 		const statuses = ['completed', 'in_progress', 'pending', 'blocked'] as const;
@@ -383,7 +413,7 @@
 
 <!-- WBS グラフ（階層表示）- Note: WBS 機能削除後も node_type でタイプ分類は可能 -->
 <Story name="WBSGraph">
-	{@const wbsNodes: GraphNode[] = [
+	{@const wbsNodes: StoryNode[] = [
 		// Vision
 		{ id: 'vision-1', title: 'プロジェクト管理の革新', node_type: 'vision', status: 'in_progress', priority: 'high', dependencies: [] },
 		// Objectives

@@ -4,7 +4,7 @@
  * タスクリストの変更を効率的に検出するための関数群
  */
 
-import type { GraphNode } from '$lib/types/api';
+import type { GraphEdge, GraphNode } from '$lib/types/api';
 
 /**
  * 変更タイプ
@@ -20,7 +20,7 @@ export type ChangeType = 'none' | 'data' | 'structure';
 export interface DiffDetectorState {
 	previousTasksHash: string;
 	previousTaskIds: Set<string>;
-	previousDependencyHash: string;
+	previousEdgeHash: string;
 }
 
 /**
@@ -30,7 +30,7 @@ export function createInitialState(): DiffDetectorState {
 	return {
 		previousTasksHash: '',
 		previousTaskIds: new Set(),
-		previousDependencyHash: ''
+		previousEdgeHash: ''
 	};
 }
 
@@ -47,11 +47,11 @@ export function computeTasksHash(tasks: GraphNode[]): string {
 }
 
 /**
- * 依存関係のハッシュを計算
+ * エッジのハッシュを計算
  */
-export function computeDependencyHash(tasks: GraphNode[]): string {
-	return tasks
-		.map((t) => `${t.id}:${t.dependencies.join(',')}`)
+export function computeDependencyHash(edges: GraphEdge[]): string {
+	return edges
+		.map((e) => `${e.from}->${e.to}:${e.layer}:${e.relation}`)
 		.sort()
 		.join('|');
 }
@@ -65,10 +65,11 @@ export function computeDependencyHash(tasks: GraphNode[]): string {
  */
 export function detectTaskChanges(
 	tasks: GraphNode[],
-	state: DiffDetectorState
+	state: DiffDetectorState,
+	edges: GraphEdge[] = []
 ): { changeType: ChangeType; newState: DiffDetectorState } {
 	const newTaskIds = new Set(tasks.map((t) => t.id));
-	const newDependencyHash = computeDependencyHash(tasks);
+	const newEdgeHash = computeDependencyHash(edges);
 	const newTasksHash = computeTasksHash(tasks);
 
 	// 構造変更の検出
@@ -78,12 +79,12 @@ export function detectTaskChanges(
 	const hasStructuralChange =
 		newTaskIds.size !== state.previousTaskIds.size ||
 		![...newTaskIds].every((id) => state.previousTaskIds.has(id)) ||
-		newDependencyHash !== state.previousDependencyHash;
+		newEdgeHash !== state.previousEdgeHash;
 
 	const newState: DiffDetectorState = {
 		previousTasksHash: newTasksHash,
 		previousTaskIds: newTaskIds,
-		previousDependencyHash: newDependencyHash
+		previousEdgeHash: newEdgeHash
 	};
 
 	if (hasStructuralChange) {

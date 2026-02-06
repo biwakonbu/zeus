@@ -18,6 +18,7 @@ import {
 	measurePerformance,
 	measureOnce,
 	assertPerformance,
+	generateMockGraph,
 	generateMockTasks,
 	PERFORMANCE_THRESHOLDS,
 	formatPerformanceResult,
@@ -43,12 +44,12 @@ describe('DiffUtils パフォーマンステスト', () => {
 		});
 
 		it('依存関係ハッシュ計算が閾値以内で完了する（1000タスク）', () => {
-			const tasks = generateMockTasks(1000);
+			const { edges } = generateMockGraph(1000);
 			const threshold = PERFORMANCE_THRESHOLDS.diffUpdate.computeHash;
 
 			const result = measurePerformance(
 				() => {
-					computeDependencyHash(tasks);
+					computeDependencyHash(edges);
 				},
 				100,
 				20
@@ -71,13 +72,11 @@ describe('DiffUtils パフォーマンステスト', () => {
 			const tasks = generateMockTasks(100);
 			// 初期状態を固定
 			tasks[0].status = 'pending';
-			tasks[0].progress = 0;
 
 			const hash1 = computeTasksHash(tasks);
 
 			// ステータス変更
 			tasks[0].status = 'completed';
-			tasks[0].progress = 100;
 			const hash2 = computeTasksHash(tasks);
 
 			expect(hash1).not.toBe(hash2);
@@ -86,11 +85,11 @@ describe('DiffUtils パフォーマンステスト', () => {
 
 	describe('変更検出', () => {
 		it('変更検出が閾値以内で完了する（1000タスク）', () => {
-			const tasks = generateMockTasks(1000);
+			const { nodes, edges } = generateMockGraph(1000);
 			let state = createInitialState();
 
 			// 初回実行
-			const firstResult = detectTaskChanges(tasks, state);
+			const firstResult = detectTaskChanges(nodes, state, edges);
 			state = firstResult.newState;
 
 			const threshold = PERFORMANCE_THRESHOLDS.diffUpdate.detectChanges;
@@ -98,7 +97,7 @@ describe('DiffUtils パフォーマンステスト', () => {
 			// 2回目以降（変更なし）
 			const result = measurePerformance(
 				() => {
-					detectTaskChanges(tasks, state);
+					detectTaskChanges(nodes, state, edges);
 				},
 				100,
 				20
@@ -109,87 +108,88 @@ describe('DiffUtils パフォーマンステスト', () => {
 		});
 
 		it('変更なしを正しく検出する', () => {
-			const tasks = generateMockTasks(100);
+			const { nodes, edges } = generateMockGraph(100);
 			let state = createInitialState();
 
 			// 初回
-			const first = detectTaskChanges(tasks, state);
+			const first = detectTaskChanges(nodes, state, edges);
 			expect(first.changeType).toBe('structure'); // 初回は常に structure
 			state = first.newState;
 
 			// 2回目（変更なし）
-			const second = detectTaskChanges(tasks, state);
+			const second = detectTaskChanges(nodes, state, edges);
 			expect(second.changeType).toBe('none');
 		});
 
 		it('データ変更を正しく検出する', () => {
-			const tasks = generateMockTasks(100);
+			const { nodes, edges } = generateMockGraph(100);
 			let state = createInitialState();
 
 			// 初期状態を明示的に設定
-			tasks[0].status = 'pending';
-			tasks[0].progress = 0;
+			nodes[0].status = 'pending';
 
 			// 初回
-			const first = detectTaskChanges(tasks, state);
+			const first = detectTaskChanges(nodes, state, edges);
 			state = first.newState;
 
 			// ステータスのみ変更
-			tasks[0].status = 'completed';
-			tasks[0].progress = 100;
+			nodes[0].status = 'completed';
 
-			const second = detectTaskChanges(tasks, state);
+			const second = detectTaskChanges(nodes, state, edges);
 			expect(second.changeType).toBe('data');
 		});
 
 		it('構造変更を正しく検出する - タスク追加', () => {
-			const tasks = generateMockTasks(100);
+			const { nodes, edges } = generateMockGraph(100);
 			let state = createInitialState();
 
-			const first = detectTaskChanges(tasks, state);
+			const first = detectTaskChanges(nodes, state, edges);
 			state = first.newState;
 
 			// タスク追加
-			tasks.push({
+			nodes.push({
 				id: 'new-task',
 				title: 'New Task',
 				node_type: 'activity',
 				status: 'pending',
-				progress: 0,
 				priority: 'medium',
-				assignee: 'user-0',
-				dependencies: []
+				assignee: 'user-0'
 			});
 
-			const second = detectTaskChanges(tasks, state);
+			const second = detectTaskChanges(nodes, state, edges);
 			expect(second.changeType).toBe('structure');
 		});
 
 		it('構造変更を正しく検出する - タスク削除', () => {
-			const tasks = generateMockTasks(100);
+			const { nodes, edges } = generateMockGraph(100);
 			let state = createInitialState();
 
-			const first = detectTaskChanges(tasks, state);
+			const first = detectTaskChanges(nodes, state, edges);
 			state = first.newState;
 
 			// タスク削除
-			tasks.pop();
+			nodes.pop();
 
-			const second = detectTaskChanges(tasks, state);
+			const second = detectTaskChanges(nodes, state, edges);
 			expect(second.changeType).toBe('structure');
 		});
 
-		it('構造変更を正しく検出する - 依存関係変更', () => {
-			const tasks = generateMockTasks(100);
+		it('構造変更を正しく検出する - エッジ変更', () => {
+			const { nodes, edges } = generateMockGraph(100);
 			let state = createInitialState();
 
-			const first = detectTaskChanges(tasks, state);
+			const first = detectTaskChanges(nodes, state, edges);
 			state = first.newState;
 
-			// 依存関係変更
-			tasks[50].dependencies = ['task-0', 'task-1'];
+			// 参照エッジ追加
+			edges.push({
+				from: 'task-0',
+				to: 'task-50',
+				layer: 'reference',
+				relation: 'depends_on'
+			});
 
-			const second = detectTaskChanges(tasks, state);
+			const second = detectTaskChanges(nodes, state, edges);
 			expect(second.changeType).toBe('structure');
 		});
 	});
@@ -210,10 +210,8 @@ describe('DiffUtils パフォーマンステスト', () => {
 					title: 'Task 5',
 					node_type: 'activity',
 					status: 'pending',
-					progress: 0,
 					priority: 'medium',
-					assignee: 'user-0',
-					dependencies: []
+					assignee: 'user-0'
 				}
 			];
 

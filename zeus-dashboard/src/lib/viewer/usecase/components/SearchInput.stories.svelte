@@ -1,6 +1,6 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import SearchInput from './SearchInput.svelte';
+	import { SearchInput } from '$lib/components/ui';
 
 	const { Story } = defineMeta({
 		title: 'Viewer/UseCase/SearchInput',

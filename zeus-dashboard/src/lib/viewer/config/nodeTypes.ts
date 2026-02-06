@@ -21,7 +21,7 @@ export interface NodeTypeConfig {
 // ノードタイプ設定マスター定義
 export const NODE_TYPE_CONFIG: Record<GraphNodeType, NodeTypeConfig> = {
 	vision: {
-		label: 'V',
+		label: 'VIS',
 		cssColor: '#ffd700',
 		colors: {
 			indicator: 0xffd700, // ゴールド - 最上位の目標
@@ -34,7 +34,7 @@ export const NODE_TYPE_CONFIG: Record<GraphNodeType, NodeTypeConfig> = {
 		showAccentLine: true
 	},
 	objective: {
-		label: 'O',
+		label: 'OBJ',
 		cssColor: '#6699ff',
 		colors: {
 			indicator: 0x6699ff, // ブルー - 目標
@@ -47,7 +47,7 @@ export const NODE_TYPE_CONFIG: Record<GraphNodeType, NodeTypeConfig> = {
 		showAccentLine: true
 	},
 	deliverable: {
-		label: 'D',
+		label: 'DEL',
 		cssColor: '#66cc99',
 		colors: {
 			indicator: 0x66cc99, // グリーン - 成果物
@@ -60,7 +60,7 @@ export const NODE_TYPE_CONFIG: Record<GraphNodeType, NodeTypeConfig> = {
 		showAccentLine: true
 	},
 	activity: {
-		label: 'A',
+		label: 'ACT',
 		cssColor: '#cc8844',
 		colors: {
 			indicator: 0xcc8844, // アンバー - Activity
@@ -73,7 +73,7 @@ export const NODE_TYPE_CONFIG: Record<GraphNodeType, NodeTypeConfig> = {
 		showAccentLine: true
 	},
 	usecase: {
-		label: 'U',
+		label: 'UC',
 		cssColor: '#9966cc',
 		colors: {
 			indicator: 0x9966cc, // パープル - ユースケース

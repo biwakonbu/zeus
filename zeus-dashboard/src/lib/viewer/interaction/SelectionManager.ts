@@ -1,6 +1,6 @@
 // 選択管理クラス
 
-import type { GraphNode } from '$lib/types/api';
+import type { GraphEdge, GraphNode } from '$lib/types/api';
 
 /**
  * 選択イベント
@@ -23,15 +23,35 @@ export class SelectionManager {
 	private selectedIds: Set<string> = new Set();
 	private listeners: ((event: SelectionEvent) => void)[] = [];
 	private nodes: Map<string, GraphNode> = new Map();
+	private outgoingEdges: Map<string, Set<string>> = new Map();
+	private incomingEdges: Map<string, Set<string>> = new Map();
 
 	/**
-	 * ノードデータを設定
+	 * グラフデータを設定
 	 */
-	setNodes(nodes: GraphNode[]): void {
+	setGraph(nodes: GraphNode[], edges: GraphEdge[]): void {
 		this.nodes.clear();
+		this.outgoingEdges.clear();
+		this.incomingEdges.clear();
+
 		for (const node of nodes) {
 			this.nodes.set(node.id, node);
+			this.outgoingEdges.set(node.id, new Set());
+			this.incomingEdges.set(node.id, new Set());
 		}
+
+		for (const edge of edges) {
+			if (!this.nodes.has(edge.from) || !this.nodes.has(edge.to)) continue;
+			this.outgoingEdges.get(edge.from)?.add(edge.to);
+			this.incomingEdges.get(edge.to)?.add(edge.from);
+		}
+	}
+
+	/**
+	 * ノードデータのみ更新（後方互換）
+	 */
+	setNodes(nodes: GraphNode[]): void {
+		this.setGraph(nodes, []);
 	}
 
 	/**
@@ -146,12 +166,12 @@ export class SelectionManager {
 			if (visited.has(currentId)) continue;
 			visited.add(currentId);
 
-			const node = this.nodes.get(currentId);
-			if (!node) continue;
+			if (!this.nodes.has(currentId)) continue;
 
 			// 上流（依存先）
 			if (direction === 'upstream' || direction === 'both') {
-				for (const depId of node.dependencies) {
+				const deps = this.outgoingEdges.get(currentId) ?? new Set();
+				for (const depId of deps) {
 					if (!visited.has(depId) && this.nodes.has(depId)) {
 						chainIds.add(depId);
 						queue.push(depId);
@@ -161,8 +181,9 @@ export class SelectionManager {
 
 			// 下流（このノードに依存するノード）
 			if (direction === 'downstream' || direction === 'both') {
-				for (const [id, n] of this.nodes) {
-					if (n.dependencies.includes(currentId) && !visited.has(id)) {
+				const dependents = this.incomingEdges.get(currentId) ?? new Set();
+				for (const id of dependents) {
+					if (!visited.has(id) && this.nodes.has(id)) {
 						chainIds.add(id);
 						queue.push(id);
 					}
@@ -270,5 +291,7 @@ export class SelectionManager {
 		this.selectedIds.clear();
 		this.listeners = [];
 		this.nodes.clear();
+		this.outgoingEdges.clear();
+		this.incomingEdges.clear();
 	}
 }

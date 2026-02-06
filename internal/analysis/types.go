@@ -216,29 +216,39 @@ type UnifiedGraphNode struct {
 	Assignee string     // 担当者（Activity のみ）
 	Mode     string     // モード（Activity のみ: "simple" or "flow"）
 
-	// 関連情報
-	Parents  []string // 親ノード ID
-	Children []string // 子ノード ID
-	Depth    int      // ルートからの深さ
+	// 構造層（structural layer）情報
+	StructuralParents  []string // 構造上の親ノード ID
+	StructuralChildren []string // 構造上の子ノード ID
+	StructuralDepth    int      // 構造層のルートからの深さ
 }
 
-// UnifiedEdge は統合グラフのエッジ
-type UnifiedEdge struct {
-	From  string          // ソースノード ID
-	To    string          // ターゲットノード ID
-	Type  UnifiedEdgeType // エッジタイプ
-	Label string          // ラベル（オプション）
-}
-
-// UnifiedEdgeType は統合グラフのエッジタイプ
-type UnifiedEdgeType string
+// UnifiedEdgeLayer はエッジのレイヤー種別
+type UnifiedEdgeLayer string
 
 const (
-	EdgeTypeDependency  UnifiedEdgeType = "dependency"  // 依存関係
-	EdgeTypeParent      UnifiedEdgeType = "parent"      // 親子関係
-	EdgeTypeRelates     UnifiedEdgeType = "relates"     // 関連（Activity → UseCase/Deliverable）
-	EdgeTypeContributes UnifiedEdgeType = "contributes" // 貢献（UseCase → Objective）
+	EdgeLayerStructural UnifiedEdgeLayer = "structural" // 階層構造を形成するレイヤー
+	EdgeLayerReference  UnifiedEdgeLayer = "reference"  // 参照・依存を表すレイヤー
 )
+
+// UnifiedEdgeRelation はエッジの意味論（関係種別）
+type UnifiedEdgeRelation string
+
+const (
+	RelationParent      UnifiedEdgeRelation = "parent"
+	RelationDependsOn   UnifiedEdgeRelation = "depends_on"
+	RelationImplements  UnifiedEdgeRelation = "implements"
+	RelationContributes UnifiedEdgeRelation = "contributes"
+	RelationFulfills    UnifiedEdgeRelation = "fulfills"
+	RelationProduces    UnifiedEdgeRelation = "produces"
+)
+
+// UnifiedEdge は統合グラフのエッジ（2層モデル）
+type UnifiedEdge struct {
+	From     string              // ソースノード ID
+	To       string              // ターゲットノード ID
+	Layer    UnifiedEdgeLayer    // レイヤー（structural/reference）
+	Relation UnifiedEdgeRelation // 関係種別
+}
 
 // UnifiedGraph は統合グラフ
 type UnifiedGraph struct {
@@ -251,37 +261,42 @@ type UnifiedGraph struct {
 
 // UnifiedGraphStats は統合グラフの統計情報
 type UnifiedGraphStats struct {
-	TotalNodes          int                     // 総ノード数
-	NodesByType         map[EntityType]int      // タイプ別ノード数
-	TotalEdges          int                     // 総エッジ数
-	EdgesByType         map[UnifiedEdgeType]int // タイプ別エッジ数
-	IsolatedCount       int                     // 孤立ノード数
-	CycleCount          int                     // 循環依存の数
-	MaxDepth            int                     // 最大深さ
-	CompletedActivities int                     // 完了 Activity 数
-	TotalActivities     int                     // 総 Activity 数
+	TotalNodes          int                         // 総ノード数
+	NodesByType         map[EntityType]int          // タイプ別ノード数
+	TotalEdges          int                         // 総エッジ数
+	EdgesByLayer        map[UnifiedEdgeLayer]int    // レイヤー別エッジ数
+	EdgesByRelation     map[UnifiedEdgeRelation]int // 関係別エッジ数
+	IsolatedCount       int                         // 孤立ノード数
+	CycleCount          int                         // 循環依存の数
+	MaxStructuralDepth  int                         // 構造層の最大深さ
+	CompletedActivities int                         // 完了 Activity 数
+	TotalActivities     int                         // 総 Activity 数
 }
 
 // GraphFilter はグラフ表示のフィルタリングオプション
 type GraphFilter struct {
-	FocusID       string       // 中心ノード ID
-	FocusDepth    int          // 中心からの深さ（0 = 無制限）
-	IncludeTypes  []EntityType // 含めるエンティティタイプ
-	ExcludeTypes  []EntityType // 除外するエンティティタイプ
-	HideCompleted bool         // 完了済みを非表示
-	HideDraft     bool         // ドラフトを非表示
-	HideUnrelated bool         // 無関係ノードを非表示
+	FocusID          string                // 中心ノード ID
+	FocusDepth       int                   // 中心からの深さ（0 = 無制限）
+	IncludeTypes     []EntityType          // 含めるエンティティタイプ
+	ExcludeTypes     []EntityType          // 除外するエンティティタイプ
+	IncludeLayers    []UnifiedEdgeLayer    // 含めるエッジレイヤー
+	IncludeRelations []UnifiedEdgeRelation // 含めるエッジ関係種別
+	HideCompleted    bool                  // 完了済みを非表示
+	HideDraft        bool                  // ドラフトを非表示
+	HideUnrelated    bool                  // 無関係ノードを非表示
 }
 
 // NewGraphFilter はデフォルトのフィルタを作成
 func NewGraphFilter() *GraphFilter {
 	return &GraphFilter{
-		FocusDepth:    0,
-		IncludeTypes:  []EntityType{},
-		ExcludeTypes:  []EntityType{},
-		HideCompleted: false,
-		HideDraft:     false,
-		HideUnrelated: false,
+		FocusDepth:       0,
+		IncludeTypes:     []EntityType{},
+		ExcludeTypes:     []EntityType{},
+		IncludeLayers:    []UnifiedEdgeLayer{},
+		IncludeRelations: []UnifiedEdgeRelation{},
+		HideCompleted:    false,
+		HideDraft:        false,
+		HideUnrelated:    false,
 	}
 }
 
@@ -301,6 +316,18 @@ func (f *GraphFilter) WithIncludeTypes(types ...EntityType) *GraphFilter {
 // WithExcludeTypes は除外するタイプを設定
 func (f *GraphFilter) WithExcludeTypes(types ...EntityType) *GraphFilter {
 	f.ExcludeTypes = types
+	return f
+}
+
+// WithIncludeLayers は含めるエッジレイヤーを設定
+func (f *GraphFilter) WithIncludeLayers(layers ...UnifiedEdgeLayer) *GraphFilter {
+	f.IncludeLayers = layers
+	return f
+}
+
+// WithIncludeRelations は含めるエッジ関係種別を設定
+func (f *GraphFilter) WithIncludeRelations(relations ...UnifiedEdgeRelation) *GraphFilter {
+	f.IncludeRelations = relations
 	return f
 }
 

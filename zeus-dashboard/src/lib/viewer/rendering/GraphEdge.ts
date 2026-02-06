@@ -1,53 +1,83 @@
-// ノード間のエッジ（依存関係）描画クラス
-// 2層構造（外側縁取り → コア）でシンプルに視認性を確保
+// ノード間のエッジ描画クラス
+// relation/layer に応じた意味的スタイル + インタラクション状態スタイルを統合
+import type { GraphEdgeLayer, GraphEdgeRelation } from '$lib/types/api';
 import { Graphics } from 'pixi.js';
 import { EDGE_COLORS, EDGE_WIDTHS } from '$lib/viewer/shared/constants';
 
-// エッジタイプ
+// エッジ状態（インタラクション）
 export enum EdgeType {
-	// 通常の依存関係
 	Normal = 'normal',
-	// クリティカルパス上のエッジ
 	Critical = 'critical',
-	// ブロックされている（依存先が未完了）
 	Blocked = 'blocked',
-	// ハイライト（選択時）
 	Highlighted = 'highlighted'
 }
 
-// 矢印設定（縮小: 12px → 8px）
+// 矢印設定
 const ARROW_SIZE = 8;
-const ARROW_ANGLE = Math.PI / 6; // 30度
+const ARROW_ANGLE = Math.PI / 6;
+
+interface SemanticStyle {
+	core: number;
+	outer: number;
+	widthCore: number;
+	widthOuter: number;
+}
+
+function semanticStyle(layer: GraphEdgeLayer, relation: GraphEdgeRelation): SemanticStyle {
+	const base = {
+		depends_on: { core: 0xd0d0d0, outer: 0x4a4a4a },
+		produces: { core: 0xffb366, outer: 0x8a5c2a },
+		parent: { core: 0x88b8ff, outer: 0x355d96 },
+		implements: { core: 0x66ccff, outer: 0x226688 },
+		contributes: { core: 0xb48dff, outer: 0x5c4090 },
+		fulfills: { core: 0x8be08b, outer: 0x2e7a2e }
+	} as const;
+
+	const rel = base[relation] ?? base.depends_on;
+	if (layer === 'structural') {
+		return {
+			core: rel.core,
+			outer: rel.outer,
+			widthCore: 2,
+			widthOuter: 4
+		};
+	}
+	return {
+		core: rel.core,
+		outer: rel.outer,
+		widthCore: 1.5,
+		widthOuter: 3
+	};
+}
 
 /**
- * GraphEdge - ノード間の依存関係を視覚化
- *
- * 責務:
- * - 2つのノード間のエッジを描画
- * - エッジタイプに応じたスタイリング
- * - 曲線パスの計算（交差を減らす）
+ * GraphEdge - ノード間関係を視覚化
  */
 export class GraphEdge extends Graphics {
 	private fromId: string;
 	private toId: string;
+	private layer: GraphEdgeLayer;
+	private relation: GraphEdgeRelation;
 	private edgeType: EdgeType = EdgeType.Normal;
 
-	// 座標
-	private fromX: number = 0;
-	private fromY: number = 0;
-	private toX: number = 0;
-	private toY: number = 0;
+	private fromX = 0;
+	private fromY = 0;
+	private toX = 0;
+	private toY = 0;
 
-	constructor(fromId: string, toId: string) {
+	constructor(
+		fromId: string,
+		toId: string,
+		layer: GraphEdgeLayer = 'reference',
+		relation: GraphEdgeRelation = 'depends_on'
+	) {
 		super();
-
 		this.fromId = fromId;
 		this.toId = toId;
+		this.layer = layer;
+		this.relation = relation;
 	}
 
-	/**
-	 * エッジの両端の座標を設定
-	 */
 	setEndpoints(fromX: number, fromY: number, toX: number, toY: number): void {
 		this.fromX = fromX;
 		this.fromY = fromY;
@@ -56,53 +86,75 @@ export class GraphEdge extends Graphics {
 		this.draw();
 	}
 
-	/**
-	 * エッジタイプを設定
-	 */
 	setType(type: EdgeType): void {
 		this.edgeType = type;
 		this.draw();
 	}
 
-	/**
-	 * エッジを描画（2層構造: 外側縁取り → コア）
-	 * シンプルで視認性を確保
-	 */
+	setSemantic(layer: GraphEdgeLayer, relation: GraphEdgeRelation): void {
+		this.layer = layer;
+		this.relation = relation;
+		this.draw();
+	}
+
+	getLayer(): GraphEdgeLayer {
+		return this.layer;
+	}
+
+	getRelation(): GraphEdgeRelation {
+		return this.relation;
+	}
+
 	draw(): void {
 		this.clear();
 
-		const style = EDGE_COLORS[this.edgeType];
-		const widths = EDGE_WIDTHS[this.edgeType];
+		let core = 0;
+		let outer = 0;
+		let widthCore = 0;
+		let widthOuter = 0;
 
-		// ベジェ曲線のコントロールポイントを計算
+		if (this.edgeType === EdgeType.Highlighted) {
+			core = EDGE_COLORS.highlighted.core;
+			outer = EDGE_COLORS.highlighted.outer;
+			widthCore = EDGE_WIDTHS.highlighted.core;
+			widthOuter = EDGE_WIDTHS.highlighted.outer;
+		} else if (this.edgeType === EdgeType.Blocked) {
+			core = EDGE_COLORS.blocked.core;
+			outer = EDGE_COLORS.blocked.outer;
+			widthCore = EDGE_WIDTHS.blocked.core;
+			widthOuter = EDGE_WIDTHS.blocked.outer;
+		} else if (this.edgeType === EdgeType.Critical) {
+			core = EDGE_COLORS.critical.core;
+			outer = EDGE_COLORS.critical.outer;
+			widthCore = EDGE_WIDTHS.critical.core;
+			widthOuter = EDGE_WIDTHS.critical.outer;
+		} else {
+			const semantic = semanticStyle(this.layer, this.relation);
+			core = semantic.core;
+			outer = semantic.outer;
+			widthCore = semantic.widthCore;
+			widthOuter = semantic.widthOuter;
+		}
+
 		const { cp1x, cp1y, cp2x, cp2y } = this.calculateControlPoints();
 
-		// Layer 1: 外側（縁取り）- 暗めの縁取りでコアを際立たせる
 		this.moveTo(this.fromX, this.fromY);
 		this.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, this.toX, this.toY);
-		this.stroke({ width: widths.outer, color: style.outer, alpha: 1.0 });
+		this.stroke({ width: widthOuter, color: outer, alpha: this.layer === 'reference' ? 0.9 : 1 });
 
-		// Layer 2: コア（内側）- 明るいコア線
 		this.moveTo(this.fromX, this.fromY);
 		this.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, this.toX, this.toY);
-		this.stroke({ width: widths.core, color: style.core, alpha: 1.0 });
+		this.stroke({ width: widthCore, color: core, alpha: 1 });
 
-		// 矢印を描画（2層構造対応）
-		this.drawArrow(cp2x, cp2y, this.toX, this.toY, style, widths);
+		this.drawArrow(cp2x, cp2y, this.toX, this.toY, core, outer);
 	}
 
-	/**
-	 * ベジェ曲線のコントロールポイントを計算
-	 */
 	private calculateControlPoints(): { cp1x: number; cp1y: number; cp2x: number; cp2y: number } {
 		const dx = this.toX - this.fromX;
 		const dy = this.toY - this.fromY;
 		const distance = Math.sqrt(dx * dx + dy * dy);
-
-		// 曲線の強さ（距離に比例）
 		const curvature = Math.min(distance * 0.3, 100);
 
-		// Y方向が主な場合（上から下への流れ）
 		if (Math.abs(dy) > Math.abs(dx)) {
 			const sign = dy > 0 ? 1 : -1;
 			return {
@@ -113,7 +165,6 @@ export class GraphEdge extends Graphics {
 			};
 		}
 
-		// X方向が主な場合（横方向の流れ）
 		const sign = dx > 0 ? 1 : -1;
 		return {
 			cp1x: this.fromX + curvature * sign,
@@ -123,36 +174,22 @@ export class GraphEdge extends Graphics {
 		};
 	}
 
-	/**
-	 * 矢印を描画（2層構造対応）
-	 */
-	private drawArrow(
-		fromX: number,
-		fromY: number,
-		toX: number,
-		toY: number,
-		style: (typeof EDGE_COLORS)[keyof typeof EDGE_COLORS],
-		_widths: (typeof EDGE_WIDTHS)[keyof typeof EDGE_WIDTHS]
-	): void {
-		// 方向ベクトルを計算
+	private drawArrow(fromX: number, fromY: number, toX: number, toY: number, core: number, outer: number): void {
 		const dx = toX - fromX;
 		const dy = toY - fromY;
 		const angle = Math.atan2(dy, dx);
 
-		// 矢印の先端
 		const arrowX1 = toX - ARROW_SIZE * Math.cos(angle - ARROW_ANGLE);
 		const arrowY1 = toY - ARROW_SIZE * Math.sin(angle - ARROW_ANGLE);
 		const arrowX2 = toX - ARROW_SIZE * Math.cos(angle + ARROW_ANGLE);
 		const arrowY2 = toY - ARROW_SIZE * Math.sin(angle + ARROW_ANGLE);
 
-		// Layer 1: 外側（塗りつぶし三角形）
 		this.moveTo(toX, toY);
 		this.lineTo(arrowX1, arrowY1);
 		this.lineTo(arrowX2, arrowY2);
 		this.closePath();
-		this.fill(style.outer);
+		this.fill(outer);
 
-		// Layer 2: コア（内側の明るい三角形、70%スケール）
 		const innerScale = 0.7;
 		const innerArrowX1 = toX - ARROW_SIZE * innerScale * Math.cos(angle - ARROW_ANGLE);
 		const innerArrowY1 = toY - ARROW_SIZE * innerScale * Math.sin(angle - ARROW_ANGLE);
@@ -163,72 +200,60 @@ export class GraphEdge extends Graphics {
 		this.lineTo(innerArrowX1, innerArrowY1);
 		this.lineTo(innerArrowX2, innerArrowY2);
 		this.closePath();
-		this.fill(style.core);
+		this.fill(core);
 	}
 
-	/**
-	 * From ノード ID を取得
-	 */
 	getFromId(): string {
 		return this.fromId;
 	}
 
-	/**
-	 * To ノード ID を取得
-	 */
 	getToId(): string {
 		return this.toId;
 	}
 
-	/**
-	 * エッジの識別キーを生成
-	 */
-	static createKey(fromId: string, toId: string): string {
-		return `${fromId}-->${toId}`;
+	static createKey(
+		fromId: string,
+		toId: string,
+		layer: GraphEdgeLayer,
+		relation: GraphEdgeRelation
+	): string {
+		return `${fromId}-->${toId}::${layer}:${relation}`;
 	}
 
-	/**
-	 * このエッジのキーを取得
-	 */
 	getKey(): string {
-		return GraphEdge.createKey(this.fromId, this.toId);
+		return GraphEdge.createKey(this.fromId, this.toId, this.layer, this.relation);
 	}
 }
 
-// 後方互換性のためのエイリアス
+// 後方互換性エイリアス
 export { GraphEdge as TaskEdge };
 
 /**
  * EdgeFactory - 複数のエッジを効率的に管理
- * ノード→エッジのインデックスにより O(1) でエッジを取得可能
  */
 export class EdgeFactory {
 	private edges: Map<string, GraphEdge> = new Map();
-	// ノードID → 関連するエッジキーのセット（高速検索用インデックス）
 	private nodeToEdges: Map<string, Set<string>> = new Map();
 
-	/**
-	 * エッジを作成または取得
-	 */
-	getOrCreate(fromId: string, toId: string): GraphEdge {
-		const key = GraphEdge.createKey(fromId, toId);
-
+	getOrCreate(
+		fromId: string,
+		toId: string,
+		layer: GraphEdgeLayer,
+		relation: GraphEdgeRelation
+	): GraphEdge {
+		const key = GraphEdge.createKey(fromId, toId, layer, relation);
 		let edge = this.edges.get(key);
 		if (!edge) {
-			edge = new GraphEdge(fromId, toId);
+			edge = new GraphEdge(fromId, toId, layer, relation);
 			this.edges.set(key, edge);
-
-			// インデックスを更新
 			this.addToIndex(fromId, key);
 			this.addToIndex(toId, key);
+		} else {
+			edge.setSemantic(layer, relation);
 		}
-
 		return edge;
 	}
 
-	/**
-	 * インデックスにエッジを追加
-	 */
 	private addToIndex(nodeId: string, edgeKey: string): void {
 		let edgeSet = this.nodeToEdges.get(nodeId);
 		if (!edgeSet) {
@@ -238,9 +263,6 @@ export class EdgeFactory {
 		edgeSet.add(edgeKey);
 	}
 
-	/**
-	 * インデックスからエッジを削除
-	 */
 	private removeFromIndex(nodeId: string, edgeKey: string): void {
 		const edgeSet = this.nodeToEdges.get(nodeId);
 		if (edgeSet) {
@@ -251,42 +273,32 @@ export class EdgeFactory {
 		}
 	}
 
-	/**
-	 * エッジを取得
-	 */
-	get(fromId: string, toId: string): GraphEdge | undefined {
-		const key = GraphEdge.createKey(fromId, toId);
+	get(
+		fromId: string,
+		toId: string,
+		layer: GraphEdgeLayer,
+		relation: GraphEdgeRelation
+	): GraphEdge | undefined {
+		const key = GraphEdge.createKey(fromId, toId, layer, relation);
 		return this.edges.get(key);
 	}
 
-	/**
-	 * エッジを削除
-	 */
-	remove(fromId: string, toId: string): boolean {
-		const key = GraphEdge.createKey(fromId, toId);
+	remove(fromId: string, toId: string, layer: GraphEdgeLayer, relation: GraphEdgeRelation): boolean {
+		const key = GraphEdge.createKey(fromId, toId, layer, relation);
 		const edge = this.edges.get(key);
-		if (edge) {
-			// インデックスから削除
-			this.removeFromIndex(fromId, key);
-			this.removeFromIndex(toId, key);
+		if (!edge) return false;
 
-			edge.destroy();
-			this.edges.delete(key);
-			return true;
-		}
-		return false;
+		this.removeFromIndex(fromId, key);
+		this.removeFromIndex(toId, key);
+		edge.destroy();
+		this.edges.delete(key);
+		return true;
 	}
 
-	/**
-	 * 全エッジを取得
-	 */
 	getAll(): GraphEdge[] {
 		return Array.from(this.edges.values());
 	}
 
-	/**
-	 * 全エッジを削除
-	 */
 	clear(): void {
 		for (const edge of this.edges.values()) {
 			edge.destroy();
@@ -295,9 +307,6 @@ export class EdgeFactory {
 		this.nodeToEdges.clear();
 	}
 
-	/**
-	 * ノードに関連する全エッジを取得（O(1) インデックス検索）
-	 */
 	getEdgesForNode(nodeId: string): GraphEdge[] {
 		const edgeKeys = this.nodeToEdges.get(nodeId);
 		if (!edgeKeys) return [];
@@ -305,16 +314,11 @@ export class EdgeFactory {
 		const result: GraphEdge[] = [];
 		for (const key of edgeKeys) {
 			const edge = this.edges.get(key);
-			if (edge) {
-				result.push(edge);
-			}
+			if (edge) result.push(edge);
 		}
 		return result;
 	}
 
-	/**
-	 * ノードに関連するエッジの数を取得（O(1)）
-	 */
 	getEdgeCountForNode(nodeId: string): number {
 		return this.nodeToEdges.get(nodeId)?.size ?? 0;
 	}

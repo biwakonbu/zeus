@@ -353,6 +353,61 @@ func TestUnifiedGraph_ToMermaid(t *testing.T) {
 	if !strings.Contains(mermaid, "graph TD") {
 		t.Error("ToMermaid output should contain 'graph TD'")
 	}
+	if !strings.Contains(mermaid, "depends_on") {
+		t.Error("ToMermaid should include relation label 'depends_on'")
+	}
+}
+
+func TestUnifiedGraphBuilder_InvalidDependsOnRelation(t *testing.T) {
+	builder := NewUnifiedGraphBuilder()
+	graph := builder.
+		WithUseCases([]UseCaseInfo{{ID: "uc-001", Title: "UseCase 1", Status: "active"}}).
+		WithActivities([]ActivityInfo{
+			{
+				ID:           "act-001",
+				Title:        "Activity 1",
+				Status:       "active",
+				Dependencies: []string{"uc-001"}, // Activity -> UseCase は invalid
+			},
+		}).
+		Build()
+
+	if len(builder.ValidationErrors()) == 0 {
+		t.Fatal("expected validation errors for invalid depends_on relation")
+	}
+
+	for _, edge := range graph.Edges {
+		if edge.From == "act-001" && edge.To == "uc-001" {
+			t.Fatalf("invalid edge should not be created: %+v", edge)
+		}
+	}
+}
+
+func TestUnifiedGraphBuilder_WithFilter_IncludeLayersAndRelations(t *testing.T) {
+	builder := NewUnifiedGraphBuilder()
+	graph := builder.
+		WithObjectives([]ObjectiveInfo{{ID: "obj-001", Title: "Objective", Status: "active"}}).
+		WithUseCases([]UseCaseInfo{{ID: "uc-001", Title: "UseCase", Status: "active", ObjectiveID: "obj-001"}}).
+		WithDeliverables([]DeliverableInfo{{ID: "del-001", Title: "Deliverable", Status: "draft", ObjectiveID: "obj-001"}}).
+		WithActivities([]ActivityInfo{{
+			ID:                  "act-001",
+			Title:               "Activity",
+			Status:              "active",
+			UseCaseID:           "uc-001",
+			RelatedDeliverables: []string{"del-001"},
+		}}).
+		WithFilter(NewGraphFilter().
+			WithIncludeLayers(EdgeLayerReference).
+			WithIncludeRelations(RelationProduces)).
+		Build()
+
+	if len(graph.Edges) != 1 {
+		t.Fatalf("expected only one reference edge, got %d", len(graph.Edges))
+	}
+	edge := graph.Edges[0]
+	if edge.Layer != EdgeLayerReference || edge.Relation != RelationProduces {
+		t.Fatalf("unexpected edge: %+v", edge)
+	}
 }
 
 func TestUnifiedGraphBuilder_Build_DepthCalculation(t *testing.T) {
@@ -374,16 +429,16 @@ func TestUnifiedGraphBuilder_Build_DepthCalculation(t *testing.T) {
 		Build()
 
 	// Objective が深さ 0（ルート）
-	if graph.Nodes["obj-001"].Depth != 0 {
-		t.Errorf("expected obj-001 depth 0, got %d", graph.Nodes["obj-001"].Depth)
+	if graph.Nodes["obj-001"].StructuralDepth != 0 {
+		t.Errorf("expected obj-001 depth 0, got %d", graph.Nodes["obj-001"].StructuralDepth)
 	}
 	// UseCase が深さ 1
-	if graph.Nodes["uc-001"].Depth != 1 {
-		t.Errorf("expected uc-001 depth 1, got %d", graph.Nodes["uc-001"].Depth)
+	if graph.Nodes["uc-001"].StructuralDepth != 1 {
+		t.Errorf("expected uc-001 depth 1, got %d", graph.Nodes["uc-001"].StructuralDepth)
 	}
 	// Activity が深さ 2
-	if graph.Nodes["act-001"].Depth != 2 {
-		t.Errorf("expected act-001 depth 2, got %d", graph.Nodes["act-001"].Depth)
+	if graph.Nodes["act-001"].StructuralDepth != 2 {
+		t.Errorf("expected act-001 depth 2, got %d", graph.Nodes["act-001"].StructuralDepth)
 	}
 }
 
@@ -402,12 +457,12 @@ func TestUnifiedGraphBuilder_Build_DepthWithDeliverable(t *testing.T) {
 		Build()
 
 	// Objective が深さ 0（ルート）
-	if graph.Nodes["obj-001"].Depth != 0 {
-		t.Errorf("expected obj-001 depth 0, got %d", graph.Nodes["obj-001"].Depth)
+	if graph.Nodes["obj-001"].StructuralDepth != 0 {
+		t.Errorf("expected obj-001 depth 0, got %d", graph.Nodes["obj-001"].StructuralDepth)
 	}
 	// Deliverable が深さ 1
-	if graph.Nodes["del-001"].Depth != 1 {
-		t.Errorf("expected del-001 depth 1, got %d", graph.Nodes["del-001"].Depth)
+	if graph.Nodes["del-001"].StructuralDepth != 1 {
+		t.Errorf("expected del-001 depth 1, got %d", graph.Nodes["del-001"].StructuralDepth)
 	}
 }
 
@@ -432,24 +487,24 @@ func TestUnifiedGraphBuilder_Build_DepthWithMultipleActivities(t *testing.T) {
 		Build()
 
 	// Objective が深さ 0
-	if graph.Nodes["obj-001"].Depth != 0 {
-		t.Errorf("expected obj-001 depth 0, got %d", graph.Nodes["obj-001"].Depth)
+	if graph.Nodes["obj-001"].StructuralDepth != 0 {
+		t.Errorf("expected obj-001 depth 0, got %d", graph.Nodes["obj-001"].StructuralDepth)
 	}
 	// UseCase が深さ 1
-	if graph.Nodes["uc-001"].Depth != 1 {
-		t.Errorf("expected uc-001 depth 1, got %d", graph.Nodes["uc-001"].Depth)
+	if graph.Nodes["uc-001"].StructuralDepth != 1 {
+		t.Errorf("expected uc-001 depth 1, got %d", graph.Nodes["uc-001"].StructuralDepth)
 	}
 	// Activity 1 が深さ 2（UseCase の子）
-	if graph.Nodes["act-001"].Depth != 2 {
-		t.Errorf("expected act-001 depth 2, got %d", graph.Nodes["act-001"].Depth)
+	if graph.Nodes["act-001"].StructuralDepth != 2 {
+		t.Errorf("expected act-001 depth 2, got %d", graph.Nodes["act-001"].StructuralDepth)
 	}
-	// Activity 2 が深さ 3（Activity 1 に依存）
-	if graph.Nodes["act-002"].Depth != 3 {
-		t.Errorf("expected act-002 depth 3, got %d", graph.Nodes["act-002"].Depth)
+	// Activity 2 は reference 層 depends_on のため structural depth は増えない
+	if graph.Nodes["act-002"].StructuralDepth != 2 {
+		t.Errorf("expected act-002 structural depth 2, got %d", graph.Nodes["act-002"].StructuralDepth)
 	}
-	// Activity 3 が深さ 4（Activity 2 に依存）
-	if graph.Nodes["act-003"].Depth != 4 {
-		t.Errorf("expected act-003 depth 4, got %d", graph.Nodes["act-003"].Depth)
+	// Activity 3 も同様に structural depth は 2
+	if graph.Nodes["act-003"].StructuralDepth != 2 {
+		t.Errorf("expected act-003 structural depth 2, got %d", graph.Nodes["act-003"].StructuralDepth)
 	}
 }
 
@@ -458,6 +513,8 @@ func TestGraphFilter_Chaining(t *testing.T) {
 		WithFocus("act-001", 2).
 		WithIncludeTypes(EntityTypeActivity, EntityTypeUseCase).
 		WithExcludeTypes(EntityTypeDeliverable).
+		WithIncludeLayers(EdgeLayerStructural, EdgeLayerReference).
+		WithIncludeRelations(RelationParent, RelationDependsOn).
 		WithHideCompleted(true).
 		WithHideDraft(true).
 		WithHideUnrelated(true)
@@ -473,6 +530,12 @@ func TestGraphFilter_Chaining(t *testing.T) {
 	}
 	if len(filter.ExcludeTypes) != 1 {
 		t.Errorf("expected 1 exclude type, got %d", len(filter.ExcludeTypes))
+	}
+	if len(filter.IncludeLayers) != 2 {
+		t.Errorf("expected 2 include layers, got %d", len(filter.IncludeLayers))
+	}
+	if len(filter.IncludeRelations) != 2 {
+		t.Errorf("expected 2 include relations, got %d", len(filter.IncludeRelations))
 	}
 	if !filter.HideCompleted {
 		t.Error("expected HideCompleted to be true")

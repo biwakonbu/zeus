@@ -14,26 +14,24 @@ import (
 
 // UnifiedGraphNodeItem は UnifiedGraph ノードの API アイテム
 type UnifiedGraphNodeItem struct {
-	ID       string `json:"id"`
-	Type     string `json:"type"`
-	Title    string `json:"title"`
-	Status   string `json:"status"`
-	Depth    int    `json:"depth"`
-	Mode     string `json:"mode,omitempty"`
-	Assignee string `json:"assignee,omitempty"`
-	Priority string `json:"priority,omitempty"`
-
-	// 関連情報
-	Parents  []string `json:"parents,omitempty"`
-	Children []string `json:"children,omitempty"`
+	ID                 string   `json:"id"`
+	Type               string   `json:"type"`
+	Title              string   `json:"title"`
+	Status             string   `json:"status"`
+	StructuralDepth    int      `json:"structural_depth"`
+	Mode               string   `json:"mode,omitempty"`
+	Assignee           string   `json:"assignee,omitempty"`
+	Priority           string   `json:"priority,omitempty"`
+	StructuralParents  []string `json:"structural_parents,omitempty"`
+	StructuralChildren []string `json:"structural_children,omitempty"`
 }
 
 // UnifiedGraphEdgeItem は UnifiedGraph エッジの API アイテム
 type UnifiedGraphEdgeItem struct {
-	Source string `json:"source"`
-	Target string `json:"target"`
-	Type   string `json:"type"`
-	Label  string `json:"label,omitempty"`
+	Source   string `json:"source"`
+	Target   string `json:"target"`
+	Layer    string `json:"layer"`
+	Relation string `json:"relation"`
 }
 
 // UnifiedGraphStatsItem は UnifiedGraph 統計の API アイテム
@@ -42,11 +40,12 @@ type UnifiedGraphStatsItem struct {
 	TotalEdges          int            `json:"total_edges"`
 	TotalActivities     int            `json:"total_activities"`
 	CompletedActivities int            `json:"completed_activities"`
-	MaxDepth            int            `json:"max_depth"`
+	MaxStructuralDepth  int            `json:"max_structural_depth"`
 	CycleCount          int            `json:"cycle_count"`
 	IsolatedCount       int            `json:"isolated_count"`
 	NodesByType         map[string]int `json:"nodes_by_type,omitempty"`
-	EdgesByType         map[string]int `json:"edges_by_type,omitempty"`
+	EdgesByLayer        map[string]int `json:"edges_by_layer,omitempty"`
+	EdgesByRelation     map[string]int `json:"edges_by_relation,omitempty"`
 }
 
 // UnifiedGraphResponse は UnifiedGraph API のレスポンス
@@ -64,11 +63,13 @@ type UnifiedGraphResponse struct {
 
 // UnifiedGraphFilterInfo はフィルター情報
 type UnifiedGraphFilterInfo struct {
-	FocusID       string   `json:"focus_id,omitempty"`
-	Depth         int      `json:"depth,omitempty"`
-	IncludeTypes  []string `json:"include_types,omitempty"`
-	HideCompleted bool     `json:"hide_completed"`
-	HideDraft     bool     `json:"hide_draft"`
+	FocusID          string   `json:"focus_id,omitempty"`
+	Depth            int      `json:"depth,omitempty"`
+	IncludeTypes     []string `json:"include_types,omitempty"`
+	IncludeLayers    []string `json:"include_layers,omitempty"`
+	IncludeRelations []string `json:"include_relations,omitempty"`
+	HideCompleted    bool     `json:"hide_completed"`
+	HideDraft        bool     `json:"hide_draft"`
 }
 
 // =============================================================================
@@ -125,6 +126,22 @@ func buildGraphFilter(r *http.Request) *analysis.GraphFilter {
 			filter = filter.WithIncludeTypes(types...)
 		}
 	}
+	// layers パラメータ
+	layersStr := r.URL.Query().Get("layers")
+	if layersStr != "" {
+		layers := parseEdgeLayersFromQuery(layersStr)
+		if len(layers) > 0 {
+			filter = filter.WithIncludeLayers(layers...)
+		}
+	}
+	// relations パラメータ
+	relationsStr := r.URL.Query().Get("relations")
+	if relationsStr != "" {
+		relations := parseEdgeRelationsFromQuery(relationsStr)
+		if len(relations) > 0 {
+			filter = filter.WithIncludeRelations(relations...)
+		}
+	}
 
 	// hide-completed パラメータ
 	if r.URL.Query().Get("hide-completed") == "true" {
@@ -158,22 +175,58 @@ func parseEntityTypesFromQuery(typesStr string) []analysis.EntityType {
 	return types
 }
 
+func parseEdgeLayersFromQuery(layersStr string) []analysis.UnifiedEdgeLayer {
+	var layers []analysis.UnifiedEdgeLayer
+	for _, l := range strings.Split(layersStr, ",") {
+		l = strings.TrimSpace(strings.ToLower(l))
+		switch l {
+		case string(analysis.EdgeLayerStructural):
+			layers = append(layers, analysis.EdgeLayerStructural)
+		case string(analysis.EdgeLayerReference):
+			layers = append(layers, analysis.EdgeLayerReference)
+		}
+	}
+	return layers
+}
+
+func parseEdgeRelationsFromQuery(relationsStr string) []analysis.UnifiedEdgeRelation {
+	var relations []analysis.UnifiedEdgeRelation
+	for _, r := range strings.Split(relationsStr, ",") {
+		r = strings.TrimSpace(strings.ToLower(r))
+		switch r {
+		case string(analysis.RelationParent):
+			relations = append(relations, analysis.RelationParent)
+		case string(analysis.RelationDependsOn):
+			relations = append(relations, analysis.RelationDependsOn)
+		case string(analysis.RelationImplements):
+			relations = append(relations, analysis.RelationImplements)
+		case string(analysis.RelationContributes):
+			relations = append(relations, analysis.RelationContributes)
+		case string(analysis.RelationFulfills):
+			relations = append(relations, analysis.RelationFulfills)
+		case string(analysis.RelationProduces):
+			relations = append(relations, analysis.RelationProduces)
+		}
+	}
+	return relations
+}
+
 // convertUnifiedGraphToResponse は UnifiedGraph をレスポンスに変換
 func convertUnifiedGraphToResponse(graph *analysis.UnifiedGraph, filter *analysis.GraphFilter) UnifiedGraphResponse {
 	// ノードの変換（map → slice）
 	nodes := make([]UnifiedGraphNodeItem, 0, len(graph.Nodes))
 	for _, node := range graph.Nodes {
 		item := UnifiedGraphNodeItem{
-			ID:       node.ID,
-			Type:     string(node.Type),
-			Title:    node.Title,
-			Status:   node.Status,
-			Depth:    node.Depth,
-			Mode:     node.Mode,
-			Assignee: node.Assignee,
-			Priority: node.Priority,
-			Parents:  node.Parents,
-			Children: node.Children,
+			ID:                 node.ID,
+			Type:               string(node.Type),
+			Title:              node.Title,
+			Status:             node.Status,
+			StructuralDepth:    node.StructuralDepth,
+			Mode:               node.Mode,
+			Assignee:           node.Assignee,
+			Priority:           node.Priority,
+			StructuralParents:  node.StructuralParents,
+			StructuralChildren: node.StructuralChildren,
 		}
 		nodes = append(nodes, item)
 	}
@@ -182,10 +235,10 @@ func convertUnifiedGraphToResponse(graph *analysis.UnifiedGraph, filter *analysi
 	edges := make([]UnifiedGraphEdgeItem, len(graph.Edges))
 	for i, edge := range graph.Edges {
 		edges[i] = UnifiedGraphEdgeItem{
-			Source: edge.From,
-			Target: edge.To,
-			Type:   string(edge.Type),
-			Label:  edge.Label,
+			Source:   edge.From,
+			Target:   edge.To,
+			Layer:    string(edge.Layer),
+			Relation: string(edge.Relation),
 		}
 	}
 
@@ -195,10 +248,16 @@ func convertUnifiedGraphToResponse(graph *analysis.UnifiedGraph, filter *analysi
 		nodesByType[string(k)] = v
 	}
 
-	// EdgesByType の変換（UnifiedEdgeType → string）
-	edgesByType := make(map[string]int)
-	for k, v := range graph.Stats.EdgesByType {
-		edgesByType[string(k)] = v
+	// EdgesByLayer の変換
+	edgesByLayer := make(map[string]int)
+	for k, v := range graph.Stats.EdgesByLayer {
+		edgesByLayer[string(k)] = v
+	}
+
+	// EdgesByRelation の変換
+	edgesByRelation := make(map[string]int)
+	for k, v := range graph.Stats.EdgesByRelation {
+		edgesByRelation[string(k)] = v
 	}
 
 	// 統計の変換
@@ -207,11 +266,12 @@ func convertUnifiedGraphToResponse(graph *analysis.UnifiedGraph, filter *analysi
 		TotalEdges:          graph.Stats.TotalEdges,
 		TotalActivities:     graph.Stats.TotalActivities,
 		CompletedActivities: graph.Stats.CompletedActivities,
-		MaxDepth:            graph.Stats.MaxDepth,
+		MaxStructuralDepth:  graph.Stats.MaxStructuralDepth,
 		CycleCount:          graph.Stats.CycleCount,
 		IsolatedCount:       graph.Stats.IsolatedCount,
 		NodesByType:         nodesByType,
-		EdgesByType:         edgesByType,
+		EdgesByLayer:        edgesByLayer,
+		EdgesByRelation:     edgesByRelation,
 	}
 
 	// Cycles, Isolated の nil チェック
@@ -226,17 +286,31 @@ func convertUnifiedGraphToResponse(graph *analysis.UnifiedGraph, filter *analysi
 
 	// フィルター情報の構築
 	var filterInfo *UnifiedGraphFilterInfo
-	if filter != nil && (filter.FocusID != "" || len(filter.IncludeTypes) > 0 || filter.HideCompleted || filter.HideDraft) {
+	if filter != nil && (filter.FocusID != "" ||
+		len(filter.IncludeTypes) > 0 ||
+		len(filter.IncludeLayers) > 0 ||
+		len(filter.IncludeRelations) > 0 ||
+		filter.HideCompleted || filter.HideDraft) {
 		types := make([]string, len(filter.IncludeTypes))
 		for i, t := range filter.IncludeTypes {
 			types[i] = string(t)
 		}
+		layers := make([]string, len(filter.IncludeLayers))
+		for i, l := range filter.IncludeLayers {
+			layers[i] = string(l)
+		}
+		relations := make([]string, len(filter.IncludeRelations))
+		for i, rel := range filter.IncludeRelations {
+			relations[i] = string(rel)
+		}
 		filterInfo = &UnifiedGraphFilterInfo{
-			FocusID:       filter.FocusID,
-			Depth:         filter.FocusDepth,
-			IncludeTypes:  types,
-			HideCompleted: filter.HideCompleted,
-			HideDraft:     filter.HideDraft,
+			FocusID:          filter.FocusID,
+			Depth:            filter.FocusDepth,
+			IncludeTypes:     types,
+			IncludeLayers:    layers,
+			IncludeRelations: relations,
+			HideCompleted:    filter.HideCompleted,
+			HideDraft:        filter.HideDraft,
 		}
 	}
 
