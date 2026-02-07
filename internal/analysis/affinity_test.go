@@ -324,8 +324,6 @@ func TestAffinityCalculator_SiblingEdges_Deliverables(t *testing.T) {
 	}
 }
 
-// Note: WBS 隣接関係テストは WBS 機能削除に伴い削除
-
 // ===== 参照関係テスト =====
 
 func TestAffinityCalculator_ReferenceEdges(t *testing.T) {

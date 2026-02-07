@@ -411,9 +411,9 @@
 	</div>
 </Story>
 
-<!-- WBS グラフ（階層表示）- Note: WBS 機能削除後も node_type でタイプ分類は可能 -->
-<Story name="WBSGraph">
-	{@const wbsNodes: StoryNode[] = [
+<!-- タイプ別グラフ（階層表示） -->
+<Story name="TypedGraph">
+	{@const typedNodes: StoryNode[] = [
 		// Vision
 		{ id: 'vision-1', title: 'プロジェクト管理の革新', node_type: 'vision', status: 'in_progress', priority: 'high', dependencies: [] },
 		// Objectives
@@ -431,7 +431,7 @@
 	]}
 	<div style="height: 700px; background: var(--bg-primary);">
 		<FactorioViewer
-			graphData={toGraphData(wbsNodes)}
+			graphData={toGraphData(typedNodes)}
 			onTaskSelect={handleTaskSelect}
 			onTaskHover={handleTaskHover}
 		/>

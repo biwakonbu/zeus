@@ -41,9 +41,6 @@
 
 	let { graphData, selectedTaskId = null, onTaskSelect, onTaskHover }: Props = $props();
 
-	// WBS モード判定: graphData が提供されているかどうか
-	let isWBSMode = $derived(!!graphData && graphData.nodes.length > 0);
-
 	// 内部で使用する統一された GraphNode リスト
 	let graphNodes = $derived(graphData?.nodes ?? []);
 
@@ -188,7 +185,7 @@
 	let highlightedDownstream: Set<string> = $state(new Set());
 	let highlightedUpstream: Set<string> = $state(new Set());
 	let showImpactHighlight: boolean = $state(true);
-	let includeStructuralInTraversal: boolean = $state(false);
+	let includeStructuralInTraversal: boolean = $state(true);
 
 	type MetricsEntry = {
 		timestamp: string;
@@ -520,8 +517,7 @@
 						panY: Math.round(currentViewport.y)
 					},
 					nodeCount: nodeMap.size,
-					edgeCount: edgeFactory.getAll().length,
-					mode: isWBSMode ? 'wbs' : 'task'
+					edgeCount: edgeFactory.getAll().length
 				}),
 
 				// 選択状態を返す
@@ -940,8 +936,7 @@
 				orthogonalEdgeCount,
 				routeFallbackCount,
 				visibleFilterCount: visibleTaskIds.size,
-				viewportScale: Number(currentViewport.scale.toFixed(2)),
-				mode: isWBSMode ? 'wbs' : 'task'
+				viewportScale: Number(currentViewport.scale.toFixed(2))
 			},
 			true
 		);
@@ -1676,7 +1671,6 @@
 			zoom: currentViewport.scale,
 			nodeCount: graphNodes.length,
 			visibleCount,
-			mode: isWBSMode ? 'wbs' : 'task',
 			showListPanel,
 			showFilterPanel,
 			showLegend,
@@ -1700,7 +1694,6 @@
 			(currentViewport.scale !== undefined ||
 				graphNodes.length !== undefined ||
 				visibleCount !== undefined ||
-				isWBSMode !== undefined ||
 				showListPanel !== undefined ||
 				showFilterPanel !== undefined ||
 				showLegend !== undefined ||
@@ -1780,7 +1773,6 @@
 	<!-- ミニマップ -->
 	<Minimap
 		nodes={graphNodes}
-		{isWBSMode}
 		{positions}
 		bounds={layoutBounds}
 		viewport={currentViewport}
@@ -1797,18 +1789,16 @@
 			onClose={toggleLegend}
 		>
 			<div class="legend-content">
-				{#if isWBSMode}
-					<!-- WBS モード: ノードタイプ凡例（NODE_TYPE_CONFIG から生成） -->
-					<div class="legend-section">
-						<div class="legend-section-title">NODE TYPE</div>
-						{#each Object.entries(NODE_TYPE_CONFIG) as [type, config]}
-							<div class="legend-item">
-								<span class="legend-dot" style:background-color={config.cssColor}></span>
-								<span>{type[0].toUpperCase() + type.slice(1)}</span>
-							</div>
-						{/each}
-					</div>
-				{/if}
+				<!-- ノードタイプ凡例（NODE_TYPE_CONFIG から生成） -->
+				<div class="legend-section">
+					<div class="legend-section-title">NODE TYPE</div>
+					{#each Object.entries(NODE_TYPE_CONFIG) as [type, config]}
+						<div class="legend-item">
+							<span class="legend-dot" style:background-color={config.cssColor}></span>
+							<span>{type[0].toUpperCase() + type.slice(1)}</span>
+						</div>
+					{/each}
+				</div>
 					<div class="legend-section">
 						<div class="legend-section-title">STATUS</div>
 					<div class="legend-item">
@@ -1960,5 +1950,5 @@
 		font-size: 0.72rem;
 	}
 
-	/* WBS ノードタイプ別の色は NODE_TYPE_CONFIG から inline style で適用 */
+	/* ノードタイプ別の色は NODE_TYPE_CONFIG から inline style で適用 */
 </style>

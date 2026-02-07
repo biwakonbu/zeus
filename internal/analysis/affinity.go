@@ -4,8 +4,6 @@ package analysis
 import (
 	"context"
 	"sort"
-	"strconv"
-	"strings"
 )
 
 // AffinityType は関連の種類
@@ -604,32 +602,4 @@ func (ac *AffinityCalculator) calculateStats(nodes []AffinityNode, edges []Affin
 		ClusterCount:   len(clusters),
 		AvgConnections: avgConnections,
 	}
-}
-
-// isWBSAdjacent は 2 つの WBS コードが隣接しているか判定
-// Note: WBS 機能は削除されましたが、互換性のため関数を残しています
-func (ac *AffinityCalculator) isWBSAdjacent(code1, code2 string) bool {
-	parts1 := strings.Split(code1, ".")
-	parts2 := strings.Split(code2, ".")
-
-	// 同じ深さでない場合は隣接しない
-	if len(parts1) != len(parts2) {
-		return false
-	}
-
-	// 最後の部分以外が同じで、最後の部分が連続している
-	for i := 0; i < len(parts1)-1; i++ {
-		if parts1[i] != parts2[i] {
-			return false
-		}
-	}
-
-	// 最後の部分の数値を比較
-	num1, err1 := strconv.Atoi(parts1[len(parts1)-1])
-	num2, err2 := strconv.Atoi(parts2[len(parts2)-1])
-	if err1 != nil || err2 != nil {
-		return false
-	}
-
-	return num2-num1 == 1
 }

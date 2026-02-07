@@ -258,16 +258,18 @@ export class FilterManager {
 		}
 
 		// 優先度フィルター
+		// priority を持たないノード（UseCase, Deliverable, Objective）はフィルタ対象外（表示を維持）
 		if (this.criteria.priorities && this.criteria.priorities.length > 0) {
 			const nodePriority = node.priority as Priority | undefined;
-			if (!nodePriority || !this.criteria.priorities.includes(nodePriority)) {
+			if (nodePriority && !this.criteria.priorities.includes(nodePriority)) {
 				return false;
 			}
 		}
 
 		// 担当者フィルター
+		// assignee を持たないノード（UseCase, Deliverable, Objective）はフィルタ対象外（表示を維持）
 		if (this.criteria.assignees && this.criteria.assignees.length > 0) {
-			if (!node.assignee || !this.criteria.assignees.includes(node.assignee)) {
+			if (node.assignee && !this.criteria.assignees.includes(node.assignee)) {
 				return false;
 			}
 		}

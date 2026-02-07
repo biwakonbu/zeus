@@ -17,7 +17,7 @@ export interface DrillDownState {
 		scrollY?: number;
 		/** ズームレベル（Graph View 等） */
 		zoomLevel?: number;
-		/** アクティブなビュータブ（WBS Viewer） */
+		/** アクティブなビュータブ（Graph Viewer） */
 		activeView?: string;
 	};
 }

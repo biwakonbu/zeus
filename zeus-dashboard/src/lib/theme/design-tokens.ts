@@ -1,5 +1,5 @@
 // デザイントークン - Factorio 風 UI システム
-// 議論結果（round: 20260121-174500_wbsdesign）に基づく
+// 議論結果に基づく
 
 export const tokens = {
 	colors: {

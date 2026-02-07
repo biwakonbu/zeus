@@ -1,4 +1,4 @@
-// グラフノードの描画クラス（WBS 全ノードタイプ対応）
+// グラフノードの描画クラス（全ノードタイプ対応）
 import { Container, Graphics, Text } from 'pixi.js';
 import type { FederatedPointerEvent } from 'pixi.js';
 import type { GraphNode, GraphNodeType } from '$lib/types/api';

@@ -18,7 +18,7 @@ var rootCmd = &cobra.Command{
 	Use:   "zeus",
 	Short: "AI-driven project management with god's eye view",
 	Long: `Zeus は AI によるプロジェクトマネジメントを「神の視点」で
-俯瞰するシステムです。上流工程（方針立案からWBS化、タイムライン設計、
+俯瞰するシステムです。上流工程（方針立案からタイムライン設計、
 仕様作成まで）を支援します。`,
 }
 

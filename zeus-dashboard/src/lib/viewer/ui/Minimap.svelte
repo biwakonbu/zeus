@@ -7,14 +7,13 @@
 	// Props
 	interface Props {
 		nodes: GraphNode[];
-		isWBSMode?: boolean;
 		positions: Map<string, NodePosition>;
 		bounds: LayoutResult['bounds'];
 		viewport: Viewport;
 		onNavigate?: (x: number, y: number) => void;
 	}
 
-	let { nodes, isWBSMode = false, positions, bounds, viewport, onNavigate }: Props = $props();
+	let { nodes, positions, bounds, viewport, onNavigate }: Props = $props();
 
 	// ミニマップサイズ
 	const MINIMAP_WIDTH = 180;
@@ -112,9 +111,9 @@
 		return getNodeTypeCSSColor(nodeType);
 	}
 
-	// モードに応じた色を取得
+	// ノードタイプに基づく色を取得
 	function getNodeColor(node: { status: string; nodeType: GraphNodeType }): string {
-		return isWBSMode ? getNodeTypeColor(node.nodeType) : getStatusColor(node.status);
+		return getNodeTypeColor(node.nodeType);
 	}
 </script>
 

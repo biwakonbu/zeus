@@ -31,7 +31,7 @@ export interface SummaryStats {
 	pending: number;
 }
 
-// EntityStatus と Priority は TimelineItem, WBSNode 等で使用される共通型
+// EntityStatus と Priority は各ビューで使用される共通型
 export type EntityStatus = 'completed' | 'in_progress' | 'pending' | 'blocked';
 export type Priority = 'high' | 'medium' | 'low';
 

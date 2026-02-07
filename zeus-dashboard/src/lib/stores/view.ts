@@ -80,7 +80,6 @@ export interface GraphViewState {
 	zoom: number;
 	nodeCount: number;
 	visibleCount: number;
-	mode: 'task' | 'wbs';
 	// 機能トグル状態
 	showListPanel: boolean;
 	showFilterPanel: boolean;
@@ -102,7 +101,6 @@ const defaultGraphViewState: GraphViewState = {
 	zoom: 1.0,
 	nodeCount: 0,
 	visibleCount: 0,
-	mode: 'task',
 	showListPanel: true,
 	showFilterPanel: true,
 	showLegend: true,

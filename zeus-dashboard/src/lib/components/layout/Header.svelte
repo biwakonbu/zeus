@@ -168,10 +168,8 @@
 			<!-- Graph ビュー専用コントロール -->
 			{#if $currentView === 'graph'}
 				<div class="graph-controls">
-					<!-- モードバッジ -->
-					<div class="info-badge mode-badge" class:wbs-mode={$graphViewState.mode === 'wbs'}>
-						<span>{$graphViewState.mode === 'wbs' ? 'WBS' : 'TASK'}</span>
-						<span class="badge-separator">|</span>
+					<!-- ノード数バッジ -->
+					<div class="info-badge">
 						<span>{$graphViewState.visibleCount}/{$graphViewState.nodeCount}</span>
 					</div>
 
@@ -433,18 +431,6 @@
 		min-width: 40px;
 		text-align: center;
 		font-variant-numeric: tabular-nums;
-	}
-
-	/* Graph ビュー用のモードバッジ */
-	.mode-badge {
-		font-weight: 600;
-		letter-spacing: 0.05em;
-	}
-
-	.mode-badge.wbs-mode {
-		background: rgba(255, 215, 0, 0.15);
-		border-radius: 4px;
-		color: #ffd700;
 	}
 
 	/* フィルターアクティブ状態 */
