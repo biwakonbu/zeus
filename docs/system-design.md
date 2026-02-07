@@ -43,6 +43,49 @@ Zeus は、プロジェクト構造を CLI と Web ダッシュボードで一�
 - Activity は `Simple`（作業追跡）と `Flow`（ノード/遷移を持つ図表現）を同一モデルで扱う。
 - Unified Graph は Activity, UseCase, Deliverable, Objective を横断結合して可視化する。
 
+## 3.3 5要素関係（実装準拠）
+
+以下は `vision / objective / deliverable / usecase / activity` の関係を、現行実装（`HEAD`）に合わせて図示したもの。
+
+```mermaid
+flowchart LR
+  V["Vision"]:::vision
+  O["Objective"]:::objective
+  D["Deliverable"]:::deliverable
+  U["UseCase"]:::usecase
+  A["Activity"]:::activity
+  N["Vision は単独管理（Objective からの直接参照は未実装）"]:::note
+
+  D ==>|"fulfills（必須: objective_id）"| O
+  U ==>|"contributes（必須: objective_id）"| O
+  A ==>|"implements（任意: usecase_id）"| U
+  A -.->|"produces（任意: related_deliverables）"| D
+  O -->|"parent（任意: parent_id）"| O
+  A -->|"parent / depends_on（任意）"| A
+  V -.-> N
+
+  classDef vision fill:#FFD54F,stroke:#333,color:#111;
+  classDef objective fill:#66BB6A,stroke:#333,color:#111;
+  classDef deliverable fill:#42A5F5,stroke:#333,color:#111;
+  classDef usecase fill:#26C6DA,stroke:#333,color:#111;
+  classDef activity fill:#FFB74D,stroke:#333,color:#111;
+  classDef note fill:#ECEFF1,stroke:#607D8B,color:#111;
+```
+
+| From | To | 関係 | 必須性 | 根拠フィールド |
+|---|---|---|---|---|
+| Deliverable | Objective | fulfills | 必須 | `objective_id` |
+| UseCase | Objective | contributes | 必須 | `objective_id` |
+| Activity | UseCase | implements | 任意 | `usecase_id` |
+| Activity | Deliverable | produces | 任意（推奨） | `related_deliverables` |
+| Objective | Objective | parent | 任意 | `parent_id` |
+| Activity | Activity | parent / depends_on | 任意 | `parent_id` / `dependencies` |
+| Vision | (他5要素) | 直接参照 | 未実装 | 単一 `vision.yaml` 管理 |
+
+実装根拠:
+- `internal/core/types.go`
+- `internal/analysis/unified_graph.go`
+
 ## 4. CLI 設計
 
 ## 4.1 公開コマンド群
@@ -158,4 +201,4 @@ Zeus は、プロジェクト構造を CLI と Web ダッシュボードで一�
 - 利用手順: `docs/user-guide.md`
 - 開発要約: `CLAUDE.md`
 
-*更新日: 2026-02-06（実装同期版）*
+*更新日: 2026-02-07（文書同期版）*
