@@ -41,10 +41,6 @@
 | `docs/api-reference.md` | 正本 | 完了 | CLI/API 契約 | 公開インターフェース |
 | `docs/user-guide.md` | 正本 | 完了 | 利用手順 | 利用者向け |
 | `docs/specs/unified-graph-two-layer/README.md` | 仕様 | 完了 | UnifiedGraph 2層仕様 | 実装完了仕様 |
-| `docs/implementation-guide.md` | 履歴 | 凍結 | 移動案内スタブ | 本体は `docs/archive/implementation-guide.md` |
-| `docs/detailed-design.md` | 履歴 | 凍結 | 移動案内スタブ | 本体は `docs/archive/detailed-design.md` |
-| `docs/security.md` | 履歴 | 凍結 | 移動案内スタブ | 本体は `docs/archive/security.md` |
-| `docs/specs/remove-progress-features/README.md` | 履歴 | 凍結 | 移動案内スタブ | 本体は `docs/archive/remove-progress-features.md` |
 | `docs/archive/implementation-guide.md` | 履歴 | 凍結 | 旧実装ガイド | 参照のみ |
 | `docs/archive/detailed-design.md` | 履歴 | 凍結 | 旧詳細設計 | 参照のみ |
 | `docs/archive/security.md` | 履歴 | 凍結 | 旧セキュリティガイド | 参照のみ |
@@ -55,6 +51,6 @@
 - コード変更を伴わない文書同期でも、`docs/README.md` の最終同期日を更新する。
 - 新規公開コマンド/API 追加時は、実装反映確認後に `docs/api-reference.md` と関連正本文書を更新する。
 - 設計文書の実装状態が変わった場合、必ず本マトリクスの状態列を更新する。
-- 履歴化対象は `docs/archive/` に集約し、旧パスには移動案内スタブを残す。
+- 履歴化対象は `docs/archive/` に集約し、現行導線から分離する。
 
-*更新日: 2026-02-07（再編同期版・affinity-canvas削除）*
+*更新日: 2026-02-07（再編同期版・スタブ削除）*
