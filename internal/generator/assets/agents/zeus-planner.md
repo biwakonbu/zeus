@@ -117,6 +117,8 @@ zeus uml show usecase --format mermaid -o usecase.md
 zeus uml show usecase --boundary "認証システム"
 ```
 
+Actor/UseCase の一覧確認は `zeus uml show usecase` を使用する（専用一覧コマンドはない）。
+
 ## Activity 階層の作成
 
 ```bash

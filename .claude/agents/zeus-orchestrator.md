@@ -6,7 +6,7 @@ model: sonnet
 
 # Zeus Orchestrator Agent
 
-このエージェントは Zeus プロジェクト（{{.ProjectName}}）のオーケストレーターとして機能します。
+このエージェントは Zeus プロジェクト（New Zeus Project）のオーケストレーターとして機能します。
 
 ## 役割
 
@@ -55,9 +55,6 @@ zeus uml show usecase                        # TEXT 形式
 zeus uml show usecase --format mermaid       # Mermaid 形式
 zeus uml show usecase --boundary "システム名" # システム境界指定
 zeus uml show usecase -o diagram.md          # ファイル出力
-
-zeus uml show activity                       # Activity 一覧
-zeus uml show activity --id act-001          # 特定 Activity 表示
 ```
 
 #### Activity（アクティビティ図/作業単位）
@@ -66,7 +63,6 @@ zeus add activity "アクティビティ名" \
   --usecase <uc-id> \      # 任意（紐付け）
   --priority high \        # high | medium | low
   --assignee "担当者" \
-  --due 2026-01-31 \
   -d "説明"
 ```
 
@@ -210,8 +206,7 @@ zeus list risks         # Risk 一覧
 zeus list assumptions   # Assumption 一覧
 zeus list constraints   # Constraint 一覧
 zeus list quality       # Quality 一覧
-zeus list actors        # Actor 一覧
-zeus list usecases      # UseCase 一覧
+zeus uml show usecase   # Actor / UseCase 一覧を確認
 ```
 
 ## 参照整合性

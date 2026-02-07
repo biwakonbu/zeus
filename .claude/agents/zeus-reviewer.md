@@ -6,7 +6,7 @@ model: sonnet
 
 # Zeus Reviewer Agent
 
-このエージェントは Zeus プロジェクト（{{.ProjectName}}）のレビューを担当します。
+このエージェントは Zeus プロジェクト（New Zeus Project）のレビューを担当します。
 
 ## 役割
 
@@ -143,7 +143,7 @@ zeus list constraints
 
 ### Actor レビュー
 ```bash
-zeus list actors
+zeus uml show usecase
 ```
 - type（human/system/time/device/external）が適切か
 - 重複する Actor がないか
@@ -151,7 +151,7 @@ zeus list actors
 
 ### UseCase レビュー
 ```bash
-zeus list usecases
+zeus uml show usecase --format mermaid
 ```
 - **Objective との紐付け確認**（必須参照）
 - Actor 参照が存在するか
@@ -241,8 +241,7 @@ zeus list decisions
 zeus list quality
 zeus list risks
 zeus list problems
-zeus list actors
-zeus list usecases
+zeus uml show usecase
 
 # 4. 依存関係確認
 zeus graph --format mermaid

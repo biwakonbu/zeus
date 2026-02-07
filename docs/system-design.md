@@ -1,5 +1,10 @@
 # Zeus システム設計書
 
+> 文書メタデータ
+> - 文書種別: 正本
+> - 実装状態: 完了
+> - 正本ソース: `cmd/*.go`, `internal/dashboard/server.go`
+> - 最終検証日: `2026-02-07`
 > 正本判定: `docs/README.md` を参照。CLI は `cmd/*.go`、HTTP API は `internal/dashboard/server.go` を正本とする。
 
 ## 1. 設計目的

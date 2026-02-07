@@ -1,5 +1,10 @@
 # Zeus ユーザーガイド
 
+> 文書メタデータ
+> - 文書種別: 正本
+> - 実装状態: 完了
+> - 正本ソース: `cmd/*.go`, `internal/dashboard/server.go`
+> - 最終検証日: `2026-02-07`
 > 現行仕様の正本入口: `docs/README.md`
 
 ## 1. Zeus とは
@@ -204,4 +209,4 @@ zeus list objectives
 - CLI/API 契約: `docs/api-reference.md`
 - 開発要約: `CLAUDE.md`
 
-*更新日: 2026-02-06（実装同期版）*
+*更新日: 2026-02-07（再編同期版）*

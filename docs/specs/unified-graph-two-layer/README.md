@@ -1,5 +1,10 @@
 # UnifiedGraph 2層モデル仕様
 
+> 文書メタデータ
+> - 文書種別: 仕様
+> - 実装状態: 完了
+> - 正本ソース: `cmd/graph.go`, `internal/analysis/unified_graph.go`, `internal/dashboard/handlers_unified.go`
+> - 最終検証日: `2026-02-07`
 ## 概要
 
 UnifiedGraph は `structural` と `reference` の 2 層で関係を分離する。
@@ -104,3 +109,5 @@ UnifiedGraph は `structural` と `reference` の 2 層で関係を分離する�
 - `zeus-dashboard/src/lib/types/api.ts`
 - `zeus-dashboard/src/lib/viewer/FactorioViewer.svelte`
 - `zeus-dashboard/src/lib/viewer/engine/LayoutEngine.ts`
+
+*更新日: 2026-02-07（再編同期版）*

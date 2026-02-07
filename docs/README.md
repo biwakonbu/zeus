@@ -1,41 +1,60 @@
 # Zeus ドキュメント正本マトリクス
 
-本ファイルは、Zeus の運用設計ドキュメントにおける正本判定の唯一の入口です。
+本ファイルは、Zeus の文書構造・正本判定・実装同期状態を一元管理する唯一の入口です。
 
 ## 1. 最終同期情報
 
 - 最終同期日: `2026-02-07`
-- 同期方針: 実装を正本として文書のみ同期
+- 同期方針: 実装を正本として文書を同期
 - 対象ブランチ: リポジトリ `HEAD`
 
 ## 2. 正本判定ルール
 
 1. CLI 契約は `cmd/*.go` の `cobra.Command` 定義を正本とする。
 2. HTTP API 契約は `internal/dashboard/server.go` の `mux.HandleFunc` 定義を正本とする。
-3. 文書間で記載が衝突した場合は、必ず実装定義を優先する。
-4. 履歴資料は参照可能だが、現行運用判断の根拠としては使わない。
+3. 文書間で記載が衝突した場合は、実装定義を優先する。
+4. 履歴文書は参照可能だが、現行仕様判断の根拠として使わない。
 
-## 3. 現行正本（運用判断に使用可）
+## 3. 2軸定義
 
-| 区分 | 文書 | 役割 |
-|---|---|---|
-| 運用 | `docs/operations-manual.md` | 日次運用手順、障害時対応、CLI/API運用 |
-| 設計 | `docs/system-design.md` | 現行アーキテクチャ、データフロー、フェーズ定義 |
-| 契約 | `docs/api-reference.md` | 公開 CLI/API 契約 |
-| 利用 | `docs/user-guide.md` | 利用者向け導入・利用手順 |
-| 開発 | `CLAUDE.md` | 開発者向け実装・運用要約 |
+### 3.1 文書種別
 
-## 4. 履歴資料（非正本）
+- `正本`: 現行運用・現行仕様の判断に直接使う文書
+- `仕様`: 実装完了機能の詳細仕様文書
+- `設計`: 実装中または将来実装対象の設計文書
+- `履歴`: 廃止仕様・旧設計・過去ガイドの保全文書
 
-以下は履歴保全目的の資料です。現行仕様判断には使わず、必ず本ファイルから現行正本へ遷移してください。
+### 3.2 実装状態
 
-- `docs/implementation-guide.md`
-- `docs/specs/remove-progress-features/README.md`
+- `完了`: 現行実装と同期済み
+- `実装中`: 一部実装済み、残タスクあり
+- `未実装`: 実装が存在しない
+- `凍結`: 履歴保全のみ。現行判断には不使用
+
+## 4. 文書一覧マトリクス
+
+| パス | 文書種別 | 実装状態 | 役割 | 備考 |
+|---|---|---|---|---|
+| `docs/README.md` | 正本 | 完了 | 文書入口/判定ルール | 本ファイル |
+| `docs/operations-manual.md` | 正本 | 完了 | 運用手順 | 現行運用判断に使用 |
+| `docs/system-design.md` | 正本 | 完了 | システム設計 | 現行アーキテクチャ |
+| `docs/api-reference.md` | 正本 | 完了 | CLI/API 契約 | 公開インターフェース |
+| `docs/user-guide.md` | 正本 | 完了 | 利用手順 | 利用者向け |
+| `docs/specs/unified-graph-two-layer/README.md` | 仕様 | 完了 | UnifiedGraph 2層仕様 | 実装完了仕様 |
+| `docs/implementation-guide.md` | 履歴 | 凍結 | 移動案内スタブ | 本体は `docs/archive/implementation-guide.md` |
+| `docs/detailed-design.md` | 履歴 | 凍結 | 移動案内スタブ | 本体は `docs/archive/detailed-design.md` |
+| `docs/security.md` | 履歴 | 凍結 | 移動案内スタブ | 本体は `docs/archive/security.md` |
+| `docs/specs/remove-progress-features/README.md` | 履歴 | 凍結 | 移動案内スタブ | 本体は `docs/archive/remove-progress-features.md` |
+| `docs/archive/implementation-guide.md` | 履歴 | 凍結 | 旧実装ガイド | 参照のみ |
+| `docs/archive/detailed-design.md` | 履歴 | 凍結 | 旧詳細設計 | 参照のみ |
+| `docs/archive/security.md` | 履歴 | 凍結 | 旧セキュリティガイド | 参照のみ |
+| `docs/archive/remove-progress-features.md` | 履歴 | 凍結 | 進捗機能削除履歴 | 参照のみ |
 
 ## 5. 文書更新ポリシー
 
-- コード変更を伴わない文書同期では、まず本ファイルの最終同期日を更新する。
-- 新規公開コマンド/APIの追加時は、`cmd/*.go` / `internal/dashboard/server.go` への実装反映を確認後、正本文書へ同期する。
-- 廃止済み仕様は履歴資料へ退避し、現行正本からは除外する。
+- コード変更を伴わない文書同期でも、`docs/README.md` の最終同期日を更新する。
+- 新規公開コマンド/API 追加時は、実装反映確認後に `docs/api-reference.md` と関連正本文書を更新する。
+- 設計文書の実装状態が変わった場合、必ず本マトリクスの状態列を更新する。
+- 履歴化対象は `docs/archive/` に集約し、旧パスには移動案内スタブを残す。
 
-*更新日: 2026-02-07（文書同期版）*
+*更新日: 2026-02-07（再編同期版・affinity-canvas削除）*

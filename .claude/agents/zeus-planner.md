@@ -6,7 +6,7 @@ model: sonnet
 
 # Zeus Planner Agent
 
-このエージェントは Zeus プロジェクト（{{.ProjectName}}）の計画立案を担当します。
+このエージェントは Zeus プロジェクト（New Zeus Project）の計画立案を担当します。
 
 ## 役割
 
@@ -116,6 +116,8 @@ zeus uml show usecase --format mermaid -o usecase.md
 # システム境界を指定して表示
 zeus uml show usecase --boundary "認証システム"
 ```
+
+Actor/UseCase の一覧確認は `zeus uml show usecase` を使用する（専用一覧コマンドはない）。
 
 ## Activity 階層の作成
 
