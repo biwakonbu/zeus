@@ -61,8 +61,6 @@ zeus uml show usecase -o diagram.md          # ファイル出力
 ```bash
 zeus add activity "アクティビティ名" \
   --usecase <uc-id> \      # 任意（紐付け）
-  --priority high \        # high | medium | low
-  --assignee "担当者" \
   -d "説明"
 ```
 
@@ -115,27 +113,16 @@ zeus add objective "目標名" \
   -d "説明"
 ```
 
-### Deliverable
-```bash
-zeus add deliverable "成果物名" \
-  --objective <obj-id> \               # 必須
-  --format document \                   # document, code, design, presentation, other
-  --acceptance-criteria "基準1,基準2"
-```
-
 ### Activity（作業単位）
 ```bash
 zeus add activity "作業名" \
-  --parent <act-id> \
-  --priority high \
-  --assignee "担当者"
+  --usecase <uc-id>
 ```
 
 ### Consideration（検討事項）
 ```bash
 zeus add consideration "検討事項名" \
   --objective <obj-id> \
-  --deliverable <del-id> \
   --due 2026-02-15 \
   -d "検討内容"
 ```
@@ -154,7 +141,6 @@ zeus add decision "決定事項" \
 zeus add problem "問題名" \
   --severity high \                     # critical, high, medium, low
   --objective <obj-id> \
-  --deliverable <del-id> \
   -d "問題の詳細"
 ```
 
@@ -164,7 +150,6 @@ zeus add risk "リスク名" \
   --probability medium \                # high, medium, low
   --impact high \                       # critical, high, medium, low
   --objective <obj-id> \
-  --deliverable <del-id> \
   -d "リスクの詳細"
 ```
 
@@ -172,7 +157,6 @@ zeus add risk "リスク名" \
 ```bash
 zeus add assumption "前提条件" \
   --objective <obj-id> \
-  --deliverable <del-id> \
   -d "前提条件の説明"
 ```
 
@@ -187,7 +171,7 @@ zeus add constraint "制約条件" \
 ### Quality
 ```bash
 zeus add quality "品質基準名" \
-  --deliverable <del-id> \             # 必須
+  --objective <obj-id> \               # 必須
   --metric "coverage:80:%" \           # name:target[:unit] 形式
   --metric "performance:100:ms"        # 複数指定可
 ```
@@ -197,7 +181,6 @@ zeus add quality "品質基準名" \
 ```bash
 zeus list vision        # Vision
 zeus list objectives    # Objective 一覧
-zeus list deliverables  # Deliverable 一覧
 zeus list activities    # Activity 一覧
 zeus list considerations # Consideration 一覧
 zeus list decisions     # Decision 一覧
@@ -212,26 +195,22 @@ zeus uml show usecase   # Actor / UseCase 一覧を確認
 ## 参照整合性
 
 ### 必須参照
-- **Deliverable → Objective**: `objective_id` が必須
 - **Decision → Consideration**: `consideration_id` が必須
-- **Quality → Deliverable**: `deliverable_id` が必須
+- **Quality → Objective**: `objective_id` が必須
 - **UseCase → Objective**: `objective_id` が必須
 
 ### 任意参照
 - Objective → Objective（親）
-- Consideration → Objective/Deliverable/Decision
-- Problem → Objective/Deliverable
-- Risk → Objective/Deliverable
-- Assumption → Objective/Deliverable
+- Consideration → Objective/Decision
+- Problem → Objective
+- Risk → Objective
+- Assumption → Objective
 - UseCase → Actor（actors[].actor_id）
 - UseCase → UseCase（relations[].target_id）
 - Activity → UseCase（usecase_id）
-- Activity → Deliverable（related_deliverables）
-- Activity → Activity（dependencies）
 
 ### 循環参照検出
 - Objective の親子階層で自動検出
-- Activity の依存関係で自動検出
 
 ## ダッシュボード API
 

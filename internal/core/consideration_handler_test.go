@@ -27,7 +27,7 @@ func setupConsiderationHandlerTest(t *testing.T) (*ConsiderationHandler, string,
 	}
 
 	fs := yaml.NewFileManager(zeusPath)
-	handler := NewConsiderationHandler(fs, nil, nil, nil)
+	handler := NewConsiderationHandler(fs, nil, nil)
 
 	cleanup := func() {
 		os.RemoveAll(tmpDir)
@@ -444,7 +444,7 @@ func TestConsiderationHandler_Delete_ReferencedByDecision(t *testing.T) {
 	}
 
 	fs := yaml.NewFileManager(zeusPath)
-	conHandler := NewConsiderationHandler(fs, nil, nil, nil)
+	conHandler := NewConsiderationHandler(fs, nil, nil)
 
 	ctx := context.Background()
 

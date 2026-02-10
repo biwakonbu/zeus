@@ -19,7 +19,7 @@
 	interface EntityDetail {
 		id: string;
 		title: string;
-		type: 'vision' | 'objective' | 'deliverable' | 'activity' | 'usecase';
+		type: 'vision' | 'objective' | 'activity' | 'usecase';
 		status: string;
 		progress: number;
 		description?: string;
@@ -40,12 +40,11 @@
 				id: data.entityId,
 				title: `Entity ${data.entityId}`,
 				type: detectEntityType(data.entityId),
-				status: 'in_progress',
+				status: 'active',
 				progress: 65,
 				description:
 					'This is a placeholder description for the entity. The actual content will be loaded from the API.',
 				relatedEntities: [
-					{ id: 'DEL-001', title: 'Related Deliverable 1', type: 'deliverable' },
 					{ id: 'ACT-001', title: 'Related Activity 1', type: 'activity' }
 				],
 				history: [
@@ -61,10 +60,9 @@
 	});
 
 	// ID プレフィックスからエンティティタイプを推測
-	function detectEntityType(id: string): 'vision' | 'objective' | 'deliverable' | 'activity' | 'usecase' {
+	function detectEntityType(id: string): 'vision' | 'objective' | 'activity' | 'usecase' {
 		if (id.startsWith('VIS') || id.startsWith('vis')) return 'vision';
 		if (id.startsWith('OBJ') || id.startsWith('obj')) return 'objective';
-		if (id.startsWith('DEL') || id.startsWith('del')) return 'deliverable';
 		if (id.startsWith('UC') || id.startsWith('uc')) return 'usecase';
 		return 'activity';
 	}
@@ -95,11 +93,16 @@
 	// ステータスに応じた色
 	function getStatusColor(status: string): string {
 		switch (status) {
-			case 'completed':
-				return 'var(--status-good)';
+			case 'draft':
+			case 'not_started':
+				return 'var(--text-muted)';
+			case 'active':
 			case 'in_progress':
 				return 'var(--status-info)';
-			case 'blocked':
+			case 'deprecated':
+			case 'completed':
+				return 'var(--status-good)';
+			case 'on_hold':
 				return 'var(--status-poor)';
 			default:
 				return 'var(--text-muted)';
@@ -113,8 +116,6 @@
 				return 'Target';
 			case 'objective':
 				return 'Flag';
-			case 'deliverable':
-				return 'Package';
 			case 'activity':
 				return 'CheckSquare';
 			case 'usecase':

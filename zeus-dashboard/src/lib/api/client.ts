@@ -62,7 +62,7 @@ export async function fetchGraph(): Promise<GraphResponse> {
 	return fetchJSON<GraphResponse>('/graph');
 }
 
-// UnifiedGraph 取得（Activity, UseCase, Deliverable, Objective の統合グラフ）
+// UnifiedGraph 取得（Activity, UseCase, Objective の統合グラフ）
 export async function fetchUnifiedGraph(): Promise<UnifiedGraphResponse> {
 	return fetchJSON<UnifiedGraphResponse>('/unified-graph');
 }

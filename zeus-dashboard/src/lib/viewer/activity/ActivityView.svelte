@@ -109,7 +109,7 @@
 				// 詳細パネルを自動表示
 				showDetailPanel = true;
 
-				syncStoreState();
+				syncStoreData();
 				onActivitySelect?.(currentActivity);
 			}
 		} catch (e) {
@@ -151,7 +151,7 @@
 			// 初期化完了後にデータがあれば設定
 			if (currentActivity) {
 				engine.setData(currentActivity);
-				syncStoreState();
+				syncStoreData();
 			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'エンジン初期化に失敗しました';
@@ -225,17 +225,26 @@
 		}
 	}
 
-	// ヘッダーの store を更新
-	function syncStoreState() {
+	// Store へのコールバック登録（一度だけ実行）
+	let callbacksRegistered = false;
+	function registerStoreCallbacks(): void {
+		if (callbacksRegistered) return;
 		updateActivityViewState({
-			zoom: currentZoom,
-			activityCount: activitiesData?.activities.length || 0,
-			selectedActivityId,
-			showListPanel,
 			onZoomIn: handleZoomIn,
 			onZoomOut: handleZoomOut,
 			onZoomReset: handleZoomReset,
 			onToggleListPanel: toggleListPanel
+		});
+		callbacksRegistered = true;
+	}
+
+	// Store へのデータ同期
+	function syncStoreData(): void {
+		updateActivityViewState({
+			zoom: currentZoom,
+			activityCount: activitiesData?.activities.length || 0,
+			selectedActivityId,
+			showListPanel
 		});
 	}
 
@@ -249,6 +258,13 @@
 	$effect(() => {
 		if (canvasContainer && !engineInitialized && !engineInitializing) {
 			initEngine();
+		}
+	});
+
+	// コールバック登録 Effect（engineInitialized 時に一度だけ）
+	$effect(() => {
+		if (engineInitialized) {
+			registerStoreCallbacks();
 		}
 	});
 
@@ -369,6 +385,9 @@
 	.activity-view {
 		width: 100%;
 		height: 100%;
+		position: relative;
+		overflow: hidden;
+		min-height: 400px;
 		background: var(--bg-primary);
 		color: var(--text-primary);
 	}

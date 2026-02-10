@@ -9,10 +9,9 @@ import (
 
 func TestNewCoverageAnalyzer(t *testing.T) {
 	objectives := []ObjectiveInfo{{ID: "obj-001", Title: "目標1"}}
-	deliverables := []DeliverableInfo{{ID: "del-001", Title: "成果物1", ObjectiveID: "obj-001"}}
 	tasks := []TaskInfo{{ID: "task-001", Title: "タスク1"}}
 
-	analyzer := NewCoverageAnalyzer(objectives, deliverables, tasks)
+	analyzer := NewCoverageAnalyzer(objectives, tasks)
 
 	if analyzer == nil {
 		t.Fatal("NewCoverageAnalyzer returned nil")
@@ -20,16 +19,13 @@ func TestNewCoverageAnalyzer(t *testing.T) {
 	if len(analyzer.objectives) != 1 {
 		t.Errorf("expected 1 objective, got %d", len(analyzer.objectives))
 	}
-	if len(analyzer.deliverables) != 1 {
-		t.Errorf("expected 1 deliverable, got %d", len(analyzer.deliverables))
-	}
 	if len(analyzer.tasks) != 1 {
 		t.Errorf("expected 1 task, got %d", len(analyzer.tasks))
 	}
 }
 
 func TestNewCoverageAnalyzer_Empty(t *testing.T) {
-	analyzer := NewCoverageAnalyzer(nil, nil, nil)
+	analyzer := NewCoverageAnalyzer(nil, nil)
 
 	if analyzer == nil {
 		t.Fatal("NewCoverageAnalyzer returned nil for empty input")
@@ -40,10 +36,9 @@ func TestNewCoverageAnalyzer_Empty(t *testing.T) {
 
 func TestCoverageAnalyzer_Analyze(t *testing.T) {
 	objectives := []ObjectiveInfo{{ID: "obj-001", Title: "目標1"}}
-	deliverables := []DeliverableInfo{{ID: "del-001", Title: "成果物1", ObjectiveID: "obj-001"}}
-	tasks := []TaskInfo{{ID: "task-001", Title: "タスク1", ParentID: "del-001"}}
+	tasks := []TaskInfo{{ID: "task-001", Title: "タスク1", ParentID: "obj-001"}}
 
-	analyzer := NewCoverageAnalyzer(objectives, deliverables, tasks)
+	analyzer := NewCoverageAnalyzer(objectives, tasks)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -60,7 +55,7 @@ func TestCoverageAnalyzer_Analyze(t *testing.T) {
 }
 
 func TestCoverageAnalyzer_Analyze_ContextCancellation(t *testing.T) {
-	analyzer := NewCoverageAnalyzer(nil, nil, nil)
+	analyzer := NewCoverageAnalyzer(nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -76,13 +71,13 @@ func TestCoverageAnalyzer_Analyze_ContextCancellation(t *testing.T) {
 
 // ===== Objective カバレッジテスト =====
 
-func TestCoverageAnalyzer_NoDeliverables(t *testing.T) {
-	// Deliverable が紐づいていない Objective
+func TestCoverageAnalyzer_NoTasks(t *testing.T) {
+	// Task が紐づいていない Objective
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "目標1"},
 	}
 
-	analyzer := NewCoverageAnalyzer(objectives, nil, nil)
+	analyzer := NewCoverageAnalyzer(objectives, nil)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -92,26 +87,26 @@ func TestCoverageAnalyzer_NoDeliverables(t *testing.T) {
 
 	issueCount := 0
 	for _, issue := range result.Issues {
-		if issue.Type == CoverageIssueNoDeliverables && issue.EntityID == "obj-001" {
+		if issue.Type == CoverageIssueNoTasks && issue.EntityID == "obj-001" {
 			issueCount++
 		}
 	}
 
 	if issueCount == 0 {
-		t.Error("expected NoDeliverables issue for objective without deliverables")
+		t.Error("expected NoTasks issue for objective without tasks")
 	}
 }
 
 func TestCoverageAnalyzer_ObjectiveCovered(t *testing.T) {
-	// Deliverable が紐づいている Objective
+	// Task が紐づいている Objective
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "目標1"},
 	}
-	deliverables := []DeliverableInfo{
-		{ID: "del-001", Title: "成果物1", ObjectiveID: "obj-001"},
+	tasks := []TaskInfo{
+		{ID: "task-001", Title: "タスク1", ParentID: "obj-001"},
 	}
 
-	analyzer := NewCoverageAnalyzer(objectives, deliverables, nil)
+	analyzer := NewCoverageAnalyzer(objectives, tasks)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -124,62 +119,6 @@ func TestCoverageAnalyzer_ObjectiveCovered(t *testing.T) {
 	}
 }
 
-// ===== Deliverable カバレッジテスト =====
-
-func TestCoverageAnalyzer_NoTasks(t *testing.T) {
-	// Task が紐づいていない Deliverable
-	objectives := []ObjectiveInfo{
-		{ID: "obj-001", Title: "目標1"},
-	}
-	deliverables := []DeliverableInfo{
-		{ID: "del-001", Title: "成果物1", ObjectiveID: "obj-001"},
-	}
-
-	analyzer := NewCoverageAnalyzer(objectives, deliverables, nil)
-	ctx := context.Background()
-
-	result, err := analyzer.Analyze(ctx)
-	if err != nil {
-		t.Fatalf("Analyze failed: %v", err)
-	}
-
-	issueCount := 0
-	for _, issue := range result.Issues {
-		if issue.Type == CoverageIssueNoTasks && issue.EntityID == "del-001" {
-			issueCount++
-		}
-	}
-
-	if issueCount == 0 {
-		t.Error("expected NoTasks issue for deliverable without tasks")
-	}
-}
-
-func TestCoverageAnalyzer_DeliverableWithTasks(t *testing.T) {
-	// Task が紐づいている Deliverable
-	deliverables := []DeliverableInfo{
-		{ID: "del-001", Title: "成果物1", ObjectiveID: "obj-001"},
-	}
-	tasks := []TaskInfo{
-		{ID: "task-001", Title: "タスク1", ParentID: "del-001"},
-	}
-
-	analyzer := NewCoverageAnalyzer(nil, deliverables, tasks)
-	ctx := context.Background()
-
-	result, err := analyzer.Analyze(ctx)
-	if err != nil {
-		t.Fatalf("Analyze failed: %v", err)
-	}
-
-	if result.DeliverablesOk != 1 {
-		t.Errorf("expected 1 deliverable ok, got %d", result.DeliverablesOk)
-	}
-	if result.DeliverablesErr != 0 {
-		t.Errorf("expected 0 deliverable errors, got %d", result.DeliverablesErr)
-	}
-}
-
 // ===== 孤立タスクテスト =====
 
 func TestCoverageAnalyzer_OrphanedTasks(t *testing.T) {
@@ -188,7 +127,7 @@ func TestCoverageAnalyzer_OrphanedTasks(t *testing.T) {
 		{ID: "task-001", Title: "孤立タスク", ParentID: ""},
 	}
 
-	analyzer := NewCoverageAnalyzer(nil, nil, tasks)
+	analyzer := NewCoverageAnalyzer(nil, tasks)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -215,7 +154,7 @@ func TestCoverageAnalyzer_TaskWithParent(t *testing.T) {
 		{ID: "task-002", Title: "子タスク", ParentID: "task-001"},
 	}
 
-	analyzer := NewCoverageAnalyzer(nil, nil, tasks)
+	analyzer := NewCoverageAnalyzer(nil, tasks)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -237,14 +176,11 @@ func TestCoverageAnalyzer_CoverageScore_FullCoverage(t *testing.T) {
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "目標1"},
 	}
-	deliverables := []DeliverableInfo{
-		{ID: "del-001", Title: "成果物1", ObjectiveID: "obj-001"},
-	}
 	tasks := []TaskInfo{
-		{ID: "task-001", Title: "タスク1", ParentID: "del-001"},
+		{ID: "task-001", Title: "タスク1", ParentID: "obj-001"},
 	}
 
-	analyzer := NewCoverageAnalyzer(objectives, deliverables, tasks)
+	analyzer := NewCoverageAnalyzer(objectives, tasks)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -258,15 +194,12 @@ func TestCoverageAnalyzer_CoverageScore_FullCoverage(t *testing.T) {
 }
 
 func TestCoverageAnalyzer_CoverageScore_NoCoverage(t *testing.T) {
-	// カバレッジなし
+	// カバレッジなし（Objective に Task が紐づいていない）
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "目標1"},
 	}
-	deliverables := []DeliverableInfo{
-		{ID: "del-001", Title: "成果物1", ObjectiveID: ""},
-	}
 
-	analyzer := NewCoverageAnalyzer(objectives, deliverables, nil)
+	analyzer := NewCoverageAnalyzer(objectives, nil)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -281,7 +214,7 @@ func TestCoverageAnalyzer_CoverageScore_NoCoverage(t *testing.T) {
 
 func TestCoverageAnalyzer_CoverageScore_Empty(t *testing.T) {
 	// 空のデータ
-	analyzer := NewCoverageAnalyzer(nil, nil, nil)
+	analyzer := NewCoverageAnalyzer(nil, nil)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -301,7 +234,7 @@ func TestCoverageAnalyzer_CoverageScore_TasksOnly(t *testing.T) {
 		{ID: "task-002", Title: "タスク2", ParentID: ""},
 	}
 
-	analyzer := NewCoverageAnalyzer(nil, nil, tasks)
+	analyzer := NewCoverageAnalyzer(nil, tasks)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -322,9 +255,7 @@ func TestCoverageIssueType_Values(t *testing.T) {
 		issueType CoverageIssueType
 		expected  string
 	}{
-		{CoverageIssueNoDeliverables, "no_deliverables"},
 		{CoverageIssueNoTasks, "no_tasks"},
-		{CoverageIssueUnlinkedTasks, "unlinked_tasks"},
 		{CoverageIssueOrphaned, "orphaned"},
 	}
 
@@ -362,17 +293,12 @@ func TestCoverageAnalyzer_ComplexScenario(t *testing.T) {
 		{ID: "obj-001", Title: "目標1"},
 		{ID: "obj-002", Title: "目標2"},
 	}
-	deliverables := []DeliverableInfo{
-		{ID: "del-001", Title: "成果物1", ObjectiveID: "obj-001"},
-		{ID: "del-002", Title: "成果物2", ObjectiveID: "obj-001"},
-		{ID: "del-003", Title: "孤立成果物", ObjectiveID: ""},
-	}
 	tasks := []TaskInfo{
-		{ID: "task-001", Title: "タスク1", ParentID: "del-001"},
+		{ID: "task-001", Title: "タスク1", ParentID: "obj-001"},
 		{ID: "task-002", Title: "孤立タスク", ParentID: ""},
 	}
 
-	analyzer := NewCoverageAnalyzer(objectives, deliverables, tasks)
+	analyzer := NewCoverageAnalyzer(objectives, tasks)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -387,14 +313,10 @@ func TestCoverageAnalyzer_ComplexScenario(t *testing.T) {
 	}
 
 	t.Logf("Issues: %v", issueTypes)
-	t.Logf("Coverage: %d%%, ObjectivesCover: %d/%d, DeliverablesOk: %d",
-		result.CoverageScore, result.ObjectivesCover, result.ObjectivesTotal, result.DeliverablesOk)
+	t.Logf("Coverage: %d%%, ObjectivesCover: %d/%d",
+		result.CoverageScore, result.ObjectivesCover, result.ObjectivesTotal)
 
-	// obj-002 は Deliverable なし
-	if issueTypes[CoverageIssueNoDeliverables] == 0 {
-		t.Error("expected NoDeliverables issue")
-	}
-	// del-002 は Task なし
+	// obj-002 は Task なし
 	if issueTypes[CoverageIssueNoTasks] == 0 {
 		t.Error("expected NoTasks issue")
 	}
@@ -411,11 +333,11 @@ func TestCoverageAnalyzer_Statistics(t *testing.T) {
 		{ID: "obj-001", Title: "目標1"},
 		{ID: "obj-002", Title: "目標2"},
 	}
-	deliverables := []DeliverableInfo{
-		{ID: "del-001", Title: "成果物1", ObjectiveID: "obj-001"},
+	tasks := []TaskInfo{
+		{ID: "task-001", Title: "タスク1", ParentID: "obj-001"},
 	}
 
-	analyzer := NewCoverageAnalyzer(objectives, deliverables, nil)
+	analyzer := NewCoverageAnalyzer(objectives, tasks)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)

@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"slices"
 	"time"
 )
 
@@ -302,7 +301,7 @@ func (s *Suggestion) Validate() error {
 }
 
 // ============================================================
-// 10 概念モデル型定義 (Phase 1: Vision, Objective, Deliverable)
+// 10 概念モデル型定義 (Phase 1: Vision, Objective)
 // ============================================================
 
 // Metadata は 10 概念モデルの共通メタデータ
@@ -356,42 +355,6 @@ type ObjectiveEntity struct {
 	ParentID    string          `yaml:"parent_id,omitempty"` // 親 Objective ID（階層化用）
 	Tags        []string        `yaml:"tags,omitempty"`
 	Metadata    Metadata        `yaml:"metadata"`
-}
-
-// DeliverableStatus は Deliverable の状態
-type DeliverableStatus string
-
-const (
-	DeliverableStatusPlanned    DeliverableStatus = "planned"
-	DeliverableStatusInProgress DeliverableStatus = "in_progress"
-	DeliverableStatusReview     DeliverableStatus = "review"
-	DeliverableStatusCompleted  DeliverableStatus = "completed"
-	DeliverableStatusCancelled  DeliverableStatus = "cancelled"
-)
-
-// DeliverableFormat は成果物のフォーマット
-type DeliverableFormat string
-
-const (
-	DeliverableFormatDocument     DeliverableFormat = "document"
-	DeliverableFormatCode         DeliverableFormat = "code"
-	DeliverableFormatData         DeliverableFormat = "data"
-	DeliverableFormatDesign       DeliverableFormat = "design"
-	DeliverableFormatPresentation DeliverableFormat = "presentation"
-	DeliverableFormatOther        DeliverableFormat = "other"
-)
-
-// DeliverableEntity は 10 概念モデルの成果物
-// deliverables/del-NNN.yaml で管理
-type DeliverableEntity struct {
-	ID                 string            `yaml:"id"`
-	Title              string            `yaml:"title"`
-	Description        string            `yaml:"description,omitempty"`
-	ObjectiveID        string            `yaml:"objective_id"` // 紐づく Objective
-	Format             DeliverableFormat `yaml:"format"`
-	AcceptanceCriteria []string          `yaml:"acceptance_criteria,omitempty"`
-	Status             DeliverableStatus `yaml:"status"`
-	Metadata           Metadata          `yaml:"metadata"`
 }
 
 // Validate は Vision の妥当性を検証
@@ -448,43 +411,6 @@ func (o *ObjectiveEntity) Validate() error {
 	return nil
 }
 
-// Validate は DeliverableEntity の妥当性を検証
-func (d *DeliverableEntity) Validate() error {
-	if d.ID == "" {
-		return fmt.Errorf("deliverable ID is required")
-	}
-	if err := ValidateID("deliverable", d.ID); err != nil {
-		return err
-	}
-	if d.Title == "" {
-		return fmt.Errorf("deliverable title is required")
-	}
-	if d.ObjectiveID == "" {
-		return fmt.Errorf("deliverable objective_id is required")
-	}
-	if d.Format == "" {
-		d.Format = DeliverableFormatOther
-	}
-	switch d.Format {
-	case DeliverableFormatDocument, DeliverableFormatCode, DeliverableFormatData,
-		DeliverableFormatDesign, DeliverableFormatPresentation, DeliverableFormatOther:
-		// 有効
-	default:
-		return fmt.Errorf("invalid deliverable format: %s", d.Format)
-	}
-	if d.Status == "" {
-		d.Status = DeliverableStatusPlanned
-	}
-	switch d.Status {
-	case DeliverableStatusPlanned, DeliverableStatusInProgress, DeliverableStatusReview,
-		DeliverableStatusCompleted, DeliverableStatusCancelled:
-		// 有効
-	default:
-		return fmt.Errorf("invalid deliverable status: %s", d.Status)
-	}
-	return nil
-}
-
 // GetID は Entity インターフェースを実装（Vision）
 func (v *Vision) GetID() string { return v.ID }
 
@@ -496,12 +422,6 @@ func (o *ObjectiveEntity) GetID() string { return o.ID }
 
 // GetTitle は Entity インターフェースを実装（ObjectiveEntity）
 func (o *ObjectiveEntity) GetTitle() string { return o.Title }
-
-// GetID は Entity インターフェースを実装（DeliverableEntity）
-func (d *DeliverableEntity) GetID() string { return d.ID }
-
-// GetTitle は Entity インターフェースを実装（DeliverableEntity）
-func (d *DeliverableEntity) GetTitle() string { return d.Title }
 
 // ============================================================
 // 10 概念モデル型定義 (Phase 2: Consideration, Decision, Problem, Risk, Assumption)
@@ -530,17 +450,16 @@ type ConsiderationOption struct {
 // ConsiderationEntity は 10 概念モデルの検討事項
 // considerations/con-NNN.yaml で管理
 type ConsiderationEntity struct {
-	ID            string                `yaml:"id"`
-	Title         string                `yaml:"title"`
-	Status        ConsiderationStatus   `yaml:"status"`
-	ObjectiveID   string                `yaml:"objective_id,omitempty"`
-	DeliverableID string                `yaml:"deliverable_id,omitempty"`
-	Context       string                `yaml:"context,omitempty"`
-	Options       []ConsiderationOption `yaml:"options,omitempty"`
-	DecisionID    string                `yaml:"decision_id,omitempty"`
-	RaisedBy      string                `yaml:"raised_by,omitempty"`
-	DueDate       string                `yaml:"due_date,omitempty"`
-	Metadata      Metadata              `yaml:"metadata"`
+	ID          string                `yaml:"id"`
+	Title       string                `yaml:"title"`
+	Status      ConsiderationStatus   `yaml:"status"`
+	ObjectiveID string                `yaml:"objective_id,omitempty"`
+	Context     string                `yaml:"context,omitempty"`
+	Options     []ConsiderationOption `yaml:"options,omitempty"`
+	DecisionID  string                `yaml:"decision_id,omitempty"`
+	RaisedBy    string                `yaml:"raised_by,omitempty"`
+	DueDate     string                `yaml:"due_date,omitempty"`
+	Metadata    Metadata              `yaml:"metadata"`
 }
 
 // Validate は ConsiderationEntity の妥当性を検証
@@ -675,7 +594,6 @@ type ProblemEntity struct {
 	Status             ProblemStatus   `yaml:"status"`
 	Severity           ProblemSeverity `yaml:"severity"`
 	ObjectiveID        string          `yaml:"objective_id,omitempty"`
-	DeliverableID      string          `yaml:"deliverable_id,omitempty"`
 	Description        string          `yaml:"description,omitempty"`
 	Impact             string          `yaml:"impact,omitempty"`
 	RootCause          string          `yaml:"root_cause,omitempty"`
@@ -774,20 +692,19 @@ type RiskMitigation struct {
 // RiskEntity は 10 概念モデルのリスク
 // risks/risk-NNN.yaml で管理
 type RiskEntity struct {
-	ID            string          `yaml:"id"`
-	Title         string          `yaml:"title"`
-	Status        RiskStatus      `yaml:"status"`
-	Probability   RiskProbability `yaml:"probability"`
-	Impact        RiskImpact      `yaml:"impact"`
-	RiskScore     RiskScore       `yaml:"risk_score"` // 自動計算
-	ObjectiveID   string          `yaml:"objective_id,omitempty"`
-	DeliverableID string          `yaml:"deliverable_id,omitempty"`
-	Description   string          `yaml:"description,omitempty"`
-	Trigger       string          `yaml:"trigger,omitempty"`
-	Mitigation    RiskMitigation  `yaml:"mitigation,omitempty"`
-	Owner         string          `yaml:"owner,omitempty"`
-	ReviewDate    string          `yaml:"review_date,omitempty"`
-	Metadata      Metadata        `yaml:"metadata"`
+	ID          string          `yaml:"id"`
+	Title       string          `yaml:"title"`
+	Status      RiskStatus      `yaml:"status"`
+	Probability RiskProbability `yaml:"probability"`
+	Impact      RiskImpact      `yaml:"impact"`
+	RiskScore   RiskScore       `yaml:"risk_score"` // 自動計算
+	ObjectiveID string          `yaml:"objective_id,omitempty"`
+	Description string          `yaml:"description,omitempty"`
+	Trigger     string          `yaml:"trigger,omitempty"`
+	Mitigation  RiskMitigation  `yaml:"mitigation,omitempty"`
+	Owner       string          `yaml:"owner,omitempty"`
+	ReviewDate  string          `yaml:"review_date,omitempty"`
+	Metadata    Metadata        `yaml:"metadata"`
 }
 
 // CalculateRiskScore は probability × impact から risk_score を計算
@@ -891,15 +808,14 @@ type AssumptionValidation struct {
 // AssumptionEntity は 10 概念モデルの前提条件
 // assumptions/assum-NNN.yaml で管理
 type AssumptionEntity struct {
-	ID            string               `yaml:"id"`
-	Title         string               `yaml:"title"`
-	Status        AssumptionStatus     `yaml:"status"`
-	ObjectiveID   string               `yaml:"objective_id,omitempty"`
-	DeliverableID string               `yaml:"deliverable_id,omitempty"`
-	Description   string               `yaml:"description,omitempty"`
-	IfInvalid     string               `yaml:"if_invalid,omitempty"`
-	Validation    AssumptionValidation `yaml:"validation,omitempty"`
-	Metadata      Metadata             `yaml:"metadata"`
+	ID          string               `yaml:"id"`
+	Title       string               `yaml:"title"`
+	Status      AssumptionStatus     `yaml:"status"`
+	ObjectiveID string               `yaml:"objective_id,omitempty"`
+	Description string               `yaml:"description,omitempty"`
+	IfInvalid   string               `yaml:"if_invalid,omitempty"`
+	Validation  AssumptionValidation `yaml:"validation,omitempty"`
+	Metadata    Metadata             `yaml:"metadata"`
 }
 
 // Validate は AssumptionEntity の妥当性を検証
@@ -1035,13 +951,13 @@ type QualityGate struct {
 // QualityEntity は 10 概念モデルの品質基準
 // quality/qual-NNN.yaml で管理
 type QualityEntity struct {
-	ID            string          `yaml:"id"`
-	Title         string          `yaml:"title"`
-	DeliverableID string          `yaml:"deliverable_id"`
-	Metrics       []QualityMetric `yaml:"metrics"`
-	Gates         []QualityGate   `yaml:"gates,omitempty"`
-	Reviewer      string          `yaml:"reviewer,omitempty"`
-	Metadata      Metadata        `yaml:"metadata"`
+	ID          string          `yaml:"id"`
+	Title       string          `yaml:"title"`
+	ObjectiveID string          `yaml:"objective_id"`
+	Metrics     []QualityMetric `yaml:"metrics"`
+	Gates       []QualityGate   `yaml:"gates,omitempty"`
+	Reviewer    string          `yaml:"reviewer,omitempty"`
+	Metadata    Metadata        `yaml:"metadata"`
 }
 
 // Validate は QualityEntity の妥当性を検証
@@ -1055,8 +971,8 @@ func (q *QualityEntity) Validate() error {
 	if q.Title == "" {
 		return fmt.Errorf("quality title is required")
 	}
-	if q.DeliverableID == "" {
-		return fmt.Errorf("quality deliverable_id is required")
+	if q.ObjectiveID == "" {
+		return fmt.Errorf("quality objective_id is required")
 	}
 	if len(q.Metrics) == 0 {
 		return fmt.Errorf("quality must have at least one metric")
@@ -1360,39 +1276,13 @@ func (u *UseCaseEntity) GetTitle() string { return u.Title }
 
 // === Activity ===
 
-// ActivityMode はアクティビティのモード（Task/Activity 統合）
-// SimpleActivity: 作業追跡（旧 Task 機能）
-// FlowActivity: プロセス可視化（従来の Activity 図機能）
-type ActivityMode string
-
-const (
-	ActivityModeSimple ActivityMode = "simple" // 作業追跡モード（len(Nodes) == 0）
-	ActivityModeFlow   ActivityMode = "flow"   // フロー可視化モード（len(Nodes) > 0）
-)
-
 // ActivityStatus はアクティビティの状態
-// Task/Activity 統合により、作業管理ステータスを追加
 type ActivityStatus string
 
 const (
-	// 従来のフロー用ステータス
 	ActivityStatusDraft      ActivityStatus = "draft"
 	ActivityStatusActive     ActivityStatus = "active"
 	ActivityStatusDeprecated ActivityStatus = "deprecated"
-	// 作業管理用ステータス（Task から移行）
-	ActivityStatusPending    ActivityStatus = "pending"     // 未着手
-	ActivityStatusInProgress ActivityStatus = "in_progress" // 進行中
-	ActivityStatusCompleted  ActivityStatus = "completed"   // 完了
-	ActivityStatusBlocked    ActivityStatus = "blocked"     // ブロック中
-)
-
-// ActivityPriority はアクティビティの優先度
-type ActivityPriority string
-
-const (
-	ActivityPriorityHigh   ActivityPriority = "high"
-	ActivityPriorityMedium ActivityPriority = "medium"
-	ActivityPriorityLow    ActivityPriority = "low"
 )
 
 // ActivityNodeType はアクティビティノードの種類
@@ -1410,10 +1300,9 @@ const (
 
 // ActivityNode はアクティビティ図のノード
 type ActivityNode struct {
-	ID             string           `yaml:"id"`
-	Type           ActivityNodeType `yaml:"type"`
-	Name           string           `yaml:"name,omitempty"`            // initial/final では不要
-	DeliverableIDs []string         `yaml:"deliverable_ids,omitempty"` // 関連 Deliverable ID（任意）
+	ID   string           `yaml:"id"`
+	Type ActivityNodeType `yaml:"type"`
+	Name string           `yaml:"name,omitempty"` // initial/final では不要
 }
 
 // ActivityTransition はアクティビティ図の遷移
@@ -1428,50 +1317,14 @@ type ActivityTransition struct {
 // activities/act-NNN.yaml で管理（個別ファイル）
 // Task/Activity 統合により、作業管理フィールドを追加
 type ActivityEntity struct {
-	ID                  string               `yaml:"id"`
-	Title               string               `yaml:"title"`
-	Description         string               `yaml:"description,omitempty"`
-	UseCaseID           string               `yaml:"usecase_id,omitempty"` // 任意紐付け
-	Status              ActivityStatus       `yaml:"status"`
-	RelatedDeliverables []string             `yaml:"related_deliverables,omitempty"` // 関連 Deliverable ID（推奨）
-	Nodes               []ActivityNode       `yaml:"nodes,omitempty"`
-	Transitions         []ActivityTransition `yaml:"transitions,omitempty"`
-	Metadata            Metadata             `yaml:"metadata"`
-
-	// === Task/Activity 統合: 作業管理フィールド ===
-	// 以下のフィールドは SimpleActivity（作業追跡）モードで使用
-
-	// 依存関係
-	Dependencies []string `yaml:"dependencies,omitempty"` // 依存先 Activity ID リスト
-	ParentID     string   `yaml:"parent_id,omitempty"`    // 親 Activity ID（階層化用）
-
-	// 担当
-	Assignee string `yaml:"assignee,omitempty"` // 担当者
-
-	// 優先度
-	Priority ActivityPriority `yaml:"priority,omitempty"` // 優先度
-
-	// 承認
-	ApprovalLevel ApprovalLevel `yaml:"approval_level,omitempty"` // 承認レベル
-}
-
-// Mode は Activity のモードを返す
-// Nodes が存在する場合は FlowActivity、それ以外は SimpleActivity
-func (a *ActivityEntity) Mode() ActivityMode {
-	if len(a.Nodes) > 0 {
-		return ActivityModeFlow
-	}
-	return ActivityModeSimple
-}
-
-// IsSimple は SimpleActivity モードかどうかを返す
-func (a *ActivityEntity) IsSimple() bool {
-	return a.Mode() == ActivityModeSimple
-}
-
-// IsFlow は FlowActivity モードかどうかを返す
-func (a *ActivityEntity) IsFlow() bool {
-	return a.Mode() == ActivityModeFlow
+	ID          string               `yaml:"id"`
+	Title       string               `yaml:"title"`
+	Description string               `yaml:"description,omitempty"`
+	UseCaseID   string               `yaml:"usecase_id,omitempty"` // 任意紐付け
+	Status      ActivityStatus       `yaml:"status"`
+	Nodes       []ActivityNode       `yaml:"nodes,omitempty"`
+	Transitions []ActivityTransition `yaml:"transitions,omitempty"`
+	Metadata    Metadata             `yaml:"metadata"`
 }
 
 // Validate は ActivityNode の妥当性を検証
@@ -1490,17 +1343,6 @@ func (n *ActivityNode) Validate() error {
 		return fmt.Errorf("invalid activity node type: %s", n.Type)
 	}
 	// action, decision には name が推奨（必須ではない）
-
-	// DeliverableIDs の重複チェック
-	if len(n.DeliverableIDs) > 0 {
-		delIDs := make(map[string]bool)
-		for _, id := range n.DeliverableIDs {
-			if delIDs[id] {
-				return fmt.Errorf("duplicate deliverable ID in node %s deliverable_ids: %s", n.ID, id)
-			}
-			delIDs[id] = true
-		}
-	}
 
 	return nil
 }
@@ -1533,24 +1375,12 @@ func (a *ActivityEntity) Validate() error {
 	if a.Status == "" {
 		a.Status = ActivityStatusDraft
 	}
-	// ステータスのバリデーション（拡張版）
+	// ステータスのバリデーション
 	switch a.Status {
-	case ActivityStatusDraft, ActivityStatusActive, ActivityStatusDeprecated,
-		ActivityStatusPending, ActivityStatusInProgress, ActivityStatusCompleted, ActivityStatusBlocked:
+	case ActivityStatusDraft, ActivityStatusActive, ActivityStatusDeprecated:
 		// 有効
 	default:
 		return fmt.Errorf("invalid activity status: %s", a.Status)
-	}
-
-	// RelatedDeliverables の重複チェック
-	if len(a.RelatedDeliverables) > 0 {
-		delIDs := make(map[string]bool)
-		for _, id := range a.RelatedDeliverables {
-			if delIDs[id] {
-				return fmt.Errorf("duplicate deliverable ID in related_deliverables: %s", id)
-			}
-			delIDs[id] = true
-		}
 	}
 
 	// ノードのバリデーションとID重複チェック
@@ -1583,49 +1413,6 @@ func (a *ActivityEntity) Validate() error {
 		}
 	}
 
-	// === Task/Activity 統合: 追加バリデーション ===
-
-	// 自己参照の禁止（ParentID）
-	if a.ParentID != "" && a.ParentID == a.ID {
-		return fmt.Errorf("activity cannot be its own parent")
-	}
-
-	// 自己参照の禁止（Dependencies）
-	if slices.Contains(a.Dependencies, a.ID) {
-		return fmt.Errorf("activity cannot depend on itself")
-	}
-
-	// Dependencies の重複チェック
-	if len(a.Dependencies) > 0 {
-		depIDs := make(map[string]bool)
-		for _, id := range a.Dependencies {
-			if depIDs[id] {
-				return fmt.Errorf("duplicate dependency ID: %s", id)
-			}
-			depIDs[id] = true
-		}
-	}
-
-	// Priority のバリデーション
-	if a.Priority != "" {
-		switch a.Priority {
-		case ActivityPriorityHigh, ActivityPriorityMedium, ActivityPriorityLow:
-			// 有効
-		default:
-			return fmt.Errorf("invalid activity priority: %s", a.Priority)
-		}
-	}
-
-	// ApprovalLevel のバリデーション
-	if a.ApprovalLevel != "" {
-		switch a.ApprovalLevel {
-		case ApprovalAuto, ApprovalNotify, ApprovalApprove:
-			// 有効
-		default:
-			return fmt.Errorf("invalid approval level: %s", a.ApprovalLevel)
-		}
-	}
-
 	return nil
 }
 
@@ -1634,90 +1421,3 @@ func (a *ActivityEntity) GetID() string { return a.ID }
 
 // GetTitle は Entity インターフェースを実装（ActivityEntity）
 func (a *ActivityEntity) GetTitle() string { return a.Title }
-
-// ToListItem は ActivityEntity を ListItem に変換
-func (a *ActivityEntity) ToListItem() ListItem {
-	var priority ItemPriority
-	switch a.Priority {
-	case ActivityPriorityHigh:
-		priority = PriorityHigh
-	case ActivityPriorityMedium:
-		priority = PriorityMedium
-	case ActivityPriorityLow:
-		priority = PriorityLow
-	}
-
-	var status ItemStatus
-	switch a.Status {
-	case ActivityStatusPending:
-		status = ItemStatusPending
-	case ActivityStatusInProgress:
-		status = ItemStatusInProgress
-	case ActivityStatusCompleted:
-		status = ItemStatusCompleted
-	case ActivityStatusBlocked:
-		status = ItemStatusBlocked
-	default:
-		// フローステータスの場合はマッピング
-		if a.Status == ActivityStatusActive {
-			status = ItemStatusInProgress
-		} else {
-			status = ItemStatusPending
-		}
-	}
-
-	return ListItem{
-		ID:            a.ID,
-		Title:         a.Title,
-		Description:   a.Description,
-		Status:        status,
-		Priority:      priority,
-		Assignee:      a.Assignee,
-		Dependencies:  a.Dependencies,
-		ApprovalLevel: a.ApprovalLevel,
-		CreatedAt:     a.Metadata.CreatedAt,
-		UpdatedAt:     a.Metadata.UpdatedAt,
-		ParentID:      a.ParentID,
-	}
-}
-
-// NewActivityFromListItem は ListItem から ActivityEntity を生成（マイグレーション用）
-func NewActivityFromListItem(t ListItem, newID string) *ActivityEntity {
-	var priority ActivityPriority
-	switch t.Priority {
-	case PriorityHigh:
-		priority = ActivityPriorityHigh
-	case PriorityMedium:
-		priority = ActivityPriorityMedium
-	case PriorityLow:
-		priority = ActivityPriorityLow
-	}
-
-	var status ActivityStatus
-	switch t.Status {
-	case ItemStatusPending:
-		status = ActivityStatusPending
-	case ItemStatusInProgress:
-		status = ActivityStatusInProgress
-	case ItemStatusCompleted:
-		status = ActivityStatusCompleted
-	case ItemStatusBlocked:
-		status = ActivityStatusBlocked
-	}
-
-	return &ActivityEntity{
-		ID:            newID,
-		Title:         t.Title,
-		Description:   t.Description,
-		Status:        status,
-		Dependencies:  t.Dependencies,
-		ParentID:      t.ParentID,
-		Assignee:      t.Assignee,
-		Priority:      priority,
-		ApprovalLevel: t.ApprovalLevel,
-		Metadata: Metadata{
-			CreatedAt: t.CreatedAt,
-			UpdatedAt: t.UpdatedAt,
-		},
-	}
-}

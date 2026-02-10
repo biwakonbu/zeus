@@ -41,45 +41,35 @@
 			id: 'task-1',
 			title: 'プロジェクト設計',
 			node_type: 'activity',
-			status: 'completed',
-			priority: 'high',
-			assignee: 'alice',
+			status: 'deprecated',
 			dependencies: []
 		},
 		{
 			id: 'task-2',
 			title: 'データベース設計',
 			node_type: 'activity',
-			status: 'completed',
-			priority: 'high',
-			assignee: 'bob',
+			status: 'deprecated',
 			dependencies: ['task-1']
 		},
 		{
 			id: 'task-3',
 			title: 'API 実装',
 			node_type: 'activity',
-			status: 'in_progress',
-			priority: 'high',
-			assignee: 'alice',
+			status: 'active',
 			dependencies: ['task-2']
 		},
 		{
 			id: 'task-4',
 			title: 'フロントエンド実装',
 			node_type: 'activity',
-			status: 'pending',
-			priority: 'medium',
-			assignee: 'charlie',
+			status: 'draft',
 			dependencies: ['task-2']
 		},
 		{
 			id: 'task-5',
 			title: '統合テスト',
 			node_type: 'activity',
-			status: 'blocked',
-			priority: 'high',
-			assignee: 'bob',
+			status: 'draft',
 			dependencies: ['task-3', 'task-4']
 		}
 	];
@@ -91,9 +81,7 @@
 			id: 't1',
 			title: 'プロジェクト立ち上げ',
 			node_type: 'activity',
-			status: 'completed',
-			priority: 'high',
-			assignee: 'alice',
+			status: 'deprecated',
 			dependencies: []
 		},
 		// レイヤー2
@@ -101,18 +89,14 @@
 			id: 't2',
 			title: '要件定義',
 			node_type: 'activity',
-			status: 'completed',
-			priority: 'high',
-			assignee: 'bob',
+			status: 'deprecated',
 			dependencies: ['t1']
 		},
 		{
 			id: 't3',
 			title: 'チーム編成',
 			node_type: 'activity',
-			status: 'completed',
-			priority: 'medium',
-			assignee: 'charlie',
+			status: 'deprecated',
 			dependencies: ['t1']
 		},
 		// レイヤー3
@@ -120,27 +104,21 @@
 			id: 't4',
 			title: 'アーキテクチャ設計',
 			node_type: 'activity',
-			status: 'completed',
-			priority: 'high',
-			assignee: 'alice',
+			status: 'deprecated',
 			dependencies: ['t2']
 		},
 		{
 			id: 't5',
 			title: 'UI/UX デザイン',
 			node_type: 'activity',
-			status: 'in_progress',
-			priority: 'medium',
-			assignee: 'charlie',
+			status: 'active',
 			dependencies: ['t2']
 		},
 		{
 			id: 't6',
 			title: 'インフラ設計',
 			node_type: 'activity',
-			status: 'completed',
-			priority: 'medium',
-			assignee: 'bob',
+			status: 'deprecated',
 			dependencies: ['t2', 't3']
 		},
 		// レイヤー4
@@ -148,27 +126,21 @@
 			id: 't7',
 			title: 'バックエンド開発',
 			node_type: 'activity',
-			status: 'in_progress',
-			priority: 'high',
-			assignee: 'alice',
+			status: 'active',
 			dependencies: ['t4']
 		},
 		{
 			id: 't8',
 			title: 'フロントエンド開発',
 			node_type: 'activity',
-			status: 'pending',
-			priority: 'high',
-			assignee: 'charlie',
+			status: 'draft',
 			dependencies: ['t4', 't5']
 		},
 		{
 			id: 't9',
 			title: 'CI/CD 構築',
 			node_type: 'activity',
-			status: 'in_progress',
-			priority: 'medium',
-			assignee: 'bob',
+			status: 'active',
 			dependencies: ['t6']
 		},
 		// レイヤー5
@@ -176,18 +148,14 @@
 			id: 't10',
 			title: 'API 統合',
 			node_type: 'activity',
-			status: 'pending',
-			priority: 'high',
-			assignee: 'alice',
+			status: 'draft',
 			dependencies: ['t7', 't8']
 		},
 		{
 			id: 't11',
 			title: 'パフォーマンス最適化',
 			node_type: 'activity',
-			status: 'blocked',
-			priority: 'medium',
-			assignee: 'bob',
+			status: 'draft',
 			dependencies: ['t7']
 		},
 		// レイヤー6
@@ -195,18 +163,14 @@
 			id: 't12',
 			title: '結合テスト',
 			node_type: 'activity',
-			status: 'pending',
-			priority: 'high',
-			assignee: 'bob',
+			status: 'draft',
 			dependencies: ['t10', 't9']
 		},
 		{
 			id: 't13',
 			title: 'セキュリティ監査',
 			node_type: 'activity',
-			status: 'pending',
-			priority: 'high',
-			assignee: 'charlie',
+			status: 'draft',
 			dependencies: ['t10']
 		},
 		// レイヤー7
@@ -214,9 +178,7 @@
 			id: 't14',
 			title: 'ステージングデプロイ',
 			node_type: 'activity',
-			status: 'pending',
-			priority: 'medium',
-			assignee: 'bob',
+			status: 'draft',
 			dependencies: ['t12', 't13']
 		},
 		// レイヤー8
@@ -224,9 +186,7 @@
 			id: 't15',
 			title: '本番リリース',
 			node_type: 'activity',
-			status: 'pending',
-			priority: 'high',
-			assignee: 'alice',
+			status: 'draft',
 			dependencies: ['t14']
 		}
 	];
@@ -251,16 +211,6 @@
 					layer: 'structural',
 					relation: 'parent'
 				});
-
-				// reference は activity の depends_on を可視化
-				if (node.node_type === 'activity' && depNode.node_type === 'activity') {
-					edges.push({
-						from: dep,
-						to: node.id,
-						layer: 'reference',
-						relation: 'depends_on'
-					});
-				}
 			}
 		}
 
@@ -347,11 +297,11 @@
 <!-- 全ステータスのノード -->
 <Story name="AllStatuses">
 	{@const allStatusNodes: StoryNode[] = [
-		{ id: 'completed-1', title: '完了タスク 1', node_type: 'activity', status: 'completed', priority: 'high', assignee: 'alice', dependencies: [] },
-		{ id: 'completed-2', title: '完了タスク 2', node_type: 'activity', status: 'completed', priority: 'medium', assignee: 'bob', dependencies: ['completed-1'] },
-		{ id: 'in_progress-1', title: '進行中タスク', node_type: 'activity', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['completed-2'] },
-		{ id: 'pending-1', title: '未着手タスク', node_type: 'activity', status: 'pending', priority: 'medium', assignee: 'alice', dependencies: ['completed-2'] },
-		{ id: 'blocked-1', title: 'ブロック中タスク', node_type: 'activity', status: 'blocked', priority: 'high', assignee: 'bob', dependencies: ['in_progress-1', 'pending-1'] }
+		{ id: 'deprecated-1', title: '非推奨タスク 1', node_type: 'activity', status: 'deprecated', dependencies: [] },
+		{ id: 'deprecated-2', title: '非推奨タスク 2', node_type: 'activity', status: 'deprecated', dependencies: ['deprecated-1'] },
+		{ id: 'active-1', title: 'アクティブタスク', node_type: 'activity', status: 'active', dependencies: ['deprecated-2'] },
+		{ id: 'draft-1', title: '下書きタスク', node_type: 'activity', status: 'draft', dependencies: ['deprecated-2'] },
+		{ id: 'draft-2', title: '下書きタスク 2', node_type: 'activity', status: 'draft', dependencies: ['active-1', 'draft-1'] }
 	]}
 	<div style="height: 500px; background: var(--bg-primary);">
 		<FactorioViewer
@@ -366,9 +316,7 @@
 <Story name="LargeGraph">
 	{@const generateLargeNodes = () => {
 		const nodes: StoryNode[] = [];
-		const assignees = ['alice', 'bob', 'charlie', 'david', 'eve'];
-		const priorities = ['high', 'medium', 'low'] as const;
-		const statuses = ['completed', 'in_progress', 'pending', 'blocked'] as const;
+		const statuses = ['deprecated', 'active', 'draft'] as const;
 
 		// 120 ノードを生成（12 レイヤー × 10 ノード）
 		for (let layer = 0; layer < 12; layer++) {
@@ -393,8 +341,6 @@
 					title: `タスク ${layer + 1}-${node + 1}`,
 					node_type: 'activity',
 					status: statuses[statusIdx],
-					priority: priorities[node % 3],
-					assignee: assignees[node % 5],
 					dependencies: deps
 				});
 			}
@@ -415,19 +361,16 @@
 <Story name="TypedGraph">
 	{@const typedNodes: StoryNode[] = [
 		// Vision
-		{ id: 'vision-1', title: 'プロジェクト管理の革新', node_type: 'vision', status: 'in_progress', priority: 'high', dependencies: [] },
+		{ id: 'vision-1', title: 'プロジェクト管理の革新', node_type: 'vision', status: 'active', dependencies: [] },
 		// Objectives
-		{ id: 'obj-1', title: 'Phase 1: MVP 開発', node_type: 'objective', status: 'completed', priority: 'high', dependencies: ['vision-1'] },
-		{ id: 'obj-2', title: 'Phase 2: 標準機能', node_type: 'objective', status: 'in_progress', priority: 'high', dependencies: ['vision-1'] },
-		{ id: 'obj-3', title: 'Phase 3: AI 統合', node_type: 'objective', status: 'pending', priority: 'medium', dependencies: ['vision-1'] },
-		// Deliverables
-		{ id: 'del-1', title: 'CLI ツール', node_type: 'deliverable', status: 'completed', priority: 'high', assignee: 'alice', dependencies: ['obj-1'] },
-		{ id: 'del-2', title: 'ダッシュボード', node_type: 'deliverable', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['obj-2'] },
-		// Tasks
-		{ id: 'task-1', title: 'CLI 基盤実装', node_type: 'activity', status: 'completed', priority: 'high', assignee: 'alice', dependencies: ['del-1'] },
-		{ id: 'task-2', title: 'YAML パーサー', node_type: 'activity', status: 'completed', priority: 'high', assignee: 'bob', dependencies: ['del-1'] },
-		{ id: 'task-3', title: 'UI 実装', node_type: 'activity', status: 'in_progress', priority: 'high', assignee: 'charlie', dependencies: ['del-2'] },
-		{ id: 'task-4', title: 'API 連携', node_type: 'activity', status: 'pending', priority: 'medium', assignee: 'bob', dependencies: ['del-2'] }
+		{ id: 'obj-1', title: 'Phase 1: MVP 開発', node_type: 'objective', status: 'deprecated', dependencies: ['vision-1'] },
+		{ id: 'obj-2', title: 'Phase 2: 標準機能', node_type: 'objective', status: 'active', dependencies: ['vision-1'] },
+		{ id: 'obj-3', title: 'Phase 3: AI 統合', node_type: 'objective', status: 'draft', dependencies: ['vision-1'] },
+		// Activities
+		{ id: 'task-1', title: 'CLI 基盤実装', node_type: 'activity', status: 'deprecated', dependencies: ['obj-1'] },
+		{ id: 'task-2', title: 'YAML パーサー', node_type: 'activity', status: 'deprecated', dependencies: ['obj-1'] },
+		{ id: 'task-3', title: 'UI 実装', node_type: 'activity', status: 'active', dependencies: ['obj-2'] },
+		{ id: 'task-4', title: 'API 連携', node_type: 'activity', status: 'draft', dependencies: ['obj-2'] }
 	]}
 	<div style="height: 700px; background: var(--bg-primary);">
 		<FactorioViewer

@@ -30,28 +30,6 @@
 		return DEFAULT_NODE_TYPE;
 	}
 
-	// エンティティタイプごとのステータスを FilterPanel の共通 EntityStatus にマッピング
-	function normalizeStatus(status: string, nodeType: GraphNodeType): string {
-		// Activity はそのまま（元々 EntityStatus と一致）
-		if (nodeType === 'activity') return status;
-
-		const statusMap: Record<string, string> = {
-			// UseCase
-			draft: 'pending',
-			active: 'in_progress',
-			deprecated: 'completed',
-			// Deliverable
-			in_review: 'in_progress',
-			approved: 'completed',
-			delivered: 'completed',
-			// Objective
-			not_started: 'pending',
-			on_hold: 'blocked',
-			// 共通（in_progress, completed はそのまま通過）
-		};
-		return statusMap[status] ?? status;
-	}
-
 	// UnifiedGraph を GraphData に変換するヘルパー
 	function convertUnifiedGraphToGraphData(unified: UnifiedGraphResponse): GraphData {
 		const nodes: GraphNode[] = unified.nodes.map((n) => {
@@ -60,9 +38,7 @@
 				id: n.id,
 				title: n.title,
 				node_type: nodeType,
-				status: normalizeStatus(n.status, nodeType),
-				priority: n.priority,
-				assignee: n.assignee,
+				status: n.status,
 				structural_depth: n.structural_depth
 			};
 		});

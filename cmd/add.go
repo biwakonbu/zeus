@@ -12,8 +12,6 @@ import (
 // add コマンドのフラグ
 var (
 	addParentID string
-	addPriority string
-	addAssignee string
 
 	// 10 概念モデル共通
 	addDescription string
@@ -24,14 +22,11 @@ var (
 	addStatement       string
 	addSuccessCriteria []string
 
-	// Deliverable 用
-	addObjectiveID        string
-	addFormat             string
-	addAcceptanceCriteria []string
+	// Objective/UseCase 参照用
+	addObjectiveID string
 
 	// Consideration 用
-	addDeliverableID string
-	addDueDate       string // Consideration 専用
+	addDueDate string // Consideration 専用
 
 	// Decision 用
 	addConsiderationID string
@@ -63,8 +58,7 @@ var (
 	addSubsystemID   string
 
 	// Activity 用（Task/Activity 統合）
-	addActivityDependencies []string
-	addActivityUseCaseID    string
+	addActivityUseCaseID string
 )
 
 var addCmd = &cobra.Command{
@@ -75,7 +69,6 @@ var addCmd = &cobra.Command{
 対応エンティティ:
   vision        プロジェクトビジョン
   objective     目標・マイルストーン
-  deliverable   成果物
   consideration 検討事項
   decision      意思決定（イミュータブル）
   problem       問題
@@ -94,12 +87,7 @@ var addCmd = &cobra.Command{
   --tags         タグ（カンマ区切り）
 
 Activity 用オプション:
-  --parent      親 Activity の ID
-  --depends     依存先 Activity ID（カンマ区切り、または複数回指定）
   --usecase     紐づく UseCase の ID
-  --deliverable 紐づく Deliverable の ID
-  --priority    優先度（high, medium, low）
-  --assignee    担当者名
 
 Vision 用オプション:
   --statement         ビジョンステートメント
@@ -108,14 +96,8 @@ Vision 用オプション:
 Objective 用オプション:
   --parent    親 Objective の ID
 
-Deliverable 用オプション:
-  --objective           紐づく Objective の ID
-  --format              フォーマット（document, code, design, presentation, other）
-  --acceptance-criteria 受入基準（カンマ区切り）
-
 Consideration 用オプション:
   --objective     紐づく Objective の ID
-  --deliverable   紐づく Deliverable の ID
   --due           期限日
 
 Decision 用オプション:
@@ -127,24 +109,21 @@ Decision 用オプション:
 Problem 用オプション:
   --severity      深刻度（critical, high, medium, low）
   --objective     紐づく Objective の ID
-  --deliverable   紐づく Deliverable の ID
 
 Risk 用オプション:
   --probability   発生確率（high, medium, low）
   --impact        影響度（critical, high, medium, low）
   --objective     紐づく Objective の ID
-  --deliverable   紐づく Deliverable の ID
 
 Assumption 用オプション:
   --objective     紐づく Objective の ID
-  --deliverable   紐づく Deliverable の ID
 
 Constraint 用オプション:
   --category        カテゴリ（technical, business, legal, resource）
   --non-negotiable  交渉不可フラグ
 
 Quality 用オプション:
-  --deliverable   紐づく Deliverable の ID（必須）
+  --objective     紐づく Objective の ID
   --metric        メトリクス（name:target[:unit] 形式、複数回指定可）
 
 Actor 用オプション:
@@ -163,19 +142,17 @@ Subsystem 用オプション:
 例:
   zeus add vision "AI駆動PM" --statement "AIと人間が協調するPM"
   zeus add objective "認証システム実装"
-  zeus add deliverable "API設計書" --objective obj-001 --format document
   zeus add consideration "認証方式の選択" --objective obj-001
   zeus add decision "JWT認証を採用" --consideration con-001 --selected-opt-id opt-1 --selected-title "JWT" --rationale "セキュリティと拡張性"
   zeus add problem "パフォーマンス問題" --severity high --objective obj-001
   zeus add risk "外部API依存" --probability medium --impact high
   zeus add assumption "ユーザー数1000人以下" --objective obj-001
   zeus add constraint "外部DB不使用" --category technical --non-negotiable
-  zeus add quality "コードカバレッジ" --deliverable del-001 --metric "coverage:80:%" --metric "performance:100:ms"
+  zeus add quality "コードカバレッジ" --objective obj-001 --metric "coverage:80:%" --metric "performance:100:ms"
   zeus add actor "管理者" --type human
   zeus add usecase "ログイン" --objective obj-001 --actor actor-001 --actor-role primary --subsystem sub-12345678
   zeus add subsystem "認証システム" --description "ユーザー認証関連のユースケース"
-  zeus add activity "API設計" --usecase uc-001 --priority high --assignee "田中"
-  zeus add activity "エンドポイント実装" --depends act-001,act-002`,
+  zeus add activity "API設計" --usecase uc-001`,
 	Args: cobra.ExactArgs(2),
 	RunE: runAdd,
 }
@@ -189,21 +166,16 @@ func init() {
 	addCmd.Flags().StringSliceVar(&addTags, "tags", nil, "タグ（カンマ区切り）")
 
 	// 共通フラグ
-	addCmd.Flags().StringVarP(&addParentID, "parent", "p", "", "親タスク/Objective/Activity ID")
-	addCmd.Flags().StringVar(&addPriority, "priority", "", "優先度（high, medium, low）")
-	addCmd.Flags().StringVar(&addAssignee, "assignee", "", "担当者名")
+	addCmd.Flags().StringVarP(&addParentID, "parent", "p", "", "親 Objective の ID")
 
 	// Vision 用フラグ
 	addCmd.Flags().StringVar(&addStatement, "statement", "", "ビジョンステートメント")
 	addCmd.Flags().StringSliceVar(&addSuccessCriteria, "success-criteria", nil, "成功基準（カンマ区切り）")
 
-	// Deliverable 用フラグ
+	// Objective 参照用フラグ
 	addCmd.Flags().StringVar(&addObjectiveID, "objective", "", "紐づく Objective の ID")
-	addCmd.Flags().StringVar(&addFormat, "format", "", "フォーマット（document, code, design, presentation, other）")
-	addCmd.Flags().StringSliceVar(&addAcceptanceCriteria, "acceptance-criteria", nil, "受入基準（カンマ区切り）")
 
 	// Consideration 用フラグ
-	addCmd.Flags().StringVar(&addDeliverableID, "deliverable", "", "紐づく Deliverable の ID")
 	addCmd.Flags().StringVar(&addDueDate, "due", "", "期限日（Consideration 用）")
 
 	// Decision 用フラグ
@@ -236,7 +208,6 @@ func init() {
 	addCmd.Flags().StringVar(&addSubsystemID, "subsystem", "", "紐づくサブシステムの ID")
 
 	// Activity 用フラグ（Task/Activity 統合）
-	addCmd.Flags().StringSliceVar(&addActivityDependencies, "depends", nil, "依存先 Activity ID（カンマ区切り、または複数回指定）")
 	addCmd.Flags().StringVar(&addActivityUseCaseID, "usecase", "", "紐づく UseCase の ID")
 }
 
@@ -289,8 +260,6 @@ func buildAddOptions(entity string) []core.EntityOption {
 		opts = buildVisionOptions()
 	case "objective":
 		opts = buildObjectiveOptions()
-	case "deliverable":
-		opts = buildDeliverableOptions()
 	case "consideration":
 		opts = buildConsiderationOptions()
 	case "decision":
@@ -358,54 +327,12 @@ func buildObjectiveOptions() []core.EntityOption {
 	return opts
 }
 
-// buildDeliverableOptions は Deliverable 用オプションを構築
-func buildDeliverableOptions() []core.EntityOption {
-	var opts []core.EntityOption
-
-	if addDescription != "" {
-		opts = append(opts, core.WithDeliverableDescription(addDescription))
-	}
-	if addObjectiveID != "" {
-		opts = append(opts, core.WithDeliverableObjective(addObjectiveID))
-	}
-	if addFormat != "" {
-		var format core.DeliverableFormat
-		switch addFormat {
-		case "document":
-			format = core.DeliverableFormatDocument
-		case "code":
-			format = core.DeliverableFormatCode
-		case "design":
-			format = core.DeliverableFormatDesign
-		case "presentation":
-			format = core.DeliverableFormatPresentation
-		default:
-			format = core.DeliverableFormatOther
-		}
-		opts = append(opts, core.WithDeliverableFormat(format))
-	}
-	if len(addAcceptanceCriteria) > 0 {
-		opts = append(opts, core.WithDeliverableAcceptanceCriteria(addAcceptanceCriteria))
-	}
-	if addOwner != "" {
-		opts = append(opts, core.WithDeliverableOwner(addOwner))
-	}
-	if len(addTags) > 0 {
-		opts = append(opts, core.WithDeliverableTags(addTags))
-	}
-
-	return opts
-}
-
 // buildConsiderationOptions は Consideration 用オプションを構築
 func buildConsiderationOptions() []core.EntityOption {
 	var opts []core.EntityOption
 
 	if addObjectiveID != "" {
 		opts = append(opts, core.WithConsiderationObjective(addObjectiveID))
-	}
-	if addDeliverableID != "" {
-		opts = append(opts, core.WithConsiderationDeliverable(addDeliverableID))
 	}
 	if addDueDate != "" {
 		opts = append(opts, core.WithConsiderationDueDate(addDueDate))
@@ -464,9 +391,6 @@ func buildProblemOptions() []core.EntityOption {
 	if addObjectiveID != "" {
 		opts = append(opts, core.WithProblemObjective(addObjectiveID))
 	}
-	if addDeliverableID != "" {
-		opts = append(opts, core.WithProblemDeliverable(addDeliverableID))
-	}
 	if addDescription != "" {
 		opts = append(opts, core.WithProblemDescription(addDescription))
 	}
@@ -514,9 +438,6 @@ func buildRiskOptions() []core.EntityOption {
 	if addObjectiveID != "" {
 		opts = append(opts, core.WithRiskObjective(addObjectiveID))
 	}
-	if addDeliverableID != "" {
-		opts = append(opts, core.WithRiskDeliverable(addDeliverableID))
-	}
 	if addDescription != "" {
 		opts = append(opts, core.WithRiskDescription(addDescription))
 	}
@@ -533,9 +454,6 @@ func buildAssumptionOptions() []core.EntityOption {
 
 	if addObjectiveID != "" {
 		opts = append(opts, core.WithAssumptionObjective(addObjectiveID))
-	}
-	if addDeliverableID != "" {
-		opts = append(opts, core.WithAssumptionDeliverable(addDeliverableID))
 	}
 	if addDescription != "" {
 		opts = append(opts, core.WithAssumptionDescription(addDescription))
@@ -578,8 +496,8 @@ func buildConstraintOptions() []core.EntityOption {
 func buildQualityOptions() []core.EntityOption {
 	var opts []core.EntityOption
 
-	if addDeliverableID != "" {
-		opts = append(opts, core.WithQualityDeliverable(addDeliverableID))
+	if addObjectiveID != "" {
+		opts = append(opts, core.WithQualityObjective(addObjectiveID))
 	}
 
 	// メトリクスは name:target[:unit] 形式でパース
@@ -703,45 +621,9 @@ func buildSubsystemOptions() []core.EntityOption {
 func buildActivityOptions() []core.EntityOption {
 	var opts []core.EntityOption
 
-	// 依存関係
-	if len(addActivityDependencies) > 0 {
-		opts = append(opts, core.WithActivityDependencies(addActivityDependencies))
-	}
-
-	// 親 Activity
-	if addParentID != "" {
-		opts = append(opts, core.WithActivityParent(addParentID))
-	}
-
 	// UseCase 参照
 	if addActivityUseCaseID != "" {
 		opts = append(opts, core.WithActivityUseCase(addActivityUseCaseID))
-	}
-
-	// Deliverable 参照
-	if addDeliverableID != "" {
-		opts = append(opts, core.WithActivityRelatedDeliverables([]string{addDeliverableID}))
-	}
-
-	// 優先度
-	if addPriority != "" {
-		var priority core.ActivityPriority
-		switch addPriority {
-		case "high":
-			priority = core.ActivityPriorityHigh
-		case "medium":
-			priority = core.ActivityPriorityMedium
-		case "low":
-			priority = core.ActivityPriorityLow
-		default:
-			priority = core.ActivityPriorityMedium
-		}
-		opts = append(opts, core.WithActivityPriority(priority))
-	}
-
-	// 担当者
-	if addAssignee != "" {
-		opts = append(opts, core.WithActivityAssignee(addAssignee))
 	}
 
 	// 説明

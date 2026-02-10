@@ -79,13 +79,7 @@ func createIntegrityChecker(zeus *core.Zeus) *core.IntegrityChecker {
 		objH, _ = objHandler.(*core.ObjectiveHandler)
 	}
 
-	// Deliverable ハンドラーを取得（nil でも IntegrityChecker は動作する）
-	var delH *core.DeliverableHandler
-	if delHandler, ok := registry.Get("deliverable"); ok {
-		delH, _ = delHandler.(*core.DeliverableHandler)
-	}
-
-	checker := core.NewIntegrityChecker(objH, delH)
+	checker := core.NewIntegrityChecker(objH)
 
 	// Consideration ハンドラーを設定
 	if conHandler, ok := registry.Get("consideration"); ok {

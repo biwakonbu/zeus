@@ -31,12 +31,7 @@
 	--task-completed: #44cc44;
 	--task-in-progress: #4488ff;
 	--task-pending: #888888;
-	--task-blocked: #ee4444;
-
-	/* 優先度 */
-	--priority-high: #ee4444;
-	--priority-medium: #ffcc00;
-	--priority-low: #44cc44;
+	--task-on-hold: #ee4444;
 
 	/* シャドウ */
 	--shadow-panel: inset 0 2px 4px rgba(0, 0, 0, 0.3);

@@ -2,7 +2,6 @@ id: act-008
 title: "プロジェクト状態確認フロー"
 description: "zeus status コマンドによるプロジェクト状態確認の処理フロー"
 usecase_id: uc-9cdad28d
-related_deliverables:
   - del-002
   - del-003
   - del-004

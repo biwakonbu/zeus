@@ -443,7 +443,7 @@ func setupIntegrityCheckerTest(t *testing.T) (string, *Doctor, *core.IntegrityCh
 	subsystemHandler := core.NewSubsystemHandler(fs)
 
 	// IntegrityChecker を作成
-	checker := core.NewIntegrityChecker(nil, nil)
+	checker := core.NewIntegrityChecker(nil)
 	checker.SetUseCaseHandler(usecaseHandler)
 	checker.SetSubsystemHandler(subsystemHandler)
 
@@ -694,7 +694,7 @@ func TestNewWithIntegrity(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	checker := core.NewIntegrityChecker(nil, nil)
+	checker := core.NewIntegrityChecker(nil)
 	d := NewWithIntegrity(tmpDir, checker)
 
 	if d == nil {

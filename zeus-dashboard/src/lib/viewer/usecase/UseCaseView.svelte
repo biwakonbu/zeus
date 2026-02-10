@@ -252,18 +252,27 @@
 		}
 	}
 
-	// ヘッダーの store を更新
-	function syncStoreState() {
+	// Store へのコールバック登録（一度だけ実行）
+	let callbacksRegistered = false;
+	function registerStoreCallbacks(): void {
+		if (callbacksRegistered) return;
+		updateUseCaseViewState({
+			onZoomIn: handleZoomIn,
+			onZoomOut: handleZoomOut,
+			onZoomReset: handleZoomReset,
+			onToggleListPanel: toggleListPanel
+		});
+		callbacksRegistered = true;
+	}
+
+	// Store へのデータ同期
+	function syncStoreData(): void {
 		updateUseCaseViewState({
 			zoom: currentZoom,
 			boundary: data?.boundary || 'System',
 			actorCount: data?.actors.length || 0,
 			usecaseCount: data?.usecases.length || 0,
-			showListPanel,
-			onZoomIn: handleZoomIn,
-			onZoomOut: handleZoomOut,
-			onZoomReset: handleZoomReset,
-			onToggleListPanel: toggleListPanel
+			showListPanel
 		});
 	}
 
@@ -282,13 +291,20 @@
 		}
 	});
 
+	// コールバック登録 Effect（engineReady 時に一度だけ）
+	$effect(() => {
+		if (engineReady) {
+			registerStoreCallbacks();
+		}
+	});
+
 	// データ設定 Effect（エンジン初期化後、data または subsystems が変更されたら）
 	// 選択状態の反映は選択同期 Effect に任せる
 	// 注意: この Effect は選択同期 Effect より先に定義する必要がある
 	//       Svelte 5 では Effect は定義順に実行されるため、
 	//       setData() → 選択反映 の順序が保証される
-	// NOTE: Svelte 5 の $effect は条件分岐内でのみ読み取られた変数を依存関係として追跡しない場合がある。
-	//       そのため ready / data / subsystems を条件の外で明示的に読み取り、依存関係として登録する。
+	// NOTE: syncStoreData() は含めない → currentZoom / showListPanel の依存を遮断し、
+	//       ズーム操作での $effect 再実行（フルリビルド）を防止する
 	$effect(() => {
 		const ready = engineReady;
 		const currentData = data;
@@ -305,7 +321,12 @@
 			engine.showAll();
 		}
 
-		syncStoreState();
+		// データ設定後に store のデータ部分を同期（コールバック以外）
+		updateUseCaseViewState({
+			boundary: currentData.boundary || 'System',
+			actorCount: currentData.actors.length || 0,
+			usecaseCount: currentData.usecases.length || 0
+		});
 	});
 
 	// 選択状態の同期 Effect（選択状態が変更されたらエンジンに反映）
@@ -511,6 +532,9 @@
 	.usecase-view {
 		width: 100%;
 		height: 100%;
+		position: relative;
+		overflow: hidden;
+		min-height: 400px;
 		background: var(--bg-primary);
 		color: var(--text-primary);
 	}

@@ -6,8 +6,6 @@ import type {
 	VisionResponse,
 	Objective,
 	ObjectivesResponse,
-	Deliverable,
-	DeliverablesResponse,
 	Consideration,
 	ConsiderationsResponse,
 	Decision,
@@ -30,55 +28,37 @@ const mockGraphNodes: GraphNode[] = [
 		id: 'task-1',
 		title: 'プロジェクト初期化',
 		node_type: 'activity',
-		status: 'completed',
-		priority: 'high',
-		assignee: 'alice',
-		dependencies: []
+		status: 'active'
 	},
 	{
 		id: 'task-2',
 		title: 'データベース設計',
 		node_type: 'activity',
-		status: 'completed',
-		priority: 'high',
-		assignee: 'bob',
-		dependencies: ['task-1']
+		status: 'active'
 	},
 	{
 		id: 'task-3',
 		title: 'API 実装',
 		node_type: 'activity',
-		status: 'in_progress',
-		priority: 'high',
-		assignee: 'alice',
-		dependencies: ['task-2']
+		status: 'active'
 	},
 	{
 		id: 'task-4',
 		title: 'フロントエンド実装',
 		node_type: 'activity',
-		status: 'in_progress',
-		priority: 'medium',
-		assignee: 'charlie',
-		dependencies: ['task-2']
+		status: 'active'
 	},
 	{
 		id: 'task-5',
 		title: 'テスト作成',
 		node_type: 'activity',
-		status: 'pending',
-		priority: 'medium',
-		assignee: 'bob',
-		dependencies: ['task-3', 'task-4']
+		status: 'draft'
 	},
 	{
 		id: 'task-6',
 		title: 'デプロイメント設定',
 		node_type: 'activity',
-		status: 'blocked',
-		priority: 'low',
-		assignee: 'alice',
-		dependencies: ['task-5']
+		status: 'draft'
 	}
 ];
 
@@ -141,43 +121,6 @@ const mockObjectives: Objective[] = [
 		status: 'not_started',
 		created_at: '2024-02-15T00:00:00Z',
 		updated_at: '2024-02-15T00:00:00Z'
-	}
-];
-
-// モックデータ: Deliverables
-const mockDeliverables: Deliverable[] = [
-	{
-		id: 'del-001',
-		title: 'システム設計書',
-		description: 'アーキテクチャと技術スタックの詳細設計',
-		format: 'document',
-		objective_id: 'obj-001',
-		status: 'approved',
-		due_date: '2024-01-15',
-		created_at: '2024-01-01T00:00:00Z',
-		updated_at: '2024-01-15T00:00:00Z'
-	},
-	{
-		id: 'del-002',
-		title: 'CLI ツール',
-		description: 'Zeus CLI バイナリ',
-		format: 'code',
-		objective_id: 'obj-001',
-		status: 'delivered',
-		due_date: '2024-01-31',
-		created_at: '2024-01-01T00:00:00Z',
-		updated_at: '2024-01-31T00:00:00Z'
-	},
-	{
-		id: 'del-003',
-		title: 'ダッシュボード',
-		description: 'Web ダッシュボード（SvelteKit）',
-		format: 'code',
-		objective_id: 'obj-002',
-		status: 'in_review',
-		due_date: '2024-02-28',
-		created_at: '2024-02-01T00:00:00Z',
-		updated_at: '2024-02-20T00:00:00Z'
 	}
 ];
 
@@ -271,7 +214,7 @@ const mockProblems: Problem[] = [
 		description: '100+ ノードで FPS が低下する',
 		severity: 'high',
 		status: 'open',
-		deliverable_id: 'del-003',
+		objective_id: 'obj-002',
 		created_at: '2024-02-18T00:00:00Z',
 		updated_at: '2024-02-18T00:00:00Z'
 	}
@@ -366,7 +309,7 @@ const mockQuality: QualityItem[] = [
 		id: 'qual-001',
 		title: 'コードカバレッジ',
 		description: 'ユニットテストのカバレッジ目標',
-		deliverable_id: 'del-002',
+		objective_id: 'obj-001',
 		metric: {
 			name: 'coverage',
 			target: 80,
@@ -381,7 +324,7 @@ const mockQuality: QualityItem[] = [
 		id: 'qual-002',
 		title: 'パフォーマンス基準',
 		description: 'CLI レスポンスタイム',
-		deliverable_id: 'del-002',
+		objective_id: 'obj-001',
 		metric: {
 			name: 'response_time',
 			target: 100,
@@ -396,7 +339,7 @@ const mockQuality: QualityItem[] = [
 		id: 'qual-003',
 		title: 'セキュリティ監査',
 		description: 'セキュリティレビュー完了',
-		deliverable_id: 'del-002',
+		objective_id: 'obj-001',
 		gate: {
 			name: 'security_audit',
 			passed: true,
@@ -452,15 +395,6 @@ export const handlers = [
 		const response: ObjectivesResponse = {
 			objectives: mockObjectives,
 			total: mockObjectives.length
-		};
-		return HttpResponse.json(response);
-	}),
-
-	// Deliverables
-	http.get('/api/deliverables', () => {
-		const response: DeliverablesResponse = {
-			deliverables: mockDeliverables,
-			total: mockDeliverables.length
 		};
 		return HttpResponse.json(response);
 	}),
@@ -537,7 +471,6 @@ export {
 	mockStatus,
 	mockVision,
 	mockObjectives,
-	mockDeliverables,
 	mockConsiderations,
 	mockDecisions,
 	mockProblems,

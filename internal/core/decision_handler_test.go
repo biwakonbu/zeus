@@ -30,7 +30,7 @@ func setupDecisionHandlerTest(t *testing.T) (*DecisionHandler, *ConsiderationHan
 	}
 
 	fs := yaml.NewFileManager(zeusPath)
-	conHandler := NewConsiderationHandler(fs, nil, nil, nil)
+	conHandler := NewConsiderationHandler(fs, nil, nil)
 	handler := NewDecisionHandler(fs, conHandler, nil)
 
 	cleanup := func() {

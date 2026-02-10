@@ -164,16 +164,13 @@ export function assertPerformanceOnce(duration: number, threshold: number, label
  */
 export interface MockGraphNode extends GraphNode {
 	node_type: 'activity';
-	status: 'pending' | 'in_progress' | 'completed' | 'blocked';
-	priority: 'high' | 'medium' | 'low';
-	assignee: string;
+	status: 'draft' | 'active' | 'deprecated';
 }
 
 export interface MockGraphData {
 	nodes: MockGraphNode[];
 	edges: GraphEdge[];
 	structuralEdges: GraphEdge[];
-	referenceEdges: GraphEdge[];
 	dependencyMap: Map<string, string[]>;
 }
 
@@ -206,8 +203,7 @@ function generateDependencyMap(count: number, maxDependencies = 3): Map<string, 
  * @param maxDependencies 最大依存数
  */
 export function generateMockTasks(count: number, maxDependencies = 3): MockGraphNode[] {
-	const statuses: MockGraphNode['status'][] = ['pending', 'in_progress', 'completed', 'blocked'];
-	const priorities: MockGraphNode['priority'][] = ['high', 'medium', 'low'];
+	const statuses: MockGraphNode['status'][] = ['draft', 'active', 'deprecated'];
 	const dependencyMap = generateDependencyMap(count, maxDependencies);
 	const nodes: MockGraphNode[] = [];
 
@@ -219,8 +215,6 @@ export function generateMockTasks(count: number, maxDependencies = 3): MockGraph
 			title: `Task ${i}`,
 			node_type: 'activity',
 			status: statuses[Math.floor(Math.random() * statuses.length)],
-			priority: priorities[Math.floor(Math.random() * priorities.length)],
-			assignee: `user-${Math.floor(Math.random() * 5)}`,
 			// structural_depth は tests で未使用
 			structural_depth: dependencyMap.get(id)?.length ?? 0
 		});
@@ -230,19 +224,17 @@ export function generateMockTasks(count: number, maxDependencies = 3): MockGraph
 }
 
 /**
- * ノードリストから 2層エッジを生成
+ * ノードリストから structural エッジを生成
  *
  * - structural: child -> parent（レイアウト用）
- * - reference: dependency -> dependent（depends_on）
  */
 export function generateMockEdges(
 	nodes: MockGraphNode[],
 	maxDependencies = 3
-): Pick<MockGraphData, 'edges' | 'structuralEdges' | 'referenceEdges' | 'dependencyMap'> {
+): Pick<MockGraphData, 'edges' | 'structuralEdges' | 'dependencyMap'> {
 	const dependencyMap = generateDependencyMap(nodes.length, maxDependencies);
 	const nodeIds = new Set(nodes.map((n) => n.id));
 	const structuralEdges: GraphEdge[] = [];
-	const referenceEdges: GraphEdge[] = [];
 
 	for (const node of nodes) {
 		const deps = dependencyMap.get(node.id) ?? [];
@@ -254,19 +246,12 @@ export function generateMockEdges(
 				layer: 'structural',
 				relation: 'parent'
 			});
-			referenceEdges.push({
-				from: depId,
-				to: node.id,
-				layer: 'reference',
-				relation: 'depends_on'
-			});
 		}
 	}
 
 	return {
-		edges: [...structuralEdges, ...referenceEdges],
+		edges: structuralEdges,
 		structuralEdges,
-		referenceEdges,
 		dependencyMap
 	};
 }

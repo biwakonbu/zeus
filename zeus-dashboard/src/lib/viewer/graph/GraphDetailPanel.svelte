@@ -81,26 +81,28 @@
 
 	function getStatusColor(status: string): string {
 		const colors: Record<string, string> = {
-			completed: 'var(--task-completed)',
+			draft: 'var(--task-pending)',
+			active: 'var(--task-in-progress)',
+			deprecated: 'var(--task-completed)',
+			// Objective 用ステータス
+			not_started: 'var(--task-pending)',
 			in_progress: 'var(--task-in-progress)',
-			pending: 'var(--task-pending)',
-			blocked: 'var(--task-blocked)',
-			active: 'var(--status-good)',
-			draft: 'var(--status-fair)',
-			deprecated: 'var(--text-muted)'
+			completed: 'var(--task-completed)',
+			on_hold: 'var(--task-on-hold)'
 		};
 		return colors[status] ?? 'var(--text-secondary)';
 	}
 
 	function getStatusLabel(status: string): string {
 		const labels: Record<string, string> = {
-			completed: '完了',
-			in_progress: '進行中',
-			pending: '待機',
-			blocked: 'ブロック',
-			active: 'アクティブ',
 			draft: '下書き',
-			deprecated: '非推奨'
+			active: 'アクティブ',
+			deprecated: '非推奨',
+			// Objective 用ステータス
+			not_started: '未着手',
+			in_progress: '進行中',
+			completed: '完了',
+			on_hold: '保留'
 		};
 		return labels[status] ?? status;
 	}
@@ -151,14 +153,6 @@
 				<div class="info-item">
 					<span class="label">Status</span>
 					<span class="value">{getStatusLabel(node.status)}</span>
-				</div>
-				<div class="info-item">
-					<span class="label">Priority</span>
-					<span class="value">{node.priority ?? '-'}</span>
-				</div>
-				<div class="info-item">
-					<span class="label">Assignee</span>
-					<span class="value">{node.assignee ?? '-'}</span>
 				</div>
 				<div class="info-item">
 					<span class="label">Depth</span>

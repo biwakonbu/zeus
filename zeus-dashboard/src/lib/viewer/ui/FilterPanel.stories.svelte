@@ -12,10 +12,7 @@
 		},
 		args: {
 			criteria: {} as FilterCriteria,
-			availableAssignees: ['alice', 'bob', 'charlie'],
 			onStatusToggle: () => {},
-			onPriorityToggle: () => {},
-			onAssigneeToggle: () => {},
 			onSearchChange: () => {},
 			onClear: () => {}
 		}
@@ -24,25 +21,21 @@
 
 <script lang="ts">
 	import { fn } from '@storybook/test';
-	import type { EntityStatus, Priority } from '$lib/types/api';
+	import type { EntityStatus } from '$lib/types/api';
 
 	// Action ハンドラー
 	const handleStatusToggle = fn();
-	const handlePriorityToggle = fn();
-	const handleAssigneeToggle = fn();
 	const handleSearchChange = fn();
 	const handleClear = fn();
 
 	// ステータスフィルターあり
 	const withStatusFilter: FilterCriteria = {
-		statuses: ['in_progress', 'pending']
+		statuses: ['active']
 	};
 
 	// 完全なフィルター
 	const fullFilter: FilterCriteria = {
-		statuses: ['in_progress'],
-		priorities: ['high'],
-		assignees: ['alice'],
+		statuses: ['active'],
 		searchText: 'API'
 	};
 
@@ -64,36 +57,6 @@
 		handleStatusToggle(status);
 	}
 
-	function togglePriority(priority: Priority) {
-		const priorities = interactiveCriteria.priorities || [];
-		const index = priorities.indexOf(priority);
-		if (index >= 0) {
-			priorities.splice(index, 1);
-		} else {
-			priorities.push(priority);
-		}
-		interactiveCriteria = {
-			...interactiveCriteria,
-			priorities: priorities.length > 0 ? [...priorities] : undefined
-		};
-		handlePriorityToggle(priority);
-	}
-
-	function toggleAssignee(assignee: string) {
-		const assignees = interactiveCriteria.assignees || [];
-		const index = assignees.indexOf(assignee);
-		if (index >= 0) {
-			assignees.splice(index, 1);
-		} else {
-			assignees.push(assignee);
-		}
-		interactiveCriteria = {
-			...interactiveCriteria,
-			assignees: assignees.length > 0 ? [...assignees] : undefined
-		};
-		handleAssigneeToggle(assignee);
-	}
-
 	function changeSearch(text: string) {
 		interactiveCriteria = {
 			...interactiveCriteria,
@@ -113,10 +76,7 @@
 	<div class="filter-story-wrapper">
 		<FilterPanel
 			criteria={{}}
-			availableAssignees={['alice', 'bob', 'charlie']}
 			onStatusToggle={handleStatusToggle}
-			onPriorityToggle={handlePriorityToggle}
-			onAssigneeToggle={handleAssigneeToggle}
 			onSearchChange={handleSearchChange}
 			onClear={handleClear}
 		/>
@@ -128,10 +88,7 @@
 	<div class="filter-story-wrapper">
 		<FilterPanel
 			criteria={withStatusFilter}
-			availableAssignees={['alice', 'bob', 'charlie']}
 			onStatusToggle={handleStatusToggle}
-			onPriorityToggle={handlePriorityToggle}
-			onAssigneeToggle={handleAssigneeToggle}
 			onSearchChange={handleSearchChange}
 			onClear={handleClear}
 		/>
@@ -143,25 +100,7 @@
 	<div class="filter-story-wrapper">
 		<FilterPanel
 			criteria={fullFilter}
-			availableAssignees={['alice', 'bob', 'charlie']}
 			onStatusToggle={handleStatusToggle}
-			onPriorityToggle={handlePriorityToggle}
-			onAssigneeToggle={handleAssigneeToggle}
-			onSearchChange={handleSearchChange}
-			onClear={handleClear}
-		/>
-	</div>
-</Story>
-
-<!-- 担当者なし -->
-<Story name="NoAssignees">
-	<div class="filter-story-wrapper">
-		<FilterPanel
-			criteria={{}}
-			availableAssignees={[]}
-			onStatusToggle={handleStatusToggle}
-			onPriorityToggle={handlePriorityToggle}
-			onAssigneeToggle={handleAssigneeToggle}
 			onSearchChange={handleSearchChange}
 			onClear={handleClear}
 		/>
@@ -174,8 +113,6 @@
 	args={{
 		criteria: interactiveCriteria,
 		onStatusToggle: toggleStatus,
-		onPriorityToggle: togglePriority,
-		onAssigneeToggle: toggleAssignee,
 		onSearchChange: changeSearch,
 		onClear: clearAll
 	}}
@@ -183,10 +120,7 @@
 	<div class="filter-story-wrapper">
 		<FilterPanel
 			criteria={interactiveCriteria}
-			availableAssignees={['alice', 'bob', 'charlie']}
 			onStatusToggle={toggleStatus}
-			onPriorityToggle={togglePriority}
-			onAssigneeToggle={toggleAssignee}
 			onSearchChange={changeSearch}
 			onClear={clearAll}
 		/>

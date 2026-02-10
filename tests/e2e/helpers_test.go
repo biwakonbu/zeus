@@ -172,7 +172,7 @@ func assertFileNotExists(t *testing.T, path string) {
 
 // extractEntityID はコマンド結果からエンティティIDを抽出する
 // 出力例: "Added objective: Test Objective (ID: obj-001)"
-// prefix: "obj-", "del-", "con-", "dec-", "prob-", "risk-", "assum-", "qual-", "vision-"
+// prefix: "obj-", "con-", "dec-", "prob-", "risk-", "assum-", "qual-", "vision-"
 func extractEntityID(t *testing.T, result CommandResult, prefix string) string {
 	t.Helper()
 	re := regexp.MustCompile(`ID: (` + regexp.QuoteMeta(prefix) + `\w+)`)
@@ -184,8 +184,8 @@ func extractEntityID(t *testing.T, result CommandResult, prefix string) string {
 	return matches[1]
 }
 
-// setupBasicProject は基本プロジェクトをセットアップする（init + Vision + Objective + Deliverable）
-// 返り値: map[string]string{"vision": visionID, "objective": objID, "deliverable": delID}
+// setupBasicProject は基本プロジェクトをセットアップする（init + Vision + Objective）
+// 返り値: map[string]string{"vision": visionID, "objective": objID}
 func setupBasicProject(t *testing.T, dir string) map[string]string {
 	t.Helper()
 	ids := make(map[string]string)
@@ -209,22 +209,11 @@ func setupBasicProject(t *testing.T, dir string) map[string]string {
 	}
 	ids["objective"] = objID
 
-	// Deliverable 作成（Objective 参照必須）
-	result = runCommand(t, dir, "add", "deliverable", "設計書",
-		"--objective", objID,
-		"--format", "document")
-	assertSuccess(t, result)
-	delID := extractEntityID(t, result, "del-")
-	if delID == "" {
-		delID = "del-001"
-	}
-	ids["deliverable"] = delID
-
 	return ids
 }
 
 // setupDecisionFlow は検討・決定フローをセットアップする
-// 基本プロジェクト（Vision + Objective + Deliverable）の上に Consideration を作成
+// 基本プロジェクト（Vision + Objective）の上に Consideration を作成
 // 返り値: map に "consideration" を追加（Decision は後から作成する想定）
 func setupDecisionFlow(t *testing.T, dir string) map[string]string {
 	t.Helper()
@@ -309,7 +298,7 @@ func setupFullProject(t *testing.T, dir string) map[string]string {
 
 	// Quality 作成
 	result = runCommand(t, dir, "add", "quality", "コードカバレッジ",
-		"--deliverable", ids["deliverable"],
+		"--objective", ids["objective"],
 		"--metric", "coverage:80:%")
 	assertSuccess(t, result)
 	qualID := extractEntityID(t, result, "qual-")

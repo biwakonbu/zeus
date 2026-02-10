@@ -96,12 +96,18 @@ const (
 	ReportFormatMarkdown ReportFormat = "markdown"
 )
 
-// Activity ステータス定数
+// ステータス定数（Activity + Objective 共用）
 const (
+	// Activity ステータス
+	TaskStatusDraft      = "draft"
+	TaskStatusActive     = "active"
+	TaskStatusDeprecated = "deprecated"
+	// Objective ステータス
 	TaskStatusPending    = "pending"
 	TaskStatusInProgress = "in_progress"
 	TaskStatusCompleted  = "completed"
 	TaskStatusBlocked    = "blocked"
+	TaskStatusOnHold     = "on_hold"
 )
 
 // ObjectiveInfo は分析に必要な Objective 情報
@@ -114,16 +120,6 @@ type ObjectiveInfo struct {
 	UpdatedAt string // 更新日時（ISO8601）
 }
 
-// DeliverableInfo は分析に必要な Deliverable 情報
-type DeliverableInfo struct {
-	ID          string // Deliverable ID
-	Title       string // タイトル
-	ObjectiveID string // 紐づく Objective ID
-	Status      string // ステータス
-	CreatedAt   string // 作成日時（ISO8601）
-	UpdatedAt   string // 更新日時（ISO8601）
-}
-
 // VisionInfo は分析に必要な Vision 情報
 type VisionInfo struct {
 	ID        string // Vision ID
@@ -134,31 +130,30 @@ type VisionInfo struct {
 
 // RiskInfo はリスク情報
 // 使用コンテキスト:
-//   - アフィニティ分析: Objective/Deliverable との関連付けによるクラスタリング
+//   - アフィニティ分析: Objective との関連付けによるクラスタリング
 //
 // core.RiskEntity からの変換時に handlers.go で生成される
 type RiskInfo struct {
-	ID            string `json:"id"`
-	Title         string `json:"title"`
-	Probability   string `json:"probability"`    // low, medium, high
-	Impact        string `json:"impact"`         // low, medium, high
-	Score         int    `json:"score"`          // 計算されたスコア（Probability × Impact）
-	Status        string `json:"status"`         // identified, mitigating, mitigated, accepted
-	ObjectiveID   string `json:"objective_id"`   // 関連 Objective（Affinity クラスタリング用）
-	DeliverableID string `json:"deliverable_id"` // 関連 Deliverable（Affinity クラスタリング用）
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Probability string `json:"probability"`  // low, medium, high
+	Impact      string `json:"impact"`       // low, medium, high
+	Score       int    `json:"score"`        // 計算されたスコア（Probability × Impact）
+	Status      string `json:"status"`       // identified, mitigating, mitigated, accepted
+	ObjectiveID string `json:"objective_id"` // 関連 Objective（Affinity クラスタリング用）
 }
 
 // QualityInfo は Quality エンティティ情報
 // 使用コンテキスト:
-//   - アフィニティ分析: Deliverable との関連付けによる品質基準クラスタリング
+//   - アフィニティ分析: Objective との関連付けによる品質基準クラスタリング
 //
 // core.QualityEntity からの変換時に handlers.go で生成される
 // Note: QualityEntity には Status フィールドがないため、状態追跡が必要な場合は
 // Gates の Pass/Fail や Metrics の達成度から派生させる
 type QualityInfo struct {
-	ID            string `json:"id"`
-	Title         string `json:"title"`
-	DeliverableID string `json:"deliverable_id"` // 関連 Deliverable（必須）
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	ObjectiveID string `json:"objective_id"` // 関連 Objective（必須）
 }
 
 // ============================================================
@@ -169,31 +164,20 @@ type QualityInfo struct {
 type EntityType string
 
 const (
-	EntityTypeActivity    EntityType = "activity"
-	EntityTypeUseCase     EntityType = "usecase"
-	EntityTypeDeliverable EntityType = "deliverable"
-	EntityTypeObjective   EntityType = "objective"
+	EntityTypeActivity  EntityType = "activity"
+	EntityTypeUseCase   EntityType = "usecase"
+	EntityTypeObjective EntityType = "objective"
 )
 
 // ActivityInfo は分析に必要な Activity 情報
 // core.ActivityEntity からの変換を前提とした軽量構造体
 type ActivityInfo struct {
-	ID           string   // Activity ID
-	Title        string   // タイトル
-	Status       string   // ステータス
-	Mode         string   // モード ("simple" or "flow")
-	Dependencies []string // 依存 Activity ID
-	ParentID     string   // 親 Activity ID
-	UseCaseID    string   // 関連 UseCase ID
-
-	// 作業管理フィールド
-	Priority string // 優先度
-	Assignee string // 担当者
-
-	// 関連情報
-	RelatedDeliverables []string // 関連 Deliverable ID
-	CreatedAt           string   // 作成日時
-	UpdatedAt           string   // 更新日時
+	ID        string // Activity ID
+	Title     string // タイトル
+	Status    string // ステータス
+	UseCaseID string // 関連 UseCase ID
+	CreatedAt string // 作成日時
+	UpdatedAt string // 更新日時
 }
 
 // UseCaseInfo は分析に必要な UseCase 情報
@@ -208,13 +192,10 @@ type UseCaseInfo struct {
 
 // UnifiedGraphNode は統合グラフのノード
 type UnifiedGraphNode struct {
-	ID       string     // ノード ID
-	Type     EntityType // エンティティタイプ
-	Title    string     // タイトル
-	Status   string     // ステータス
-	Priority string     // 優先度（Activity のみ）
-	Assignee string     // 担当者（Activity のみ）
-	Mode     string     // モード（Activity のみ: "simple" or "flow"）
+	ID     string     // ノード ID
+	Type   EntityType // エンティティタイプ
+	Title  string     // タイトル
+	Status string     // ステータス
 
 	// 構造層（structural layer）情報
 	StructuralParents  []string // 構造上の親ノード ID
@@ -227,7 +208,6 @@ type UnifiedEdgeLayer string
 
 const (
 	EdgeLayerStructural UnifiedEdgeLayer = "structural" // 階層構造を形成するレイヤー
-	EdgeLayerReference  UnifiedEdgeLayer = "reference"  // 参照・依存を表すレイヤー
 )
 
 // UnifiedEdgeRelation はエッジの意味論（関係種別）
@@ -235,18 +215,15 @@ type UnifiedEdgeRelation string
 
 const (
 	RelationParent      UnifiedEdgeRelation = "parent"
-	RelationDependsOn   UnifiedEdgeRelation = "depends_on"
 	RelationImplements  UnifiedEdgeRelation = "implements"
 	RelationContributes UnifiedEdgeRelation = "contributes"
-	RelationFulfills    UnifiedEdgeRelation = "fulfills"
-	RelationProduces    UnifiedEdgeRelation = "produces"
 )
 
 // UnifiedEdge は統合グラフのエッジ（2層モデル）
 type UnifiedEdge struct {
 	From     string              // ソースノード ID
 	To       string              // ターゲットノード ID
-	Layer    UnifiedEdgeLayer    // レイヤー（structural/reference）
+	Layer    UnifiedEdgeLayer    // レイヤー（structural）
 	Relation UnifiedEdgeRelation // 関係種別
 }
 

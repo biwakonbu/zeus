@@ -169,7 +169,6 @@ export class LayoutEngine {
 		return [...edges].sort((a, b) => {
 			if (a.from !== b.from) return a.from.localeCompare(b.from);
 			if (a.to !== b.to) return a.to.localeCompare(b.to);
-			if (a.layer !== b.layer) return a.layer.localeCompare(b.layer);
 			return a.relation.localeCompare(b.relation);
 		});
 	}

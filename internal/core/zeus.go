@@ -97,21 +97,19 @@ func New(projectPath string, opts ...Option) *Zeus {
 		z.entityRegistry.Register(NewVisionHandler(z.fileStore))
 		objHandler := NewObjectiveHandler(z.fileStore, z.idCounterManager)
 		z.entityRegistry.Register(objHandler)
-		delHandler := NewDeliverableHandler(z.fileStore, objHandler, z.idCounterManager)
-		z.entityRegistry.Register(delHandler)
 
 		// 10 概念モデルのハンドラー登録（Phase 2）
-		conHandler := NewConsiderationHandler(z.fileStore, objHandler, delHandler, z.idCounterManager)
+		conHandler := NewConsiderationHandler(z.fileStore, objHandler, z.idCounterManager)
 		z.entityRegistry.Register(conHandler)
 		decHandler := NewDecisionHandler(z.fileStore, conHandler, z.idCounterManager)
 		z.entityRegistry.Register(decHandler)
-		z.entityRegistry.Register(NewProblemHandler(z.fileStore, objHandler, delHandler, z.idCounterManager))
-		z.entityRegistry.Register(NewRiskHandler(z.fileStore, objHandler, delHandler, z.idCounterManager))
-		z.entityRegistry.Register(NewAssumptionHandler(z.fileStore, objHandler, delHandler, z.idCounterManager))
+		z.entityRegistry.Register(NewProblemHandler(z.fileStore, objHandler, z.idCounterManager))
+		z.entityRegistry.Register(NewRiskHandler(z.fileStore, objHandler, z.idCounterManager))
+		z.entityRegistry.Register(NewAssumptionHandler(z.fileStore, objHandler, z.idCounterManager))
 
 		// 10 概念モデルのハンドラー登録（Phase 3）
 		z.entityRegistry.Register(NewConstraintHandler(z.fileStore))
-		z.entityRegistry.Register(NewQualityHandler(z.fileStore, delHandler, z.idCounterManager))
+		z.entityRegistry.Register(NewQualityHandler(z.fileStore, objHandler, z.idCounterManager))
 
 		// UML ユースケース図のハンドラー登録
 		actorHandler := NewActorHandler(z.fileStore)
@@ -125,7 +123,7 @@ func New(projectPath string, opts ...Option) *Zeus {
 		z.entityRegistry.Register(usecaseHandler)
 
 		// UML アクティビティ図のハンドラー登録
-		z.entityRegistry.Register(NewActivityHandler(z.fileStore, usecaseHandler, delHandler, z.idCounterManager))
+		z.entityRegistry.Register(NewActivityHandler(z.fileStore, usecaseHandler))
 	}
 
 	return z
@@ -439,7 +437,7 @@ func (z *Zeus) updateState(ctx context.Context) error {
 		return z.stateStore.SaveCurrentState(ctx, state)
 	}
 
-	activities, err := actHandler.GetAllSimple(ctx)
+	activities, err := actHandler.GetAll(ctx)
 	if err != nil {
 		state := z.stateStore.CalculateState([]ListItem{})
 		return z.stateStore.SaveCurrentState(ctx, state)
@@ -462,16 +460,11 @@ func (z *Zeus) updateState(ctx context.Context) error {
 // activityStatusToItemStatus は ActivityStatus を ItemStatus に変換
 func activityStatusToItemStatus(status ActivityStatus) ItemStatus {
 	switch status {
-	case ActivityStatusCompleted:
-		return ItemStatusCompleted
-	case ActivityStatusInProgress:
+	case ActivityStatusActive:
 		return ItemStatusInProgress
-	case ActivityStatusPending:
-		return ItemStatusPending
-	case ActivityStatusBlocked:
-		return ItemStatusBlocked
-	case ActivityStatusDraft, ActivityStatusActive, ActivityStatusDeprecated:
-		// Draft, Active, Deprecated は Pending として扱う
+	case ActivityStatusDeprecated:
+		return ItemStatusCompleted
+	case ActivityStatusDraft:
 		return ItemStatusPending
 	default:
 		return ItemStatusPending
@@ -487,45 +480,27 @@ func (z *Zeus) GenerateSuggestions(ctx context.Context, status *StatusResult, li
 	suggestions := []Suggestion{}
 
 	// Activity から統計を計算
-	pendingActivities := 0
-	blockedActivities := 0
+	draftActivities := 0
 
 	actHandler := z.GetActivityHandler()
 	if actHandler != nil {
 		activities, err := actHandler.GetAll(ctx)
 		if err == nil {
 			for _, act := range activities {
-				// Draft と Pending を保留中として扱う
-				if act.Status == ActivityStatusPending || act.Status == ActivityStatusDraft {
-					pendingActivities++
-				}
-				if act.Status == ActivityStatusBlocked {
-					blockedActivities++
+				if act.Status == ActivityStatusDraft {
+					draftActivities++
 				}
 			}
 		}
 	}
 
-	// ブロックされた Activity がある場合、リスク対策を提案
-	if blockedActivities > 0 && (impactFilter == "" || impactFilter == "high") {
-		suggestions = append(suggestions, Suggestion{
-			ID:          fmt.Sprintf("sugg-%s", uuid.New().String()[:8]),
-			Type:        SuggestionRiskMitigation,
-			Description: fmt.Sprintf("%d件のブロックされたアクティビティを解決する必要があります", blockedActivities),
-			Rationale:   "ブロックされたアクティビティはプロジェクト全体の進行を妨げます",
-			Impact:      ImpactHigh,
-			Status:      SuggestionPending,
-			CreatedAt:   Now(),
-		})
-	}
-
-	// 保留中のアクティビティが多い場合、優先順位付けを提案
-	if pendingActivities > 5 && (impactFilter == "" || impactFilter == "medium") {
+	// Draft 状態のアクティビティが多い場合、優先順位付けを提案
+	if draftActivities > 5 && (impactFilter == "" || impactFilter == "medium") {
 		suggestions = append(suggestions, Suggestion{
 			ID:          fmt.Sprintf("sugg-%s", uuid.New().String()[:8]),
 			Type:        SuggestionPriorityChange,
-			Description: "保留中のアクティビティが多いため、優先順位を明確にしましょう",
-			Rationale:   fmt.Sprintf("%d件のアクティビティが保留中です", pendingActivities),
+			Description: "下書き状態のアクティビティが多いため、Active への移行を検討しましょう",
+			Rationale:   fmt.Sprintf("%d件のアクティビティが Draft 状態です", draftActivities),
 			Impact:      ImpactMedium,
 			Status:      SuggestionPending,
 			CreatedAt:   Now(),
@@ -641,9 +616,6 @@ func (z *Zeus) ApplySuggestion(ctx context.Context, suggestionID string, applyAl
 			if suggestion.ActivityData != nil {
 				result.CreatedActivityID = suggestion.ActivityData.ID
 				result.CreatedTaskID = suggestion.ActivityData.ID // 後方互換性
-			} else if suggestion.TaskData != nil {
-				// 後方互換性: TaskData から変換された場合
-				result.CreatedTaskID = suggestion.TaskData.ID
 			}
 		}
 
@@ -814,18 +786,6 @@ func (z *Zeus) explainActivity(ctx context.Context, activityID string, includeCo
 	if includeContext {
 		result.Context["status"] = string(activity.Status)
 		result.Context["created_at"] = activity.Metadata.CreatedAt
-		if activity.Assignee != "" {
-			result.Context["assignee"] = activity.Assignee
-		}
-		if len(activity.Dependencies) > 0 {
-			result.Context["dependencies"] = fmt.Sprintf("%v", activity.Dependencies)
-		}
-	}
-
-	// 改善提案を生成
-	if activity.Status == ActivityStatusBlocked {
-		result.Suggestions = append(result.Suggestions,
-			"この Activity はブロックされています。依存関係を確認してください。")
 	}
 
 	return result, nil
@@ -846,94 +806,34 @@ func (z *Zeus) applySuggestion(ctx context.Context, suggestion *Suggestion) erro
 
 	switch suggestion.Type {
 	case SuggestionNewTask:
-		// ActivityData を優先、なければ TaskData から変換（後方互換性）
-		var activity *ActivityEntity
-		if suggestion.ActivityData != nil {
-			activity = suggestion.ActivityData
-		} else if suggestion.TaskData != nil {
-			// TaskData から ActivityEntity に変換
-			activity = NewActivityFromListItem(*suggestion.TaskData, suggestion.TaskData.ID)
-		} else {
+		// ActivityData から Activity を追加
+		if suggestion.ActivityData == nil {
 			return fmt.Errorf("new_task タイプの提案に Activity データがありません")
 		}
+
+		activity := suggestion.ActivityData
 
 		// Activity を追加
 		result, err := actHandler.Add(ctx, activity.Title,
 			WithActivityDescription(activity.Description),
 			WithActivityStatus(activity.Status),
-			WithActivityPriority(activity.Priority),
-			WithActivityAssignee(activity.Assignee),
-			WithActivityDependencies(activity.Dependencies),
-			WithActivityParent(activity.ParentID),
-			WithActivityApprovalLevel(activity.ApprovalLevel),
 		)
 		if err != nil {
 			return fmt.Errorf("Activity の追加に失敗しました: %w", err)
 		}
 
 		// 生成された ID を suggestion に反映（レスポンス用）
-		if suggestion.ActivityData != nil {
-			suggestion.ActivityData.ID = result.ID
-		}
+		suggestion.ActivityData.ID = result.ID
 		return nil
 
 	case SuggestionPriorityChange:
-		// TargetTaskID は Activity ID を指定（名前は後方互換性のため維持）
-		if suggestion.TargetTaskID == "" {
-			return fmt.Errorf("priority_change タイプにターゲット Activity ID がありません")
-		}
-		if suggestion.NewPriority == "" {
-			return fmt.Errorf("priority_change タイプに新しい優先度がありません")
-		}
-
-		// Activity を更新
-		err := actHandler.Update(ctx, suggestion.TargetTaskID, map[string]any{
-			"priority": suggestion.NewPriority,
-		})
-		if err != nil {
-			return fmt.Errorf("Activity の優先度更新に失敗しました: %w", err)
-		}
+		// 情報提供のみ（Activity に Priority フィールドは存在しない）
+		fmt.Println("Info: Priority 変更は情報提供のみです（Activity に Priority フィールドはありません）")
 		return nil
 
 	case SuggestionDependency:
-		// TargetTaskID は Activity ID を指定（名前は後方互換性のため維持）
-		if suggestion.TargetTaskID == "" {
-			return fmt.Errorf("dependency タイプにターゲット Activity ID がありません")
-		}
-		if len(suggestion.Dependencies) == 0 {
-			return fmt.Errorf("dependency タイプに依存関係がありません")
-		}
-
-		// 対象 Activity を取得
-		actAny, err := actHandler.Get(ctx, suggestion.TargetTaskID)
-		if err != nil {
-			return fmt.Errorf("Activity が見つかりません: %s", suggestion.TargetTaskID)
-		}
-		activity, ok := actAny.(*ActivityEntity)
-		if !ok {
-			return fmt.Errorf("Activity の型が不正です: %s", suggestion.TargetTaskID)
-		}
-
-		// 既存の依存関係に追加（重複を避ける）
-		existingDeps := make(map[string]bool)
-		for _, dep := range activity.Dependencies {
-			existingDeps[dep] = true
-		}
-		newDeps := make([]string, len(activity.Dependencies))
-		copy(newDeps, activity.Dependencies)
-		for _, newDep := range suggestion.Dependencies {
-			if !existingDeps[newDep] {
-				newDeps = append(newDeps, newDep)
-			}
-		}
-
-		// Activity を更新
-		err = actHandler.Update(ctx, suggestion.TargetTaskID, map[string]any{
-			"dependencies": newDeps,
-		})
-		if err != nil {
-			return fmt.Errorf("Activity の依存関係更新に失敗しました: %w", err)
-		}
+		// 情報提供のみ（Activity に Dependencies フィールドは存在しない）
+		fmt.Println("Info: 依存関係の変更は情報提供のみです（Activity に Dependencies フィールドはありません）")
 		return nil
 
 	case SuggestionRiskMitigation:
@@ -953,13 +853,9 @@ func activityToAnalysisTaskInfo(activities []ActivityEntity) []analysis.TaskInfo
 	result := make([]analysis.TaskInfo, len(activities))
 	for i, a := range activities {
 		result[i] = analysis.TaskInfo{
-			ID:           a.ID,
-			Title:        a.Title,
-			Status:       string(a.Status),
-			Dependencies: a.Dependencies,
-			ParentID:     a.ParentID,
-			Priority:     string(a.Priority),
-			Assignee:     a.Assignee,
+			ID:     a.ID,
+			Title:  a.Title,
+			Status: string(a.Status),
 		}
 	}
 	return result
@@ -970,18 +866,12 @@ func toAnalysisActivityInfo(activities []ActivityEntity) []analysis.ActivityInfo
 	result := make([]analysis.ActivityInfo, len(activities))
 	for i, a := range activities {
 		result[i] = analysis.ActivityInfo{
-			ID:                  a.ID,
-			Title:               a.Title,
-			Status:              string(a.Status),
-			Mode:                string(a.Mode()),
-			Dependencies:        a.Dependencies,
-			ParentID:            a.ParentID,
-			UseCaseID:           a.UseCaseID,
-			Priority:            string(a.Priority),
-			Assignee:            a.Assignee,
-			RelatedDeliverables: a.RelatedDeliverables,
-			CreatedAt:           a.Metadata.CreatedAt,
-			UpdatedAt:           a.Metadata.UpdatedAt,
+			ID:        a.ID,
+			Title:     a.Title,
+			Status:    string(a.Status),
+			UseCaseID: a.UseCaseID,
+			CreatedAt: a.Metadata.CreatedAt,
+			UpdatedAt: a.Metadata.UpdatedAt,
 		}
 	}
 	return result
@@ -1158,7 +1048,7 @@ func (z *Zeus) UpdateClaudeFiles(ctx context.Context) error {
 // ===== Task/Activity 統合: UnifiedGraph 機能 =====
 
 // BuildUnifiedGraph は統合グラフを構築
-// Activity, UseCase, Deliverable, Objective を統合した依存関係グラフを返す
+// Activity, UseCase, Objective を統合した依存関係グラフを返す
 func (z *Zeus) BuildUnifiedGraph(ctx context.Context, filter *analysis.GraphFilter) (*analysis.UnifiedGraph, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -1194,27 +1084,7 @@ func (z *Zeus) BuildUnifiedGraph(ctx context.Context, filter *analysis.GraphFilt
 		}
 	}
 
-	// 3. 全 Deliverable を取得
-	deliverables := []analysis.DeliverableInfo{}
-	delFiles, err := z.fileStore.ListDir(ctx, "deliverables")
-	if err == nil {
-		for _, file := range delFiles {
-			if !hasYamlSuffix(file) {
-				continue
-			}
-			var del DeliverableEntity
-			if err := z.fileStore.ReadYaml(ctx, filepath.Join("deliverables", file), &del); err == nil {
-				deliverables = append(deliverables, analysis.DeliverableInfo{
-					ID:          del.ID,
-					Title:       del.Title,
-					ObjectiveID: del.ObjectiveID,
-					Status:      string(del.Status),
-				})
-			}
-		}
-	}
-
-	// 4. 全 Objective を取得
+	// 3. 全 Objective を取得
 	objectives := []analysis.ObjectiveInfo{}
 	objFiles, err := z.fileStore.ListDir(ctx, "objectives")
 	if err == nil {
@@ -1234,11 +1104,10 @@ func (z *Zeus) BuildUnifiedGraph(ctx context.Context, filter *analysis.GraphFilt
 		}
 	}
 
-	// 5. UnifiedGraphBuilder で構築
+	// 4. UnifiedGraphBuilder で構築
 	builder := analysis.NewUnifiedGraphBuilder().
 		WithActivities(toAnalysisActivityInfo(activities)).
 		WithUseCases(toAnalysisUseCaseInfo(usecases)).
-		WithDeliverables(deliverables).
 		WithObjectives(objectives)
 
 	if filter != nil {

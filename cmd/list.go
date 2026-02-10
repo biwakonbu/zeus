@@ -18,7 +18,6 @@ var listCmd = &cobra.Command{
 対応エンティティ:
   vision         ビジョン
   objective(s)   目標
-  deliverable(s) 成果物
   consideration(s) 検討事項
   decision(s)    意思決定
   problem(s)     問題
@@ -33,10 +32,9 @@ var listCmd = &cobra.Command{
 
 例:
   zeus list              # Activity 一覧を表示
-  zeus list activities   # アクティビティ一覧（モード表示付き）
+  zeus list activities   # アクティビティ一覧
   zeus list vision       # ビジョンを表示
   zeus list objectives   # 目標一覧
-  zeus list deliverables # 成果物一覧
   zeus list considerations # 検討事項一覧
   zeus list decisions    # 意思決定一覧
   zeus list problems     # 問題一覧
@@ -52,7 +50,6 @@ var listCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(listCmd)
 	listCmd.Flags().StringP("status", "s", "", "ステータスでフィルタ")
-	listCmd.Flags().StringP("mode", "m", "", "モードでフィルタ（Activity用: simple, flow）")
 }
 
 func runList(cmd *cobra.Command, args []string) error {
@@ -69,8 +66,6 @@ func runList(cmd *cobra.Command, args []string) error {
 		return listVision(cmd, zeus)
 	case "objective", "objectives":
 		return listObjectives(cmd, zeus)
-	case "deliverable", "deliverables":
-		return listDeliverables(cmd, zeus)
 	case "consideration", "considerations":
 		return listConsiderations(cmd, zeus)
 	case "decision", "decisions":
@@ -107,7 +102,7 @@ func listTasksDeprecated(_ *cobra.Command) error {
 	fmt.Println("────────────────────────────────────────")
 	fmt.Println()
 	fmt.Printf("Task は Activity に統合されました。\n")
-	fmt.Println("Activity は Simple モード（作業追跡）と Flow モード（プロセス可視化）を提供します。")
+	fmt.Println("Activity はプロセス可視化と作業追跡を提供します。")
 	fmt.Println()
 	fmt.Printf("代わりに以下のコマンドを使用してください:\n")
 	fmt.Printf("  %s  # Activity 一覧を表示\n", cyan("zeus list activities"))
@@ -205,31 +200,6 @@ func listObjectives(cmd *cobra.Command, zeus *core.Zeus) error {
 
 	// 簡易表示（Total のみ）
 	fmt.Printf("Total: %d objectives\n", listResult.Total)
-	fmt.Println("\n詳細を見るには 'zeus status' を使用してください。")
-
-	return nil
-}
-
-// listDeliverables は Deliverable 一覧を表示
-func listDeliverables(cmd *cobra.Command, zeus *core.Zeus) error {
-	ctx := getContext(cmd)
-	result, err := zeus.List(ctx, "deliverable")
-	if err != nil {
-		return err
-	}
-
-	cyan := color.New(color.FgCyan).SprintFunc()
-	fmt.Printf("%s (%d items)\n", cyan("Deliverables"), result.Total)
-	fmt.Println("────────────────────────────────────────")
-
-	if result.Total == 0 {
-		fmt.Println("成果物がありません。")
-		fmt.Println("'zeus add deliverable \"タイトル\" --objective obj-001' で作成できます。")
-		return nil
-	}
-
-	// 簡易表示（Total のみ）
-	fmt.Printf("Total: %d deliverables\n", result.Total)
 	fmt.Println("\n詳細を見るには 'zeus status' を使用してください。")
 
 	return nil
@@ -393,7 +363,7 @@ func listQualities(cmd *cobra.Command, zeus *core.Zeus) error {
 
 	if result.Total == 0 {
 		fmt.Println("品質基準がありません。")
-		fmt.Println("'zeus add quality \"タイトル\" --deliverable del-001' で作成できます。")
+		fmt.Println("'zeus add quality \"タイトル\" --objective obj-001' で作成できます。")
 		return nil
 	}
 
@@ -428,7 +398,7 @@ func listSubsystems(cmd *cobra.Command, zeus *core.Zeus) error {
 	return nil
 }
 
-// listActivities は Activity 一覧を表示（モード表示付き）
+// listActivities は Activity 一覧を表示
 func listActivities(cmd *cobra.Command, zeus *core.Zeus) error {
 	ctx := getContext(cmd)
 
@@ -438,22 +408,8 @@ func listActivities(cmd *cobra.Command, zeus *core.Zeus) error {
 		return fmt.Errorf("activity handler not found")
 	}
 
-	// モードフィルタを取得
-	modeFilter, _ := cmd.Flags().GetString("mode")
-
 	// 全 Activity を取得
-	var activities []core.ActivityEntity
-	var err error
-
-	switch modeFilter {
-	case "simple":
-		activities, err = actHandler.GetAllSimple(ctx)
-	case "flow":
-		activities, err = actHandler.GetAllFlow(ctx)
-	default:
-		activities, err = actHandler.GetAll(ctx)
-	}
-
+	activities, err := actHandler.GetAll(ctx)
 	if err != nil {
 		return err
 	}
@@ -461,7 +417,6 @@ func listActivities(cmd *cobra.Command, zeus *core.Zeus) error {
 	cyan := color.New(color.FgCyan).SprintFunc()
 	green := color.New(color.FgGreen).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
-	blue := color.New(color.FgBlue).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
 	white := color.New(color.FgWhite).SprintFunc()
 
@@ -471,77 +426,51 @@ func listActivities(cmd *cobra.Command, zeus *core.Zeus) error {
 	if len(activities) == 0 {
 		fmt.Println("アクティビティがありません。")
 		fmt.Println("'zeus add activity \"タイトル\"' で作成できます。")
-		fmt.Println("\nActivity は Task の後継として、作業追跡（Simple）と")
-		fmt.Println("プロセス可視化（Flow）の両方をサポートします。")
 		return nil
 	}
 
 	// 統計情報
-	var simpleCount, flowCount int
-	var completedCount, inProgressCount, blockedCount int
+	var draftCount, activeCount, deprecatedCount int
 	for _, act := range activities {
-		if act.IsSimple() {
-			simpleCount++
-		} else {
-			flowCount++
-		}
 		switch act.Status {
-		case core.ActivityStatusCompleted:
-			completedCount++
-		case core.ActivityStatusInProgress:
-			inProgressCount++
-		case core.ActivityStatusBlocked:
-			blockedCount++
+		case core.ActivityStatusDraft:
+			draftCount++
+		case core.ActivityStatusActive:
+			activeCount++
+		case core.ActivityStatusDeprecated:
+			deprecatedCount++
 		}
 	}
 
-	fmt.Printf("Mode: %s Simple / %s Flow\n", blue(fmt.Sprintf("%d", simpleCount)), yellow(fmt.Sprintf("%d", flowCount)))
-	fmt.Printf("Status: %s Completed / %s In Progress / %s Blocked\n",
-		green(fmt.Sprintf("%d", completedCount)),
-		yellow(fmt.Sprintf("%d", inProgressCount)),
-		red(fmt.Sprintf("%d", blockedCount)))
+	fmt.Printf("Status: %s Active / %s Draft / %s Deprecated\n",
+		green(fmt.Sprintf("%d", activeCount)),
+		yellow(fmt.Sprintf("%d", draftCount)),
+		red(fmt.Sprintf("%d", deprecatedCount)))
 	fmt.Println("────────────────────────────────────────────────────────────────")
 
 	// Activity 一覧
 	for _, act := range activities {
-		// モードバッジ
-		var modeBadge string
-		if act.IsSimple() {
-			modeBadge = blue("[Simple]")
-		} else {
-			modeBadge = yellow("[Flow]")
-		}
-
 		// ステータスカラー
 		var statusColor func(a ...any) string
 		switch act.Status {
-		case core.ActivityStatusCompleted:
+		case core.ActivityStatusActive:
 			statusColor = green
-		case core.ActivityStatusInProgress:
+		case core.ActivityStatusDraft:
 			statusColor = yellow
-		case core.ActivityStatusBlocked:
+		case core.ActivityStatusDeprecated:
 			statusColor = red
-		case core.ActivityStatusPending:
-			statusColor = white
 		default:
 			statusColor = white
 		}
 
 		// 基本情報
-		fmt.Printf("%s %s %s - %s\n",
-			modeBadge,
+		fmt.Printf("%s %s - %s\n",
 			statusColor(fmt.Sprintf("[%s]", act.Status)),
 			act.ID,
 			act.Title)
 
-		// 詳細情報（担当者など）
+		// 詳細情報
 		var details []string
-		if act.Assignee != "" {
-			details = append(details, fmt.Sprintf("Assignee: %s", act.Assignee))
-		}
-		if len(act.Dependencies) > 0 {
-			details = append(details, fmt.Sprintf("Deps: %d", len(act.Dependencies)))
-		}
 		if act.UseCaseID != "" {
 			details = append(details, fmt.Sprintf("UseCase: %s", act.UseCaseID))
 		}

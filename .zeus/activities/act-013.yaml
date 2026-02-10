@@ -2,7 +2,6 @@ id: act-013
 title: "エンティティ却下フロー"
 description: "zeus reject コマンドによるエンティティ却下の処理フロー"
 usecase_id: uc-4a16e083
-related_deliverables:
   - del-007
   - del-008
   - del-009

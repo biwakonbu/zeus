@@ -11,9 +11,8 @@ import (
 func TestNewStaleAnalyzer(t *testing.T) {
 	tasks := []TaskInfo{{ID: "task-001", Title: "タスク1"}}
 	objectives := []ObjectiveInfo{{ID: "obj-001", Title: "目標1"}}
-	deliverables := []DeliverableInfo{{ID: "del-001", Title: "成果物1"}}
 
-	analyzer := NewStaleAnalyzer(tasks, objectives, deliverables, nil)
+	analyzer := NewStaleAnalyzer(tasks, objectives, nil)
 
 	if analyzer == nil {
 		t.Fatal("NewStaleAnalyzer returned nil")
@@ -24,9 +23,6 @@ func TestNewStaleAnalyzer(t *testing.T) {
 	if len(analyzer.objectives) != 1 {
 		t.Errorf("expected 1 objective, got %d", len(analyzer.objectives))
 	}
-	if len(analyzer.deliverables) != 1 {
-		t.Errorf("expected 1 deliverable, got %d", len(analyzer.deliverables))
-	}
 }
 
 func TestNewStaleAnalyzer_WithConfig(t *testing.T) {
@@ -36,7 +32,7 @@ func TestNewStaleAnalyzer_WithConfig(t *testing.T) {
 		NoProgressDays:     30,
 	}
 
-	analyzer := NewStaleAnalyzer(nil, nil, nil, config)
+	analyzer := NewStaleAnalyzer(nil, nil, config)
 
 	if analyzer.config.CompletedStaleDays != 60 {
 		t.Errorf("expected CompletedStaleDays 60, got %d", analyzer.config.CompletedStaleDays)
@@ -50,7 +46,7 @@ func TestNewStaleAnalyzer_WithConfig(t *testing.T) {
 }
 
 func TestNewStaleAnalyzer_DefaultConfig(t *testing.T) {
-	analyzer := NewStaleAnalyzer(nil, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(nil, nil, nil)
 
 	if analyzer.config.CompletedStaleDays != DefaultStaleConfig.CompletedStaleDays {
 		t.Errorf("expected default CompletedStaleDays %d, got %d",
@@ -69,7 +65,7 @@ func TestNewStaleAnalyzer_DefaultConfig(t *testing.T) {
 // ===== Analyze テスト =====
 
 func TestStaleAnalyzer_Analyze(t *testing.T) {
-	analyzer := NewStaleAnalyzer(nil, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(nil, nil, nil)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -86,7 +82,7 @@ func TestStaleAnalyzer_Analyze(t *testing.T) {
 }
 
 func TestStaleAnalyzer_Analyze_ContextCancellation(t *testing.T) {
-	analyzer := NewStaleAnalyzer(nil, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(nil, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -109,7 +105,7 @@ func TestStaleAnalyzer_CompletedOld_Task(t *testing.T) {
 		{ID: "task-001", Title: "古いタスク", Status: TaskStatusCompleted, CompletedAt: completedAt},
 	}
 
-	analyzer := NewStaleAnalyzer(tasks, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(tasks, nil, nil)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -139,7 +135,7 @@ func TestStaleAnalyzer_CompletedOld_Objective(t *testing.T) {
 		{ID: "obj-001", Title: "古い目標", Status: "completed", UpdatedAt: updatedAt},
 	}
 
-	analyzer := NewStaleAnalyzer(nil, objectives, nil, nil)
+	analyzer := NewStaleAnalyzer(nil, objectives, nil)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -159,60 +155,6 @@ func TestStaleAnalyzer_CompletedOld_Objective(t *testing.T) {
 	}
 }
 
-func TestStaleAnalyzer_CompletedOld_Deliverable(t *testing.T) {
-	// 31日前に完了した Deliverable
-	updatedAt := time.Now().AddDate(0, 0, -31).Format(time.RFC3339)
-	deliverables := []DeliverableInfo{
-		{ID: "del-001", Title: "古い成果物", Status: "delivered", UpdatedAt: updatedAt},
-	}
-
-	analyzer := NewStaleAnalyzer(nil, nil, deliverables, nil)
-	ctx := context.Background()
-
-	result, err := analyzer.Analyze(ctx)
-	if err != nil {
-		t.Fatalf("Analyze failed: %v", err)
-	}
-
-	staleCount := 0
-	for _, entity := range result.StaleEntities {
-		if entity.Type == StaleTypeCompletedOld && entity.EntityID == "del-001" {
-			staleCount++
-		}
-	}
-
-	if staleCount == 0 {
-		t.Error("expected completed old deliverable to be detected")
-	}
-}
-
-func TestStaleAnalyzer_CompletedOld_ApprovedDeliverable(t *testing.T) {
-	// 31日前に承認された Deliverable
-	updatedAt := time.Now().AddDate(0, 0, -31).Format(time.RFC3339)
-	deliverables := []DeliverableInfo{
-		{ID: "del-001", Title: "承認済み成果物", Status: "approved", UpdatedAt: updatedAt},
-	}
-
-	analyzer := NewStaleAnalyzer(nil, nil, deliverables, nil)
-	ctx := context.Background()
-
-	result, err := analyzer.Analyze(ctx)
-	if err != nil {
-		t.Fatalf("Analyze failed: %v", err)
-	}
-
-	staleCount := 0
-	for _, entity := range result.StaleEntities {
-		if entity.Type == StaleTypeCompletedOld && entity.EntityID == "del-001" {
-			staleCount++
-		}
-	}
-
-	if staleCount == 0 {
-		t.Error("expected approved old deliverable to be detected")
-	}
-}
-
 // ===== ブロック長期化テスト =====
 
 func TestStaleAnalyzer_BlockedLong(t *testing.T) {
@@ -222,7 +164,7 @@ func TestStaleAnalyzer_BlockedLong(t *testing.T) {
 		{ID: "task-001", Title: "長期ブロックタスク", Status: TaskStatusBlocked, UpdatedAt: updatedAt},
 	}
 
-	analyzer := NewStaleAnalyzer(tasks, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(tasks, nil, nil)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -252,7 +194,7 @@ func TestStaleAnalyzer_BlockedLong_NotDetectedIfRecent(t *testing.T) {
 		{ID: "task-001", Title: "最近ブロックタスク", Status: TaskStatusBlocked, UpdatedAt: updatedAt},
 	}
 
-	analyzer := NewStaleAnalyzer(tasks, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(tasks, nil, nil)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -275,7 +217,7 @@ func TestStaleAnalyzer_Orphaned(t *testing.T) {
 		{ID: "task-001", Title: "孤立完了タスク", Status: TaskStatusCompleted, ParentID: ""},
 	}
 
-	analyzer := NewStaleAnalyzer(tasks, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(tasks, nil, nil)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -304,7 +246,7 @@ func TestStaleAnalyzer_Orphaned_WithDependencies(t *testing.T) {
 		{ID: "task-001", Title: "タスク1", Status: TaskStatusCompleted, ParentID: "", Dependencies: []string{"task-002"}},
 	}
 
-	analyzer := NewStaleAnalyzer(tasks, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(tasks, nil, nil)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -326,7 +268,7 @@ func TestStaleAnalyzer_Orphaned_Referenced(t *testing.T) {
 		{ID: "task-002", Title: "参照するタスク", Dependencies: []string{"task-001"}},
 	}
 
-	analyzer := NewStaleAnalyzer(tasks, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(tasks, nil, nil)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -354,7 +296,7 @@ func TestStaleAnalyzer_RecommendationCounts(t *testing.T) {
 		{ID: "task-002", Title: "ブロックタスク", Status: TaskStatusBlocked, UpdatedAt: blockedAt},
 	}
 
-	analyzer := NewStaleAnalyzer(tasks, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(tasks, nil, nil)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -387,7 +329,7 @@ func TestStaleAnalyzer_ConfigurableDays(t *testing.T) {
 		CompletedStaleDays: 7, // 7日で陳腐化
 	}
 
-	analyzer := NewStaleAnalyzer(tasks, nil, nil, config)
+	analyzer := NewStaleAnalyzer(tasks, nil, config)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -451,7 +393,7 @@ func TestStaleRecommendation_Values(t *testing.T) {
 // ===== 日付パーステスト =====
 
 func TestStaleAnalyzer_ParseDate_RFC3339(t *testing.T) {
-	analyzer := NewStaleAnalyzer(nil, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(nil, nil, nil)
 
 	dateStr := "2024-01-15T10:30:00Z"
 	result := analyzer.parseDate(dateStr)
@@ -462,7 +404,7 @@ func TestStaleAnalyzer_ParseDate_RFC3339(t *testing.T) {
 }
 
 func TestStaleAnalyzer_ParseDate_DateOnly(t *testing.T) {
-	analyzer := NewStaleAnalyzer(nil, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(nil, nil, nil)
 
 	dateStr := "2024-01-15"
 	result := analyzer.parseDate(dateStr)
@@ -473,7 +415,7 @@ func TestStaleAnalyzer_ParseDate_DateOnly(t *testing.T) {
 }
 
 func TestStaleAnalyzer_ParseDate_Empty(t *testing.T) {
-	analyzer := NewStaleAnalyzer(nil, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(nil, nil, nil)
 
 	result := analyzer.parseDate("")
 
@@ -483,7 +425,7 @@ func TestStaleAnalyzer_ParseDate_Empty(t *testing.T) {
 }
 
 func TestStaleAnalyzer_ParseDate_Invalid(t *testing.T) {
-	analyzer := NewStaleAnalyzer(nil, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(nil, nil, nil)
 
 	result := analyzer.parseDate("invalid-date")
 
@@ -501,7 +443,7 @@ func TestStaleAnalyzer_DaysStale(t *testing.T) {
 		{ID: "task-001", Title: "タスク", Status: TaskStatusCompleted, CompletedAt: completedAt},
 	}
 
-	analyzer := NewStaleAnalyzer(tasks, nil, nil, nil)
+	analyzer := NewStaleAnalyzer(tasks, nil, nil)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)
@@ -537,7 +479,7 @@ func TestStaleAnalyzer_ComplexScenario(t *testing.T) {
 		{ID: "obj-001", Title: "古い目標", Status: "completed", UpdatedAt: objUpdatedAt},
 	}
 
-	analyzer := NewStaleAnalyzer(tasks, objectives, nil, nil)
+	analyzer := NewStaleAnalyzer(tasks, objectives, nil)
 	ctx := context.Background()
 
 	result, err := analyzer.Analyze(ctx)

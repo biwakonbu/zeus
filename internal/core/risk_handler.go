@@ -15,19 +15,17 @@ import (
 // 個別ファイル (risks/risk-{uuid}.yaml) で管理
 // RiskScore は probability × impact から自動計算
 type RiskHandler struct {
-	fileStore          FileStore
-	sanitizer          *Sanitizer
-	objectiveHandler   *ObjectiveHandler
-	deliverableHandler *DeliverableHandler
+	fileStore        FileStore
+	sanitizer        *Sanitizer
+	objectiveHandler *ObjectiveHandler
 }
 
 // NewRiskHandler は新しい RiskHandler を作成
-func NewRiskHandler(fs FileStore, objHandler *ObjectiveHandler, delHandler *DeliverableHandler, _ *IDCounterManager) *RiskHandler {
+func NewRiskHandler(fs FileStore, objHandler *ObjectiveHandler, _ *IDCounterManager) *RiskHandler {
 	return &RiskHandler{
-		fileStore:          fs,
-		sanitizer:          NewSanitizer(),
-		objectiveHandler:   objHandler,
-		deliverableHandler: delHandler,
+		fileStore:        fs,
+		sanitizer:        NewSanitizer(),
+		objectiveHandler: objHandler,
 	}
 }
 
@@ -76,12 +74,6 @@ func (h *RiskHandler) Add(ctx context.Context, name string, opts ...EntityOption
 			return nil, err
 		}
 	}
-	if risk.DeliverableID != "" {
-		if err := h.validateDeliverableReference(ctx, risk.DeliverableID); err != nil {
-			return nil, err
-		}
-	}
-
 	// バリデーション（RiskScore は Validate 内で自動計算される）
 	if err := risk.Validate(); err != nil {
 		return nil, err
@@ -188,12 +180,6 @@ func (h *RiskHandler) Update(ctx context.Context, id string, update any) error {
 				return err
 			}
 		}
-		if risk.DeliverableID != "" && risk.DeliverableID != existingRisk.DeliverableID {
-			if err := h.validateDeliverableReference(ctx, risk.DeliverableID); err != nil {
-				return err
-			}
-		}
-
 		// バリデーション（RiskScore は Validate 内で自動計算される）
 		if err := risk.Validate(); err != nil {
 			return err
@@ -318,19 +304,6 @@ func (h *RiskHandler) validateObjectiveReference(ctx context.Context, objectiveI
 	return err
 }
 
-// validateDeliverableReference は Deliverable 参照の存在を確認
-func (h *RiskHandler) validateDeliverableReference(ctx context.Context, deliverableID string) error {
-	if h.deliverableHandler == nil {
-		return nil
-	}
-
-	_, err := h.deliverableHandler.Get(ctx, deliverableID)
-	if err == ErrEntityNotFound {
-		return fmt.Errorf("referenced deliverable not found: %s", deliverableID)
-	}
-	return err
-}
-
 // Risk オプション関数
 
 // WithRiskProbability は Risk の発生確率を設定
@@ -365,15 +338,6 @@ func WithRiskObjective(objectiveID string) EntityOption {
 	return func(v any) {
 		if risk, ok := v.(*RiskEntity); ok {
 			risk.ObjectiveID = objectiveID
-		}
-	}
-}
-
-// WithRiskDeliverable は Risk の Deliverable を設定
-func WithRiskDeliverable(deliverableID string) EntityOption {
-	return func(v any) {
-		if risk, ok := v.(*RiskEntity); ok {
-			risk.DeliverableID = deliverableID
 		}
 	}
 }

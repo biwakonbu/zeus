@@ -71,12 +71,12 @@ describe('DiffUtils パフォーマンステスト', () => {
 		it('ハッシュがタスク変更を検出する', () => {
 			const tasks = generateMockTasks(100);
 			// 初期状態を固定
-			tasks[0].status = 'pending';
+			tasks[0].status = 'draft';
 
 			const hash1 = computeTasksHash(tasks);
 
 			// ステータス変更
-			tasks[0].status = 'completed';
+			tasks[0].status = 'active';
 			const hash2 = computeTasksHash(tasks);
 
 			expect(hash1).not.toBe(hash2);
@@ -126,14 +126,14 @@ describe('DiffUtils パフォーマンステスト', () => {
 			let state = createInitialState();
 
 			// 初期状態を明示的に設定
-			nodes[0].status = 'pending';
+			nodes[0].status = 'draft';
 
 			// 初回
 			const first = detectTaskChanges(nodes, state, edges);
 			state = first.newState;
 
 			// ステータスのみ変更
-			nodes[0].status = 'completed';
+			nodes[0].status = 'active';
 
 			const second = detectTaskChanges(nodes, state, edges);
 			expect(second.changeType).toBe('data');
@@ -151,9 +151,7 @@ describe('DiffUtils パフォーマンステスト', () => {
 				id: 'new-task',
 				title: 'New Task',
 				node_type: 'activity',
-				status: 'pending',
-				priority: 'medium',
-				assignee: 'user-0'
+				status: 'draft'
 			});
 
 			const second = detectTaskChanges(nodes, state, edges);
@@ -181,12 +179,12 @@ describe('DiffUtils パフォーマンステスト', () => {
 			const first = detectTaskChanges(nodes, state, edges);
 			state = first.newState;
 
-			// 参照エッジ追加
+			// structural エッジ追加
 			edges.push({
 				from: 'task-0',
 				to: 'task-50',
-				layer: 'reference',
-				relation: 'depends_on'
+				layer: 'structural',
+				relation: 'contributes'
 			});
 
 			const second = detectTaskChanges(nodes, state, edges);
@@ -209,9 +207,7 @@ describe('DiffUtils パフォーマンステスト', () => {
 					id: 'task-5',
 					title: 'Task 5',
 					node_type: 'activity',
-					status: 'pending',
-					priority: 'medium',
-					assignee: 'user-0'
+					status: 'draft'
 				}
 			];
 

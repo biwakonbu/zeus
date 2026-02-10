@@ -174,7 +174,6 @@ func TestValidateID(t *testing.T) {
 		{"task", "task-12345678", false},
 		{"vision", "vision-001", false},
 		{"objective", "obj-001", false},
-		{"deliverable", "del-001", false},
 		{"consideration", "con-001", false},
 		{"decision", "dec-001", false},
 		{"problem", "prob-001", false},
@@ -214,7 +213,6 @@ func TestValidateID_AllEntityTypes(t *testing.T) {
 	}{
 		{"vision", "vision-001"},
 		{"objective", "obj-001"},
-		{"deliverable", "del-001"},
 		{"consideration", "con-001"},
 		{"decision", "dec-001"},
 		{"problem", "prob-001"},
@@ -290,7 +288,6 @@ func TestGetEntityFilePath(t *testing.T) {
 		expectedPath string
 	}{
 		{"objective", "obj-001", "objectives/obj-001.yaml"},
-		{"deliverable", "del-001", "deliverables/del-001.yaml"},
 		{"decision", "dec-001", "decisions/dec-001.yaml"},
 		{"problem", "prob-001", "problems/prob-001.yaml"},
 		{"risk", "risk-001", "risks/risk-001.yaml"},
@@ -351,7 +348,7 @@ func TestGetEntityFilePath_UnknownEntityType(t *testing.T) {
 
 func TestIsValidEntityType(t *testing.T) {
 	validTypes := []string{
-		"vision", "objective", "deliverable", "consideration",
+		"vision", "objective", "consideration",
 		"decision", "problem", "risk", "assumption", "constraint",
 		"quality", "task", "actor", "usecase", "subsystem", "activity",
 	}
@@ -388,7 +385,6 @@ func TestGetEntityDirectory(t *testing.T) {
 		wantOK     bool
 	}{
 		{"objective", "objectives", true},
-		{"deliverable", "deliverables", true},
 		{"task", "tasks", true},
 		{"usecase", "usecases", true},
 		// 単一ファイルエンティティ

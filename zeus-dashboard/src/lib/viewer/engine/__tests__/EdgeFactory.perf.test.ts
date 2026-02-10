@@ -52,8 +52,8 @@ import { EdgeFactory, GraphEdge } from '../../rendering/GraphEdge';
 
 describe('EdgeFactory パフォーマンステスト', () => {
 	let factory: EdgeFactory;
-	const DEFAULT_LAYER = 'reference' as const;
-	const DEFAULT_RELATION = 'depends_on' as const;
+	const DEFAULT_LAYER = 'structural' as const;
+	const DEFAULT_RELATION = 'parent' as const;
 
 	function createEdge(fromId: string, toId: string) {
 		return factory.getOrCreate(fromId, toId, DEFAULT_LAYER, DEFAULT_RELATION);
@@ -290,8 +290,8 @@ describe('EdgeFactory パフォーマンステスト', () => {
 			const key2 = GraphEdge.createKey('b', 'a', DEFAULT_LAYER, DEFAULT_RELATION);
 			const key3 = GraphEdge.createKey('a', 'b', DEFAULT_LAYER, DEFAULT_RELATION);
 
-			expect(key1).toBe('a-->b::reference:depends_on');
-			expect(key2).toBe('b-->a::reference:depends_on');
+			expect(key1).toBe('a-->b::structural:parent');
+			expect(key2).toBe('b-->a::structural:parent');
 			expect(key1).toBe(key3);
 			expect(key1).not.toBe(key2);
 		});

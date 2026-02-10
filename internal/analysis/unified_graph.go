@@ -11,7 +11,6 @@ import (
 type UnifiedGraphBuilder struct {
 	activities       []ActivityInfo
 	usecases         []UseCaseInfo
-	deliverables     []DeliverableInfo
 	objectives       []ObjectiveInfo
 	filter           *GraphFilter
 	validationErrors []string
@@ -20,11 +19,10 @@ type UnifiedGraphBuilder struct {
 // NewUnifiedGraphBuilder は新しい UnifiedGraphBuilder を作成
 func NewUnifiedGraphBuilder() *UnifiedGraphBuilder {
 	return &UnifiedGraphBuilder{
-		activities:   []ActivityInfo{},
-		usecases:     []UseCaseInfo{},
-		deliverables: []DeliverableInfo{},
-		objectives:   []ObjectiveInfo{},
-		filter:       NewGraphFilter(),
+		activities: []ActivityInfo{},
+		usecases:   []UseCaseInfo{},
+		objectives: []ObjectiveInfo{},
+		filter:     NewGraphFilter(),
 	}
 }
 
@@ -37,12 +35,6 @@ func (b *UnifiedGraphBuilder) WithActivities(activities []ActivityInfo) *Unified
 // WithUseCases は UseCase 情報を設定
 func (b *UnifiedGraphBuilder) WithUseCases(usecases []UseCaseInfo) *UnifiedGraphBuilder {
 	b.usecases = usecases
-	return b
-}
-
-// WithDeliverables は Deliverable 情報を設定
-func (b *UnifiedGraphBuilder) WithDeliverables(deliverables []DeliverableInfo) *UnifiedGraphBuilder {
-	b.deliverables = deliverables
 	return b
 }
 
@@ -112,12 +104,8 @@ func validateEdgeRule(fromType, toType EntityType, layer UnifiedEdgeLayer, relat
 	// レイヤーと relation の整合性
 	switch layer {
 	case EdgeLayerStructural:
-		if !slices.Contains([]UnifiedEdgeRelation{RelationParent, RelationImplements, RelationContributes, RelationFulfills}, relation) {
+		if !slices.Contains([]UnifiedEdgeRelation{RelationParent, RelationImplements, RelationContributes}, relation) {
 			return fmt.Errorf("relation %q is not allowed in structural layer", relation)
-		}
-	case EdgeLayerReference:
-		if !slices.Contains([]UnifiedEdgeRelation{RelationDependsOn, RelationProduces}, relation) {
-			return fmt.Errorf("relation %q is not allowed in reference layer", relation)
 		}
 	default:
 		return fmt.Errorf("unknown edge layer: %q", layer)
@@ -126,16 +114,10 @@ func validateEdgeRule(fromType, toType EntityType, layer UnifiedEdgeLayer, relat
 	// relation ごとの許容型
 	switch relation {
 	case RelationParent:
-		if (fromType == EntityTypeActivity && toType == EntityTypeActivity) ||
-			(fromType == EntityTypeObjective && toType == EntityTypeObjective) {
+		if fromType == EntityTypeObjective && toType == EntityTypeObjective {
 			return nil
 		}
-		return fmt.Errorf("parent must connect activity->activity or objective->objective (got %s->%s)", fromType, toType)
-	case RelationDependsOn:
-		if fromType == EntityTypeActivity && toType == EntityTypeActivity {
-			return nil
-		}
-		return fmt.Errorf("depends_on must connect activity->activity (got %s->%s)", fromType, toType)
+		return fmt.Errorf("parent must connect objective->objective (got %s->%s)", fromType, toType)
 	case RelationImplements:
 		if fromType == EntityTypeActivity && toType == EntityTypeUseCase {
 			return nil
@@ -146,16 +128,6 @@ func validateEdgeRule(fromType, toType EntityType, layer UnifiedEdgeLayer, relat
 			return nil
 		}
 		return fmt.Errorf("contributes must connect usecase->objective (got %s->%s)", fromType, toType)
-	case RelationFulfills:
-		if fromType == EntityTypeDeliverable && toType == EntityTypeObjective {
-			return nil
-		}
-		return fmt.Errorf("fulfills must connect deliverable->objective (got %s->%s)", fromType, toType)
-	case RelationProduces:
-		if fromType == EntityTypeActivity && toType == EntityTypeDeliverable {
-			return nil
-		}
-		return fmt.Errorf("produces must connect activity->deliverable (got %s->%s)", fromType, toType)
 	default:
 		return fmt.Errorf("unknown edge relation: %q", relation)
 	}
@@ -209,9 +181,6 @@ func (b *UnifiedGraphBuilder) buildNodes(graph *UnifiedGraph) {
 			Type:               EntityTypeActivity,
 			Title:              a.Title,
 			Status:             a.Status,
-			Priority:           a.Priority,
-			Assignee:           a.Assignee,
-			Mode:               a.Mode,
 			StructuralParents:  []string{},
 			StructuralChildren: []string{},
 		}
@@ -231,19 +200,6 @@ func (b *UnifiedGraphBuilder) buildNodes(graph *UnifiedGraph) {
 		graph.Nodes[u.ID] = node
 	}
 
-	// Deliverable ノード
-	for _, d := range b.deliverables {
-		node := &UnifiedGraphNode{
-			ID:                 d.ID,
-			Type:               EntityTypeDeliverable,
-			Title:              d.Title,
-			Status:             d.Status,
-			StructuralParents:  []string{},
-			StructuralChildren: []string{},
-		}
-		graph.Nodes[d.ID] = node
-	}
-
 	// Objective ノード
 	for _, o := range b.objectives {
 		node := &UnifiedGraphNode{
@@ -260,26 +216,10 @@ func (b *UnifiedGraphBuilder) buildNodes(graph *UnifiedGraph) {
 
 // buildEdges はエッジを構築
 func (b *UnifiedGraphBuilder) buildEdges(graph *UnifiedGraph) {
-	// Activity 起点の関係
+	// implements (structural): Activity -> UseCase
 	for _, a := range b.activities {
-		// depends_on (reference): Activity -> Activity
-		for _, depID := range a.Dependencies {
-			b.addEdge(graph, a.ID, depID, EdgeLayerReference, RelationDependsOn)
-		}
-
-		// parent (structural): Activity -> Activity
-		if a.ParentID != "" {
-			b.addStructuralEdge(graph, a.ID, a.ParentID, RelationParent)
-		}
-
-		// implements (structural): Activity -> UseCase
 		if a.UseCaseID != "" {
 			b.addStructuralEdge(graph, a.ID, a.UseCaseID, RelationImplements)
-		}
-
-		// produces (reference): Activity -> Deliverable
-		for _, delID := range a.RelatedDeliverables {
-			b.addEdge(graph, a.ID, delID, EdgeLayerReference, RelationProduces)
 		}
 	}
 
@@ -287,13 +227,6 @@ func (b *UnifiedGraphBuilder) buildEdges(graph *UnifiedGraph) {
 	for _, u := range b.usecases {
 		if u.ObjectiveID != "" {
 			b.addStructuralEdge(graph, u.ID, u.ObjectiveID, RelationContributes)
-		}
-	}
-
-	// fulfills (structural): Deliverable -> Objective
-	for _, d := range b.deliverables {
-		if d.ObjectiveID != "" {
-			b.addStructuralEdge(graph, d.ID, d.ObjectiveID, RelationFulfills)
 		}
 	}
 
@@ -322,7 +255,7 @@ func (b *UnifiedGraphBuilder) applyFilter(graph *UnifiedGraph) {
 			toRemove[id] = true
 			continue
 		}
-		if b.filter.HideCompleted && node.Status == "completed" {
+		if b.filter.HideCompleted && (node.Status == "completed" || node.Status == "deprecated") {
 			toRemove[id] = true
 			continue
 		}
@@ -548,7 +481,7 @@ func (b *UnifiedGraphBuilder) calculateStats(graph *UnifiedGraph) {
 		stats.NodesByType[node.Type]++
 		if node.Type == EntityTypeActivity {
 			stats.TotalActivities++
-			if node.Status == "completed" {
+			if node.Status == "deprecated" {
 				stats.CompletedActivities++
 			}
 		}
@@ -590,7 +523,7 @@ func (g *UnifiedGraph) ToText() string {
 	fmt.Fprintf(&sb, "Total Edges: %d\n", g.Stats.TotalEdges)
 	fmt.Fprintf(&sb, "Max Structural Depth: %d\n", g.Stats.MaxStructuralDepth)
 	if g.Stats.TotalActivities > 0 {
-		fmt.Fprintf(&sb, "Activity Progress: %d/%d\n", g.Stats.CompletedActivities, g.Stats.TotalActivities)
+		fmt.Fprintf(&sb, "Deprecated Activities: %d/%d\n", g.Stats.CompletedActivities, g.Stats.TotalActivities)
 	}
 	sb.WriteString("\n")
 
@@ -613,37 +546,17 @@ func (g *UnifiedGraph) ToText() string {
 	sort.Strings(ids)
 	for _, id := range ids {
 		node := g.Nodes[id]
-		fmt.Fprintf(&sb, "[%s] %s (%s) - %s [depth=%d]", node.Type, node.ID, node.Title, node.Status, node.StructuralDepth)
-		if node.Assignee != "" {
-			fmt.Fprintf(&sb, " @%s", node.Assignee)
-		}
-		sb.WriteString("\n")
+		fmt.Fprintf(&sb, "[%s] %s (%s) - %s [depth=%d]\n", node.Type, node.ID, node.Title, node.Status, node.StructuralDepth)
 		if len(node.StructuralParents) > 0 {
 			fmt.Fprintf(&sb, "    structural_parents: %v\n", node.StructuralParents)
 		}
 	}
 	sb.WriteString("\n")
 
-	structural := make([]UnifiedEdge, 0)
-	reference := make([]UnifiedEdge, 0)
-	for _, edge := range g.Edges {
-		if edge.Layer == EdgeLayerStructural {
-			structural = append(structural, edge)
-		} else {
-			reference = append(reference, edge)
-		}
-	}
-	sortEdges(structural)
-	sortEdges(reference)
+	sortEdges(g.Edges)
 
 	sb.WriteString("--- Structural Relations ---\n")
-	for _, edge := range structural {
-		fmt.Fprintf(&sb, "  %s -[%s]-> %s\n", edge.From, edge.Relation, edge.To)
-	}
-	sb.WriteString("\n")
-
-	sb.WriteString("--- Reference Relations ---\n")
-	for _, edge := range reference {
+	for _, edge := range g.Edges {
 		fmt.Fprintf(&sb, "  %s -[%s]-> %s\n", edge.From, edge.Relation, edge.To)
 	}
 	sb.WriteString("\n")
@@ -675,12 +588,6 @@ func dotEdgeStyle(edge UnifiedEdge) (style string, color string, label string) {
 		return "bold", "#1f77b4", "implements"
 	case RelationContributes:
 		return "bold", "#7f3fbf", "contributes"
-	case RelationFulfills:
-		return "bold", "#2ca02c", "fulfills"
-	case RelationDependsOn:
-		return "solid", "#222222", "depends_on"
-	case RelationProduces:
-		return "dotted", "#ff7f0e", "produces"
 	default:
 		return "solid", "#333333", string(edge.Relation)
 	}
@@ -704,9 +611,6 @@ func (g *UnifiedGraph) ToDot() string {
 		case EntityTypeUseCase:
 			shape = "ellipse"
 			fill = "#2196F3"
-		case EntityTypeDeliverable:
-			shape = "folder"
-			fill = "#FF9800"
 		case EntityTypeObjective:
 			shape = "diamond"
 			fill = "#9C27B0"
@@ -741,12 +645,6 @@ func mermaidArrow(edge UnifiedEdge) string {
 		return "==>|implements|"
 	case RelationContributes:
 		return "==>|contributes|"
-	case RelationFulfills:
-		return "==>|fulfills|"
-	case RelationDependsOn:
-		return "-->|depends_on|"
-	case RelationProduces:
-		return "-.->|produces|"
 	default:
 		return "-->"
 	}
@@ -769,15 +667,9 @@ func (g *UnifiedGraph) ToMermaid() string {
 		title := escapeMermaidText(node.Title)
 		switch node.Type {
 		case EntityTypeActivity:
-			if node.Mode == "flow" {
-				fmt.Fprintf(&sb, "  %s([%s: %s])\n", id, id, title)
-			} else {
-				fmt.Fprintf(&sb, "  %s[%s: %s]\n", id, id, title)
-			}
+			fmt.Fprintf(&sb, "  %s([%s: %s])\n", id, id, title)
 		case EntityTypeUseCase:
 			fmt.Fprintf(&sb, "  %s((%s: %s))\n", id, id, title)
-		case EntityTypeDeliverable:
-			fmt.Fprintf(&sb, "  %s[/%s: %s/]\n", id, id, title)
 		case EntityTypeObjective:
 			fmt.Fprintf(&sb, "  %s{%s: %s}\n", id, id, title)
 		}
@@ -788,21 +680,13 @@ func (g *UnifiedGraph) ToMermaid() string {
 	copy(edges, g.Edges)
 	sortEdges(edges)
 
-	structuralEdgeIndexes := make([]int, 0)
-	referenceEdgeIndexes := make([]int, 0)
-	for i, edge := range edges {
+	for _, edge := range edges {
 		fmt.Fprintf(&sb, "  %s %s %s\n", edge.From, mermaidArrow(edge), edge.To)
-		if edge.Layer == EdgeLayerStructural {
-			structuralEdgeIndexes = append(structuralEdgeIndexes, i)
-		} else {
-			referenceEdgeIndexes = append(referenceEdgeIndexes, i)
-		}
 	}
 
 	sb.WriteString("\n  %% Styles\n")
 	sb.WriteString("  classDef activity fill:#4CAF50,stroke:#333,color:#fff\n")
 	sb.WriteString("  classDef usecase fill:#2196F3,stroke:#333,color:#fff\n")
-	sb.WriteString("  classDef deliverable fill:#FF9800,stroke:#333,color:#fff\n")
 	sb.WriteString("  classDef objective fill:#9C27B0,stroke:#333,color:#fff\n")
 
 	for _, id := range ids {
@@ -811,19 +695,16 @@ func (g *UnifiedGraph) ToMermaid() string {
 		switch node.Type {
 		case EntityTypeUseCase:
 			class = "usecase"
-		case EntityTypeDeliverable:
-			class = "deliverable"
 		case EntityTypeObjective:
 			class = "objective"
 		}
 		fmt.Fprintf(&sb, "  class %s %s\n", id, class)
 	}
 
-	for _, i := range structuralEdgeIndexes {
-		fmt.Fprintf(&sb, "  linkStyle %d stroke:#444,stroke-width:2px\n", i)
-	}
-	for _, i := range referenceEdgeIndexes {
-		fmt.Fprintf(&sb, "  linkStyle %d stroke:#1f77b4,stroke-dasharray:4 4\n", i)
+	for i, edge := range edges {
+		if edge.Layer == EdgeLayerStructural {
+			fmt.Fprintf(&sb, "  linkStyle %d stroke:#444,stroke-width:2px\n", i)
+		}
 	}
 
 	sb.WriteString("```\n")

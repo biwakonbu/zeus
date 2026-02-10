@@ -1,17 +1,14 @@
 // フィルタリング管理クラス
 
-import type { GraphEdge, GraphNode, EntityStatus, Priority } from '$lib/types/api';
+import type { GraphEdge, GraphNode, EntityStatus } from '$lib/types/api';
 
 /**
  * フィルター条件
  */
 export interface FilterCriteria {
 	statuses?: EntityStatus[];
-	priorities?: Priority[];
-	assignees?: string[];
 	searchText?: string;
 	hasDependencies?: boolean;
-	isBlocked?: boolean;
 }
 
 /**
@@ -28,8 +25,6 @@ export interface FilterChangeEvent {
  *
  * 責務:
  * - ステータス別フィルタ
- * - 優先度別フィルタ
- * - 担当者別フィルタ
  * - テキスト検索
  * - フィルター結果のキャッシュ
  */
@@ -85,36 +80,6 @@ export class FilterManager {
 			statuses.push(status);
 		}
 		this.criteria.statuses = statuses.length > 0 ? statuses : undefined;
-		this.applyFilter();
-	}
-
-	/**
-	 * 優先度フィルターをトグル
-	 */
-	togglePriority(priority: Priority): void {
-		const priorities = this.criteria.priorities || [];
-		const index = priorities.indexOf(priority);
-		if (index >= 0) {
-			priorities.splice(index, 1);
-		} else {
-			priorities.push(priority);
-		}
-		this.criteria.priorities = priorities.length > 0 ? priorities : undefined;
-		this.applyFilter();
-	}
-
-	/**
-	 * 担当者フィルターをトグル
-	 */
-	toggleAssignee(assignee: string): void {
-		const assignees = this.criteria.assignees || [];
-		const index = assignees.indexOf(assignee);
-		if (index >= 0) {
-			assignees.splice(index, 1);
-		} else {
-			assignees.push(assignee);
-		}
-		this.criteria.assignees = assignees.length > 0 ? assignees : undefined;
 		this.applyFilter();
 	}
 
@@ -176,11 +141,8 @@ export class FilterManager {
 	isActive(): boolean {
 		return (
 			(this.criteria.statuses?.length ?? 0) > 0 ||
-			(this.criteria.priorities?.length ?? 0) > 0 ||
-			(this.criteria.assignees?.length ?? 0) > 0 ||
 			!!this.criteria.searchText ||
-			this.criteria.hasDependencies !== undefined ||
-			this.criteria.isBlocked !== undefined
+			this.criteria.hasDependencies !== undefined
 		);
 	}
 
@@ -189,19 +151,6 @@ export class FilterManager {
 	 */
 	getCriteria(): FilterCriteria {
 		return { ...this.criteria };
-	}
-
-	/**
-	 * 利用可能な担当者リストを取得
-	 */
-	getAvailableAssignees(): string[] {
-		const assignees = new Set<string>();
-		for (const node of this.nodes) {
-			if (node.assignee) {
-				assignees.add(node.assignee);
-			}
-		}
-		return Array.from(assignees).sort();
 	}
 
 	/**
@@ -257,30 +206,12 @@ export class FilterManager {
 			}
 		}
 
-		// 優先度フィルター
-		// priority を持たないノード（UseCase, Deliverable, Objective）はフィルタ対象外（表示を維持）
-		if (this.criteria.priorities && this.criteria.priorities.length > 0) {
-			const nodePriority = node.priority as Priority | undefined;
-			if (nodePriority && !this.criteria.priorities.includes(nodePriority)) {
-				return false;
-			}
-		}
-
-		// 担当者フィルター
-		// assignee を持たないノード（UseCase, Deliverable, Objective）はフィルタ対象外（表示を維持）
-		if (this.criteria.assignees && this.criteria.assignees.length > 0) {
-			if (node.assignee && !this.criteria.assignees.includes(node.assignee)) {
-				return false;
-			}
-		}
-
 		// テキスト検索
 		if (this.criteria.searchText) {
 			const searchLower = this.criteria.searchText.toLowerCase();
 			const titleMatch = node.title.toLowerCase().includes(searchLower);
 			const idMatch = node.id.toLowerCase().includes(searchLower);
-			const assigneeMatch = node.assignee?.toLowerCase().includes(searchLower) ?? false;
-			if (!titleMatch && !idMatch && !assigneeMatch) {
+			if (!titleMatch && !idMatch) {
 				return false;
 			}
 		}
@@ -289,14 +220,6 @@ export class FilterManager {
 		if (this.criteria.hasDependencies !== undefined) {
 			const hasDeps = (this.edgeCountByNode.get(node.id) ?? 0) > 0;
 			if (this.criteria.hasDependencies !== hasDeps) {
-				return false;
-			}
-		}
-
-		// ブロック状態フィルター
-		if (this.criteria.isBlocked !== undefined) {
-			const isBlocked = node.status === 'blocked';
-			if (this.criteria.isBlocked !== isBlocked) {
 				return false;
 			}
 		}

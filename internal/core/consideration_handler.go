@@ -14,19 +14,17 @@ import (
 // ConsiderationHandler は ConsiderationEntity エンティティのハンドラー
 // 個別ファイル (considerations/con-{uuid}.yaml) で管理
 type ConsiderationHandler struct {
-	fileStore          FileStore
-	sanitizer          *Sanitizer
-	objectiveHandler   *ObjectiveHandler
-	deliverableHandler *DeliverableHandler
+	fileStore        FileStore
+	sanitizer        *Sanitizer
+	objectiveHandler *ObjectiveHandler
 }
 
 // NewConsiderationHandler は新しい ConsiderationHandler を作成
-func NewConsiderationHandler(fs FileStore, objHandler *ObjectiveHandler, delHandler *DeliverableHandler, _ *IDCounterManager) *ConsiderationHandler {
+func NewConsiderationHandler(fs FileStore, objHandler *ObjectiveHandler, _ *IDCounterManager) *ConsiderationHandler {
 	return &ConsiderationHandler{
-		fileStore:          fs,
-		sanitizer:          NewSanitizer(),
-		objectiveHandler:   objHandler,
-		deliverableHandler: delHandler,
+		fileStore:        fs,
+		sanitizer:        NewSanitizer(),
+		objectiveHandler: objHandler,
 	}
 }
 
@@ -72,12 +70,6 @@ func (h *ConsiderationHandler) Add(ctx context.Context, name string, opts ...Ent
 			return nil, err
 		}
 	}
-	if consideration.DeliverableID != "" {
-		if err := h.validateDeliverableReference(ctx, consideration.DeliverableID); err != nil {
-			return nil, err
-		}
-	}
-
 	// バリデーション
 	if err := consideration.Validate(); err != nil {
 		return nil, err
@@ -183,12 +175,6 @@ func (h *ConsiderationHandler) Update(ctx context.Context, id string, update any
 				return err
 			}
 		}
-		if con.DeliverableID != "" && con.DeliverableID != existingCon.DeliverableID {
-			if err := h.validateDeliverableReference(ctx, con.DeliverableID); err != nil {
-				return err
-			}
-		}
-
 		// バリデーション
 		if err := con.Validate(); err != nil {
 			return err
@@ -317,19 +303,6 @@ func (h *ConsiderationHandler) validateObjectiveReference(ctx context.Context, o
 	return err
 }
 
-// validateDeliverableReference は Deliverable 参照の存在を確認
-func (h *ConsiderationHandler) validateDeliverableReference(ctx context.Context, deliverableID string) error {
-	if h.deliverableHandler == nil {
-		return nil
-	}
-
-	_, err := h.deliverableHandler.Get(ctx, deliverableID)
-	if err == ErrEntityNotFound {
-		return fmt.Errorf("referenced deliverable not found: %s", deliverableID)
-	}
-	return err
-}
-
 // SetDecisionID は Decision との紐付けを設定し、ステータスを decided に更新
 func (h *ConsiderationHandler) SetDecisionID(ctx context.Context, id, decisionID string) error {
 	existing, err := h.Get(ctx, id)
@@ -361,15 +334,6 @@ func WithConsiderationObjective(objectiveID string) EntityOption {
 	return func(v any) {
 		if con, ok := v.(*ConsiderationEntity); ok {
 			con.ObjectiveID = objectiveID
-		}
-	}
-}
-
-// WithConsiderationDeliverable は Consideration の Deliverable を設定
-func WithConsiderationDeliverable(deliverableID string) EntityOption {
-	return func(v any) {
-		if con, ok := v.(*ConsiderationEntity); ok {
-			con.DeliverableID = deliverableID
 		}
 	}
 }

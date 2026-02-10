@@ -9,7 +9,7 @@
 
 ## 1. Zeus とは
 
-Zeus は、YAML ベースでプロジェクト構造を管理する CLI + Web ダッシュボードです。Activity、UseCase、Deliverable、Objective を統合的に可視化し、日次運用と設計レビューを支援します。
+Zeus は、YAML ベースでプロジェクト構造を管理する CLI + Web ダッシュボードです。Activity、UseCase、Objective を統合的に可視化し、日次運用と設計レビューを支援します。
 
 ## 2. はじめ方
 
@@ -42,8 +42,7 @@ zeus list activities
 ```bash
 zeus add vision "AIで設計品質を上げる"
 zeus add objective "設計レビュー自動化"
-zeus add deliverable "運用設計書" --objective obj-001 --format document
-zeus add activity "API一覧を整備" --priority high --assignee "team"
+zeus add activity "API一覧を整備"
 ```
 
 ## 3.2 一覧確認
@@ -51,8 +50,7 @@ zeus add activity "API一覧を整備" --priority high --assignee "team"
 ```bash
 zeus list
 zeus list objectives
-zeus list deliverables
-zeus list activities --status in_progress
+zeus list activities
 ```
 
 ## 3.3 品質確認
@@ -113,7 +111,7 @@ zeus graph --format mermaid -o docs/deps.md
 ```bash
 zeus graph --unified
 zeus graph --unified --layers structural,reference
-zeus graph --unified --relations depends_on,produces
+zeus graph --unified --relations depends_on,contributes
 zeus graph --unified --focus act-001 --depth 2
 ```
 
@@ -209,4 +207,4 @@ zeus list objectives
 - CLI/API 契約: `docs/api-reference.md`
 - 開発要約: `CLAUDE.md`
 
-*更新日: 2026-02-07（再編同期版）*
+*更新日: 2026-02-10（Deliverable削除・SimpleMode廃止対応）*

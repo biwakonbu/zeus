@@ -2,7 +2,6 @@ id: act-006
 title: "ダッシュボード起動フロー"
 description: "zeus dashboard コマンドによるWebダッシュボード起動の処理フロー"
 usecase_id: uc-44b5498a
-related_deliverables:
   - del-018
   - del-019
   - del-020

@@ -46,19 +46,6 @@ export const NODE_TYPE_CONFIG: Record<GraphNodeType, NodeTypeConfig> = {
 		showBadge: true,
 		showAccentLine: true
 	},
-	deliverable: {
-		label: 'DEL',
-		cssColor: '#66cc99',
-		colors: {
-			indicator: 0x66cc99, // グリーン - 成果物
-			background: 0x2d4035,
-			border: 0x66cc99,
-			borderHighlight: 0x99eebb,
-			borderShadow: 0x1a2a20
-		},
-		showBadge: true,
-		showAccentLine: true
-	},
 	activity: {
 		label: 'ACT',
 		cssColor: '#cc8844',

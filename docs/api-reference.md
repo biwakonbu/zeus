@@ -63,7 +63,6 @@ zeus <command> [subcommand] [arguments] [flags]
 
 - `vision`
 - `objective`
-- `deliverable`
 - `consideration`
 - `decision`
 - `problem`
@@ -83,9 +82,9 @@ zeus <command> [subcommand] [arguments] [flags]
 ```bash
 zeus graph [--format text|dot|mermaid] [-o FILE]
 zeus graph --unified [--focus ID] [--depth N]
-zeus graph --unified --types activity,usecase,deliverable,objective
+zeus graph --unified --types activity,usecase,objective
 zeus graph --unified --layers structural,reference
-zeus graph --unified --relations parent,depends_on,implements,contributes,fulfills,produces
+zeus graph --unified --relations parent,depends_on,implements,contributes
 zeus graph --unified --hide-completed --hide-draft
 ```
 
@@ -263,7 +262,7 @@ curl -s "http://127.0.0.1:8080/api/uml/activity?id=act-001" | jq
 
 ### GET /api/unified-graph
 
-Activity / UseCase / Deliverable / Objective を統合したグラフを返す。
+Activity / UseCase / Objective を統合したグラフを返す。
 
 クエリ:
 - `focus`
@@ -277,7 +276,7 @@ Activity / UseCase / Deliverable / Objective を統合したグラフを返す�
 ```bash
 curl -s http://127.0.0.1:8080/api/unified-graph | jq '.stats'
 curl -s "http://127.0.0.1:8080/api/unified-graph?layers=structural" | jq '.stats'
-curl -s "http://127.0.0.1:8080/api/unified-graph?relations=depends_on,produces" | jq '.filter'
+curl -s "http://127.0.0.1:8080/api/unified-graph?relations=depends_on,contributes" | jq '.filter'
 curl -s "http://127.0.0.1:8080/api/unified-graph?focus=act-001&depth=2" | jq '.filter'
 ```
 
@@ -319,4 +318,4 @@ curl -N http://127.0.0.1:8080/api/events
 - 契約差異が疑われる場合は `cmd/*.go` と `internal/dashboard/server.go` を優先確認する。
 - 正本/履歴の分類は `docs/README.md` を参照する。
 
-*更新日: 2026-02-07（再編同期版）*
+*更新日: 2026-02-10（Deliverable削除・SimpleMode廃止対応）*

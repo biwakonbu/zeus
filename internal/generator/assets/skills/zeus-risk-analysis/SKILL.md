@@ -35,7 +35,6 @@ zeus add risk "リスク名" \
   --probability medium \      # 発生確率: high, medium, low
   --impact high \             # 影響度: critical, high, medium, low
   --objective obj-001 \       # 関連 Objective（任意）
-  --deliverable del-001 \     # 関連 Deliverable（任意）
   -d "リスクの詳細説明"
 ```
 
@@ -47,7 +46,6 @@ zeus add risk "リスク名" \
 | impact | 影響度（critical/high/medium/low） | 任意 |
 | score | 総合スコア（自動計算） | - |
 | objective_id | 関連 Objective | 任意 |
-| deliverable_id | 関連 Deliverable | 任意 |
 | status | 状態（identified/mitigating/mitigated/accepted） | - |
 | mitigation | 軽減策 | 任意 |
 
@@ -69,7 +67,6 @@ probability と impact の組み合わせでスコアが自動計算されます
 zeus add problem "問題名" \
   --severity high \           # 深刻度: critical, high, medium, low
   --objective obj-001 \       # 関連 Objective
-  --deliverable del-001 \     # 関連 Deliverable
   -d "問題の詳細"
 ```
 
@@ -85,7 +82,6 @@ zeus add problem "問題名" \
 ```bash
 zeus add assumption "前提条件" \
   --objective obj-001 \
-  --deliverable del-001 \
   -d "前提条件の説明"
 ```
 

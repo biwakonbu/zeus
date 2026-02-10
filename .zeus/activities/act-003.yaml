@@ -2,7 +2,6 @@ id: act-003
 title: "診断実行フロー"
 description: "zeus doctor コマンドによるプロジェクト診断の処理フロー"
 usecase_id: uc-46419e15
-related_deliverables:
   - del-005
   - del-006
 status: active

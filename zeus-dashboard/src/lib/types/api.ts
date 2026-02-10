@@ -31,9 +31,8 @@ export interface SummaryStats {
 	pending: number;
 }
 
-// EntityStatus と Priority は各ビューで使用される共通型
-export type EntityStatus = 'completed' | 'in_progress' | 'pending' | 'blocked';
-export type Priority = 'high' | 'medium' | 'low';
+// EntityStatus は各ビューで使用される共通型
+export type EntityStatus = 'draft' | 'active' | 'deprecated';
 
 // グラフ API レスポンス
 export interface GraphResponse {
@@ -99,27 +98,6 @@ export interface Objective {
 
 export type ObjectiveStatus = 'not_started' | 'in_progress' | 'completed' | 'on_hold';
 
-// Deliverable
-export interface DeliverablesResponse {
-	deliverables: Deliverable[];
-	total: number;
-}
-
-export interface Deliverable {
-	id: string;
-	title: string;
-	description?: string;
-	format: DeliverableFormat;
-	objective_id: string;
-	status: DeliverableStatus;
-	due_date?: string;
-	created_at: string;
-	updated_at: string;
-}
-
-export type DeliverableFormat = 'document' | 'code' | 'design' | 'other';
-export type DeliverableStatus = 'draft' | 'in_review' | 'approved' | 'delivered';
-
 // Consideration
 export interface ConsiderationsResponse {
 	considerations: Consideration[];
@@ -181,7 +159,6 @@ export interface Problem {
 	severity: Severity;
 	status: ProblemStatus;
 	objective_id?: string;
-	deliverable_id?: string;
 	created_at: string;
 	updated_at: string;
 }
@@ -204,7 +181,6 @@ export interface Risk {
 	score: number;
 	status: RiskStatus;
 	objective_id?: string;
-	deliverable_id?: string;
 	mitigation?: string;
 	created_at: string;
 	updated_at: string;
@@ -261,7 +237,7 @@ export interface QualityItem {
 	id: string;
 	title: string;
 	description?: string;
-	deliverable_id: string;
+	objective_id: string;
 	metric?: QualityMetric;
 	gate?: QualityGate;
 	status: QualityStatus;
@@ -290,7 +266,7 @@ export type QualityStatus = 'not_checked' | 'passing' | 'failing';
 
 // グラフノードの種別（UnifiedGraph 対応）
 // Note: 'task' は Activity に統合されたため除去。色・ラベル定義は $lib/viewer/config/nodeTypes.ts で一元管理。
-export type GraphNodeType = 'vision' | 'objective' | 'deliverable' | 'activity' | 'usecase';
+export type GraphNodeType = 'vision' | 'objective' | 'activity' | 'usecase';
 
 // グラフビュー用の統一ノードデータ
 export interface GraphNode {
@@ -298,19 +274,14 @@ export interface GraphNode {
 	title: string;
 	node_type: GraphNodeType;
 	status: string;
-	priority?: string;
-	assignee?: string;
 	structural_depth?: number;
 }
 
-export type GraphEdgeLayer = 'structural' | 'reference';
+export type GraphEdgeLayer = 'structural';
 export type GraphEdgeRelation =
 	| 'parent'
-	| 'depends_on'
 	| 'implements'
-	| 'contributes'
-	| 'fulfills'
-	| 'produces';
+	| 'contributes';
 
 // グラフビュー用のエッジデータ
 export interface GraphEdge {
@@ -515,9 +486,6 @@ export interface UnifiedGraphNodeItem {
 	title: string;
 	status: string;
 	structural_depth: number;
-	mode?: string;
-	assignee?: string;
-	priority?: string;
 	structural_parents?: string[];
 	structural_children?: string[];
 }

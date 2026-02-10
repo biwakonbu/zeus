@@ -2,7 +2,6 @@ id: act-018
 title: "スナップショット復元フロー"
 description: "zeus snapshot restore コマンドによるスナップショット復元の処理フロー"
 usecase_id: uc-66f49216
-related_deliverables:
   - del-002
   - del-003
   - del-004

@@ -8,7 +8,6 @@ import { EDGE_COLORS, EDGE_WIDTHS } from '$lib/viewer/shared/constants';
 export enum EdgeType {
 	Normal = 'normal',
 	Critical = 'critical',
-	Blocked = 'blocked',
 	Highlighted = 'highlighted'
 }
 
@@ -32,15 +31,12 @@ interface PolylinePoint {
 
 function semanticStyle(layer: GraphEdgeLayer, relation: GraphEdgeRelation): SemanticStyle {
 	const base = {
-		depends_on: { core: 0xd0d0d0, outer: 0x4a4a4a },
-		produces: { core: 0xffb366, outer: 0x8a5c2a },
 		parent: { core: 0x88b8ff, outer: 0x355d96 },
 		implements: { core: 0x66ccff, outer: 0x226688 },
-		contributes: { core: 0xb48dff, outer: 0x5c4090 },
-		fulfills: { core: 0x8be08b, outer: 0x2e7a2e }
+		contributes: { core: 0xb48dff, outer: 0x5c4090 }
 	} as const;
 
-	const rel = base[relation] ?? base.depends_on;
+	const rel = base[relation] ?? base.parent;
 	if (layer === 'structural') {
 		return {
 			core: rel.core,
@@ -77,8 +73,8 @@ export class GraphEdge extends Graphics {
 	constructor(
 		fromId: string,
 		toId: string,
-		layer: GraphEdgeLayer = 'reference',
-		relation: GraphEdgeRelation = 'depends_on'
+		layer: GraphEdgeLayer = 'structural',
+		relation: GraphEdgeRelation = 'parent'
 	) {
 		super();
 		this.fromId = fromId;
@@ -151,11 +147,6 @@ export class GraphEdge extends Graphics {
 			outer = EDGE_COLORS.highlighted.outer;
 			widthCore = EDGE_WIDTHS.highlighted.core;
 			widthOuter = EDGE_WIDTHS.highlighted.outer;
-		} else if (this.edgeType === EdgeType.Blocked) {
-			core = EDGE_COLORS.blocked.core;
-			outer = EDGE_COLORS.blocked.outer;
-			widthCore = EDGE_WIDTHS.blocked.core;
-			widthOuter = EDGE_WIDTHS.blocked.outer;
 		} else if (this.edgeType === EdgeType.Critical) {
 			core = EDGE_COLORS.critical.core;
 			outer = EDGE_COLORS.critical.outer;
@@ -180,7 +171,7 @@ export class GraphEdge extends Graphics {
 		const { cp1x, cp1y, cp2x, cp2y } = this.calculateControlPoints();
 		this.moveTo(this.fromX, this.fromY);
 		this.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, this.toX, this.toY);
-		this.stroke({ width: widthOuter, color: outer, alpha: this.layer === 'reference' ? 0.9 : 1 });
+		this.stroke({ width: widthOuter, color: outer, alpha: 1 });
 
 		this.moveTo(this.fromX, this.fromY);
 		this.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, this.toX, this.toY);
@@ -200,7 +191,7 @@ export class GraphEdge extends Graphics {
 		for (let i = 1; i < points.length; i++) {
 			this.lineTo(points[i].x, points[i].y);
 		}
-		this.stroke({ width: widthOuter, color: outer, alpha: this.layer === 'reference' ? 0.9 : 1 });
+		this.stroke({ width: widthOuter, color: outer, alpha: 1 });
 
 		this.moveTo(points[0].x, points[0].y);
 		for (let i = 1; i < points.length; i++) {

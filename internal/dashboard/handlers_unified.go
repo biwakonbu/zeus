@@ -20,9 +20,6 @@ type UnifiedGraphNodeItem struct {
 	Title              string   `json:"title"`
 	Status             string   `json:"status"`
 	StructuralDepth    int      `json:"structural_depth"`
-	Mode               string   `json:"mode,omitempty"`
-	Assignee           string   `json:"assignee,omitempty"`
-	Priority           string   `json:"priority,omitempty"`
 	StructuralParents  []string `json:"structural_parents,omitempty"`
 	StructuralChildren []string `json:"structural_children,omitempty"`
 }
@@ -167,8 +164,6 @@ func parseEntityTypesFromQuery(typesStr string) []analysis.EntityType {
 			types = append(types, analysis.EntityTypeActivity)
 		case "usecase":
 			types = append(types, analysis.EntityTypeUseCase)
-		case "deliverable":
-			types = append(types, analysis.EntityTypeDeliverable)
 		case "objective":
 			types = append(types, analysis.EntityTypeObjective)
 		}
@@ -183,8 +178,6 @@ func parseEdgeLayersFromQuery(layersStr string) []analysis.UnifiedEdgeLayer {
 		switch l {
 		case string(analysis.EdgeLayerStructural):
 			layers = append(layers, analysis.EdgeLayerStructural)
-		case string(analysis.EdgeLayerReference):
-			layers = append(layers, analysis.EdgeLayerReference)
 		}
 	}
 	return layers
@@ -197,16 +190,10 @@ func parseEdgeRelationsFromQuery(relationsStr string) []analysis.UnifiedEdgeRela
 		switch r {
 		case string(analysis.RelationParent):
 			relations = append(relations, analysis.RelationParent)
-		case string(analysis.RelationDependsOn):
-			relations = append(relations, analysis.RelationDependsOn)
 		case string(analysis.RelationImplements):
 			relations = append(relations, analysis.RelationImplements)
 		case string(analysis.RelationContributes):
 			relations = append(relations, analysis.RelationContributes)
-		case string(analysis.RelationFulfills):
-			relations = append(relations, analysis.RelationFulfills)
-		case string(analysis.RelationProduces):
-			relations = append(relations, analysis.RelationProduces)
 		}
 	}
 	return relations
@@ -223,9 +210,6 @@ func convertUnifiedGraphToResponse(graph *analysis.UnifiedGraph, filter *analysi
 			Title:              node.Title,
 			Status:             node.Status,
 			StructuralDepth:    node.StructuralDepth,
-			Mode:               node.Mode,
-			Assignee:           node.Assignee,
-			Priority:           node.Priority,
 			StructuralParents:  node.StructuralParents,
 			StructuralChildren: node.StructuralChildren,
 		}

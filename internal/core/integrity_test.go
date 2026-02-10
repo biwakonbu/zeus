@@ -12,7 +12,7 @@ import (
 )
 
 // テスト用のセットアップ（IntegrityChecker）
-func setupIntegrityCheckerTest(t *testing.T) (*IntegrityChecker, *ObjectiveHandler, *DeliverableHandler, string, func()) {
+func setupIntegrityCheckerTest(t *testing.T) (*IntegrityChecker, *ObjectiveHandler, string, func()) {
 	t.Helper()
 
 	tmpDir, err := os.MkdirTemp("", "zeus-integrity-test")
@@ -26,40 +26,28 @@ func setupIntegrityCheckerTest(t *testing.T) (*IntegrityChecker, *ObjectiveHandl
 		os.RemoveAll(tmpDir)
 		t.Fatalf("failed to create objectives dir: %v", err)
 	}
-	if err := os.MkdirAll(zeusPath+"/deliverables", 0755); err != nil {
-		os.RemoveAll(tmpDir)
-		t.Fatalf("failed to create deliverables dir: %v", err)
-	}
 
 	fs := yaml.NewFileManager(zeusPath)
 	objHandler := NewObjectiveHandler(fs, nil)
-	delHandler := NewDeliverableHandler(fs, objHandler, nil)
-	checker := NewIntegrityChecker(objHandler, delHandler)
+	checker := NewIntegrityChecker(objHandler)
 
 	cleanup := func() {
 		os.RemoveAll(tmpDir)
 	}
 
-	return checker, objHandler, delHandler, zeusPath, cleanup
+	return checker, objHandler, zeusPath, cleanup
 }
 
 func TestIntegrityCheckerCheckAllClean(t *testing.T) {
-	checker, objHandler, delHandler, _, cleanup := setupIntegrityCheckerTest(t)
+	checker, objHandler, _, cleanup := setupIntegrityCheckerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
 
 	// 正しい参照を持つデータを作成
-	objResult, err := objHandler.Add(ctx, "親 Objective")
+	_, err := objHandler.Add(ctx, "Objective")
 	if err != nil {
 		t.Fatalf("Add objective failed: %v", err)
-	}
-
-	_, err = delHandler.Add(ctx, "Deliverable",
-		WithDeliverableObjective(objResult.ID),
-	)
-	if err != nil {
-		t.Fatalf("Add deliverable failed: %v", err)
 	}
 
 	// チェック実行
@@ -82,7 +70,7 @@ func TestIntegrityCheckerCheckAllClean(t *testing.T) {
 }
 
 func TestIntegrityCheckerCheckAllEmpty(t *testing.T) {
-	checker, _, _, _, cleanup := setupIntegrityCheckerTest(t)
+	checker, _, _, cleanup := setupIntegrityCheckerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -98,74 +86,8 @@ func TestIntegrityCheckerCheckAllEmpty(t *testing.T) {
 	}
 }
 
-func TestIntegrityCheckerDeliverableToObjectiveReference(t *testing.T) {
-	checker, objHandler, delHandler, zeusPath, cleanup := setupIntegrityCheckerTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-
-	// Objective を作成
-	objResult, err := objHandler.Add(ctx, "Objective")
-	if err != nil {
-		t.Fatalf("Add objective failed: %v", err)
-	}
-
-	// Deliverable を作成（正しい参照）
-	_, err = delHandler.Add(ctx, "Valid Deliverable",
-		WithDeliverableObjective(objResult.ID),
-	)
-	if err != nil {
-		t.Fatalf("Add valid deliverable failed: %v", err)
-	}
-
-	// 壊れた参照を持つ Deliverable を直接作成
-	brokenDel := &DeliverableEntity{
-		ID:          "del-999",
-		Title:       "Broken Deliverable",
-		ObjectiveID: "obj-999", // 存在しない Objective
-		Status:      DeliverableStatusPlanned,
-		Format:      DeliverableFormatOther,
-		Metadata:    Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-	}
-	fs := yaml.NewFileManager(zeusPath)
-	if err := fs.WriteYaml(ctx, "deliverables/del-999.yaml", brokenDel); err != nil {
-		t.Fatalf("Write broken deliverable failed: %v", err)
-	}
-
-	// チェック実行
-	result, err := checker.CheckAll(ctx)
-	if err != nil {
-		t.Fatalf("CheckAll failed: %v", err)
-	}
-
-	if result.Valid {
-		t.Error("expected Valid to be false with broken reference")
-	}
-
-	if len(result.ReferenceErrors) != 1 {
-		t.Errorf("expected 1 reference error, got %d", len(result.ReferenceErrors))
-	}
-
-	// エラー内容確認
-	if len(result.ReferenceErrors) > 0 {
-		refErr := result.ReferenceErrors[0]
-		if refErr.SourceType != "deliverable" {
-			t.Errorf("expected source type 'deliverable', got %q", refErr.SourceType)
-		}
-		if refErr.SourceID != "del-999" {
-			t.Errorf("expected source ID 'del-999', got %q", refErr.SourceID)
-		}
-		if refErr.TargetType != "objective" {
-			t.Errorf("expected target type 'objective', got %q", refErr.TargetType)
-		}
-		if refErr.TargetID != "obj-999" {
-			t.Errorf("expected target ID 'obj-999', got %q", refErr.TargetID)
-		}
-	}
-}
-
 func TestIntegrityCheckerObjectiveParentReference(t *testing.T) {
-	checker, objHandler, _, zeusPath, cleanup := setupIntegrityCheckerTest(t)
+	checker, objHandler, zeusPath, cleanup := setupIntegrityCheckerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -230,7 +152,7 @@ func TestIntegrityCheckerObjectiveParentReference(t *testing.T) {
 }
 
 func TestIntegrityCheckerCycleDetection(t *testing.T) {
-	checker, _, _, zeusPath, cleanup := setupIntegrityCheckerTest(t)
+	checker, _, zeusPath, cleanup := setupIntegrityCheckerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -299,7 +221,7 @@ func TestIntegrityCheckerCycleDetection(t *testing.T) {
 }
 
 func TestIntegrityCheckerSelfReference(t *testing.T) {
-	checker, _, _, zeusPath, cleanup := setupIntegrityCheckerTest(t)
+	checker, _, zeusPath, cleanup := setupIntegrityCheckerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -335,7 +257,7 @@ func TestIntegrityCheckerSelfReference(t *testing.T) {
 }
 
 func TestIntegrityCheckerContextCancellation(t *testing.T) {
-	checker, _, _, _, cleanup := setupIntegrityCheckerTest(t)
+	checker, _, _, cleanup := setupIntegrityCheckerTest(t)
 	defer cleanup()
 
 	// キャンセル済みのコンテキスト
@@ -372,7 +294,7 @@ func TestIntegrityCheckerContextCancellation(t *testing.T) {
 
 func TestIntegrityCheckerNilHandlers(t *testing.T) {
 	// nil ハンドラーでのチェック
-	checker := NewIntegrityChecker(nil, nil)
+	checker := NewIntegrityChecker(nil)
 
 	ctx := context.Background()
 
@@ -387,61 +309,16 @@ func TestIntegrityCheckerNilHandlers(t *testing.T) {
 	}
 }
 
-func TestIntegrityCheckerMultipleErrors(t *testing.T) {
-	checker, _, _, zeusPath, cleanup := setupIntegrityCheckerTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-	fs := yaml.NewFileManager(zeusPath)
-
-	// 複数の壊れた参照を作成
-	for i := 1; i <= 3; i++ {
-		del := &DeliverableEntity{
-			ID:          "del-00" + string(rune('0'+i)),
-			Title:       "Broken Deliverable",
-			ObjectiveID: "obj-999", // 存在しない
-			Status:      DeliverableStatusPlanned,
-			Format:      DeliverableFormatOther,
-			Metadata:    Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-		}
-		if err := fs.WriteYaml(ctx, "deliverables/del-00"+string(rune('0'+i))+".yaml", del); err != nil {
-			t.Fatalf("Write del failed: %v", err)
-		}
-	}
-
-	// チェック実行
-	result, err := checker.CheckAll(ctx)
-	if err != nil {
-		t.Fatalf("CheckAll failed: %v", err)
-	}
-
-	if result.Valid {
-		t.Error("expected Valid to be false")
-	}
-
-	if len(result.ReferenceErrors) != 3 {
-		t.Errorf("expected 3 reference errors, got %d", len(result.ReferenceErrors))
-	}
-}
-
 func TestIntegrityCheckerNoParentReference(t *testing.T) {
-	checker, objHandler, delHandler, _, cleanup := setupIntegrityCheckerTest(t)
+	checker, objHandler, _, cleanup := setupIntegrityCheckerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
 
 	// 親なしの Objective を作成（parent_id が空）
-	objResult, err := objHandler.Add(ctx, "Root Objective")
+	_, err := objHandler.Add(ctx, "Root Objective")
 	if err != nil {
 		t.Fatalf("Add root objective failed: %v", err)
-	}
-
-	// Objective を参照する Deliverable を作成（objective_id は必須）
-	_, err = delHandler.Add(ctx, "Valid Deliverable",
-		WithDeliverableObjective(objResult.ID),
-	)
-	if err != nil {
-		t.Fatalf("Add deliverable failed: %v", err)
 	}
 
 	// チェック実行（親参照なしの Objective は OK）
@@ -457,14 +334,14 @@ func TestIntegrityCheckerNoParentReference(t *testing.T) {
 
 func TestReferenceErrorMessage(t *testing.T) {
 	refErr := &ReferenceError{
-		SourceType: "deliverable",
-		SourceID:   "del-001",
+		SourceType: "quality",
+		SourceID:   "qual-001",
 		TargetType: "objective",
 		TargetID:   "obj-999",
 		Message:    "referenced objective not found",
 	}
 
-	expected := "deliverable del-001 → objective obj-999: referenced objective not found"
+	expected := "quality qual-001 → objective obj-999: referenced objective not found"
 	if refErr.Error() != expected {
 		t.Errorf("expected error message %q, got %q", expected, refErr.Error())
 	}
@@ -511,7 +388,7 @@ func setupUseCaseSubsystemIntegrityTest(t *testing.T) (*IntegrityChecker, *UseCa
 	usecaseHandler := NewUseCaseHandler(fs, nil, nil, nil)
 
 	// IntegrityChecker に設定
-	checker := NewIntegrityChecker(nil, nil)
+	checker := NewIntegrityChecker(nil)
 	checker.SetUseCaseHandler(usecaseHandler)
 	checker.SetSubsystemHandler(subsystemHandler)
 
@@ -731,7 +608,7 @@ func TestIntegrityCheckerUseCaseSubsystemWarningMultiple(t *testing.T) {
 
 // TestIntegrityCheckerUseCaseSubsystemWarningNilHandler は nil ハンドラーでのチェック
 func TestIntegrityCheckerUseCaseSubsystemWarningNilHandler(t *testing.T) {
-	checker := NewIntegrityChecker(nil, nil)
+	checker := NewIntegrityChecker(nil)
 	// UseCaseHandler と SubsystemHandler は nil のまま
 
 	ctx := context.Background()
@@ -786,11 +663,11 @@ func setupDecisionConsiderationIntegrityTest(t *testing.T) (*IntegrityChecker, *
 	}
 
 	fs := yaml.NewFileManager(zeusPath)
-	conHandler := NewConsiderationHandler(fs, nil, nil, nil)
+	conHandler := NewConsiderationHandler(fs, nil, nil)
 	decHandler := NewDecisionHandler(fs, conHandler, nil)
 
 	// IntegrityChecker に設定
-	checker := NewIntegrityChecker(nil, nil)
+	checker := NewIntegrityChecker(nil)
 	checker.SetConsiderationHandler(conHandler)
 	checker.SetDecisionHandler(decHandler)
 
@@ -1033,7 +910,7 @@ func TestIntegrityChecker_MultipleDecisionReferenceErrors(t *testing.T) {
 // TestIntegrityChecker_DecisionConsiderationNilHandlers は nil ハンドラーでの動作をテスト
 func TestIntegrityChecker_DecisionConsiderationNilHandlers(t *testing.T) {
 	// DecisionHandler と ConsiderationHandler は nil のまま
-	checker := NewIntegrityChecker(nil, nil)
+	checker := NewIntegrityChecker(nil)
 
 	ctx := context.Background()
 
@@ -1074,7 +951,7 @@ func setupUseCaseObjectiveIntegrityTest(t *testing.T) (*IntegrityChecker, *UseCa
 	objHandler := NewObjectiveHandler(fs, nil)
 	usecaseHandler := NewUseCaseHandler(fs, objHandler, nil, nil)
 
-	checker := NewIntegrityChecker(objHandler, nil)
+	checker := NewIntegrityChecker(objHandler)
 	checker.SetUseCaseHandler(usecaseHandler)
 
 	cleanup := func() {
@@ -1214,7 +1091,7 @@ func TestIntegrityChecker_UseCaseObjectiveBroken(t *testing.T) {
 // ===== Activity 参照警告テスト =====
 
 // テスト用セットアップ（Activity 参照チェック用）
-func setupActivityIntegrityTest(t *testing.T) (*IntegrityChecker, *ActivityHandler, *DeliverableHandler, *UseCaseHandler, string, func()) {
+func setupActivityIntegrityTest(t *testing.T) (*IntegrityChecker, *ActivityHandler, *UseCaseHandler, string, func()) {
 	t.Helper()
 
 	tmpDir, err := os.MkdirTemp("", "zeus-activity-integrity-test")
@@ -1224,7 +1101,7 @@ func setupActivityIntegrityTest(t *testing.T) (*IntegrityChecker, *ActivityHandl
 
 	// .zeus ディレクトリを作成
 	zeusPath := tmpDir + "/.zeus"
-	for _, dir := range []string{"activities", "deliverables", "usecases", "objectives"} {
+	for _, dir := range []string{"activities", "usecases", "objectives"} {
 		if err := os.MkdirAll(zeusPath+"/"+dir, 0755); err != nil {
 			os.RemoveAll(tmpDir)
 			t.Fatalf("failed to create %s dir: %v", dir, err)
@@ -1233,11 +1110,10 @@ func setupActivityIntegrityTest(t *testing.T) (*IntegrityChecker, *ActivityHandl
 
 	fs := yaml.NewFileManager(zeusPath)
 	objHandler := NewObjectiveHandler(fs, nil)
-	delHandler := NewDeliverableHandler(fs, objHandler, nil)
 	ucHandler := NewUseCaseHandler(fs, objHandler, nil, nil)
-	actHandler := NewActivityHandler(fs, ucHandler, delHandler, nil)
+	actHandler := NewActivityHandler(fs, ucHandler)
 
-	checker := NewIntegrityChecker(objHandler, delHandler)
+	checker := NewIntegrityChecker(objHandler)
 	checker.SetUseCaseHandler(ucHandler)
 	checker.SetActivityHandler(actHandler)
 
@@ -1245,150 +1121,12 @@ func setupActivityIntegrityTest(t *testing.T) (*IntegrityChecker, *ActivityHandl
 		os.RemoveAll(tmpDir)
 	}
 
-	return checker, actHandler, delHandler, ucHandler, zeusPath, cleanup
-}
-
-// TestIntegrityChecker_ActivityDependencyWarning は存在しない Activity を依存先として参照している場合をテスト
-func TestIntegrityChecker_ActivityDependencyWarning(t *testing.T) {
-	checker, _, _, _, zeusPath, cleanup := setupActivityIntegrityTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-	fs := yaml.NewFileManager(zeusPath)
-
-	// 存在しない Activity を依存先として参照する Activity を作成
-	act := &ActivityEntity{
-		ID:           "act-12345678",
-		Title:        "依存先が壊れたアクティビティ",
-		Dependencies: []string{"act-99999999"}, // 存在しない
-		Status:       ActivityStatusDraft,
-		Metadata:     Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-	}
-	if err := fs.WriteYaml(ctx, "activities/act-12345678.yaml", act); err != nil {
-		t.Fatalf("Write activity failed: %v", err)
-	}
-
-	// チェック実行
-	result, err := checker.CheckAll(ctx)
-	if err != nil {
-		t.Fatalf("CheckAll failed: %v", err)
-	}
-
-	// 警告は Valid に影響しない
-	if !result.Valid {
-		t.Error("expected Valid to be true (warnings don't affect Valid)")
-	}
-
-	if len(result.Warnings) != 1 {
-		t.Errorf("expected 1 warning, got %d", len(result.Warnings))
-	}
-
-	if len(result.Warnings) > 0 {
-		warning := result.Warnings[0]
-		if warning.SourceType != "activity" {
-			t.Errorf("expected source type 'activity', got %q", warning.SourceType)
-		}
-		if warning.TargetType != "activity" {
-			t.Errorf("expected target type 'activity', got %q", warning.TargetType)
-		}
-		if warning.TargetID != "act-99999999" {
-			t.Errorf("expected target ID 'act-99999999', got %q", warning.TargetID)
-		}
-	}
-}
-
-// TestIntegrityChecker_ActivityParentWarning は存在しない親 Activity を参照している場合をテスト
-func TestIntegrityChecker_ActivityParentWarning(t *testing.T) {
-	checker, _, _, _, zeusPath, cleanup := setupActivityIntegrityTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-	fs := yaml.NewFileManager(zeusPath)
-
-	// 存在しない親 Activity を参照する Activity を作成
-	act := &ActivityEntity{
-		ID:       "act-12345678",
-		Title:    "親が壊れたアクティビティ",
-		ParentID: "act-99999999", // 存在しない
-		Status:   ActivityStatusDraft,
-		Metadata: Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-	}
-	if err := fs.WriteYaml(ctx, "activities/act-12345678.yaml", act); err != nil {
-		t.Fatalf("Write activity failed: %v", err)
-	}
-
-	// チェック実行
-	result, err := checker.CheckAll(ctx)
-	if err != nil {
-		t.Fatalf("CheckAll failed: %v", err)
-	}
-
-	// 警告は Valid に影響しない
-	if !result.Valid {
-		t.Error("expected Valid to be true (warnings don't affect Valid)")
-	}
-
-	if len(result.Warnings) != 1 {
-		t.Errorf("expected 1 warning, got %d", len(result.Warnings))
-	}
-
-	if len(result.Warnings) > 0 {
-		warning := result.Warnings[0]
-		if warning.Message != "referenced parent activity not found" {
-			t.Errorf("expected message about parent not found, got %q", warning.Message)
-		}
-	}
-}
-
-// TestIntegrityChecker_ActivityDeliverableWarning は存在しない Deliverable を参照している場合をテスト
-func TestIntegrityChecker_ActivityDeliverableWarning(t *testing.T) {
-	checker, _, _, _, zeusPath, cleanup := setupActivityIntegrityTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-	fs := yaml.NewFileManager(zeusPath)
-
-	// 存在しない Deliverable を参照する Activity を作成
-	act := &ActivityEntity{
-		ID:                  "act-12345678",
-		Title:               "成果物参照が壊れたアクティビティ",
-		RelatedDeliverables: []string{"del-99999999"}, // 存在しない
-		Status:              ActivityStatusDraft,
-		Metadata:            Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-	}
-	if err := fs.WriteYaml(ctx, "activities/act-12345678.yaml", act); err != nil {
-		t.Fatalf("Write activity failed: %v", err)
-	}
-
-	// チェック実行
-	result, err := checker.CheckAll(ctx)
-	if err != nil {
-		t.Fatalf("CheckAll failed: %v", err)
-	}
-
-	// 警告は Valid に影響しない
-	if !result.Valid {
-		t.Error("expected Valid to be true (warnings don't affect Valid)")
-	}
-
-	if len(result.Warnings) != 1 {
-		t.Errorf("expected 1 warning, got %d", len(result.Warnings))
-	}
-
-	if len(result.Warnings) > 0 {
-		warning := result.Warnings[0]
-		if warning.TargetType != "deliverable" {
-			t.Errorf("expected target type 'deliverable', got %q", warning.TargetType)
-		}
-		if warning.TargetID != "del-99999999" {
-			t.Errorf("expected target ID 'del-99999999', got %q", warning.TargetID)
-		}
-	}
+	return checker, actHandler, ucHandler, zeusPath, cleanup
 }
 
 // TestIntegrityChecker_ActivityUseCaseWarning は存在しない UseCase を参照している場合をテスト
 func TestIntegrityChecker_ActivityUseCaseWarning(t *testing.T) {
-	checker, _, _, _, zeusPath, cleanup := setupActivityIntegrityTest(t)
+	checker, _, _, zeusPath, cleanup := setupActivityIntegrityTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -1429,225 +1167,11 @@ func TestIntegrityChecker_ActivityUseCaseWarning(t *testing.T) {
 	}
 }
 
-// TestIntegrityChecker_ActivityNodeDeliverableWarning は Node 内の存在しない Deliverable を参照している場合をテスト
-func TestIntegrityChecker_ActivityNodeDeliverableWarning(t *testing.T) {
-	checker, _, _, _, zeusPath, cleanup := setupActivityIntegrityTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-	fs := yaml.NewFileManager(zeusPath)
-
-	// Node 内で存在しない Deliverable を参照する Activity を作成
-	act := &ActivityEntity{
-		ID:    "act-12345678",
-		Title: "ノード内成果物参照が壊れたアクティビティ",
-		Nodes: []ActivityNode{
-			{
-				ID:             "node-001",
-				Name:           "テストノード",
-				DeliverableIDs: []string{"del-99999999"}, // 存在しない
-			},
-		},
-		Status:   ActivityStatusDraft,
-		Metadata: Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-	}
-	if err := fs.WriteYaml(ctx, "activities/act-12345678.yaml", act); err != nil {
-		t.Fatalf("Write activity failed: %v", err)
-	}
-
-	// チェック実行
-	result, err := checker.CheckAll(ctx)
-	if err != nil {
-		t.Fatalf("CheckAll failed: %v", err)
-	}
-
-	// 警告は Valid に影響しない
-	if !result.Valid {
-		t.Error("expected Valid to be true (warnings don't affect Valid)")
-	}
-
-	if len(result.Warnings) != 1 {
-		t.Errorf("expected 1 warning, got %d", len(result.Warnings))
-	}
-
-	if len(result.Warnings) > 0 {
-		warning := result.Warnings[0]
-		if warning.TargetType != "deliverable" {
-			t.Errorf("expected target type 'deliverable', got %q", warning.TargetType)
-		}
-	}
-}
-
 // ===== Activity 循環参照テスト =====
 
-// TestIntegrityChecker_ActivityParentCycle は Activity 親子関係の循環参照をテスト
-func TestIntegrityChecker_ActivityParentCycle(t *testing.T) {
-	checker, _, _, _, zeusPath, cleanup := setupActivityIntegrityTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-	fs := yaml.NewFileManager(zeusPath)
-
-	// 循環参照を持つ Activity を作成: act-001 → act-002 → act-003 → act-001
-	acts := []*ActivityEntity{
-		{
-			ID:       "act-00000001",
-			Title:    "Activity 1",
-			ParentID: "act-00000003", // act-003 を親とする
-			Status:   ActivityStatusDraft,
-			Metadata: Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-		},
-		{
-			ID:       "act-00000002",
-			Title:    "Activity 2",
-			ParentID: "act-00000001", // act-001 を親とする
-			Status:   ActivityStatusDraft,
-			Metadata: Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-		},
-		{
-			ID:       "act-00000003",
-			Title:    "Activity 3",
-			ParentID: "act-00000002", // act-002 を親とする
-			Status:   ActivityStatusDraft,
-			Metadata: Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-		},
-	}
-
-	for _, act := range acts {
-		if err := fs.WriteYaml(ctx, fmt.Sprintf("activities/%s.yaml", act.ID), act); err != nil {
-			t.Fatalf("Write activity failed: %v", err)
-		}
-	}
-
-	// チェック実行
-	result, err := checker.CheckAll(ctx)
-	if err != nil {
-		t.Fatalf("CheckAll failed: %v", err)
-	}
-
-	if result.Valid {
-		t.Error("expected Valid to be false with cycle")
-	}
-
-	if len(result.CycleErrors) == 0 {
-		t.Error("expected at least 1 cycle error")
-	}
-
-	if len(result.CycleErrors) > 0 {
-		cycleErr := result.CycleErrors[0]
-		if cycleErr.EntityType != "activity" {
-			t.Errorf("expected entity type 'activity', got %q", cycleErr.EntityType)
-		}
-		if cycleErr.Message != "circular parent reference detected" {
-			t.Errorf("expected message 'circular parent reference detected', got %q", cycleErr.Message)
-		}
-	}
-}
-
-// TestIntegrityChecker_ActivityDependencyCycle は Activity 依存関係の循環参照をテスト
-func TestIntegrityChecker_ActivityDependencyCycle(t *testing.T) {
-	checker, actHandler, _, _, zeusPath, cleanup := setupActivityIntegrityTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-	fs := yaml.NewFileManager(zeusPath)
-
-	// 循環参照を持つ依存関係を作成: act-001 → act-002 → act-003 → act-001
-	acts := []*ActivityEntity{
-		{
-			ID:           "act-00000001",
-			Title:        "Activity 1",
-			Dependencies: []string{"act-00000003"}, // act-003 に依存
-			Status:       ActivityStatusDraft,
-			Metadata:     Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-		},
-		{
-			ID:           "act-00000002",
-			Title:        "Activity 2",
-			Dependencies: []string{"act-00000001"}, // act-001 に依存
-			Status:       ActivityStatusDraft,
-			Metadata:     Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-		},
-		{
-			ID:           "act-00000003",
-			Title:        "Activity 3",
-			Dependencies: []string{"act-00000002"}, // act-002 に依存
-			Status:       ActivityStatusDraft,
-			Metadata:     Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-		},
-	}
-
-	for _, act := range acts {
-		if err := fs.WriteYaml(ctx, fmt.Sprintf("activities/%s.yaml", act.ID), act); err != nil {
-			t.Fatalf("Write activity failed: %v", err)
-		}
-	}
-
-	// ActivityHandler のキャッシュをクリア（直接ファイルを書いたため）
-	_ = actHandler // actHandler は使わないが、セットアップで必要
-
-	// チェック実行
-	result, err := checker.CheckAll(ctx)
-	if err != nil {
-		t.Fatalf("CheckAll failed: %v", err)
-	}
-
-	if result.Valid {
-		t.Error("expected Valid to be false with dependency cycle")
-	}
-
-	// 循環参照エラーが検出されることを確認
-	foundDependencyCycle := false
-	for _, cycleErr := range result.CycleErrors {
-		if cycleErr.EntityType == "activity" && cycleErr.Message == "circular dependency detected" {
-			foundDependencyCycle = true
-			break
-		}
-	}
-
-	if !foundDependencyCycle {
-		t.Error("expected to find dependency cycle error")
-	}
-}
-
-// TestIntegrityChecker_ActivitySelfParentReference は自己参照（親が自分自身）をテスト
-func TestIntegrityChecker_ActivitySelfParentReference(t *testing.T) {
-	checker, _, _, _, zeusPath, cleanup := setupActivityIntegrityTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-	fs := yaml.NewFileManager(zeusPath)
-
-	// 自己参照を持つ Activity を作成
-	act := &ActivityEntity{
-		ID:       "act-12345678",
-		Title:    "自己参照アクティビティ",
-		ParentID: "act-12345678", // 自分自身を親とする
-		Status:   ActivityStatusDraft,
-		Metadata: Metadata{CreatedAt: Now(), UpdatedAt: Now()},
-	}
-	if err := fs.WriteYaml(ctx, "activities/act-12345678.yaml", act); err != nil {
-		t.Fatalf("Write activity failed: %v", err)
-	}
-
-	// チェック実行
-	result, err := checker.CheckAll(ctx)
-	if err != nil {
-		t.Fatalf("CheckAll failed: %v", err)
-	}
-
-	if result.Valid {
-		t.Error("expected Valid to be false with self-reference")
-	}
-
-	if len(result.CycleErrors) == 0 {
-		t.Error("expected at least 1 cycle error for self-reference")
-	}
-}
-
-// TestIntegrityChecker_ActivityMultipleWarnings は複数の Activity 参照警告をテスト
-func TestIntegrityChecker_ActivityMultipleWarnings(t *testing.T) {
-	checker, _, _, _, zeusPath, cleanup := setupActivityIntegrityTest(t)
+// TestIntegrityChecker_ActivityUseCaseWarningMultiple は複数の Activity が壊れた UseCase 参照を持つ場合をテスト
+func TestIntegrityChecker_ActivityUseCaseWarningMultiple(t *testing.T) {
+	checker, _, _, zeusPath, cleanup := setupActivityIntegrityTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -1655,14 +1179,11 @@ func TestIntegrityChecker_ActivityMultipleWarnings(t *testing.T) {
 
 	// 複数の壊れた参照を持つ Activity を作成
 	act := &ActivityEntity{
-		ID:                  "act-12345678",
-		Title:               "複数の壊れた参照",
-		ParentID:            "act-99999999",           // 存在しない親
-		Dependencies:        []string{"act-88888888"}, // 存在しない依存先
-		RelatedDeliverables: []string{"del-77777777"}, // 存在しない成果物
-		UseCaseID:           "uc-66666666",            // 存在しないユースケース
-		Status:              ActivityStatusDraft,
-		Metadata:            Metadata{CreatedAt: Now(), UpdatedAt: Now()},
+		ID:        "act-12345678",
+		Title:     "壊れた UseCase 参照",
+		UseCaseID: "uc-66666666", // 存在しないユースケース
+		Status:    ActivityStatusDraft,
+		Metadata:  Metadata{CreatedAt: Now(), UpdatedAt: Now()},
 	}
 	if err := fs.WriteYaml(ctx, "activities/act-12345678.yaml", act); err != nil {
 		t.Fatalf("Write activity failed: %v", err)
@@ -1679,18 +1200,18 @@ func TestIntegrityChecker_ActivityMultipleWarnings(t *testing.T) {
 		t.Error("expected Valid to be true (warnings don't affect Valid)")
 	}
 
-	// 4つの警告が期待される: 親、依存先、成果物、ユースケース
-	if len(result.Warnings) != 4 {
-		t.Errorf("expected 4 warnings, got %d", len(result.Warnings))
+	// 1つの警告が期待される: ユースケース
+	if len(result.Warnings) != 1 {
+		t.Errorf("expected 1 warning, got %d", len(result.Warnings))
 		for i, w := range result.Warnings {
-			t.Logf("Warning %d: %s → %s: %s", i, w.SourceID, w.TargetID, w.Message)
+			t.Logf("Warning %d: %s -> %s: %s", i, w.SourceID, w.TargetID, w.Message)
 		}
 	}
 }
 
 // TestIntegrityChecker_ActivityValidReferences は正常な Activity 参照をテスト
 func TestIntegrityChecker_ActivityValidReferences(t *testing.T) {
-	checker, actHandler, delHandler, ucHandler, zeusPath, cleanup := setupActivityIntegrityTest(t)
+	checker, _, ucHandler, zeusPath, cleanup := setupActivityIntegrityTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -1707,40 +1228,19 @@ func TestIntegrityChecker_ActivityValidReferences(t *testing.T) {
 		t.Fatalf("Write objective failed: %v", err)
 	}
 
-	// Deliverable を作成
-	delResult, err := delHandler.Add(ctx, "テスト成果物", WithDeliverableObjective("obj-00000001"))
-	if err != nil {
-		t.Fatalf("Add deliverable failed: %v", err)
-	}
-
 	// UseCase を作成
 	ucResult, err := ucHandler.Add(ctx, "テストユースケース", WithUseCaseObjective("obj-00000001"))
 	if err != nil {
 		t.Fatalf("Add usecase failed: %v", err)
 	}
 
-	// 親 Activity を作成
-	parentResult, err := actHandler.Add(ctx, "親アクティビティ")
-	if err != nil {
-		t.Fatalf("Add parent activity failed: %v", err)
-	}
-
-	// 依存先 Activity を作成
-	depResult, err := actHandler.Add(ctx, "依存先アクティビティ")
-	if err != nil {
-		t.Fatalf("Add dependency activity failed: %v", err)
-	}
-
-	// 全ての正しい参照を持つ Activity を作成
+	// 正しい参照を持つ Activity を作成
 	act := &ActivityEntity{
-		ID:                  "act-12345678",
-		Title:               "全ての参照が正常なアクティビティ",
-		ParentID:            parentResult.ID,
-		Dependencies:        []string{depResult.ID},
-		RelatedDeliverables: []string{delResult.ID},
-		UseCaseID:           ucResult.ID,
-		Status:              ActivityStatusDraft,
-		Metadata:            Metadata{CreatedAt: Now(), UpdatedAt: Now()},
+		ID:        "act-12345678",
+		Title:     "全ての参照が正常なアクティビティ",
+		UseCaseID: ucResult.ID,
+		Status:    ActivityStatusDraft,
+		Metadata:  Metadata{CreatedAt: Now(), UpdatedAt: Now()},
 	}
 	if err := fs.WriteYaml(ctx, "activities/act-12345678.yaml", act); err != nil {
 		t.Fatalf("Write activity failed: %v", err)
@@ -1759,7 +1259,7 @@ func TestIntegrityChecker_ActivityValidReferences(t *testing.T) {
 	if len(result.Warnings) != 0 {
 		t.Errorf("expected 0 warnings, got %d", len(result.Warnings))
 		for i, w := range result.Warnings {
-			t.Logf("Warning %d: %s → %s: %s", i, w.SourceID, w.TargetID, w.Message)
+			t.Logf("Warning %d: %s -> %s: %s", i, w.SourceID, w.TargetID, w.Message)
 		}
 	}
 }

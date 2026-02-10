@@ -2,7 +2,6 @@ id: act-004
 title: "エンティティ承認フロー"
 description: "zeus approve コマンドによるエンティティ承認の処理フロー"
 usecase_id: uc-6311f468
-related_deliverables:
   - del-007
   - del-008
   - del-009

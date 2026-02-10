@@ -2,7 +2,6 @@ id: act-007
 title: "依存関係グラフ生成フロー"
 description: "zeus graph コマンドによる依存関係グラフ生成の処理フロー"
 usecase_id: uc-b5e37c52
-related_deliverables:
   - del-015
 status: active
 

@@ -33,6 +33,21 @@
 		navigateToEntity('activity', 'activity', activityId);
 	}
 
+	// Graph ビューで開く
+	function handleGraphClick(entityId: string) {
+		navigateToEntity('graph', 'usecase', entityId);
+	}
+
+	// 関連 UseCase へ遷移
+	function handleUseCaseClick(usecaseId: string) {
+		navigateToEntity('usecase', 'usecase', usecaseId);
+	}
+
+	// 関連 Actor へ遷移
+	function handleActorClick(actorId: string) {
+		navigateToEntity('usecase', 'actor', actorId);
+	}
+
 	// 折りたたみ状態
 	let alternativeFlowExpanded = $state<Record<string, boolean>>({});
 	let exceptionFlowExpanded = $state<Record<string, boolean>>({});
@@ -195,10 +210,13 @@
 						<ul class="relation-list">
 							{#each usecase.actors as actorRef}
 								<li class="relation-item">
-									<Icon name="User" size={12} />
-									<span class="relation-name">{getActorName(actorRef.actor_id)}</span>
-									<span class="relation-id">({actorRef.actor_id})</span>
-									<span class="role-badge">{roleLabels[actorRef.role] ?? actorRef.role}</span>
+									<button type="button" class="relation-button" onclick={() => handleActorClick(actorRef.actor_id)}
+										title="Actor を選択">
+										<Icon name="User" size={12} />
+										<span class="relation-name">{getActorName(actorRef.actor_id)}</span>
+										<span class="relation-id">({actorRef.actor_id})</span>
+										<span class="role-badge">{roleLabels[actorRef.role] ?? actorRef.role}</span>
+									</button>
 								</li>
 							{/each}
 						</ul>
@@ -213,19 +231,30 @@
 						<ul class="relation-list">
 							{#each usecase.relations as relation}
 								<li class="relation-item">
-									<span class="relation-type">{relationLabels[relation.type] ?? relation.type}</span
-									>
-									<span class="relation-name">{getUseCaseName(relation.target_id)}</span>
-									<span class="relation-id">({relation.target_id})</span>
-									{#if relation.condition}
-										<span class="condition">[{relation.condition}]</span>
-									{/if}
+									<button type="button" class="relation-button" onclick={() => handleUseCaseClick(relation.target_id)}
+										title="UseCase を選択">
+										<span class="relation-type">{relationLabels[relation.type] ?? relation.type}</span>
+										<span class="relation-name">{getUseCaseName(relation.target_id)}</span>
+										<span class="relation-id">({relation.target_id})</span>
+										{#if relation.condition}
+											<span class="condition">[{relation.condition}]</span>
+										{/if}
+									</button>
 								</li>
 							{/each}
 						</ul>
 					</dd>
 				</div>
 			{/if}
+
+			<!-- Graph ビュー遷移ボタン -->
+			<div class="detail-item full">
+				<button type="button" class="graph-link" onclick={() => handleGraphClick(usecase.id)}
+					title="Graph ビューで表示">
+					<Icon name="Network" size={10} />
+					<span>Graph ビューで開く</span>
+				</button>
+			</div>
 
 			<!-- シナリオセクション -->
 			{#if hasScenario(usecase)}
@@ -839,5 +868,54 @@
 		font-size: 0.65rem;
 		color: var(--text-muted);
 		flex-shrink: 0;
+	}
+
+	/* Graph ビュー遷移ボタン */
+	.graph-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 10px;
+		background: rgba(59, 130, 246, 0.1);
+		border: 1px solid rgba(59, 130, 246, 0.3);
+		border-radius: 4px;
+		color: #60a5fa;
+		cursor: pointer;
+		font-family: inherit;
+		font-size: 0.75rem;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease;
+	}
+
+	.graph-link:hover {
+		background: rgba(59, 130, 246, 0.2);
+		border-color: #60a5fa;
+	}
+
+	/* 関連 Actor / UseCase のクリック可能ボタン */
+	.relation-button {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		width: 100%;
+		padding: 0;
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		font-family: inherit;
+		font-size: inherit;
+		color: inherit;
+		text-align: left;
+		transition: opacity 0.15s ease;
+	}
+
+	.relation-button:hover {
+		opacity: 0.8;
+	}
+
+	.relation-button:hover .relation-name {
+		color: var(--accent-primary);
+		text-decoration: underline;
 	}
 </style>

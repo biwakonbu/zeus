@@ -64,7 +64,7 @@ func TestDoctorBrokenRefReport(t *testing.T) {
 
 	// Quality を追加（正常な参照）
 	result = runCommand(t, dir, "add", "quality", "テスト品質",
-		"--deliverable", ids["deliverable"],
+		"--objective", ids["objective"],
 		"--metric", "coverage:80:%")
 	assertSuccess(t, result)
 
@@ -76,33 +76,6 @@ func TestDoctorBrokenRefReport(t *testing.T) {
 // =============================================================================
 // 参照チェーンテスト
 // =============================================================================
-
-// TestRefChain_Del_Obj は Deliverable → Objective の参照チェーンをテストする
-func TestRefChain_Del_Obj(t *testing.T) {
-	t.Parallel()
-	dir := setupTempDir(t)
-	defer cleanupTempDir(t, dir)
-
-	runCommand(t, dir, "init")
-
-	// Objective 作成
-	result := runCommand(t, dir, "add", "objective", "Phase 1 目標")
-	assertSuccess(t, result)
-	objID := extractEntityID(t, result, "obj-")
-	if objID == "" {
-		objID = "obj-001"
-	}
-
-	// Deliverable 作成（正しい参照）
-	result = runCommand(t, dir, "add", "deliverable", "設計書",
-		"--objective", objID,
-		"--format", "document")
-	assertSuccess(t, result)
-
-	// doctor でチェック
-	result = runCommand(t, dir, "doctor")
-	assertSuccess(t, result)
-}
 
 // TestRefChain_Dec_Con は Decision → Consideration の参照チェーンをテストする
 func TestRefChain_Dec_Con(t *testing.T) {
@@ -125,8 +98,8 @@ func TestRefChain_Dec_Con(t *testing.T) {
 	assertSuccess(t, result)
 }
 
-// TestRefChain_Qual_Del は Quality → Deliverable の参照チェーンをテストする
-func TestRefChain_Qual_Del(t *testing.T) {
+// TestRefChain_Qual_Obj は Quality → Objective の参照チェーンをテストする
+func TestRefChain_Qual_Obj(t *testing.T) {
 	t.Parallel()
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
@@ -135,7 +108,7 @@ func TestRefChain_Qual_Del(t *testing.T) {
 
 	// Quality 作成（正しい参照）
 	result := runCommand(t, dir, "add", "quality", "コードカバレッジ",
-		"--deliverable", ids["deliverable"],
+		"--objective", ids["objective"],
 		"--metric", "coverage:80:%")
 	assertSuccess(t, result)
 
@@ -163,43 +136,9 @@ func TestRefChain_Prob_Obj(t *testing.T) {
 	assertSuccess(t, result)
 }
 
-// TestRefChain_Risk_Del は Risk → Deliverable の参照チェーンをテストする
-func TestRefChain_Risk_Del(t *testing.T) {
-	t.Parallel()
-	dir := setupTempDir(t)
-	defer cleanupTempDir(t, dir)
-
-	ids := setupBasicProject(t, dir)
-
-	// Risk 作成（Deliverable 参照）
-	result := runCommand(t, dir, "add", "risk", "品質リスク",
-		"--probability", "medium",
-		"--impact", "high",
-		"--deliverable", ids["deliverable"])
-	assertSuccess(t, result)
-
-	// doctor でチェック
-	result = runCommand(t, dir, "doctor")
-	assertSuccess(t, result)
-}
-
 // =============================================================================
 // 無効な参照テスト
 // =============================================================================
-
-// TestInvalidRef_Del_Obj は存在しない Objective への参照がエラーになることをテストする
-func TestInvalidRef_Del_Obj(t *testing.T) {
-	t.Parallel()
-	dir := setupTempDir(t)
-	defer cleanupTempDir(t, dir)
-
-	runCommand(t, dir, "init")
-
-	// 存在しない Objective を参照
-	result := runCommand(t, dir, "add", "deliverable", "無効な成果物",
-		"--objective", "obj-999")
-	assertFailure(t, result)
-}
 
 // TestInvalidRef_Dec_Con は存在しない Consideration への参照がエラーになることをテストする
 func TestInvalidRef_Dec_Con(t *testing.T) {
@@ -218,17 +157,17 @@ func TestInvalidRef_Dec_Con(t *testing.T) {
 	assertFailure(t, result)
 }
 
-// TestInvalidRef_Qual_Del は存在しない Deliverable への参照がエラーになることをテストする
-func TestInvalidRef_Qual_Del(t *testing.T) {
+// TestInvalidRef_Qual_Obj は存在しない Objective への参照がエラーになることをテストする
+func TestInvalidRef_Qual_Obj(t *testing.T) {
 	t.Parallel()
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
 	runCommand(t, dir, "init")
 
-	// 存在しない Deliverable を参照
+	// 存在しない Objective を参照
 	result := runCommand(t, dir, "add", "quality", "無効な品質",
-		"--deliverable", "del-999")
+		"--objective", "obj-999")
 	assertFailure(t, result)
 }
 
@@ -245,19 +184,9 @@ func TestComplexRefChain(t *testing.T) {
 	// フルプロジェクトセットアップ
 	ids := setupFullProject(t, dir)
 
-	// 追加の参照チェーン: 別の Deliverable を追加
-	result := runCommand(t, dir, "add", "deliverable", "テスト計画書",
-		"--objective", ids["objective"],
-		"--format", "document")
-	assertSuccess(t, result)
-	del2ID := extractEntityID(t, result, "del-")
-	if del2ID == "" {
-		del2ID = "del-002"
-	}
-
 	// 別の Quality を追加
-	result = runCommand(t, dir, "add", "quality", "テストカバレッジ",
-		"--deliverable", del2ID,
+	result := runCommand(t, dir, "add", "quality", "テストカバレッジ",
+		"--objective", ids["objective"],
 		"--metric", "test_coverage:90:%")
 	assertSuccess(t, result)
 
@@ -274,19 +203,17 @@ func TestMultipleReferences(t *testing.T) {
 
 	ids := setupBasicProject(t, dir)
 
-	// Problem を Objective と Deliverable 両方に紐づける
+	// Problem を Objective に紐づける
 	result := runCommand(t, dir, "add", "problem", "複合問題",
 		"--severity", "medium",
-		"--objective", ids["objective"],
-		"--deliverable", ids["deliverable"])
+		"--objective", ids["objective"])
 	assertSuccess(t, result)
 
 	// Risk も同様に
 	result = runCommand(t, dir, "add", "risk", "複合リスク",
 		"--probability", "low",
 		"--impact", "medium",
-		"--objective", ids["objective"],
-		"--deliverable", ids["deliverable"])
+		"--objective", ids["objective"])
 	assertSuccess(t, result)
 
 	// doctor でチェック

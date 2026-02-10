@@ -1,9 +1,0 @@
-id: del-040
-title: 入力サニタイズ
-objective_id: obj-030
-format: code
-status: completed
-progress: 100
-metadata:
-    created_at: "2026-01-19T15:08:04+09:00"
-    updated_at: "2026-01-19T15:08:04+09:00"

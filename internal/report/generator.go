@@ -181,7 +181,7 @@ func (g *Generator) generateRecommendations() []string {
 	switch g.state.Health {
 	case "Poor":
 		recommendations = append(recommendations,
-			"Project health is poor. Review blocked tasks and resolve dependencies.")
+			"Project health is poor. Review tasks and resolve issues.")
 	case "Fair":
 		recommendations = append(recommendations,
 			"Project health is fair. Focus on completing in-progress tasks.")

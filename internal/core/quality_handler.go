@@ -14,17 +14,17 @@ import (
 // QualityHandler は QualityEntity エンティティのハンドラー
 // 個別ファイル (quality/qual-{uuid}.yaml) で管理
 type QualityHandler struct {
-	fileStore          FileStore
-	sanitizer          *Sanitizer
-	deliverableHandler *DeliverableHandler
+	fileStore        FileStore
+	sanitizer        *Sanitizer
+	objectiveHandler *ObjectiveHandler
 }
 
 // NewQualityHandler は新しい QualityHandler を作成
-func NewQualityHandler(fs FileStore, delHandler *DeliverableHandler, _ *IDCounterManager) *QualityHandler {
+func NewQualityHandler(fs FileStore, objHandler *ObjectiveHandler, _ *IDCounterManager) *QualityHandler {
 	return &QualityHandler{
-		fileStore:          fs,
-		sanitizer:          NewSanitizer(),
-		deliverableHandler: delHandler,
+		fileStore:        fs,
+		sanitizer:        NewSanitizer(),
+		objectiveHandler: objHandler,
 	}
 }
 
@@ -63,11 +63,11 @@ func (h *QualityHandler) Add(ctx context.Context, name string, opts ...EntityOpt
 		opt(quality)
 	}
 
-	// DeliverableID の存在確認（必須）
-	if quality.DeliverableID == "" {
-		return nil, fmt.Errorf("quality deliverable_id is required")
+	// ObjectiveID の存在確認（必須）
+	if quality.ObjectiveID == "" {
+		return nil, fmt.Errorf("quality objective_id is required")
 	}
-	if err := h.validateDeliverableReference(ctx, quality.DeliverableID); err != nil {
+	if err := h.validateObjectiveReference(ctx, quality.ObjectiveID); err != nil {
 		return nil, err
 	}
 
@@ -159,9 +159,9 @@ func (h *QualityHandler) Update(ctx context.Context, id string, update any) erro
 		qual.Metadata.CreatedAt = existingQual.Metadata.CreatedAt
 		qual.Metadata.UpdatedAt = Now()
 
-		// DeliverableID が変更された場合、存在確認
-		if qual.DeliverableID != "" && qual.DeliverableID != existingQual.DeliverableID {
-			if err := h.validateDeliverableReference(ctx, qual.DeliverableID); err != nil {
+		// ObjectiveID が変更された場合、存在確認
+		if qual.ObjectiveID != "" && qual.ObjectiveID != existingQual.ObjectiveID {
+			if err := h.validateObjectiveReference(ctx, qual.ObjectiveID); err != nil {
 				return err
 			}
 		}
@@ -243,8 +243,8 @@ func (h *QualityHandler) getAllQualities(ctx context.Context) ([]*QualityEntity,
 	return qualities, nil
 }
 
-// GetQualitiesByDeliverable は指定 Deliverable に紐づく Quality を取得
-func (h *QualityHandler) GetQualitiesByDeliverable(ctx context.Context, deliverableID string) ([]*QualityEntity, error) {
+// GetQualitiesByObjective は指定 Objective に紐づく Quality を取得
+func (h *QualityHandler) GetQualitiesByObjective(ctx context.Context, objectiveID string) ([]*QualityEntity, error) {
 	all, err := h.getAllQualities(ctx)
 	if err != nil {
 		return nil, err
@@ -252,7 +252,7 @@ func (h *QualityHandler) GetQualitiesByDeliverable(ctx context.Context, delivera
 
 	var result []*QualityEntity
 	for _, qual := range all {
-		if qual.DeliverableID == deliverableID {
+		if qual.ObjectiveID == objectiveID {
 			result = append(result, qual)
 		}
 	}
@@ -313,26 +313,26 @@ func (h *QualityHandler) UpdateGate(ctx context.Context, qualityID, gateName str
 	return h.fileStore.WriteYaml(ctx, filePath, qual)
 }
 
-// validateDeliverableReference は Deliverable 参照の存在を確認
-func (h *QualityHandler) validateDeliverableReference(ctx context.Context, deliverableID string) error {
-	if h.deliverableHandler == nil {
+// validateObjectiveReference は Objective 参照の存在を確認
+func (h *QualityHandler) validateObjectiveReference(ctx context.Context, objectiveID string) error {
+	if h.objectiveHandler == nil {
 		return nil
 	}
 
-	_, err := h.deliverableHandler.Get(ctx, deliverableID)
+	_, err := h.objectiveHandler.Get(ctx, objectiveID)
 	if err == ErrEntityNotFound {
-		return fmt.Errorf("referenced deliverable not found: %s", deliverableID)
+		return fmt.Errorf("referenced objective not found: %s", objectiveID)
 	}
 	return err
 }
 
 // Quality オプション関数
 
-// WithQualityDeliverable は Quality の Deliverable を設定
-func WithQualityDeliverable(deliverableID string) EntityOption {
+// WithQualityObjective は Quality の Objective を設定
+func WithQualityObjective(objectiveID string) EntityOption {
 	return func(v any) {
 		if qual, ok := v.(*QualityEntity); ok {
-			qual.DeliverableID = deliverableID
+			qual.ObjectiveID = objectiveID
 		}
 	}
 }

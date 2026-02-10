@@ -14,19 +14,17 @@ import (
 // ProblemHandler は ProblemEntity エンティティのハンドラー
 // 個別ファイル (problems/prob-{uuid}.yaml) で管理
 type ProblemHandler struct {
-	fileStore          FileStore
-	sanitizer          *Sanitizer
-	objectiveHandler   *ObjectiveHandler
-	deliverableHandler *DeliverableHandler
+	fileStore        FileStore
+	sanitizer        *Sanitizer
+	objectiveHandler *ObjectiveHandler
 }
 
 // NewProblemHandler は新しい ProblemHandler を作成
-func NewProblemHandler(fs FileStore, objHandler *ObjectiveHandler, delHandler *DeliverableHandler, _ *IDCounterManager) *ProblemHandler {
+func NewProblemHandler(fs FileStore, objHandler *ObjectiveHandler, _ *IDCounterManager) *ProblemHandler {
 	return &ProblemHandler{
-		fileStore:          fs,
-		sanitizer:          NewSanitizer(),
-		objectiveHandler:   objHandler,
-		deliverableHandler: delHandler,
+		fileStore:        fs,
+		sanitizer:        NewSanitizer(),
+		objectiveHandler: objHandler,
 	}
 }
 
@@ -73,12 +71,6 @@ func (h *ProblemHandler) Add(ctx context.Context, name string, opts ...EntityOpt
 			return nil, err
 		}
 	}
-	if problem.DeliverableID != "" {
-		if err := h.validateDeliverableReference(ctx, problem.DeliverableID); err != nil {
-			return nil, err
-		}
-	}
-
 	// バリデーション
 	if err := problem.Validate(); err != nil {
 		return nil, err
@@ -184,12 +176,6 @@ func (h *ProblemHandler) Update(ctx context.Context, id string, update any) erro
 				return err
 			}
 		}
-		if prob.DeliverableID != "" && prob.DeliverableID != existingProb.DeliverableID {
-			if err := h.validateDeliverableReference(ctx, prob.DeliverableID); err != nil {
-				return err
-			}
-		}
-
 		// バリデーション
 		if err := prob.Validate(); err != nil {
 			return err
@@ -297,19 +283,6 @@ func (h *ProblemHandler) validateObjectiveReference(ctx context.Context, objecti
 	return err
 }
 
-// validateDeliverableReference は Deliverable 参照の存在を確認
-func (h *ProblemHandler) validateDeliverableReference(ctx context.Context, deliverableID string) error {
-	if h.deliverableHandler == nil {
-		return nil
-	}
-
-	_, err := h.deliverableHandler.Get(ctx, deliverableID)
-	if err == ErrEntityNotFound {
-		return fmt.Errorf("referenced deliverable not found: %s", deliverableID)
-	}
-	return err
-}
-
 // Problem オプション関数
 
 // WithProblemSeverity は Problem の重大度を設定
@@ -335,15 +308,6 @@ func WithProblemObjective(objectiveID string) EntityOption {
 	return func(v any) {
 		if prob, ok := v.(*ProblemEntity); ok {
 			prob.ObjectiveID = objectiveID
-		}
-	}
-}
-
-// WithProblemDeliverable は Problem の Deliverable を設定
-func WithProblemDeliverable(deliverableID string) EntityOption {
-	return func(v any) {
-		if prob, ok := v.(*ProblemEntity); ok {
-			prob.DeliverableID = deliverableID
 		}
 	}
 }

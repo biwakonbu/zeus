@@ -2,7 +2,6 @@ id: act-012
 title: "予測分析フロー"
 description: "zeus predict コマンドによる予測分析の処理フロー"
 usecase_id: uc-abb11f8d
-related_deliverables:
   - del-016
 status: active
 

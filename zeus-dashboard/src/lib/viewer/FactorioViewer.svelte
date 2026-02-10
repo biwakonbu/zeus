@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import type { EntityStatus, Priority, GraphNode, GraphEdge } from '$lib/types/api';
+	import { onMount, onDestroy, untrack } from 'svelte';
+	import type { EntityStatus, GraphNode, GraphEdge } from '$lib/types/api';
 	import { NODE_TYPE_CONFIG } from './config/nodeTypes';
 	import { ViewerEngine, type Viewport } from './engine/ViewerEngine';
 	import {
@@ -21,7 +21,7 @@
 	import GraphListPanel from './graph/GraphListPanel.svelte';
 	import GraphDetailPanel from './graph/GraphDetailPanel.svelte';
 	import { OverlayPanel } from '$lib/components/ui';
-	import { updateGraphViewState, resetGraphViewState } from '$lib/stores/view';
+	import { updateGraphViewState, resetGraphViewState, pendingNavigation, clearPendingNavigation } from '$lib/stores/view';
 	import { Container, Graphics } from 'pixi.js';
 	import type { FederatedPointerEvent, Ticker } from 'pixi.js';
 
@@ -81,7 +81,7 @@
 	 */
 	function computeNodesHash(nodeList: GraphNode[]): string {
 		return nodeList
-			.map((n) => `${n.id}:${n.status}:${n.priority ?? ''}:${n.assignee ?? ''}:${n.node_type}`)
+			.map((n) => `${n.id}:${n.status}:${n.node_type}`)
 			.join('|');
 	}
 
@@ -142,7 +142,6 @@
 
 	// フィルター状態
 	let filterCriteria: FilterCriteria = $state({});
-	let availableAssignees: string[] = $state([]);
 	let visibleTaskIds: Set<string> = $state(new Set());
 
 	// 依存関係フィルター状態
@@ -731,7 +730,7 @@
 		// フィルターマネージャーを更新
 		filterManager.setGraph(nodeList, edgeList);
 		selectionManager.setGraph(nodeList, edgeList);
-		availableAssignees = filterManager.getAvailableAssignees();
+
 
 		// 既存ノードのデータを更新
 		for (const [id, node] of nodeMap) {
@@ -800,7 +799,7 @@
 		// マネージャーに GraphNode を設定
 		filterManager.setGraph(nodeList, edgeList);
 		selectionManager.setGraph(nodeList, edgeList);
-		availableAssignees = filterManager.getAvailableAssignees();
+
 
 		// レイアウト計算（GraphNode で）
 		const layoutStart = nowMs();
@@ -886,19 +885,7 @@
 				edge.setEndpoints(endpoints.fromX, endpoints.fromY, endpoints.toX, endpoints.toY);
 			}
 
-			const fromNode = nodeByID.get(edgeData.from);
-			const toNode = nodeByID.get(edgeData.to);
-			if (
-				edgeData.relation === 'depends_on' &&
-				fromNode &&
-				toNode &&
-				fromNode.status !== 'completed' &&
-				toNode.status === 'blocked'
-			) {
-				edge.setType(EdgeType.Blocked);
-			} else {
-				edge.setType(EdgeType.Normal);
-			}
+			edge.setType(EdgeType.Normal);
 
 			edgeContainer.addChild(edge);
 		}
@@ -1157,7 +1144,7 @@
 	}
 
 	function getTraversableEdges(includeStructural: boolean = includeStructuralInTraversal) {
-		return edgeFactory.getAll().filter((e) => includeStructural || e.getLayer() === 'reference');
+		return edgeFactory.getAll().filter((e) => includeStructural);
 	}
 
 	/**
@@ -1557,20 +1544,6 @@
 	}
 
 	/**
-	 * フィルター: 優先度トグル
-	 */
-	function handlePriorityToggle(priority: Priority): void {
-		filterManager?.togglePriority(priority);
-	}
-
-	/**
-	 * フィルター: 担当者トグル
-	 */
-	function handleAssigneeToggle(assignee: string): void {
-		filterManager?.toggleAssignee(assignee);
-	}
-
-	/**
 	 * フィルター: 検索テキスト変更
 	 */
 	function handleSearchChange(text: string): void {
@@ -1702,6 +1675,23 @@
 			syncStoreData();
 		}
 	});
+
+	// 他ビューからの Graph ビューナビゲーション受信
+	$effect(() => {
+		const nav = $pendingNavigation;
+		if (!nav || nav.view !== 'graph') return;
+		// エンジン未準備の場合はナビゲーションを保留（データロード後に再実行される）
+		if (!selectionManager || graphNodes.length === 0) return;
+		untrack(() => {
+			if (nav.entityId) {
+				const nodeExists = graphNodes.some((n) => n.id === nav.entityId);
+				if (nodeExists) {
+					handleGraphNodeSelectFromPanel(nav.entityId);
+				}
+			}
+			clearPendingNavigation();
+		});
+	});
 </script>
 
 <div class="factorio-viewer">
@@ -1760,10 +1750,7 @@
 		>
 			<FilterPanel
 				criteria={filterCriteria}
-				{availableAssignees}
 				onStatusToggle={handleStatusToggle}
-				onPriorityToggle={handlePriorityToggle}
-				onAssigneeToggle={handleAssigneeToggle}
 				onSearchChange={handleSearchChange}
 				onClear={handleFilterClear}
 			/>
@@ -1802,31 +1789,23 @@
 					<div class="legend-section">
 						<div class="legend-section-title">STATUS</div>
 					<div class="legend-item">
-						<span class="legend-dot completed"></span>
-						<span>Completed</span>
+						<span class="legend-dot draft"></span>
+						<span>Draft</span>
 					</div>
 					<div class="legend-item">
-						<span class="legend-dot in-progress"></span>
-						<span>In Progress</span>
+						<span class="legend-dot active"></span>
+						<span>Active</span>
 					</div>
 					<div class="legend-item">
-						<span class="legend-dot pending"></span>
-						<span>Pending</span>
-					</div>
-					<div class="legend-item">
-						<span class="legend-dot blocked"></span>
-						<span>Blocked</span>
+						<span class="legend-dot deprecated"></span>
+						<span>Deprecated</span>
 						</div>
 					</div>
 					<div class="legend-section">
 						<div class="legend-section-title">RELATION</div>
 						<div class="legend-item">
 							<span class="legend-line structural"></span>
-							<span>Structural (parent / implements / contributes / fulfills)</span>
-						</div>
-						<div class="legend-item">
-							<span class="legend-line reference"></span>
-							<span>Reference (depends_on / produces)</span>
+							<span>Structural (parent / implements / contributes)</span>
 						</div>
 					</div>
 					<div class="legend-section">
@@ -1905,20 +1884,16 @@
 		border-radius: 50%;
 	}
 
-	.legend-dot.completed {
-		background-color: var(--task-completed);
-	}
-
-	.legend-dot.in-progress {
-		background-color: var(--task-in-progress);
-	}
-
-	.legend-dot.pending {
+	.legend-dot.draft {
 		background-color: var(--task-pending);
 	}
 
-	.legend-dot.blocked {
-		background-color: var(--status-poor);
+	.legend-dot.active {
+		background-color: var(--task-in-progress);
+	}
+
+	.legend-dot.deprecated {
+		background-color: var(--text-muted);
 	}
 
 	.legend-line {
@@ -1930,16 +1905,6 @@
 	.legend-line.structural {
 		background-color: #88b8ff;
 		height: 3px;
-	}
-
-	.legend-line.reference {
-		background: repeating-linear-gradient(
-			to right,
-			#1f77b4 0px,
-			#1f77b4 4px,
-			transparent 4px,
-			transparent 7px
-		);
 	}
 
 	.legend-toggle {

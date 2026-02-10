@@ -18,15 +18,11 @@
       "orphan_check": "pass"
     },
     "reference_chains": {
-      "deliverable_to_objective": {
-        "valid": true,
-        "count": 1
-      },
       "decision_to_consideration": {
         "valid": true,
         "count": 1
       },
-      "quality_to_deliverable": {
+      "quality_to_objective": {
         "valid": true,
         "count": 1
       },
@@ -52,10 +48,6 @@
         "should_fail": true,
         "error_type": "reference_not_found"
       },
-      "nonexistent_deliverable_ref": {
-        "should_fail": true,
-        "error_type": "reference_not_found"
-      }
     },
     "cyclic_reference_detection": {
       "objective_parent_cycle": {
@@ -66,7 +58,6 @@
     "entity_counts": {
       "vision": 1,
       "objectives": 1,
-      "deliverables": 1,
       "considerations": 1,
       "decisions": 1,
       "problems": 1,

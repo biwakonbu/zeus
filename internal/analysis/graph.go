@@ -313,11 +313,11 @@ func (graph *DependencyGraph) ToDot() string {
 		// ステータスに応じた色分け
 		color := "white"
 		switch node.Task.Status {
-		case TaskStatusCompleted:
+		case TaskStatusCompleted, TaskStatusDeprecated:
 			color = "lightgreen"
-		case TaskStatusInProgress:
+		case TaskStatusInProgress, TaskStatusActive:
 			color = "lightyellow"
-		case TaskStatusBlocked:
+		case TaskStatusBlocked, TaskStatusOnHold:
 			color = "lightcoral"
 		}
 		label := strings.ReplaceAll(node.Task.Title, "\"", "\\\"")
@@ -439,11 +439,11 @@ func (graph *DependencyGraph) ToMermaid() string {
 		node := graph.Nodes[id]
 		safeID := strings.ReplaceAll(id, "-", "_")
 		switch node.Task.Status {
-		case TaskStatusCompleted:
+		case TaskStatusCompleted, TaskStatusDeprecated:
 			fmt.Fprintf(&sb, "    style %s fill:#90EE90\n", safeID)
-		case TaskStatusInProgress:
+		case TaskStatusInProgress, TaskStatusActive:
 			fmt.Fprintf(&sb, "    style %s fill:#FFFFE0\n", safeID)
-		case TaskStatusBlocked:
+		case TaskStatusBlocked, TaskStatusOnHold:
 			fmt.Fprintf(&sb, "    style %s fill:#F08080\n", safeID)
 		}
 	}

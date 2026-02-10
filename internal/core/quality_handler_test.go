@@ -13,7 +13,7 @@ import (
 // ===== テストセットアップ =====
 
 // setupQualityHandlerTest は QualityHandler テスト用のセットアップを行う
-func setupQualityHandlerTest(t *testing.T) (*QualityHandler, *DeliverableHandler, *ObjectiveHandler, string, func()) {
+func setupQualityHandlerTest(t *testing.T) (*QualityHandler, *ObjectiveHandler, string, func()) {
 	t.Helper()
 
 	tmpDir, err := os.MkdirTemp("", "zeus-quality-test")
@@ -35,13 +35,6 @@ func setupQualityHandlerTest(t *testing.T) (*QualityHandler, *DeliverableHandler
 		t.Fatalf("failed to create quality dir: %v", err)
 	}
 
-	// deliverables ディレクトリ作成
-	deliverablesDir := filepath.Join(zeusPath, "deliverables")
-	if err := os.MkdirAll(deliverablesDir, 0755); err != nil {
-		os.RemoveAll(tmpDir)
-		t.Fatalf("failed to create deliverables dir: %v", err)
-	}
-
 	// objectives ディレクトリ作成
 	objectivesDir := filepath.Join(zeusPath, "objectives")
 	if err := os.MkdirAll(objectivesDir, 0755); err != nil {
@@ -53,34 +46,24 @@ func setupQualityHandlerTest(t *testing.T) (*QualityHandler, *DeliverableHandler
 
 	// 依存ハンドラーを作成
 	objHandler := NewObjectiveHandler(fs, nil)
-	delHandler := NewDeliverableHandler(fs, objHandler, nil)
-	qualHandler := NewQualityHandler(fs, delHandler, nil)
+	qualHandler := NewQualityHandler(fs, objHandler, nil)
 
 	cleanup := func() {
 		os.RemoveAll(tmpDir)
 	}
 
-	return qualHandler, delHandler, objHandler, zeusPath, cleanup
+	return qualHandler, objHandler, zeusPath, cleanup
 }
 
-// createTestDeliverable はテスト用の Deliverable を作成する
-func createTestDeliverable(t *testing.T, delHandler *DeliverableHandler, objHandler *ObjectiveHandler) string {
+// createTestObjective はテスト用の Objective を作成する
+func createTestObjective(t *testing.T, objHandler *ObjectiveHandler) string {
 	t.Helper()
 	ctx := context.Background()
 
-	// Objective を作成（Deliverable の参照先）
-	objResult, err := objHandler.Add(ctx, "テスト目標")
+	// Objective を作成
+	result, err := objHandler.Add(ctx, "テスト目標")
 	if err != nil {
 		t.Fatalf("failed to create test objective: %v", err)
-	}
-
-	// Deliverable を作成
-	result, err := delHandler.Add(ctx, "テスト成果物",
-		WithDeliverableObjective(objResult.ID),
-		WithDeliverableFormat("document"),
-	)
-	if err != nil {
-		t.Fatalf("failed to create test deliverable: %v", err)
 	}
 
 	return result.ID
@@ -103,7 +86,7 @@ func defaultMetrics() []QualityMetric {
 // ===== 基本テスト =====
 
 func TestQualityHandler_Type(t *testing.T) {
-	handler, _, _, _, cleanup := setupQualityHandlerTest(t)
+	handler, _, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	if handler.Type() != "quality" {
@@ -112,11 +95,11 @@ func TestQualityHandler_Type(t *testing.T) {
 }
 
 func TestQualityHandler_Add(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	metrics := []QualityMetric{
 		{
@@ -138,7 +121,7 @@ func TestQualityHandler_Add(t *testing.T) {
 	}
 
 	result, err := handler.Add(ctx, "品質基準1",
-		WithQualityDeliverable(deliverableID),
+		WithQualityObjective(objectiveID),
 		WithQualityMetrics(metrics),
 		WithQualityGates(gates),
 		WithQualityReviewer("reviewer@example.com"),
@@ -167,8 +150,8 @@ func TestQualityHandler_Add(t *testing.T) {
 	if qual.Title != "品質基準1" {
 		t.Errorf("Title = %q, want %q", qual.Title, "品質基準1")
 	}
-	if qual.DeliverableID != deliverableID {
-		t.Errorf("DeliverableID = %q, want %q", qual.DeliverableID, deliverableID)
+	if qual.ObjectiveID != objectiveID {
+		t.Errorf("ObjectiveID = %q, want %q", qual.ObjectiveID, objectiveID)
 	}
 	if qual.Reviewer != "reviewer@example.com" {
 		t.Errorf("Reviewer = %q, want %q", qual.Reviewer, "reviewer@example.com")
@@ -181,43 +164,43 @@ func TestQualityHandler_Add(t *testing.T) {
 	}
 }
 
-func TestQualityHandler_Add_DeliverableRequired(t *testing.T) {
-	handler, _, _, _, cleanup := setupQualityHandlerTest(t)
+func TestQualityHandler_Add_ObjectiveRequired(t *testing.T) {
+	handler, _, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
 
-	// DeliverableID なしで追加
+	// ObjectiveID なしで追加
 	_, err := handler.Add(ctx, "品質基準")
 	if err == nil {
-		t.Error("Add() without DeliverableID should fail")
+		t.Error("Add() without ObjectiveID should fail")
 	}
-	if err.Error() != "quality deliverable_id is required" {
-		t.Errorf("error = %q, want 'quality deliverable_id is required'", err.Error())
+	if err.Error() != "quality objective_id is required" {
+		t.Errorf("error = %q, want 'quality objective_id is required'", err.Error())
 	}
 }
 
-func TestQualityHandler_Add_InvalidDeliverableReference(t *testing.T) {
-	handler, _, _, _, cleanup := setupQualityHandlerTest(t)
+func TestQualityHandler_Add_InvalidObjectiveReference(t *testing.T) {
+	handler, _, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
 
-	// 存在しない Deliverable を参照
+	// 存在しない Objective を参照
 	_, err := handler.Add(ctx, "品質基準",
-		WithQualityDeliverable("del-999"),
+		WithQualityObjective("obj-999"),
 	)
 	if err == nil {
-		t.Error("Add() with invalid DeliverableID should fail")
+		t.Error("Add() with invalid ObjectiveID should fail")
 	}
 }
 
 func TestQualityHandler_Add_InvalidInput(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	testCases := []struct {
 		name  string
@@ -229,7 +212,7 @@ func TestQualityHandler_Add_InvalidInput(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := handler.Add(ctx, tc.title,
-				WithQualityDeliverable(deliverableID),
+				WithQualityObjective(objectiveID),
 			)
 			if err == nil {
 				t.Error("expected error for invalid input")
@@ -239,16 +222,16 @@ func TestQualityHandler_Add_InvalidInput(t *testing.T) {
 }
 
 func TestQualityHandler_List(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	// 3つ追加
 	for i := 0; i < 3; i++ {
 		_, err := handler.Add(ctx, "品質基準",
-			WithQualityDeliverable(deliverableID),
+			WithQualityObjective(objectiveID),
 			WithQualityMetrics(defaultMetrics()),
 		)
 		if err != nil {
@@ -270,7 +253,7 @@ func TestQualityHandler_List(t *testing.T) {
 }
 
 func TestQualityHandler_List_Empty(t *testing.T) {
-	handler, _, _, _, cleanup := setupQualityHandlerTest(t)
+	handler, _, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -286,16 +269,16 @@ func TestQualityHandler_List_Empty(t *testing.T) {
 }
 
 func TestQualityHandler_List_WithLimit(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	// 5つ追加
 	for i := 0; i < 5; i++ {
 		_, err := handler.Add(ctx, "品質基準",
-			WithQualityDeliverable(deliverableID),
+			WithQualityObjective(objectiveID),
 			WithQualityMetrics(defaultMetrics()),
 		)
 		if err != nil {
@@ -314,14 +297,14 @@ func TestQualityHandler_List_WithLimit(t *testing.T) {
 }
 
 func TestQualityHandler_Get(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	addResult, err := handler.Add(ctx, "テスト品質基準",
-		WithQualityDeliverable(deliverableID),
+		WithQualityObjective(objectiveID),
 		WithQualityMetrics(defaultMetrics()),
 		WithQualityReviewer("test-reviewer"),
 	)
@@ -341,13 +324,13 @@ func TestQualityHandler_Get(t *testing.T) {
 	if qual.Title != "テスト品質基準" {
 		t.Errorf("Title = %q, want %q", qual.Title, "テスト品質基準")
 	}
-	if qual.DeliverableID != deliverableID {
-		t.Errorf("DeliverableID = %q, want %q", qual.DeliverableID, deliverableID)
+	if qual.ObjectiveID != objectiveID {
+		t.Errorf("ObjectiveID = %q, want %q", qual.ObjectiveID, objectiveID)
 	}
 }
 
 func TestQualityHandler_Get_NotFound(t *testing.T) {
-	handler, _, _, _, cleanup := setupQualityHandlerTest(t)
+	handler, _, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -359,7 +342,7 @@ func TestQualityHandler_Get_NotFound(t *testing.T) {
 }
 
 func TestQualityHandler_Get_InvalidID(t *testing.T) {
-	handler, _, _, _, cleanup := setupQualityHandlerTest(t)
+	handler, _, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -382,14 +365,14 @@ func TestQualityHandler_Get_InvalidID(t *testing.T) {
 }
 
 func TestQualityHandler_Update(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	addResult, err := handler.Add(ctx, "初期品質基準",
-		WithQualityDeliverable(deliverableID),
+		WithQualityObjective(objectiveID),
 		WithQualityMetrics(defaultMetrics()),
 	)
 	if err != nil {
@@ -398,10 +381,10 @@ func TestQualityHandler_Update(t *testing.T) {
 
 	// 更新
 	updateQual := &QualityEntity{
-		ID:            addResult.ID,
-		Title:         "更新後品質基準",
-		DeliverableID: deliverableID,
-		Reviewer:      "new-reviewer",
+		ID:          addResult.ID,
+		Title:       "更新後品質基準",
+		ObjectiveID: objectiveID,
+		Reviewer:    "new-reviewer",
 		Metrics: []QualityMetric{
 			{
 				ID:      "metric-001",
@@ -438,16 +421,16 @@ func TestQualityHandler_Update(t *testing.T) {
 }
 
 func TestQualityHandler_Update_NotFound(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	updateQual := &QualityEntity{
-		ID:            "qual-999",
-		Title:         "存在しない品質基準",
-		DeliverableID: deliverableID,
+		ID:          "qual-999",
+		Title:       "存在しない品質基準",
+		ObjectiveID: objectiveID,
 	}
 
 	err := handler.Update(ctx, "qual-999", updateQual)
@@ -457,14 +440,14 @@ func TestQualityHandler_Update_NotFound(t *testing.T) {
 }
 
 func TestQualityHandler_Delete(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	addResult, err := handler.Add(ctx, "削除対象品質基準",
-		WithQualityDeliverable(deliverableID),
+		WithQualityObjective(objectiveID),
 		WithQualityMetrics(defaultMetrics()),
 	)
 	if err != nil {
@@ -485,7 +468,7 @@ func TestQualityHandler_Delete(t *testing.T) {
 }
 
 func TestQualityHandler_Delete_NotFound(t *testing.T) {
-	handler, _, _, _, cleanup := setupQualityHandlerTest(t)
+	handler, _, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -496,21 +479,21 @@ func TestQualityHandler_Delete_NotFound(t *testing.T) {
 	}
 }
 
-// ===== GetQualitiesByDeliverable テスト =====
+// ===== GetQualitiesByObjective テスト =====
 
-func TestQualityHandler_GetQualitiesByDeliverable(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+func TestQualityHandler_GetQualitiesByObjective(t *testing.T) {
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
 
-	// 2つの Deliverable を作成
-	deliverableID1 := createTestDeliverable(t, delHandler, objHandler)
-	deliverableID2 := createTestDeliverable(t, delHandler, objHandler)
+	// 2つの Objective を作成
+	objectiveID1 := createTestObjective(t, objHandler)
+	objectiveID2 := createTestObjective(t, objHandler)
 
-	// deliverableID1 に 2つの Quality を紐付け
+	// objectiveID1 に 2つの Quality を紐付け
 	_, err := handler.Add(ctx, "品質基準A",
-		WithQualityDeliverable(deliverableID1),
+		WithQualityObjective(objectiveID1),
 		WithQualityMetrics(defaultMetrics()),
 	)
 	if err != nil {
@@ -518,70 +501,70 @@ func TestQualityHandler_GetQualitiesByDeliverable(t *testing.T) {
 	}
 
 	_, err = handler.Add(ctx, "品質基準B",
-		WithQualityDeliverable(deliverableID1),
+		WithQualityObjective(objectiveID1),
 		WithQualityMetrics(defaultMetrics()),
 	)
 	if err != nil {
 		t.Fatalf("Add() failed: %v", err)
 	}
 
-	// deliverableID2 に 1つの Quality を紐付け
+	// objectiveID2 に 1つの Quality を紐付け
 	_, err = handler.Add(ctx, "品質基準C",
-		WithQualityDeliverable(deliverableID2),
+		WithQualityObjective(objectiveID2),
 		WithQualityMetrics(defaultMetrics()),
 	)
 	if err != nil {
 		t.Fatalf("Add() failed: %v", err)
 	}
 
-	// deliverableID1 の Quality を取得
-	qualities, err := handler.GetQualitiesByDeliverable(ctx, deliverableID1)
+	// objectiveID1 の Quality を取得
+	qualities, err := handler.GetQualitiesByObjective(ctx, objectiveID1)
 	if err != nil {
-		t.Fatalf("GetQualitiesByDeliverable() failed: %v", err)
+		t.Fatalf("GetQualitiesByObjective() failed: %v", err)
 	}
 
 	if len(qualities) != 2 {
-		t.Errorf("GetQualitiesByDeliverable() count = %d, want 2", len(qualities))
+		t.Errorf("GetQualitiesByObjective() count = %d, want 2", len(qualities))
 	}
 
-	// deliverableID2 の Quality を取得
-	qualities, err = handler.GetQualitiesByDeliverable(ctx, deliverableID2)
+	// objectiveID2 の Quality を取得
+	qualities, err = handler.GetQualitiesByObjective(ctx, objectiveID2)
 	if err != nil {
-		t.Fatalf("GetQualitiesByDeliverable() failed: %v", err)
+		t.Fatalf("GetQualitiesByObjective() failed: %v", err)
 	}
 
 	if len(qualities) != 1 {
-		t.Errorf("GetQualitiesByDeliverable() count = %d, want 1", len(qualities))
+		t.Errorf("GetQualitiesByObjective() count = %d, want 1", len(qualities))
 	}
 }
 
-func TestQualityHandler_GetQualitiesByDeliverable_Empty(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+func TestQualityHandler_GetQualitiesByObjective_Empty(t *testing.T) {
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	// Quality を追加しない
 
-	qualities, err := handler.GetQualitiesByDeliverable(ctx, deliverableID)
+	qualities, err := handler.GetQualitiesByObjective(ctx, objectiveID)
 	if err != nil {
-		t.Fatalf("GetQualitiesByDeliverable() failed: %v", err)
+		t.Fatalf("GetQualitiesByObjective() failed: %v", err)
 	}
 
 	if len(qualities) != 0 {
-		t.Errorf("GetQualitiesByDeliverable() count = %d, want 0", len(qualities))
+		t.Errorf("GetQualitiesByObjective() count = %d, want 0", len(qualities))
 	}
 }
 
 // ===== UpdateMetric テスト =====
 
 func TestQualityHandler_UpdateMetric(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	metrics := []QualityMetric{
 		{
@@ -603,7 +586,7 @@ func TestQualityHandler_UpdateMetric(t *testing.T) {
 	}
 
 	addResult, err := handler.Add(ctx, "品質基準",
-		WithQualityDeliverable(deliverableID),
+		WithQualityObjective(objectiveID),
 		WithQualityMetrics(metrics),
 	)
 	if err != nil {
@@ -644,11 +627,11 @@ func TestQualityHandler_UpdateMetric(t *testing.T) {
 }
 
 func TestQualityHandler_UpdateMetric_NotFound(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	metrics := []QualityMetric{
 		{
@@ -662,7 +645,7 @@ func TestQualityHandler_UpdateMetric_NotFound(t *testing.T) {
 	}
 
 	addResult, err := handler.Add(ctx, "品質基準",
-		WithQualityDeliverable(deliverableID),
+		WithQualityObjective(objectiveID),
 		WithQualityMetrics(metrics),
 	)
 	if err != nil {
@@ -677,7 +660,7 @@ func TestQualityHandler_UpdateMetric_NotFound(t *testing.T) {
 }
 
 func TestQualityHandler_UpdateMetric_QualityNotFound(t *testing.T) {
-	handler, _, _, _, cleanup := setupQualityHandlerTest(t)
+	handler, _, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -691,11 +674,11 @@ func TestQualityHandler_UpdateMetric_QualityNotFound(t *testing.T) {
 // ===== UpdateGate テスト =====
 
 func TestQualityHandler_UpdateGate(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	gates := []QualityGate{
 		{
@@ -711,7 +694,7 @@ func TestQualityHandler_UpdateGate(t *testing.T) {
 	}
 
 	addResult, err := handler.Add(ctx, "品質基準",
-		WithQualityDeliverable(deliverableID),
+		WithQualityObjective(objectiveID),
 		WithQualityMetrics(defaultMetrics()),
 		WithQualityGates(gates),
 	)
@@ -750,11 +733,11 @@ func TestQualityHandler_UpdateGate(t *testing.T) {
 }
 
 func TestQualityHandler_UpdateGate_NotFound(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	gates := []QualityGate{
 		{
@@ -765,7 +748,7 @@ func TestQualityHandler_UpdateGate_NotFound(t *testing.T) {
 	}
 
 	addResult, err := handler.Add(ctx, "品質基準",
-		WithQualityDeliverable(deliverableID),
+		WithQualityObjective(objectiveID),
 		WithQualityMetrics(defaultMetrics()),
 		WithQualityGates(gates),
 	)
@@ -781,7 +764,7 @@ func TestQualityHandler_UpdateGate_NotFound(t *testing.T) {
 }
 
 func TestQualityHandler_UpdateGate_QualityNotFound(t *testing.T) {
-	handler, _, _, _, cleanup := setupQualityHandlerTest(t)
+	handler, _, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -795,18 +778,18 @@ func TestQualityHandler_UpdateGate_QualityNotFound(t *testing.T) {
 // ===== Context キャンセルテスト =====
 
 func TestQualityHandler_ContextCancellation(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // 即座にキャンセル
 
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	// 各操作がコンテキストキャンセルを正しく処理するか確認
 	t.Run("Add", func(t *testing.T) {
 		_, err := handler.Add(ctx, "テスト",
-			WithQualityDeliverable(deliverableID),
+			WithQualityObjective(objectiveID),
 		)
 		if err != context.Canceled {
 			t.Errorf("Add() error = %v, want context.Canceled", err)
@@ -829,8 +812,8 @@ func TestQualityHandler_ContextCancellation(t *testing.T) {
 
 	t.Run("Update", func(t *testing.T) {
 		err := handler.Update(ctx, "qual-001", &QualityEntity{
-			Title:         "更新",
-			DeliverableID: deliverableID,
+			Title:       "更新",
+			ObjectiveID: objectiveID,
 		})
 		if err != context.Canceled {
 			t.Errorf("Update() error = %v, want context.Canceled", err)
@@ -848,16 +831,16 @@ func TestQualityHandler_ContextCancellation(t *testing.T) {
 // ===== ID シーケンステスト =====
 
 func TestQualityHandler_IDSequence(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	seen := make(map[string]bool)
 	for i := 0; i < 3; i++ {
 		result, err := handler.Add(ctx, "品質基準",
-			WithQualityDeliverable(deliverableID),
+			WithQualityObjective(objectiveID),
 			WithQualityMetrics(defaultMetrics()),
 		)
 		if err != nil {
@@ -884,14 +867,14 @@ func TestQualityHandler_IDSequence(t *testing.T) {
 // ===== ファイルパステスト =====
 
 func TestQualityHandler_FilePath(t *testing.T) {
-	handler, delHandler, objHandler, zeusPath, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, zeusPath, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	result, err := handler.Add(ctx, "品質基準",
-		WithQualityDeliverable(deliverableID),
+		WithQualityObjective(objectiveID),
 		WithQualityMetrics(defaultMetrics()),
 	)
 	if err != nil {
@@ -907,14 +890,14 @@ func TestQualityHandler_FilePath(t *testing.T) {
 // ===== Metadata テスト =====
 
 func TestQualityHandler_Metadata(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	result, err := handler.Add(ctx, "品質基準",
-		WithQualityDeliverable(deliverableID),
+		WithQualityObjective(objectiveID),
 		WithQualityMetrics(defaultMetrics()),
 	)
 	if err != nil {
@@ -940,11 +923,11 @@ func TestQualityHandler_Metadata(t *testing.T) {
 // ===== Metrics/Gates バリデーションテスト =====
 
 func TestQualityHandler_MetricStatus(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	testCases := []struct {
 		name   string
@@ -969,7 +952,7 @@ func TestQualityHandler_MetricStatus(t *testing.T) {
 			}
 
 			result, err := handler.Add(ctx, "品質基準",
-				WithQualityDeliverable(deliverableID),
+				WithQualityObjective(objectiveID),
 				WithQualityMetrics(metrics),
 			)
 			if err != nil {
@@ -990,11 +973,11 @@ func TestQualityHandler_MetricStatus(t *testing.T) {
 }
 
 func TestQualityHandler_GateStatus(t *testing.T) {
-	handler, delHandler, objHandler, _, cleanup := setupQualityHandlerTest(t)
+	handler, objHandler, _, cleanup := setupQualityHandlerTest(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	deliverableID := createTestDeliverable(t, delHandler, objHandler)
+	objectiveID := createTestObjective(t, objHandler)
 
 	testCases := []struct {
 		name   string
@@ -1016,7 +999,7 @@ func TestQualityHandler_GateStatus(t *testing.T) {
 			}
 
 			result, err := handler.Add(ctx, "品質基準",
-				WithQualityDeliverable(deliverableID),
+				WithQualityObjective(objectiveID),
 				WithQualityMetrics(defaultMetrics()),
 				WithQualityGates(gates),
 			)

@@ -93,14 +93,17 @@
 	// ステータス色マッピング
 	function getStatusColor(status: string): string {
 		switch (status) {
-			case 'completed':
-				return 'var(--task-completed)';
+			case 'draft':
+			case 'not_started':
+				return 'var(--task-pending)';
+			case 'active':
 			case 'in_progress':
 				return 'var(--task-in-progress)';
-			case 'pending':
-				return 'var(--task-pending)';
-			case 'blocked':
-				return 'var(--task-blocked)';
+			case 'deprecated':
+			case 'completed':
+				return 'var(--task-completed)';
+			case 'on_hold':
+				return 'var(--task-on-hold)';
 			default:
 				return 'var(--text-muted)';
 		}

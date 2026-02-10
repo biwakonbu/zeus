@@ -8,10 +8,8 @@ import (
 type CoverageIssueType string
 
 const (
-	CoverageIssueNoDeliverables CoverageIssueType = "no_deliverables"
-	CoverageIssueNoTasks        CoverageIssueType = "no_tasks"
-	CoverageIssueUnlinkedTasks  CoverageIssueType = "unlinked_tasks"
-	CoverageIssueOrphaned       CoverageIssueType = "orphaned"
+	CoverageIssueNoTasks  CoverageIssueType = "no_tasks"
+	CoverageIssueOrphaned CoverageIssueType = "orphaned"
 )
 
 // CoverageIssueSeverity は問題の深刻度
@@ -27,7 +25,7 @@ type CoverageIssue struct {
 	Type        CoverageIssueType     `json:"type"`
 	EntityID    string                `json:"entity_id"`
 	EntityTitle string                `json:"entity_title"`
-	EntityType  string                `json:"entity_type"` // objective, deliverable, task
+	EntityType  string                `json:"entity_type"` // objective, task
 	Severity    CoverageIssueSeverity `json:"severity"`
 	Message     string                `json:"message"`
 }
@@ -38,27 +36,22 @@ type CoverageAnalysis struct {
 	CoverageScore   int             `json:"coverage_score"` // 0-100
 	ObjectivesCover int             `json:"objectives_covered"`
 	ObjectivesTotal int             `json:"objectives_total"`
-	DeliverablesOk  int             `json:"deliverables_ok"`
-	DeliverablesErr int             `json:"deliverables_err"`
 }
 
 // CoverageAnalyzer はカバレッジ分析を行う
 type CoverageAnalyzer struct {
-	objectives   []ObjectiveInfo
-	deliverables []DeliverableInfo
-	tasks        []TaskInfo
+	objectives []ObjectiveInfo
+	tasks      []TaskInfo
 }
 
 // NewCoverageAnalyzer は新しい CoverageAnalyzer を作成
 func NewCoverageAnalyzer(
 	objectives []ObjectiveInfo,
-	deliverables []DeliverableInfo,
 	tasks []TaskInfo,
 ) *CoverageAnalyzer {
 	return &CoverageAnalyzer{
-		objectives:   objectives,
-		deliverables: deliverables,
-		tasks:        tasks,
+		objectives: objectives,
+		tasks:      tasks,
 	}
 }
 
@@ -73,16 +66,9 @@ func (c *CoverageAnalyzer) Analyze(ctx context.Context) (*CoverageAnalysis, erro
 		ObjectivesTotal: len(c.objectives),
 	}
 
-	// Objective → Deliverable のマッピング
-	objToDeliverables := make(map[string][]DeliverableInfo)
-	for _, del := range c.deliverables {
-		if del.ObjectiveID != "" {
-			objToDeliverables[del.ObjectiveID] = append(objToDeliverables[del.ObjectiveID], del)
-		}
-	}
-
-	// Deliverable → Task のマッピング（現在の実装では Task の deliverable_id が使用されていない場合がある）
 	// Task.ParentID を使って親子関係を追跡
+	// NOTE: Activity は ParentID を持たない（UseCase 経由で Objective に紐づく）。
+	// Activity のカバレッジは Unified Graph の構造解析で判定する。
 	taskParents := make(map[string][]TaskInfo)
 	orphanTasks := []TaskInfo{}
 	for _, task := range c.tasks {
@@ -94,58 +80,26 @@ func (c *CoverageAnalyzer) Analyze(ctx context.Context) (*CoverageAnalysis, erro
 		}
 	}
 
-	// 1. Objective に Deliverable が紐づいていないかチェック（エラー）
+	// 1. Objective に Task が紐づいているかチェック（エラー）
 	for _, obj := range c.objectives {
-		deliverables := objToDeliverables[obj.ID]
-		if len(deliverables) == 0 {
+		if tasks, ok := taskParents[obj.ID]; ok && len(tasks) > 0 {
+			result.ObjectivesCover++
+		} else {
 			result.Issues = append(result.Issues, CoverageIssue{
-				Type:        CoverageIssueNoDeliverables,
+				Type:        CoverageIssueNoTasks,
 				EntityID:    obj.ID,
 				EntityTitle: obj.Title,
 				EntityType:  "objective",
 				Severity:    CoverageSeverityError,
-				Message:     "Objective に Deliverable が紐づいていません",
-			})
-		} else {
-			result.ObjectivesCover++
-		}
-	}
-
-	// 2. Deliverable に Task が紐づいていないかチェック（警告）
-	// 現在の実装では Task から Deliverable への直接参照がないため、
-	// Deliverable の子ノードとして Task があるかを確認
-	deliverableHasTasks := make(map[string]bool)
-	for _, del := range c.deliverables {
-		// Task.ParentID が Deliverable.ID と一致するかをチェック
-		if tasks, ok := taskParents[del.ID]; ok && len(tasks) > 0 {
-			deliverableHasTasks[del.ID] = true
-			result.DeliverablesOk++
-		} else {
-			deliverableHasTasks[del.ID] = false
-			result.DeliverablesErr++
-			result.Issues = append(result.Issues, CoverageIssue{
-				Type:        CoverageIssueNoTasks,
-				EntityID:    del.ID,
-				EntityTitle: del.Title,
-				EntityType:  "deliverable",
-				Severity:    CoverageSeverityWarning,
-				Message:     "Deliverable に Task が紐づいていません",
+				Message:     "Objective に Task が紐づいていません",
 			})
 		}
 	}
 
-	// 3. 孤立タスクをチェック（警告）
-	// Objective や Deliverable に属さないトップレベルタスク
+	// 2. 孤立タスクをチェック（警告）
+	// Objective に属さないトップレベルタスク
 	for _, task := range orphanTasks {
-		// 親がいない場合は孤立の可能性
 		isOrphan := true
-		// Deliverable の ID と一致する親を持つか確認
-		for _, del := range c.deliverables {
-			if task.ParentID == del.ID {
-				isOrphan = false
-				break
-			}
-		}
 		// Objective の ID と一致する親を持つか確認
 		for _, obj := range c.objectives {
 			if task.ParentID == obj.ID {
@@ -160,23 +114,16 @@ func (c *CoverageAnalyzer) Analyze(ctx context.Context) (*CoverageAnalysis, erro
 				EntityTitle: task.Title,
 				EntityType:  "task",
 				Severity:    CoverageSeverityWarning,
-				Message:     "タスクが Objective/Deliverable に紐づいていません",
+				Message:     "タスクが Objective に紐づいていません",
 			})
 		}
 	}
 
-	// カバレッジスコアを計算
+	// カバレッジスコアを計算（Objective + Task ベース）
 	if result.ObjectivesTotal > 0 {
-		score := (result.ObjectivesCover * 100) / result.ObjectivesTotal
-		if len(c.deliverables) > 0 {
-			delScore := (result.DeliverablesOk * 100) / len(c.deliverables)
-			score = (score + delScore) / 2
-		}
-		result.CoverageScore = score
-	} else if len(c.deliverables) > 0 {
-		result.CoverageScore = (result.DeliverablesOk * 100) / len(c.deliverables)
+		result.CoverageScore = (result.ObjectivesCover * 100) / result.ObjectivesTotal
 	} else if len(c.tasks) > 0 {
-		// Objective/Deliverable がない場合、タスクの孤立率で計算
+		// Objective がない場合、タスクの孤立率で計算
 		orphanCount := 0
 		for _, issue := range result.Issues {
 			if issue.Type == CoverageIssueOrphaned {

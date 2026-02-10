@@ -99,13 +99,12 @@ func (s *Server) handleAPIAffinity(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// エンティティを並列に読み込み
-	visionInfo, objectives, deliverables, tasks, quality, risks := s.loadAffinityDataParallel(ctx)
+	visionInfo, objectives, tasks, quality, risks := s.loadAffinityDataParallel(ctx)
 
 	// AffinityCalculator でアフィニティを計算
 	calculator := analysis.NewAffinityCalculatorWithOptions(
 		visionInfo,
 		objectives,
-		deliverables,
 		tasks,
 		quality,
 		risks,
@@ -182,7 +181,6 @@ func (s *Server) handleAPIAffinity(w http.ResponseWriter, r *http.Request) {
 func (s *Server) loadAffinityDataParallel(ctx context.Context) (
 	visionInfo analysis.VisionInfo,
 	objectives []analysis.ObjectiveInfo,
-	deliverables []analysis.DeliverableInfo,
 	tasks []analysis.TaskInfo,
 	quality []analysis.QualityInfo,
 	risks []analysis.RiskInfo,
@@ -225,22 +223,12 @@ func (s *Server) loadAffinityDataParallel(ctx context.Context) (
 			if err := fileStore.ReadYaml(ctx, "activities/"+file, &act); err != nil {
 				continue
 			}
-			t := act.ToListItem()
-			completedAt := ""
-			if t.Status == core.ItemStatusCompleted {
-				completedAt = t.UpdatedAt
-			}
 			result = append(result, analysis.TaskInfo{
-				ID:           t.ID,
-				Title:        t.Title,
-				Status:       string(t.Status),
-				Dependencies: t.Dependencies,
-				ParentID:     t.ParentID,
-				Priority:     string(t.Priority),
-				Assignee:     t.Assignee,
-				CreatedAt:    t.CreatedAt,
-				UpdatedAt:    t.UpdatedAt,
-				CompletedAt:  completedAt,
+				ID:        act.ID,
+				Title:     act.Title,
+				Status:    string(act.Status),
+				CreatedAt: act.Metadata.CreatedAt,
+				UpdatedAt: act.Metadata.UpdatedAt,
 			})
 		}
 		mu.Lock()
@@ -291,49 +279,6 @@ func (s *Server) loadAffinityDataParallel(ctx context.Context) (
 		mu.Unlock()
 	}()
 
-	// Deliverables（ディレクトリ内の複数ファイル）
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		delFiles, err := fileStore.ListDir(ctx, "deliverables")
-		if err != nil {
-			return
-		}
-		var delWg sync.WaitGroup
-		result := make([]analysis.DeliverableInfo, 0, len(delFiles))
-		for _, file := range delFiles {
-			if !hasYamlSuffix(file) {
-				continue
-			}
-			delWg.Add(1)
-			file := file
-			go func() {
-				defer delWg.Done()
-				sem <- struct{}{}
-				defer func() { <-sem }()
-
-				var del core.DeliverableEntity
-				if err := fileStore.ReadYaml(ctx, "deliverables/"+file, &del); err == nil {
-					info := analysis.DeliverableInfo{
-						ID:          del.ID,
-						Title:       del.Title,
-						ObjectiveID: del.ObjectiveID,
-						Status:      string(del.Status),
-						CreatedAt:   del.Metadata.CreatedAt,
-						UpdatedAt:   del.Metadata.UpdatedAt,
-					}
-					mu.Lock()
-					result = append(result, info)
-					mu.Unlock()
-				}
-			}()
-		}
-		delWg.Wait()
-		mu.Lock()
-		deliverables = result
-		mu.Unlock()
-	}()
-
 	// Quality（ディレクトリ内の複数ファイル）
 	wg.Add(1)
 	go func() {
@@ -358,9 +303,9 @@ func (s *Server) loadAffinityDataParallel(ctx context.Context) (
 				var qual core.QualityEntity
 				if err := fileStore.ReadYaml(ctx, "quality/"+file, &qual); err == nil {
 					info := analysis.QualityInfo{
-						ID:            qual.ID,
-						Title:         qual.Title,
-						DeliverableID: qual.DeliverableID,
+						ID:          qual.ID,
+						Title:       qual.Title,
+						ObjectiveID: qual.ObjectiveID,
 					}
 					mu.Lock()
 					result = append(result, info)
@@ -399,14 +344,13 @@ func (s *Server) loadAffinityDataParallel(ctx context.Context) (
 				if err := fileStore.ReadYaml(ctx, "risks/"+file, &risk); err == nil {
 					score := riskScoreToInt(string(risk.RiskScore))
 					info := analysis.RiskInfo{
-						ID:            risk.ID,
-						Title:         risk.Title,
-						Probability:   string(risk.Probability),
-						Impact:        string(risk.Impact),
-						Score:         score,
-						Status:        string(risk.Status),
-						ObjectiveID:   risk.ObjectiveID,
-						DeliverableID: risk.DeliverableID,
+						ID:          risk.ID,
+						Title:       risk.Title,
+						Probability: string(risk.Probability),
+						Impact:      string(risk.Impact),
+						Score:       score,
+						Status:      string(risk.Status),
+						ObjectiveID: risk.ObjectiveID,
 					}
 					mu.Lock()
 					result = append(result, info)

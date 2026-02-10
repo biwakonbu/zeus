@@ -155,29 +155,24 @@ zeus-dashboard/
 | `GET /api/activities` | Activity 一覧                  |
 | `GET /api/unified-graph` | Unified Graph（2層モデル） |
 | `GET /api/graph`      | 依存関係グラフ（Mermaid, 旧互換） |
-| `GET /api/predict`    | 予測分析結果                   |
 | `GET /api/events`     | SSE ストリーム                 |
 
 ### Unified Graph（2層モデル）
 
-- `layer`: `structural` / `reference`
-- `relation`: `parent` / `depends_on` / `implements` / `contributes` / `fulfills` / `produces`
+- `layer`: `structural`
+- `relation`: `parent` / `implements` / `contributes`
 - Graph View のノード配置は `LAYOUT_GRID_UNIT=50` にスナップ
 - エッジ配線は `EDGE_ROUTING_GRID_UNIT=10`（ノード格子の 1/5）で直交ルーティング
 - エッジ接点はノード辺に対して垂直、流向は flow dots で可視化
 - グループ境界は structural の無向連結成分単位で描画（ラベルは代表ノード `title`）
 - `structural_depth` がある場合は深さ決定で優先、欠損時のみ構造層計算を使用
-- Alt+クリック / 右クリックの依存フィルターは既定で `reference` を探索
-  - `reference` の関連が 0 件のときのみ `structural` をフォールバック探索
-  - `Include structural edges in impact filter` を ON にすると `structural` も常時探索
-
 `/api/unified-graph` クエリ:
 
 - `focus=<node_id>`
 - `depth=<int>`（未指定時は `3`）
-- `types=activity,usecase,deliverable,objective`
-- `layers=structural,reference`
-- `relations=parent,depends_on,implements,contributes,fulfills,produces`
+- `types=activity,usecase,objective`
+- `layers=structural`
+- `relations=parent,implements,contributes`
 - `hide-completed=true|false`
 - `hide-draft=true|false`
 

@@ -14,19 +14,17 @@ import (
 // AssumptionHandler は AssumptionEntity エンティティのハンドラー
 // 個別ファイル (assumptions/assum-{uuid}.yaml) で管理
 type AssumptionHandler struct {
-	fileStore          FileStore
-	sanitizer          *Sanitizer
-	objectiveHandler   *ObjectiveHandler
-	deliverableHandler *DeliverableHandler
+	fileStore        FileStore
+	sanitizer        *Sanitizer
+	objectiveHandler *ObjectiveHandler
 }
 
 // NewAssumptionHandler は新しい AssumptionHandler を作成
-func NewAssumptionHandler(fs FileStore, objHandler *ObjectiveHandler, delHandler *DeliverableHandler, _ *IDCounterManager) *AssumptionHandler {
+func NewAssumptionHandler(fs FileStore, objHandler *ObjectiveHandler, _ *IDCounterManager) *AssumptionHandler {
 	return &AssumptionHandler{
-		fileStore:          fs,
-		sanitizer:          NewSanitizer(),
-		objectiveHandler:   objHandler,
-		deliverableHandler: delHandler,
+		fileStore:        fs,
+		sanitizer:        NewSanitizer(),
+		objectiveHandler: objHandler,
 	}
 }
 
@@ -72,12 +70,6 @@ func (h *AssumptionHandler) Add(ctx context.Context, name string, opts ...Entity
 			return nil, err
 		}
 	}
-	if assumption.DeliverableID != "" {
-		if err := h.validateDeliverableReference(ctx, assumption.DeliverableID); err != nil {
-			return nil, err
-		}
-	}
-
 	// バリデーション
 	if err := assumption.Validate(); err != nil {
 		return nil, err
@@ -183,12 +175,6 @@ func (h *AssumptionHandler) Update(ctx context.Context, id string, update any) e
 				return err
 			}
 		}
-		if assum.DeliverableID != "" && assum.DeliverableID != existingAssum.DeliverableID {
-			if err := h.validateDeliverableReference(ctx, assum.DeliverableID); err != nil {
-				return err
-			}
-		}
-
 		// バリデーション
 		if err := assum.Validate(); err != nil {
 			return err
@@ -300,19 +286,6 @@ func (h *AssumptionHandler) validateObjectiveReference(ctx context.Context, obje
 	return err
 }
 
-// validateDeliverableReference は Deliverable 参照の存在を確認
-func (h *AssumptionHandler) validateDeliverableReference(ctx context.Context, deliverableID string) error {
-	if h.deliverableHandler == nil {
-		return nil
-	}
-
-	_, err := h.deliverableHandler.Get(ctx, deliverableID)
-	if err == ErrEntityNotFound {
-		return fmt.Errorf("referenced deliverable not found: %s", deliverableID)
-	}
-	return err
-}
-
 // Assumption オプション関数
 
 // WithAssumptionStatus は Assumption のステータスを設定
@@ -329,15 +302,6 @@ func WithAssumptionObjective(objectiveID string) EntityOption {
 	return func(v any) {
 		if assum, ok := v.(*AssumptionEntity); ok {
 			assum.ObjectiveID = objectiveID
-		}
-	}
-}
-
-// WithAssumptionDeliverable は Assumption の Deliverable を設定
-func WithAssumptionDeliverable(deliverableID string) EntityOption {
-	return func(v any) {
-		if assum, ok := v.(*AssumptionEntity); ok {
-			assum.DeliverableID = deliverableID
 		}
 	}
 }

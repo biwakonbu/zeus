@@ -44,9 +44,6 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	// Objectives 表示
 	displayObjectivesSummary(ctx, zeus, cyan)
 
-	// Deliverables 表示
-	displayDeliverablesSummary(ctx, zeus, cyan)
-
 	// Tasks 表示
 	fmt.Println("Tasks Summary:")
 	fmt.Printf("  Total:       %d\n", result.State.Summary.TotalActivities)
@@ -117,23 +114,6 @@ func displayObjectivesSummary(ctx context.Context, zeus *core.Zeus, cyan func(..
 	}
 
 	fmt.Printf("Objectives: %s\n", cyan(fmt.Sprintf("%d 件", objResult.Total)))
-	fmt.Println()
-}
-
-// displayDeliverablesSummary は Deliverables の概要を表示
-func displayDeliverablesSummary(ctx context.Context, zeus *core.Zeus, cyan func(...interface{}) string) {
-	delResult, err := zeus.List(ctx, "deliverable")
-	if err != nil {
-		return
-	}
-
-	if delResult.Total == 0 {
-		fmt.Println("Deliverables: (なし)")
-		fmt.Println()
-		return
-	}
-
-	fmt.Printf("Deliverables: %s\n", cyan(fmt.Sprintf("%d 件", delResult.Total)))
 	fmt.Println()
 }
 

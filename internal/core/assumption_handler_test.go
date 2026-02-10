@@ -27,7 +27,7 @@ func setupAssumptionHandlerTest(t *testing.T) (*AssumptionHandler, string, func(
 	}
 
 	fs := yaml.NewFileManager(zeusPath)
-	handler := NewAssumptionHandler(fs, nil, nil, nil)
+	handler := NewAssumptionHandler(fs, nil, nil)
 
 	cleanup := func() {
 		os.RemoveAll(tmpDir)

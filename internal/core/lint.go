@@ -98,7 +98,6 @@ func (l *LintChecker) CheckIDFormat(ctx context.Context) ([]*LintError, []*LintW
 		expectedFmt string
 	}{
 		{"objective", "objectives", "obj-NNN"},
-		{"deliverable", "deliverables", "del-NNN"},
 		{"activity", "activities", "act-NNN"},
 		{"consideration", "considerations", "con-NNN"},
 		{"decision", "decisions", "dec-NNN"},
@@ -230,12 +229,6 @@ func (l *LintChecker) extractEntityID(ctx context.Context, entityType, filePath 
 	switch entityType {
 	case "objective":
 		var entity ObjectiveEntity
-		if err := l.fileStore.ReadYaml(ctx, filePath, &entity); err != nil {
-			return "", err
-		}
-		return entity.ID, nil
-	case "deliverable":
-		var entity DeliverableEntity
 		if err := l.fileStore.ReadYaml(ctx, filePath, &entity); err != nil {
 			return "", err
 		}

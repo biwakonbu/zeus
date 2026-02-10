@@ -74,10 +74,6 @@ zeus apply --all --dry-run
 - Objective の進捗に基づく優先度調整
 - 期限切れ Objective の警告
 
-### Deliverable 関連
-- 未着手 Deliverable の着手提案
-- Objective との紐付けチェック
-
 ### Problem 関連
 - 未解決 Problem への対応 Activity 提案
 - severity: high/critical の Problem 優先対応
@@ -87,7 +83,7 @@ zeus apply --all --dry-run
 - Assumption 検証によるリスク軽減
 
 ### Quality 関連
-- 品質基準未達の Deliverable 警告
+- 品質基準未達の警告
 
 ### Constraint 関連
 - 制約違反の可能性警告

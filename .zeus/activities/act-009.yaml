@@ -2,7 +2,6 @@ id: act-009
 title: "エンティティ一覧表示フロー"
 description: "zeus list コマンドによるエンティティ一覧表示の処理フロー"
 usecase_id: uc-2c55caa1
-related_deliverables:
   - del-005
   - del-006
 status: active

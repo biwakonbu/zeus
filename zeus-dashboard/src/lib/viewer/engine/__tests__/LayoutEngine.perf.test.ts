@@ -118,8 +118,8 @@ describe('LayoutEngine パフォーマンステスト', () => {
 			engine.layout(nodes, structuralEdges);
 
 			// ステータスのみ変更（構造は同じ）
-			nodes[0].status = 'completed';
-			nodes[10].priority = 'high';
+			nodes[0].status = 'active';
+			nodes[10].status = 'deprecated';
 
 			const duration = measureOnce(() => {
 				engine.layout(nodes, structuralEdges);
@@ -212,25 +212,19 @@ describe('LayoutEngine パフォーマンステスト', () => {
 					id: 'task-0',
 					title: 'Task 0',
 					node_type: 'activity' as const,
-					status: 'pending' as const,
-					priority: 'medium' as const,
-					assignee: 'user-0'
+					status: 'draft' as const
 				},
 				{
 					id: 'task-1',
 					title: 'Task 1',
 					node_type: 'activity' as const,
-					status: 'pending' as const,
-					priority: 'medium' as const,
-					assignee: 'user-0'
+					status: 'draft' as const
 				},
 				{
 					id: 'task-2',
 					title: 'Task 2',
 					node_type: 'activity' as const,
-					status: 'pending' as const,
-					priority: 'medium' as const,
-					assignee: 'user-0'
+					status: 'draft' as const
 				}
 			];
 

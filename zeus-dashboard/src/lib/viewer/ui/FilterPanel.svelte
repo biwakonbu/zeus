@@ -1,49 +1,33 @@
 <script lang="ts">
-	import type { EntityStatus, Priority } from '$lib/types/api';
+	import type { EntityStatus } from '$lib/types/api';
 	import type { FilterCriteria } from '../interaction/FilterManager';
 	import { SearchInput } from '$lib/components/ui';
 
 	// Props
 	interface Props {
 		criteria: FilterCriteria;
-		availableAssignees: string[];
 		onStatusToggle: (status: EntityStatus) => void;
-		onPriorityToggle: (priority: Priority) => void;
-		onAssigneeToggle: (assignee: string) => void;
 		onSearchChange: (text: string) => void;
 		onClear: () => void;
 	}
 
 	let {
 		criteria,
-		availableAssignees,
 		onStatusToggle,
-		onPriorityToggle,
-		onAssigneeToggle,
 		onSearchChange,
 		onClear
 	}: Props = $props();
 
 	// ステータス一覧
 	const statuses: { value: EntityStatus; label: string; color: string }[] = [
-		{ value: 'completed', label: 'Completed', color: 'var(--task-completed)' },
-		{ value: 'in_progress', label: 'In Progress', color: 'var(--task-in-progress)' },
-		{ value: 'pending', label: 'Pending', color: 'var(--task-pending)' },
-		{ value: 'blocked', label: 'Blocked', color: 'var(--task-blocked)' }
-	];
-
-	// 優先度一覧
-	const priorities: { value: Priority; label: string; color: string }[] = [
-		{ value: 'high', label: 'High', color: 'var(--priority-high)' },
-		{ value: 'medium', label: 'Medium', color: 'var(--priority-medium)' },
-		{ value: 'low', label: 'Low', color: 'var(--priority-low)' }
+		{ value: 'draft', label: 'Draft', color: 'var(--task-pending)' },
+		{ value: 'active', label: 'Active', color: 'var(--task-in-progress)' },
+		{ value: 'deprecated', label: 'Deprecated', color: 'var(--text-muted)' }
 	];
 
 	// フィルターがアクティブか
 	let isActive = $derived(
 		(criteria.statuses?.length ?? 0) > 0 ||
-			(criteria.priorities?.length ?? 0) > 0 ||
-			(criteria.assignees?.length ?? 0) > 0 ||
 			!!criteria.searchText
 	);
 
@@ -58,13 +42,7 @@
 		return criteria.statuses?.includes(status) ?? false;
 	}
 
-	function isPriorityActive(priority: Priority): boolean {
-		return criteria.priorities?.includes(priority) ?? false;
-	}
 
-	function isAssigneeActive(assignee: string): boolean {
-		return criteria.assignees?.includes(assignee) ?? false;
-	}
 </script>
 
 <div class="filter-content">
@@ -96,42 +74,6 @@
 			{/each}
 		</div>
 	</div>
-
-	<!-- 優先度 -->
-	<div class="filter-section" role="group" aria-label="Priority filter">
-		<span class="filter-label">Priority</span>
-		<div class="filter-chips">
-			{#each priorities as priority}
-				<button
-					class="filter-chip"
-					class:active={isPriorityActive(priority.value)}
-					style="--chip-color: {priority.color}"
-					onclick={() => onPriorityToggle(priority.value)}
-				>
-					<span class="chip-dot"></span>
-					{priority.label}
-				</button>
-			{/each}
-		</div>
-	</div>
-
-	<!-- 担当者 -->
-	{#if availableAssignees.length > 0}
-		<div class="filter-section" role="group" aria-label="Assignee filter">
-			<span class="filter-label">Assignee</span>
-			<div class="filter-chips">
-				{#each availableAssignees as assignee}
-					<button
-						class="filter-chip"
-						class:active={isAssigneeActive(assignee)}
-						onclick={() => onAssigneeToggle(assignee)}
-					>
-						{assignee}
-					</button>
-				{/each}
-			</div>
-		</div>
-	{/if}
 
 	<!-- クリアボタン -->
 	{#if isActive}

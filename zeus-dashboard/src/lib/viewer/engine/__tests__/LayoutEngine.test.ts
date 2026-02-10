@@ -20,9 +20,7 @@ function createNode(
 		id,
 		title: id,
 		node_type: nodeType,
-		status: 'pending',
-		priority: 'medium',
-		assignee: 'user',
+		status: 'draft',
 		structural_depth: structuralDepth,
 		...overrides
 	};
@@ -48,13 +46,13 @@ describe('LayoutEngine（grid-orthogonal-v3）', () => {
 		const nodes: GraphNode[] = [
 			createNode('v1', 'vision', 0),
 			createNode('o1', 'objective', 1),
-			createNode('d1', 'deliverable', 2),
 			createNode('u1', 'usecase', 2),
-			createNode('a1', 'activity', 3)
+			createNode('a1', 'activity', 3),
+			createNode('a2', 'activity', 2)
 		];
 		const edges: GraphEdge[] = [
 			{ from: 'o1', to: 'v1', layer: 'structural', relation: 'contributes' },
-			{ from: 'd1', to: 'o1', layer: 'structural', relation: 'fulfills' },
+			{ from: 'a2', to: 'o1', layer: 'structural', relation: 'contributes' },
 			{ from: 'u1', to: 'o1', layer: 'structural', relation: 'contributes' },
 			{ from: 'a1', to: 'u1', layer: 'structural', relation: 'implements' }
 		];
@@ -93,19 +91,19 @@ describe('LayoutEngine（grid-orthogonal-v3）', () => {
 		const nodes: GraphNode[] = [
 			createNode('v1', 'vision', 0),
 			createNode('o1', 'objective', 1),
-			createNode('d1', 'deliverable', 2),
 			createNode('u1', 'usecase', 2),
+			createNode('a0', 'activity', 2),
 			createNode('a1', 'activity', 3),
 			createNode('a2', 'activity', 3),
 			createNode('a3', 'activity', 4)
 		];
 		const edges: GraphEdge[] = [
 			{ from: 'o1', to: 'v1', layer: 'structural', relation: 'contributes' },
-			{ from: 'd1', to: 'o1', layer: 'structural', relation: 'fulfills' },
+			{ from: 'a0', to: 'o1', layer: 'structural', relation: 'contributes' },
 			{ from: 'u1', to: 'o1', layer: 'structural', relation: 'contributes' },
 			{ from: 'a1', to: 'u1', layer: 'structural', relation: 'implements' },
-			{ from: 'a2', to: 'u1', layer: 'reference', relation: 'depends_on' },
-			{ from: 'a3', to: 'a1', layer: 'reference', relation: 'depends_on' }
+			{ from: 'a2', to: 'u1', layer: 'structural', relation: 'implements' },
+			{ from: 'a3', to: 'a1', layer: 'structural', relation: 'parent' }
 		];
 
 		const engineA = new LayoutEngine();
@@ -128,7 +126,7 @@ describe('LayoutEngine（grid-orthogonal-v3）', () => {
 
 	it('全ノードに座標が割り当てられる', () => {
 		const nodes: GraphNode[] = [];
-		const types: GraphNodeType[] = ['vision', 'objective', 'deliverable', 'usecase', 'activity'];
+		const types: GraphNodeType[] = ['vision', 'objective', 'usecase', 'activity'];
 		for (let i = 0; i < 80; i++) {
 			nodes.push(createNode(`n-${i}`, types[i % types.length], i % 6));
 		}
@@ -171,7 +169,7 @@ describe('LayoutEngine（grid-orthogonal-v3）', () => {
 		const edges: GraphEdge[] = [
 			{ from: 'b', to: 'a', layer: 'structural', relation: 'parent' },
 			{ from: 'd', to: 'c', layer: 'structural', relation: 'parent' },
-			{ from: 'b', to: 'd', layer: 'reference', relation: 'depends_on' }
+			{ from: 'b', to: 'd', layer: 'structural', relation: 'parent' }
 		];
 
 		const visible = new Set<string>(['a', 'b', 'd']);

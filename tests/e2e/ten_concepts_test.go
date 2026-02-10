@@ -7,7 +7,7 @@ import (
 )
 
 // =============================================================================
-// Phase 1: Vision, Objective, Deliverable
+// Phase 1: Vision, Objective
 // =============================================================================
 
 // TestVisionFlow は Vision の追加・取得フローをテストする
@@ -151,66 +151,6 @@ func TestObjectiveCyclicReference(t *testing.T) {
 	assertSuccess(t, result)
 }
 
-// TestDeliverableManagement は Deliverable の CRUD 操作をテストする
-func TestDeliverableManagement(t *testing.T) {
-	t.Parallel()
-	dir := setupTempDir(t)
-	defer cleanupTempDir(t, dir)
-
-	// 基本プロジェクトセットアップ（Vision + Objective）
-	runCommand(t, dir, "init")
-	runCommand(t, dir, "add", "vision", "テストビジョン")
-	result := runCommand(t, dir, "add", "objective", "Phase 1")
-	assertSuccess(t, result)
-	objID := extractEntityID(t, result, "obj-")
-	if objID == "" {
-		objID = "obj-001"
-	}
-
-	// Deliverable 追加
-	result = runCommand(t, dir, "add", "deliverable", "API設計書",
-		"--objective", objID,
-		"--format", "document")
-	assertSuccess(t, result)
-	assertOutputContains(t, result, "Added deliverable")
-
-	// ディレクトリ確認
-	assertDirExists(t, filepath.Join(dir, ".zeus", "deliverables"))
-
-	// list で確認
-	result = runCommand(t, dir, "list", "deliverables")
-	assertSuccess(t, result)
-	assertOutputContains(t, result, "1 items")
-}
-
-// TestDeliverableObjectiveRef は Deliverable が Objective を必須参照することをテストする
-func TestDeliverableObjectiveRef(t *testing.T) {
-	t.Parallel()
-	dir := setupTempDir(t)
-	defer cleanupTempDir(t, dir)
-
-	runCommand(t, dir, "init")
-
-	// Objective なしで Deliverable を作成（エラー）
-	result := runCommand(t, dir, "add", "deliverable", "無効な成果物")
-	assertFailure(t, result)
-}
-
-// TestDeliverableInvalidRef は無効な Objective 参照でエラーになることをテストする
-func TestDeliverableInvalidRef(t *testing.T) {
-	t.Parallel()
-	dir := setupTempDir(t)
-	defer cleanupTempDir(t, dir)
-
-	runCommand(t, dir, "init")
-
-	// 存在しない Objective を参照
-	result := runCommand(t, dir, "add", "deliverable", "無効な成果物",
-		"--objective", "obj-999")
-	assertFailure(t, result)
-	assertStderrContains(t, result, "not found")
-}
-
 // TestPhase1Integration は Phase 1 エンティティの統合テスト
 func TestPhase1Integration(t *testing.T) {
 	t.Parallel()
@@ -221,7 +161,7 @@ func TestPhase1Integration(t *testing.T) {
 	ids := setupBasicProject(t, dir)
 
 	// 各エンティティの存在を確認
-	if ids["vision"] == "" || ids["objective"] == "" || ids["deliverable"] == "" {
+	if ids["vision"] == "" || ids["objective"] == "" {
 		t.Error("基本プロジェクトのセットアップに失敗しました")
 	}
 
@@ -605,7 +545,7 @@ func TestQualityManagement(t *testing.T) {
 
 	// Quality 追加
 	result := runCommand(t, dir, "add", "quality", "コードカバレッジ基準",
-		"--deliverable", ids["deliverable"],
+		"--objective", ids["objective"],
 		"--metric", "coverage:80:%")
 	assertSuccess(t, result)
 	assertOutputContains(t, result, "Added quality")
@@ -619,15 +559,15 @@ func TestQualityManagement(t *testing.T) {
 	assertOutputContains(t, result, "1 items")
 }
 
-// TestQualityDeliverableRef は Quality が Deliverable を必須参照することをテストする
-func TestQualityDeliverableRef(t *testing.T) {
+// TestQualityObjectiveRef は Quality が Objective を必須参照することをテストする
+func TestQualityObjectiveRef(t *testing.T) {
 	t.Parallel()
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
 	runCommand(t, dir, "init")
 
-	// Deliverable なしで Quality を作成（エラー）
+	// Objective なしで Quality を作成（エラー）
 	result := runCommand(t, dir, "add", "quality", "無効な品質基準")
 	assertFailure(t, result)
 }
@@ -642,7 +582,7 @@ func TestQualityMetrics(t *testing.T) {
 
 	// 複数メトリクスを設定
 	result := runCommand(t, dir, "add", "quality", "パフォーマンス基準",
-		"--deliverable", ids["deliverable"],
+		"--objective", ids["objective"],
 		"--metric", "coverage:80:%",
 		"--metric", "performance:100:ms",
 		"--metric", "memory:256:MB")
@@ -669,7 +609,7 @@ func TestFullProjectSetup(t *testing.T) {
 
 	// 各エンティティの存在確認
 	expectedEntities := []string{
-		"vision", "objective", "deliverable",
+		"vision", "objective",
 		"consideration", "decision",
 		"problem", "risk", "assumption",
 		"constraint", "quality",
@@ -701,7 +641,7 @@ func TestTenConceptsListAll(t *testing.T) {
 
 	// 各エンティティタイプの list を実行
 	entityTypes := []string{
-		"vision", "objectives", "deliverables",
+		"vision", "objectives",
 		"considerations", "decisions",
 		"problems", "risks", "assumptions",
 		"constraints", "quality",

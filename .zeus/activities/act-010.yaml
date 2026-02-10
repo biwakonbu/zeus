@@ -2,7 +2,6 @@ id: act-010
 title: "問題修復フロー"
 description: "zeus fix コマンドによる問題自動修復の処理フロー"
 usecase_id: uc-26ab9cf6
-related_deliverables:
   - del-005
   - del-006
 status: active

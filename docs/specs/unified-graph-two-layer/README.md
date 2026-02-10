@@ -27,13 +27,10 @@ UnifiedGraph は `structural` と `reference` の 2 層で関係を分離する�
 
 | relation | layer | from | to |
 |----------|-------|------|----|
-| `parent` | `structural` | `activity` | `activity` |
 | `parent` | `structural` | `objective` | `objective` |
 | `depends_on` | `reference` | `activity` | `activity` |
 | `implements` | `structural` | `activity` | `usecase` |
 | `contributes` | `structural` | `usecase` | `objective` |
-| `fulfills` | `structural` | `deliverable` | `objective` |
-| `produces` | `reference` | `activity` | `deliverable` |
 
 ### 方向規約
 
@@ -45,8 +42,8 @@ UnifiedGraph は `structural` と `reference` の 2 層で関係を分離する�
 ### オプション
 
 - `--layers structural,reference`
-- `--relations parent,depends_on,implements,contributes,fulfills,produces`
-- `--types activity,usecase,deliverable,objective`
+- `--relations parent,depends_on,implements,contributes`
+- `--types activity,usecase,objective`
 - `--focus <id>` + `--depth <n>`（`--depth` 未指定時は `3`）
 - `--hide-completed`
 - `--hide-draft`
@@ -110,4 +107,4 @@ UnifiedGraph は `structural` と `reference` の 2 層で関係を分離する�
 - `zeus-dashboard/src/lib/viewer/FactorioViewer.svelte`
 - `zeus-dashboard/src/lib/viewer/engine/LayoutEngine.ts`
 
-*更新日: 2026-02-07（再編同期版）*
+*更新日: 2026-02-10（Deliverable削除・SimpleMode廃止対応）*

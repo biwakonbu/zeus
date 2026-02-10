@@ -29,15 +29,15 @@ var graphCmd = &cobra.Command{
 
 モード:
   (デフォルト)   - タスク依存関係グラフ
-  --unified     - 統合グラフ（Activity, UseCase, Deliverable, Objective）
+  --unified     - 統合グラフ（Activity, UseCase, Objective）
 
 フィルタオプション（--unified モード時のみ）:
   --focus <id>  - 指定IDを中心にグラフを表示
   --depth <n>   - フォーカスからの深さ（デフォルト: 無制限）
-  --types <t>   - 表示するエンティティタイプ（カンマ区切り: activity,usecase,deliverable,objective）
-  --layers <l>  - 表示するレイヤー（カンマ区切り: structural,reference）
-  --relations <r> - 表示する関係種別（parent,depends_on,implements,contributes,fulfills,produces）
-  --hide-completed - 完了済みを非表示
+  --types <t>   - 表示するエンティティタイプ（カンマ区切り: activity,usecase,objective）
+  --layers <l>  - 表示するレイヤー（structural）
+  --relations <r> - 表示する関係種別（parent,implements,contributes）
+  --hide-completed - 完了済み（deprecated）を非表示
   --hide-draft     - ドラフトを非表示
 
 例:
@@ -46,7 +46,7 @@ var graphCmd = &cobra.Command{
   zeus graph -f mermaid -o deps.md     # Mermaid形式でファイル出力
   zeus graph --unified                 # 統合グラフを表示
   zeus graph --unified --focus act-001 # act-001 を中心に表示
-  zeus graph --unified --types activity,deliverable  # Activity と Deliverable のみ
+  zeus graph --unified --types activity,usecase       # Activity と UseCase のみ
   zeus graph --unified --layers structural           # 構造層のみ
   zeus graph --unified --relations parent,implements # 関係種別で絞り込み`,
 	RunE: runGraph,
@@ -69,11 +69,11 @@ func init() {
 	rootCmd.AddCommand(graphCmd)
 	graphCmd.Flags().StringVarP(&graphFormat, "format", "f", "text", "出力形式 (text|dot|mermaid)")
 	graphCmd.Flags().StringVarP(&graphOutput, "output", "o", "", "出力ファイル（省略時は標準出力）")
-	graphCmd.Flags().BoolVar(&graphUnified, "unified", false, "統合グラフ（Activity, UseCase, Deliverable, Objective）を表示")
+	graphCmd.Flags().BoolVar(&graphUnified, "unified", false, "統合グラフ（Activity, UseCase, Objective）を表示")
 	graphCmd.Flags().StringVar(&graphFocus, "focus", "", "フォーカスするエンティティID")
 	graphCmd.Flags().IntVar(&graphDepth, "depth", 0, "フォーカスからの深さ（0=無制限）")
 	graphCmd.Flags().StringVar(&graphTypes, "types", "", "表示するエンティティタイプ（カンマ区切り）")
-	graphCmd.Flags().StringVar(&graphLayers, "layers", "", "表示するレイヤー（カンマ区切り: structural,reference）")
+	graphCmd.Flags().StringVar(&graphLayers, "layers", "", "表示するレイヤー（カンマ区切り: structural）")
 	graphCmd.Flags().StringVar(&graphRelations, "relations", "", "表示する関係種別（カンマ区切り）")
 	graphCmd.Flags().BoolVar(&graphHideComplete, "hide-completed", false, "完了済みを非表示")
 	graphCmd.Flags().BoolVar(&graphHideDraft, "hide-draft", false, "ドラフトを非表示")
@@ -229,7 +229,7 @@ func runUnifiedGraph(ctx context.Context, zeus *core.Zeus) error {
 	fmt.Printf("  Total Edges: %d\n", graph.Stats.TotalEdges)
 	fmt.Printf("  Max Structural Depth: %d\n", graph.Stats.MaxStructuralDepth)
 	if graph.Stats.TotalActivities > 0 {
-		fmt.Printf("  Activities: %d/%d completed\n", graph.Stats.CompletedActivities, graph.Stats.TotalActivities)
+		fmt.Printf("  Activities: %d/%d deprecated\n", graph.Stats.CompletedActivities, graph.Stats.TotalActivities)
 	}
 
 	return nil
@@ -245,8 +245,6 @@ func parseEntityTypes(typesStr string) []analysis.EntityType {
 			types = append(types, analysis.EntityTypeActivity)
 		case "usecase":
 			types = append(types, analysis.EntityTypeUseCase)
-		case "deliverable":
-			types = append(types, analysis.EntityTypeDeliverable)
 		case "objective":
 			types = append(types, analysis.EntityTypeObjective)
 		}
@@ -262,8 +260,6 @@ func parseEdgeLayers(layersStr string) []analysis.UnifiedEdgeLayer {
 		switch l {
 		case string(analysis.EdgeLayerStructural):
 			layers = append(layers, analysis.EdgeLayerStructural)
-		case string(analysis.EdgeLayerReference):
-			layers = append(layers, analysis.EdgeLayerReference)
 		}
 	}
 	return layers
@@ -277,16 +273,10 @@ func parseEdgeRelations(relationsStr string) []analysis.UnifiedEdgeRelation {
 		switch r {
 		case string(analysis.RelationParent):
 			relations = append(relations, analysis.RelationParent)
-		case string(analysis.RelationDependsOn):
-			relations = append(relations, analysis.RelationDependsOn)
 		case string(analysis.RelationImplements):
 			relations = append(relations, analysis.RelationImplements)
 		case string(analysis.RelationContributes):
 			relations = append(relations, analysis.RelationContributes)
-		case string(analysis.RelationFulfills):
-			relations = append(relations, analysis.RelationFulfills)
-		case string(analysis.RelationProduces):
-			relations = append(relations, analysis.RelationProduces)
 		}
 	}
 	return relations

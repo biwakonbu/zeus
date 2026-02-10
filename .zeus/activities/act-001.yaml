@@ -2,7 +2,6 @@ id: act-001
 title: "プロジェクト初期化フロー"
 description: "zeus init コマンドによるプロジェクト初期化の処理フロー"
 usecase_id: uc-1f311278
-related_deliverables:
   - del-001
 status: active
 

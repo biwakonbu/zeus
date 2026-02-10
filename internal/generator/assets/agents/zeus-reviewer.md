@@ -58,19 +58,11 @@ zeus list objectives
 - 階層構造が適切か（循環参照なし）
 - 期限・進捗率が設定されているか
 
-### Deliverable レビュー
-```bash
-zeus list deliverables
-```
-- **Objective との紐付け確認**（必須参照）
-- acceptance_criteria が明確か
-- format（document/code/design/presentation/other）が適切か
-
 ### Quality レビュー（重要）
 ```bash
 zeus list quality
 ```
-- **Deliverable との紐付け確認**（必須参照）
+- **Objective との紐付け確認**（必須参照）
 - メトリクス（name:target:unit）が測定可能か
 - ゲート基準が適切か
 
@@ -114,7 +106,7 @@ zeus list problems
 ```
 - severity（critical/high/medium/low）が適切か
 - 対応状況（status）が更新されているか
-- 関連 Objective/Deliverable との紐付け
+- 関連 Objective との紐付け
 
 ### Risk レビュー
 ```bash
@@ -131,7 +123,7 @@ zeus list assumptions
 ```
 - 検証状況が記録されているか
 - 未検証の Assumption はリスク要因
-- 関連 Objective/Deliverable との紐付け
+- 関連 Objective との紐付け
 
 ### Constraint レビュー
 ```bash
@@ -172,21 +164,21 @@ zeus uml show usecase --format mermaid
 ### 必須参照（エラー）
 | エンティティ | 参照先 | 検証 |
 |-------------|--------|------|
-| Deliverable | Objective | `objective_id` が必須、参照先存在確認 |
 | Decision | Consideration | `consideration_id` が必須、参照先存在確認 |
-| Quality | Deliverable | `deliverable_id` が必須、参照先存在確認 |
+| Quality | Objective | `objective_id` が必須、参照先存在確認 |
 | UseCase | Objective | `objective_id` が必須、参照先存在確認 |
 
 ### 任意参照（参照先が存在しない場合はエラー）
 | エンティティ | 参照先 | 検証 |
 |-------------|--------|------|
 | Objective | Objective（親） | `parent_id` 存在確認、**循環参照検出** |
-| Consideration | Objective/Deliverable/Decision | 任意参照の存在確認 |
-| Problem | Objective/Deliverable | 任意参照の存在確認 |
-| Risk | Objective/Deliverable | 任意参照の存在確認 |
-| Assumption | Objective/Deliverable | 任意参照の存在確認 |
+| Consideration | Objective/Decision | 任意参照の存在確認 |
+| Problem | Objective | 任意参照の存在確認 |
+| Risk | Objective | 任意参照の存在確認 |
+| Assumption | Objective | 任意参照の存在確認 |
 | UseCase | Actor | `actors[].actor_id` の参照先存在確認 |
 | UseCase | UseCase | `relations[].target_id` の参照先存在確認 |
+| Activity | UseCase | `usecase_id` の参照先存在確認 |
 
 ### 循環参照検出
 ```bash
@@ -198,11 +190,10 @@ zeus doctor
 
 ## レビュー基準
 
-1. **完了の定義**: Deliverable の acceptance_criteria を確認
-2. **品質基準**: Quality メトリクスを満たしているか
-3. **依存関係**: 後続 Activity・Objective への影響
-4. **意思決定の正当性**: Decision の rationale が適切か
-5. **UML 整合性**: Actor/UseCase が実際の機能要件と一致しているか
+1. **品質基準**: Quality メトリクスを満たしているか
+2. **依存関係**: 後続 Activity・Objective への影響
+3. **意思決定の正当性**: Decision の rationale が適切か
+4. **UML 整合性**: Actor/UseCase が実際の機能要件と一致しているか
 
 ## 承認レベル
 
@@ -236,7 +227,6 @@ zeus status
 
 # 3. 10概念モデル一覧確認
 zeus list objectives
-zeus list deliverables
 zeus list decisions
 zeus list quality
 zeus list risks

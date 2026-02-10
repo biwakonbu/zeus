@@ -2,7 +2,6 @@ id: act-011
 title: "スナップショット作成フロー"
 description: "zeus snapshot create コマンドによるスナップショット作成の処理フロー"
 usecase_id: uc-4bc5edbc
-related_deliverables:
   - del-002
   - del-003
   - del-004

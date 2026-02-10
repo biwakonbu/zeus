@@ -63,10 +63,6 @@ export const EDGE_COLORS = {
 		core: 0xffaa44, // オレンジコア
 		outer: 0x885522 // 暗いオレンジ縁取り
 	},
-	blocked: {
-		core: 0xff6666, // 赤コア
-		outer: 0x883333 // 暗い赤縁取り
-	},
 	highlighted: {
 		core: 0xffcc66, // 明るいオレンジ
 		outer: 0xff9533 // アクセント色
@@ -82,7 +78,6 @@ export const EDGE_COLORS = {
 export const EDGE_WIDTHS = {
 	normal: { core: 1.5, outer: 3 },
 	critical: { core: 2, outer: 4 },
-	blocked: { core: 1.5, outer: 3 },
 	highlighted: { core: 2.5, outer: 5 }
 } as const;
 

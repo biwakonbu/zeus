@@ -2,7 +2,6 @@ id: act-021
 title: "ユースケース図表示フロー"
 description: "ダッシュボードでユースケース図を表示する処理フロー"
 usecase_id: uc-c81d3119
-related_deliverables:
   - del-005
   - del-006
 status: active

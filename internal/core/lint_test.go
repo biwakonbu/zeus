@@ -23,11 +23,6 @@ func setupLintCheckerTest(t *testing.T) (*LintChecker, string, func()) {
 		os.RemoveAll(tmpDir)
 		t.Fatalf("failed to create objectives dir: %v", err)
 	}
-	if err := os.MkdirAll(zeusPath+"/deliverables", 0755); err != nil {
-		os.RemoveAll(tmpDir)
-		t.Fatalf("failed to create deliverables dir: %v", err)
-	}
-
 	fs := yaml.NewFileManager(zeusPath)
 	checker := NewLintChecker(fs)
 

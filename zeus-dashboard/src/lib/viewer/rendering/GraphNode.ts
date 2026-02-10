@@ -29,17 +29,16 @@ const TEXT_RESOLUTION =
 const COLORS = {
 	// ステータス色
 	status: {
-		completed: 0x44cc44,
+		// Activity ステータス
+		draft: 0x888888,
+		active: 0x4488ff,
+		deprecated: 0x666666,
+		// Objective ステータス
+		not_started: 0x888888,
 		in_progress: 0x4488ff,
-		pending: 0x888888,
-		blocked: 0xee4444
+		completed: 0x44cc44,
+		on_hold: 0xee4444
 	} as Record<string, number>,
-	// 優先度色
-	priority: {
-		high: 0xee4444,
-		medium: 0xffcc00,
-		low: 0x44cc44
-	},
 	// ノードタイプ別の色（NODE_TYPE_CONFIG から生成）
 	nodeType: Object.fromEntries(
 		Object.entries(NODE_TYPE_CONFIG).map(([key, config]) => [key, config.colors])
@@ -114,7 +113,7 @@ export enum LODLevel {
 }
 
 /**
- * GraphNodeView - グラフノード（Vision, Objective, Deliverable, Activity, UseCase）の視覚的表現
+ * GraphNodeView - グラフノード（Vision, Objective, Activity, UseCase）の視覚的表現
  *
  * 責務:
  * - ノードのグラフィカル表示
@@ -408,7 +407,7 @@ export class GraphNodeView extends Container {
 	private drawStatusIndicator(): void {
 		this.statusIndicator.clear();
 
-		const statusColor = COLORS.status[this.graphNode.status] || COLORS.status.pending;
+		const statusColor = COLORS.status[this.graphNode.status] || COLORS.status.draft;
 
 		// 左側のステータスバー（角丸に合わせて調整）
 		// PixiJS v8 では roundRect に個別角丸指定はできないため、パスで描画
@@ -488,10 +487,8 @@ export class GraphNodeView extends Container {
 		this.titleText.x = CONTENT_LEFT;
 		this.titleText.y = PADDING + 16;
 
-		// メタ情報（担当者または進捗 - 下部）- 常に内容を更新
-		const assignee = this.graphNode.assignee || '';
-		const progressPct = `${Math.round(this.progress)}%`;
-		const metaInfo = assignee ? `@${assignee}` : progressPct;
+		// メタ情報（ステータス - 下部）- 常に内容を更新
+		const metaInfo = this.graphNode.status || '';
 		const maxMetaChars = Math.floor(contentWidth / 7);
 		const displayMeta =
 			metaInfo.length > maxMetaChars ? metaInfo.substring(0, maxMetaChars - 2) + '..' : metaInfo;

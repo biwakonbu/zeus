@@ -27,7 +27,7 @@ func setupProblemHandlerTest(t *testing.T) (*ProblemHandler, string, func()) {
 	}
 
 	fs := yaml.NewFileManager(zeusPath)
-	handler := NewProblemHandler(fs, nil, nil, nil)
+	handler := NewProblemHandler(fs, nil, nil)
 
 	cleanup := func() {
 		os.RemoveAll(tmpDir)
@@ -56,7 +56,7 @@ func setupProblemHandlerTestWithReferences(t *testing.T) (*ProblemHandler, *Obje
 
 	fs := yaml.NewFileManager(zeusPath)
 	objHandler := NewObjectiveHandler(fs, nil)
-	handler := NewProblemHandler(fs, objHandler, nil, nil)
+	handler := NewProblemHandler(fs, objHandler, nil)
 
 	cleanup := func() {
 		os.RemoveAll(tmpDir)

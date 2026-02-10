@@ -29,7 +29,7 @@ type StaleEntity struct {
 	Type           StaleType           `json:"type"`
 	EntityID       string              `json:"entity_id"`
 	EntityTitle    string              `json:"entity_title"`
-	EntityType     string              `json:"entity_type"` // task, objective, deliverable
+	EntityType     string              `json:"entity_type"` // task, objective
 	Recommendation StaleRecommendation `json:"recommendation"`
 	Message        string              `json:"message"`
 	DaysStale      int                 `json:"days_stale"`
@@ -60,18 +60,16 @@ var DefaultStaleConfig = StaleAnalyzerConfig{
 
 // StaleAnalyzer は陳腐化分析を行う
 type StaleAnalyzer struct {
-	tasks        []TaskInfo
-	objectives   []ObjectiveInfo
-	deliverables []DeliverableInfo
-	config       StaleAnalyzerConfig
-	now          time.Time
+	tasks      []TaskInfo
+	objectives []ObjectiveInfo
+	config     StaleAnalyzerConfig
+	now        time.Time
 }
 
 // NewStaleAnalyzer は新しい StaleAnalyzer を作成
 func NewStaleAnalyzer(
 	tasks []TaskInfo,
 	objectives []ObjectiveInfo,
-	deliverables []DeliverableInfo,
 	config *StaleAnalyzerConfig,
 ) *StaleAnalyzer {
 	cfg := DefaultStaleConfig
@@ -79,11 +77,10 @@ func NewStaleAnalyzer(
 		cfg = *config
 	}
 	return &StaleAnalyzer{
-		tasks:        tasks,
-		objectives:   objectives,
-		deliverables: deliverables,
-		config:       cfg,
-		now:          time.Now(),
+		tasks:      tasks,
+		objectives: objectives,
+		config:     cfg,
+		now:        time.Now(),
 	}
 }
 
@@ -107,11 +104,6 @@ func (s *StaleAnalyzer) Analyze(ctx context.Context) (*StaleAnalysis, error) {
 			referenced[task.ParentID] = true
 		}
 	}
-	for _, del := range s.deliverables {
-		if del.ObjectiveID != "" {
-			referenced[del.ObjectiveID] = true
-		}
-	}
 
 	// タスクの陳腐化チェック
 	for _, task := range s.tasks {
@@ -131,23 +123,14 @@ func (s *StaleAnalyzer) Analyze(ctx context.Context) (*StaleAnalysis, error) {
 		}
 	}
 
-	// Deliverable の陳腐化チェック
-	for _, del := range s.deliverables {
-		stale := s.checkDeliverableStale(del, referenced)
-		if stale != nil {
-			result.StaleEntities = append(result.StaleEntities, *stale)
-			s.countRecommendation(result, stale.Recommendation)
-		}
-	}
-
 	result.TotalStale = len(result.StaleEntities)
 	return result, nil
 }
 
 // checkTaskStale はタスクの陳腐化をチェック
 func (s *StaleAnalyzer) checkTaskStale(task TaskInfo, referenced map[string]bool) *StaleEntity {
-	// 1. 完了後 30 日以上経過
-	if task.Status == TaskStatusCompleted {
+	// 1. 完了/非推奨後 30 日以上経過
+	if task.Status == TaskStatusCompleted || task.Status == TaskStatusDeprecated {
 		completedAt := s.parseDate(task.CompletedAt)
 		if completedAt != nil {
 			days := int(s.now.Sub(*completedAt).Hours() / 24)
@@ -165,9 +148,8 @@ func (s *StaleAnalyzer) checkTaskStale(task TaskInfo, referenced map[string]bool
 		}
 	}
 
-	// 2. ブロック状態が 14 日以上継続
-	if task.Status == TaskStatusBlocked {
-		// ブロック開始日は UpdatedAt を使用（暫定）
+	// 2. 保留/ブロック状態が 14 日以上継続
+	if task.Status == TaskStatusBlocked || task.Status == TaskStatusOnHold {
 		blockedAt := s.parseDate(task.UpdatedAt)
 		if blockedAt != nil {
 			days := int(s.now.Sub(*blockedAt).Hours() / 24)
@@ -178,15 +160,15 @@ func (s *StaleAnalyzer) checkTaskStale(task TaskInfo, referenced map[string]bool
 					EntityTitle:    task.Title,
 					EntityType:     "task",
 					Recommendation: StaleRecommendReview,
-					Message:        "ブロック状態が " + itoa(days) + " 日継続しています",
+					Message:        "保留状態が " + itoa(days) + " 日継続しています",
 					DaysStale:      days,
 				}
 			}
 		}
 	}
 
-	// 3. 孤立タスク（誰からも参照されていない完了済みタスク）
-	if task.Status == TaskStatusCompleted && !referenced[task.ID] && task.ParentID == "" && len(task.Dependencies) == 0 {
+	// 3. 孤立タスク（誰からも参照されていない完了/非推奨タスク）
+	if (task.Status == TaskStatusCompleted || task.Status == TaskStatusDeprecated) && !referenced[task.ID] && task.ParentID == "" && len(task.Dependencies) == 0 {
 		return &StaleEntity{
 			Type:           StaleTypeOrphaned,
 			EntityID:       task.ID,
@@ -214,30 +196,6 @@ func (s *StaleAnalyzer) checkObjectiveStale(obj ObjectiveInfo, _ map[string]bool
 					EntityID:       obj.ID,
 					EntityTitle:    obj.Title,
 					EntityType:     "objective",
-					Recommendation: StaleRecommendArchive,
-					Message:        "完了後 " + itoa(days) + " 日が経過しています",
-					DaysStale:      days,
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-// checkDeliverableStale は Deliverable の陳腐化をチェック
-func (s *StaleAnalyzer) checkDeliverableStale(del DeliverableInfo, _ map[string]bool) *StaleEntity {
-	// 完了した Deliverable で、更新から 30 日以上経過
-	if del.Status == "delivered" || del.Status == "approved" {
-		updatedAt := s.parseDate(del.UpdatedAt)
-		if updatedAt != nil {
-			days := int(s.now.Sub(*updatedAt).Hours() / 24)
-			if days >= s.config.CompletedStaleDays {
-				return &StaleEntity{
-					Type:           StaleTypeCompletedOld,
-					EntityID:       del.ID,
-					EntityTitle:    del.Title,
-					EntityType:     "deliverable",
 					Recommendation: StaleRecommendArchive,
 					Message:        "完了後 " + itoa(days) + " 日が経過しています",
 					DaysStale:      days,

@@ -19,6 +19,20 @@
 		navigateToEntity('usecase', 'usecase', usecaseId);
 	}
 
+	// Graph ビューで開く
+	function handleGraphClick(entityId: string) {
+		navigateToEntity('graph', 'activity', entityId);
+	}
+
+	// トランジションノードをクリックして選択・フォーカス
+	function handleTransitionNodeClick(nodeId: string) {
+		if (!activity || !onNodeClick) return;
+		const node = activity.nodes.find((n) => n.id === nodeId);
+		if (node) {
+			onNodeClick(node);
+		}
+	}
+
 	// ノードタイプのラベル
 	const nodeTypeLabels: Record<string, string> = {
 		initial: '開始',
@@ -144,6 +158,14 @@
 						</button>
 					</div>
 				{/if}
+				<div class="info-row">
+					<span class="info-label">Graph</span>
+					<button type="button" class="graph-link" onclick={() => { if (activity) handleGraphClick(activity.id); }}
+						title="Graph ビューで表示">
+						<Icon name="Network" size={10} />
+						<span>Graph ビューで開く</span>
+					</button>
+				</div>
 				<div class="info-row stats">
 					<span class="stat-item">
 						<Icon name="Circle" size={10} />
@@ -192,7 +214,7 @@
 							<ul class="transition-list">
 								{#each incomingTransitions as transition}
 									<li class="transition-item">
-										<span class="transition-node">{getNodeName(transition.source)}</span>
+										<button type="button" class="transition-node-button" onclick={() => handleTransitionNodeClick(transition.source)} title="ノードを選択してフォーカス">{getNodeName(transition.source)}</button>
 										{#if transition.guard}
 											<span class="guard-condition">{formatGuardCondition(transition.guard)}</span>
 										{/if}
@@ -209,7 +231,7 @@
 							<ul class="transition-list">
 								{#each outgoingTransitions as transition}
 									<li class="transition-item">
-										<span class="transition-node">{getNodeName(transition.target)}</span>
+										<button type="button" class="transition-node-button" onclick={() => handleTransitionNodeClick(transition.target)} title="ノードを選択してフォーカス">{getNodeName(transition.target)}</button>
 										{#if transition.guard}
 											<span class="guard-condition">{formatGuardCondition(transition.guard)}</span>
 										{/if}
@@ -472,10 +494,6 @@
 		font-size: 0.6875rem;
 	}
 
-	.transition-node {
-		color: var(--text-primary);
-	}
-
 	.guard-condition {
 		font-size: 0.625rem;
 		color: var(--accent-primary);
@@ -567,5 +585,45 @@
 
 	.empty-state span {
 		font-size: 0.75rem;
+	}
+
+	/* Graph ビュー遷移ボタン */
+	.graph-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 3px 8px;
+		background: rgba(59, 130, 246, 0.1);
+		border: 1px solid rgba(59, 130, 246, 0.3);
+		border-radius: 4px;
+		color: #60a5fa;
+		cursor: pointer;
+		font-family: inherit;
+		font-size: 0.6875rem;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease;
+	}
+
+	.graph-link:hover {
+		background: rgba(59, 130, 246, 0.2);
+		border-color: #60a5fa;
+	}
+
+	/* トランジションノードのクリック可能ボタン */
+	.transition-node-button {
+		background: transparent;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		font-family: inherit;
+		font-size: inherit;
+		color: var(--text-primary);
+		transition: color 0.15s ease;
+	}
+
+	.transition-node-button:hover {
+		color: var(--accent-primary);
+		text-decoration: underline;
 	}
 </style>

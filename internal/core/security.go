@@ -33,7 +33,6 @@ func (e *ValidationError) Error() string {
 var idPatterns = map[string]*regexp.Regexp{
 	"vision":        regexp.MustCompile(`^vision-([0-9]{3}|[a-f0-9]{8})$`),
 	"objective":     regexp.MustCompile(`^obj-([0-9]{3}|[a-f0-9]{8})$`),
-	"deliverable":   regexp.MustCompile(`^del-([0-9]{3}|[a-f0-9]{8})$`),
 	"consideration": regexp.MustCompile(`^con-([0-9]{3}|[a-f0-9]{8})$`),
 	"decision":      regexp.MustCompile(`^dec-([0-9]{3}|[a-f0-9]{8})$`),
 	"problem":       regexp.MustCompile(`^prob-([0-9]{3}|[a-f0-9]{8})$`),
@@ -53,9 +52,8 @@ var idPatterns = map[string]*regexp.Regexp{
 
 // entityDirectories はエンティティタイプとディレクトリのマッピング
 var entityDirectories = map[string]string{
-	"vision":        "",             // ルートに配置（vision.yaml）
-	"objective":     "objectives",   // objectives/obj-NNN.yaml
-	"deliverable":   "deliverables", // deliverables/del-NNN.yaml
+	"vision":        "",           // ルートに配置（vision.yaml）
+	"objective":     "objectives", // objectives/obj-NNN.yaml
 	"consideration": "considerations",
 	"decision":      "decisions",
 	"problem":       "problems",

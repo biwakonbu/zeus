@@ -58,7 +58,7 @@ export const tokens = {
 
 export type Tokens = typeof tokens;
 export type StatusColor = keyof typeof tokens.colors.status;
-export type EntityType = 'vision' | 'objective' | 'deliverable' | 'activity' | 'usecase';
+export type EntityType = 'vision' | 'objective' | 'activity' | 'usecase';
 
 // ステータスから色を取得するヘルパー
 export function getStatusColor(status: string): string {
@@ -83,8 +83,6 @@ export function getEntityIcon(type: EntityType): string {
 			return 'Target';
 		case 'objective':
 			return 'Flag';
-		case 'deliverable':
-			return 'Package';
 		case 'activity':
 			return 'CheckSquare';
 		case 'usecase':

@@ -23,13 +23,6 @@
         "status": "not_started"
       }
     ],
-    "deliverables": [
-      {
-        "title": "設計書",
-        "format": "document",
-        "objective_id_ref": "obj-001"
-      }
-    ],
     "considerations": [
       {
         "title": "技術選定",
@@ -82,7 +75,7 @@
     "quality": [
       {
         "title": "コードカバレッジ",
-        "deliverable_id_ref": "del-001",
+        "objective_id_ref": "obj-001",
         "metric": {
           "name": "coverage",
           "target": 80,
@@ -93,7 +86,6 @@
     "counts": {
       "visionCount": 1,
       "objectiveCount": 1,
-      "deliverableCount": 1,
       "considerationCount": 1,
       "decisionCount": 1,
       "problemCount": 1,

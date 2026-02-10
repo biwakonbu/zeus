@@ -88,33 +88,30 @@ type AffinityResult struct {
 
 // AffinityCalculator は類似度を計算
 type AffinityCalculator struct {
-	vision       VisionInfo
-	objectives   []ObjectiveInfo
-	deliverables []DeliverableInfo
-	tasks        []TaskInfo
-	quality      []QualityInfo
-	risks        []RiskInfo
-	options      AffinityOptions
-	usedHubMode  bool // ハブモードを使用したかどうか
+	vision      VisionInfo
+	objectives  []ObjectiveInfo
+	tasks       []TaskInfo
+	quality     []QualityInfo
+	risks       []RiskInfo
+	options     AffinityOptions
+	usedHubMode bool // ハブモードを使用したかどうか
 }
 
 // NewAffinityCalculator はコンストラクタ
 func NewAffinityCalculator(
 	vision VisionInfo,
 	objectives []ObjectiveInfo,
-	deliverables []DeliverableInfo,
 	tasks []TaskInfo,
 	quality []QualityInfo,
 	risks []RiskInfo,
 ) *AffinityCalculator {
 	return &AffinityCalculator{
-		vision:       vision,
-		objectives:   objectives,
-		deliverables: deliverables,
-		tasks:        tasks,
-		quality:      quality,
-		risks:        risks,
-		options:      DefaultAffinityOptions(),
+		vision:     vision,
+		objectives: objectives,
+		tasks:      tasks,
+		quality:    quality,
+		risks:      risks,
+		options:    DefaultAffinityOptions(),
 	}
 }
 
@@ -122,7 +119,6 @@ func NewAffinityCalculator(
 func NewAffinityCalculatorWithOptions(
 	vision VisionInfo,
 	objectives []ObjectiveInfo,
-	deliverables []DeliverableInfo,
 	tasks []TaskInfo,
 	quality []QualityInfo,
 	risks []RiskInfo,
@@ -133,13 +129,12 @@ func NewAffinityCalculatorWithOptions(
 		options.MaxSiblings = 20
 	}
 	return &AffinityCalculator{
-		vision:       vision,
-		objectives:   objectives,
-		deliverables: deliverables,
-		tasks:        tasks,
-		quality:      quality,
-		risks:        risks,
-		options:      options,
+		vision:     vision,
+		objectives: objectives,
+		tasks:      tasks,
+		quality:    quality,
+		risks:      risks,
+		options:    options,
 	}
 }
 
@@ -232,16 +227,6 @@ func (ac *AffinityCalculator) buildNodes() []AffinityNode {
 		})
 	}
 
-	// Deliverables
-	for _, del := range ac.deliverables {
-		nodes = append(nodes, AffinityNode{
-			ID:     del.ID,
-			Title:  del.Title,
-			Type:   "deliverable",
-			Status: del.Status,
-		})
-	}
-
 	// Tasks
 	for _, task := range ac.tasks {
 		nodes = append(nodes, AffinityNode{
@@ -331,19 +316,7 @@ func (ac *AffinityCalculator) detectParentChild() []AffinityEdge {
 		}
 	}
 
-	// Objective -> Deliverable
-	for _, del := range ac.deliverables {
-		if del.ObjectiveID != "" {
-			edges = append(edges, AffinityEdge{
-				Source: del.ObjectiveID,
-				Target: del.ID,
-				Types:  []AffinityType{AffinityParentChild},
-				Reason: "Objective の成果物",
-			})
-		}
-	}
-
-	// Deliverable -> Task (ParentID)
+	// Objective -> Task (ParentID)
 	for _, task := range ac.tasks {
 		if task.ParentID != "" {
 			edges = append(edges, AffinityEdge{
@@ -362,17 +335,6 @@ func (ac *AffinityCalculator) detectParentChild() []AffinityEdge {
 // 兄弟数が閾値（MaxSiblings）を超える場合はハブモードに切り替え
 func (ac *AffinityCalculator) detectSibling() []AffinityEdge {
 	edges := []AffinityEdge{}
-
-	// 同じ親を持つ Deliverable
-	objDeliverables := make(map[string][]string)
-	for _, del := range ac.deliverables {
-		if del.ObjectiveID != "" {
-			objDeliverables[del.ObjectiveID] = append(objDeliverables[del.ObjectiveID], del.ID)
-		}
-	}
-	for objID, delIDs := range objDeliverables {
-		edges = append(edges, ac.createSiblingEdges(delIDs, objID)...)
-	}
 
 	// 同じ親を持つ Task
 	parentTasks := make(map[string][]string)
@@ -431,32 +393,24 @@ func (ac *AffinityCalculator) createSiblingEdges(ids []string, parentID string) 
 func (ac *AffinityCalculator) detectReference() []AffinityEdge {
 	edges := []AffinityEdge{}
 
-	// Quality -> Deliverable
+	// Quality -> Objective
 	for _, q := range ac.quality {
-		if q.DeliverableID != "" {
+		if q.ObjectiveID != "" {
 			edges = append(edges, AffinityEdge{
 				Source: q.ID,
-				Target: q.DeliverableID,
+				Target: q.ObjectiveID,
 				Types:  []AffinityType{AffinityReference},
 				Reason: "品質基準の対象",
 			})
 		}
 	}
 
-	// Risk -> Objective / Deliverable
+	// Risk -> Objective
 	for _, r := range ac.risks {
 		if r.ObjectiveID != "" {
 			edges = append(edges, AffinityEdge{
 				Source: r.ID,
 				Target: r.ObjectiveID,
-				Types:  []AffinityType{AffinityReference},
-				Reason: "リスクの対象",
-			})
-		}
-		if r.DeliverableID != "" {
-			edges = append(edges, AffinityEdge{
-				Source: r.ID,
-				Target: r.DeliverableID,
 				Types:  []AffinityType{AffinityReference},
 				Reason: "リスクの対象",
 			})
@@ -468,7 +422,7 @@ func (ac *AffinityCalculator) detectReference() []AffinityEdge {
 
 // CalculateWeights はプロジェクト特性から重みを計算
 func (ac *AffinityCalculator) CalculateWeights() AffinityWeights {
-	totalEntities := len(ac.objectives) + len(ac.deliverables) + len(ac.tasks)
+	totalEntities := len(ac.objectives) + len(ac.tasks)
 	if totalEntities == 0 {
 		return AffinityWeights{
 			ParentChild: 1.0,
@@ -482,18 +436,20 @@ func (ac *AffinityCalculator) CalculateWeights() AffinityWeights {
 	refCount := len(ac.quality) + len(ac.risks)
 	refRatio := float64(refCount) / float64(totalEntities)
 
-	// 平均兄弟数
-	objDeliverables := make(map[string]int)
-	for _, del := range ac.deliverables {
-		objDeliverables[del.ObjectiveID]++
+	// 平均兄弟数（同じ親を持つ Task）
+	parentTasks := make(map[string]int)
+	for _, task := range ac.tasks {
+		if task.ParentID != "" {
+			parentTasks[task.ParentID]++
+		}
 	}
 	totalSiblings := 0
-	for _, count := range objDeliverables {
+	for _, count := range parentTasks {
 		totalSiblings += count
 	}
 	avgSiblings := 0.0
-	if len(objDeliverables) > 0 {
-		avgSiblings = float64(totalSiblings) / float64(len(objDeliverables))
+	if len(parentTasks) > 0 {
+		avgSiblings = float64(totalSiblings) / float64(len(parentTasks))
 	}
 
 	// 重みを計算
@@ -544,36 +500,30 @@ func (ac *AffinityCalculator) calculateScores(edges []AffinityEdge, weights Affi
 }
 
 // buildClusters はノードをクラスタリング
-// O(O + D) の事前インデックスを使用して高速化
+// Objective の親子階層を使用してクラスタを構築
 func (ac *AffinityCalculator) buildClusters(_ []AffinityEdge) []AffinityCluster {
 	clusters := []AffinityCluster{}
 
-	// 事前インデックス: Objective ID → Deliverable IDs
-	// O(D) で構築
-	objToDeliverables := make(map[string][]string, len(ac.objectives))
-	for _, del := range ac.deliverables {
-		if del.ObjectiveID != "" {
-			objToDeliverables[del.ObjectiveID] = append(objToDeliverables[del.ObjectiveID], del.ID)
+	// 事前インデックス: 親 Objective ID → 子 Objective IDs
+	objChildren := make(map[string][]string, len(ac.objectives))
+	for _, obj := range ac.objectives {
+		if obj.ParentID != "" {
+			objChildren[obj.ParentID] = append(objChildren[obj.ParentID], obj.ID)
 		}
 	}
 
-	// Objective ごとにクラスタを作成
-	// O(O) でクラスタ生成（O(1) ルックアップ）
+	// 子 Objective を持つ Objective のみクラスタを作成
 	for _, obj := range ac.objectives {
-		members := []string{obj.ID}
-
-		// インデックスから O(1) で取得
-		if delIDs, ok := objToDeliverables[obj.ID]; ok {
-			members = append(members, delIDs...)
+		childIDs, ok := objChildren[obj.ID]
+		if !ok || len(childIDs) == 0 {
+			continue
 		}
-
-		if len(members) > 1 {
-			clusters = append(clusters, AffinityCluster{
-				ID:      "cluster-" + obj.ID,
-				Name:    obj.Title,
-				Members: members,
-			})
-		}
+		members := append([]string{obj.ID}, childIDs...)
+		clusters = append(clusters, AffinityCluster{
+			ID:      "cluster-" + obj.ID,
+			Name:    obj.Title,
+			Members: members,
+		})
 	}
 
 	return clusters

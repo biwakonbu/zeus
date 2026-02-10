@@ -27,7 +27,7 @@ func setupRiskHandlerTest(t *testing.T) (*RiskHandler, string, func()) {
 	}
 
 	fs := yaml.NewFileManager(zeusPath)
-	handler := NewRiskHandler(fs, nil, nil, nil)
+	handler := NewRiskHandler(fs, nil, nil)
 
 	cleanup := func() {
 		os.RemoveAll(tmpDir)
