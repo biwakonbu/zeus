@@ -2,8 +2,6 @@ id: obj-010
 title: 10概念モデルで構造的に管理できる
 description: 10概念モデル全体の実装要件
 status: not_started
-progress: 98
-wbs_code: "4.0"
 metadata:
     created_at: "2026-01-19T15:01:16+09:00"
     updated_at: "2026-01-19T15:01:16+09:00"

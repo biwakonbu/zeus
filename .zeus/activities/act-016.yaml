@@ -2,7 +2,6 @@ id: act-016
 title: "レポート生成フロー"
 description: "zeus report コマンドによるプロジェクトレポート生成の処理フロー"
 usecase_id: uc-5f9a425a
-  - del-017
 status: active
 
 nodes:

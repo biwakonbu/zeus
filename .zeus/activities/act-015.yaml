@@ -2,7 +2,6 @@ id: act-015
 title: "エンティティ説明取得フロー"
 description: "zeus explain コマンドによるエンティティ詳細説明取得の処理フロー"
 usecase_id: uc-65765d18
-  - del-012
 status: active
 
 nodes:

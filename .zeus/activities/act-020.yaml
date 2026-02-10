@@ -2,8 +2,6 @@ id: act-020
 title: "Claude Code連携更新フロー"
 description: "zeus update-claude コマンドによるClaude Code連携ファイル更新の処理フロー"
 usecase_id: uc-725b98c3
-  - del-013
-  - del-014
 status: active
 
 nodes:

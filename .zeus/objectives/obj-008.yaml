@@ -2,8 +2,6 @@ id: obj-008
 title: AIの支援を受けられる
 description: AI提案・説明・Claude Code連携の要件
 status: completed
-progress: 100
-wbs_code: "2.0"
 metadata:
     created_at: "2026-01-19T15:01:16+09:00"
     updated_at: "2026-01-19T15:01:16+09:00"

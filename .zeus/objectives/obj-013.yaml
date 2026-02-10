@@ -1,9 +1,7 @@
 id: obj-013
 title: プロジェクト初期化
 status: completed
-progress: 100
 parent_id: obj-007
-wbs_code: "1.1"
 metadata:
     created_at: "2026-01-19T15:02:07+09:00"
     updated_at: "2026-01-19T15:02:07+09:00"

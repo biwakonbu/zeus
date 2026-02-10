@@ -505,4 +505,118 @@ func TestLintChecker_ConstraintFileNotExists(t *testing.T) {
 	}
 }
 
+// ===== YAML 未知フィールド検出テスト =====
+
+func TestLintChecker_UnknownFields_Clean(t *testing.T) {
+	checker, zeusPath, cleanup := setupLintCheckerTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	fs := yaml.NewFileManager(zeusPath)
+
+	// 正常な Objective を作成（未知フィールドなし）
+	obj := &ObjectiveEntity{
+		ID:       "obj-001",
+		Title:    "テスト目標",
+		Status:   "active",
+		Metadata: Metadata{CreatedAt: Now(), UpdatedAt: Now()},
+	}
+	if err := fs.WriteYaml(ctx, "objectives/obj-001.yaml", obj); err != nil {
+		t.Fatalf("Write objective failed: %v", err)
+	}
+
+	// 未知フィールドチェック実行
+	_, warnings := checker.CheckUnknownFields(ctx)
+
+	if len(warnings) != 0 {
+		t.Errorf("expected 0 warnings for clean YAML, got %d: %v", len(warnings), warnings)
+		for _, w := range warnings {
+			t.Logf("  warning: %s", w.Warning())
+		}
+	}
+}
+
+func TestLintChecker_UnknownFields_WithUnknown(t *testing.T) {
+	checker, zeusPath, cleanup := setupLintCheckerTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// 未知フィールドを含む YAML を直接書き込み
+	yamlContent := []byte(`id: obj-001
+title: "テスト目標"
+status: active
+unknown_field: "これは未知のフィールド"
+metadata:
+  created_at: "2026-01-01T00:00:00Z"
+  updated_at: "2026-01-01T00:00:00Z"
+`)
+	objPath := zeusPath + "/objectives/obj-001.yaml"
+	if err := os.WriteFile(objPath, yamlContent, 0644); err != nil {
+		t.Fatalf("Write YAML failed: %v", err)
+	}
+
+	// 未知フィールドチェック実行
+	_, warnings := checker.CheckUnknownFields(ctx)
+
+	if len(warnings) != 1 {
+		t.Errorf("expected 1 warning for unknown field, got %d", len(warnings))
+		for _, w := range warnings {
+			t.Logf("  warning: %s", w.Warning())
+		}
+		return
+	}
+
+	w := warnings[0]
+	if w.EntityType != "objective" {
+		t.Errorf("expected entity type 'objective', got %q", w.EntityType)
+	}
+	if w.Field != "unknown_fields" {
+		t.Errorf("expected field 'unknown_fields', got %q", w.Field)
+	}
+}
+
+func TestLintChecker_UnknownFields_Activity(t *testing.T) {
+	checker, zeusPath, cleanup := setupLintCheckerTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// activities ディレクトリを作成
+	if err := os.MkdirAll(zeusPath+"/activities", 0755); err != nil {
+		t.Fatalf("failed to create activities dir: %v", err)
+	}
+
+	// 未知フィールド（旧 deliverables）を含む Activity YAML を直接書き込み
+	yamlContent := []byte(`id: act-001
+title: "テストアクティビティ"
+status: active
+deliverables:
+  - name: "削除済みフィールド"
+metadata:
+  created_at: "2026-01-01T00:00:00Z"
+  updated_at: "2026-01-01T00:00:00Z"
+`)
+	actPath := zeusPath + "/activities/act-001.yaml"
+	if err := os.WriteFile(actPath, yamlContent, 0644); err != nil {
+		t.Fatalf("Write YAML failed: %v", err)
+	}
+
+	// 未知フィールドチェック実行
+	_, warnings := checker.CheckUnknownFields(ctx)
+
+	if len(warnings) != 1 {
+		t.Errorf("expected 1 warning for unknown field in activity, got %d", len(warnings))
+		for _, w := range warnings {
+			t.Logf("  warning: %s", w.Warning())
+		}
+		return
+	}
+
+	w := warnings[0]
+	if w.EntityType != "activity" {
+		t.Errorf("expected entity type 'activity', got %q", w.EntityType)
+	}
+}
+
 // Note: Activity status/progress 整合性テストは progress 機能削除に伴い削除

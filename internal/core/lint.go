@@ -1,9 +1,13 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+
+	goyaml "gopkg.in/yaml.v3"
 )
 
 // LintError は Lint エラー
@@ -78,12 +82,112 @@ func (l *LintChecker) CheckAll(ctx context.Context) (*LintResult, error) {
 	result.Errors = append(result.Errors, idErrors...)
 	result.Warnings = append(result.Warnings, idWarnings...)
 
+	// YAML 未知フィールドチェック
+	_, ufWarnings := l.CheckUnknownFields(ctx)
+	result.Warnings = append(result.Warnings, ufWarnings...)
+
 	// エラーがあれば valid = false
 	if len(result.Errors) > 0 {
 		result.Valid = false
 	}
 
 	return result, nil
+}
+
+// CheckUnknownFields は YAML ファイルに構造体未定義フィールドがないかチェック
+func (l *LintChecker) CheckUnknownFields(ctx context.Context) ([]*LintError, []*LintWarning) {
+	var warnings []*LintWarning
+
+	basePath := l.fileStore.BasePath()
+
+	// ディレクトリベースエンティティ
+	directoryEntities := []struct {
+		entityType string
+		directory  string
+		newEntity  func() any
+	}{
+		{"objective", "objectives", func() any { return new(ObjectiveEntity) }},
+		{"activity", "activities", func() any { return new(ActivityEntity) }},
+		{"consideration", "considerations", func() any { return new(ConsiderationEntity) }},
+		{"decision", "decisions", func() any { return new(DecisionEntity) }},
+		{"problem", "problems", func() any { return new(ProblemEntity) }},
+		{"risk", "risks", func() any { return new(RiskEntity) }},
+		{"assumption", "assumptions", func() any { return new(AssumptionEntity) }},
+		{"quality", "quality", func() any { return new(QualityEntity) }},
+		{"usecase", "usecases", func() any { return new(UseCaseEntity) }},
+	}
+
+	for _, entity := range directoryEntities {
+		if !l.fileStore.Exists(ctx, entity.directory) {
+			continue
+		}
+		files, err := l.fileStore.ListDir(ctx, entity.directory)
+		if err != nil {
+			continue
+		}
+		for _, file := range files {
+			if !hasYamlSuffix(file) {
+				continue
+			}
+			relPath := filepath.Join(entity.directory, file)
+			absPath := filepath.Join(basePath, relPath)
+			w := checkFileUnknownFields(absPath, entity.entityType, relPath, entity.newEntity)
+			warnings = append(warnings, w...)
+		}
+	}
+
+	// 単一ファイルエンティティ
+	singleFileEntities := []struct {
+		entityType string
+		filePath   string
+		newEntity  func() any
+	}{
+		{"actor", "actors.yaml", func() any { return new(ActorsFile) }},
+		{"subsystem", "subsystems.yaml", func() any { return new(SubsystemsFile) }},
+		{"constraint", "constraints.yaml", func() any { return new(ConstraintsFile) }},
+	}
+
+	for _, entity := range singleFileEntities {
+		if !l.fileStore.Exists(ctx, entity.filePath) {
+			continue
+		}
+		absPath := filepath.Join(basePath, entity.filePath)
+		w := checkFileUnknownFields(absPath, entity.entityType, entity.filePath, entity.newEntity)
+		warnings = append(warnings, w...)
+	}
+
+	// Vision
+	if l.fileStore.Exists(ctx, "vision.yaml") {
+		absPath := filepath.Join(basePath, "vision.yaml")
+		w := checkFileUnknownFields(absPath, "vision", "vision.yaml", func() any { return new(Vision) })
+		warnings = append(warnings, w...)
+	}
+
+	return nil, warnings
+}
+
+// checkFileUnknownFields は YAML ファイルを KnownFields(true) で厳密パースし、
+// 未知フィールドがあれば LintWarning を返す
+func checkFileUnknownFields(absPath, entityType, relPath string, newEntity func() any) []*LintWarning {
+	data, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil
+	}
+
+	target := newEntity()
+	dec := goyaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	if err := dec.Decode(target); err != nil {
+		return []*LintWarning{
+			{
+				EntityType: entityType,
+				EntityID:   relPath,
+				Field:      "unknown_fields",
+				Message:    fmt.Sprintf("unknown or invalid field: %v", err),
+			},
+		}
+	}
+	return nil
 }
 
 // CheckIDFormat は全エンティティの ID 形式をチェック

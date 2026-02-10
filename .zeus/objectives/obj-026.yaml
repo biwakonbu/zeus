@@ -2,9 +2,7 @@ id: obj-026
 title: リスク管理概念
 description: Problem/Risk/Assumption
 status: completed
-progress: 100
 parent_id: obj-010
-wbs_code: "4.3"
 metadata:
     created_at: "2026-01-19T15:03:06+09:00"
     updated_at: "2026-01-19T15:03:06+09:00"
