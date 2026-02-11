@@ -55,7 +55,7 @@ Zeus プロジェクトの E2E テストを実行するスキル。CLI コマン
 zeus init
 zeus status
 zeus add activity "Activity A"
-zeus add activity "Activity B" --parent <act-a-id>
+zeus add activity "Activity B" --usecase <uc-id>
 zeus list activities
 zeus graph --format mermaid
 ```
@@ -82,10 +82,10 @@ zeus graph --format mermaid
 window.__ZEUS__ = {
   // グラフの論理構造を返す
   getGraphState: () => ({
-    nodes: [{ id, name, x, y, status, progress }],
+    nodes: [{ id, name, x, y, status, nodeType }],
     edges: [{ from, to }],
     viewport: { zoom, panX, panY },
-    activityCount: number,
+    nodeCount: number,
     edgeCount: number
   }),
 
@@ -129,7 +129,7 @@ window.__ZEUS__ = {
         "x": 100,
         "y": 200,
         "status": "draft",
-        "progress": 0
+        "nodeType": "activity"
       }
     ],
     "edges": [

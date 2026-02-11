@@ -199,7 +199,6 @@ zeus uml show usecase   # Actor / UseCase 一覧を確認
 - **UseCase → Objective**: `objective_id` が必須
 
 ### 任意参照
-- Objective → Objective（親）
 - Consideration → Objective/Decision
 - Problem → Objective
 - Risk → Objective
@@ -208,20 +207,20 @@ zeus uml show usecase   # Actor / UseCase 一覧を確認
 - UseCase → UseCase（relations[].target_id）
 - Activity → UseCase（usecase_id）
 
-### 循環参照検出
-- Objective の親子階層で自動検出
-
 ## ダッシュボード API
 
 ```bash
-GET /api/status     # プロジェクト状態
-GET /api/activities # Activity 一覧
-GET /api/graph      # 依存関係グラフ
-GET /api/events     # SSE ストリーム
-GET /api/actors     # Actor 一覧
-GET /api/usecases   # UseCase 一覧
-GET /api/uml/usecase # ユースケース図（Mermaid）
-GET /api/uml/activity?id=X # アクティビティ図
+GET /api/status        # プロジェクト状態
+GET /api/graph         # 依存関係グラフ
+GET /api/affinity      # Affinity 分析
+GET /api/actors        # Actor 一覧
+GET /api/usecases      # UseCase 一覧
+GET /api/subsystems    # Subsystem 一覧
+GET /api/uml/usecase   # ユースケース図
+GET /api/activities    # Activity 一覧
+GET /api/uml/activity  # アクティビティ図
+GET /api/unified-graph # 統合グラフ
+GET /api/events        # SSE ストリーム
 ```
 
 ## 判断基準

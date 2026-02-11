@@ -31,7 +31,7 @@ paths:
 
 ## エージェント編集規則
 
-- **フォーマット**: Markdown（frontmatter なし）
+- **フォーマット**: Markdown + YAML frontmatter（description, tools, model）
 - **コマンド一覧**: 実装済みコマンドのみ記載
 - **例示**: 具体的な使用例を含める
 

@@ -11,7 +11,7 @@ model: sonnet
 ## 役割
 
 1. **Vision 策定**: プロジェクトの目指す姿を定義
-2. **Objective 設計**: Vision を達成するための目標を階層化
+2. **Objective 設計**: Vision を達成するための目標をフラットに定義
 3. **UseCase 設計**: UML ユースケース図によるシステム分析
 4. **Activity 設計**: Activity（FlowMode）の設計と構造化
 5. **Constraint/Quality 設定**: 制約条件と品質基準の定義
@@ -26,7 +26,7 @@ zeus add vision "AI駆動プロジェクト管理" \
   --success-criteria "納期遵守率95%,品質基準達成,ユーザー満足度4.5以上"
 ```
 
-### Step 2: Objective 階層構築
+### Step 2: Objective 定義
 
 ```bash
 # Objective を追加

@@ -23,6 +23,11 @@ paths:
 |-----------|------|
 | GraphBuilder | Activity 依存関係グラフの構築 |
 | DependencyGraph | グラフ構造、循環検出、統計計算、可視化出力、下流/上流 Activity 取得 |
+| UnifiedGraphBuilder | Activity/UseCase/Objective 統合グラフ構築（2層モデル） |
+| AffinityCalculator | Objective ベースの親和性計算 |
+| StaleAnalyzer | エンティティの陳腐化検出 |
+| CoverageAnalyzer | UseCase/Activity カバレッジ分析 |
+| GraphFilter | UnifiedGraph フィルタリング |
 
 **設計ポイント:**
 - `analysis` パッケージは `core` からの import cycle を避けるため独自の型を定義

@@ -55,8 +55,8 @@ cat .zeus/vision.yaml
 zeus list objectives
 ```
 - Vision に整合しているか
-- 階層構造が適切か（循環参照なし）
-- 期限・進捗率が設定されているか
+- 目標が具体的で測定可能か
+- 期限が設定されているか
 
 ### Quality レビュー（重要）
 ```bash
@@ -183,7 +183,6 @@ zeus uml show usecase --format mermaid
 ```bash
 zeus doctor
 ```
-- Objective の親子階層で循環を自動検出
 - UseCase の relations で循環を検出
 - 検出された場合はエラーレポート
 

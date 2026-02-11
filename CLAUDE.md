@@ -94,4 +94,4 @@ zeus usecase link <usecase-id> --include|--extend|--generalize ...
 - Slack/Email 通知
 - 認証・認可（ローカルバインド前提運用）
 
-*更新日: 2026-02-07（再編同期版・affinity-canvas削除）*
+*更新日: 2026-02-12（エージェント/スキル同期）*
