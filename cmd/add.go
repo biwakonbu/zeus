@@ -11,8 +11,6 @@ import (
 
 // add コマンドのフラグ
 var (
-	addParentID string
-
 	// 10 概念モデル共通
 	addDescription string
 	addOwner       string
@@ -93,9 +91,6 @@ Vision 用オプション:
   --statement         ビジョンステートメント
   --success-criteria  成功基準（カンマ区切り）
 
-Objective 用オプション:
-  --parent    親 Objective の ID
-
 Consideration 用オプション:
   --objective     紐づく Objective の ID
   --due           期限日
@@ -164,9 +159,6 @@ func init() {
 	addCmd.Flags().StringVarP(&addDescription, "description", "d", "", "説明")
 	addCmd.Flags().StringVar(&addOwner, "owner", "", "オーナー")
 	addCmd.Flags().StringSliceVar(&addTags, "tags", nil, "タグ（カンマ区切り）")
-
-	// 共通フラグ
-	addCmd.Flags().StringVarP(&addParentID, "parent", "p", "", "親 Objective の ID")
 
 	// Vision 用フラグ
 	addCmd.Flags().StringVar(&addStatement, "statement", "", "ビジョンステートメント")
@@ -313,9 +305,6 @@ func buildObjectiveOptions() []core.EntityOption {
 
 	if addDescription != "" {
 		opts = append(opts, core.WithObjectiveDescription(addDescription))
-	}
-	if addParentID != "" {
-		opts = append(opts, core.WithObjectiveParent(addParentID))
 	}
 	if addOwner != "" {
 		opts = append(opts, core.WithObjectiveOwner(addOwner))

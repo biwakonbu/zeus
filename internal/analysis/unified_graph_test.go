@@ -162,19 +162,18 @@ func TestUnifiedGraphBuilder_Build_WithContributesRelation(t *testing.T) {
 	}
 }
 
-func TestUnifiedGraphBuilder_Build_CycleDetection(t *testing.T) {
+func TestUnifiedGraphBuilder_Build_NoCycleForFlatObjectives(t *testing.T) {
 	builder := NewUnifiedGraphBuilder()
-	// 循環依存を structural エッジで構成
-	// obj-001 -> obj-002 -> obj-003 -> obj-001 (parent 循環)
+	// Objective は親子関係を持たないため循環依存は発生しない
 	objectives := []ObjectiveInfo{
-		{ID: "obj-001", Title: "Objective 1", Status: "active", ParentID: "obj-003"},
-		{ID: "obj-002", Title: "Objective 2", Status: "active", ParentID: "obj-001"},
-		{ID: "obj-003", Title: "Objective 3", Status: "active", ParentID: "obj-002"},
+		{ID: "obj-001", Title: "Objective 1", Status: "active"},
+		{ID: "obj-002", Title: "Objective 2", Status: "active"},
+		{ID: "obj-003", Title: "Objective 3", Status: "active"},
 	}
 	graph := builder.WithObjectives(objectives).Build()
 
-	if len(graph.Cycles) == 0 {
-		t.Error("expected cycles to be detected")
+	if len(graph.Cycles) != 0 {
+		t.Errorf("expected no cycles for flat objectives, got %d", len(graph.Cycles))
 	}
 }
 
@@ -524,7 +523,7 @@ func TestGraphFilter_Chaining(t *testing.T) {
 		WithIncludeTypes(EntityTypeActivity, EntityTypeUseCase).
 		WithExcludeTypes(EntityTypeObjective).
 		WithIncludeLayers(EdgeLayerStructural).
-		WithIncludeRelations(RelationParent, RelationImplements).
+		WithIncludeRelations(RelationImplements, RelationContributes).
 		WithHideCompleted(true).
 		WithHideDraft(true).
 		WithHideUnrelated(true)

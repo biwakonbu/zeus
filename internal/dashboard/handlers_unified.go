@@ -188,8 +188,6 @@ func parseEdgeRelationsFromQuery(relationsStr string) []analysis.UnifiedEdgeRela
 	for _, r := range strings.Split(relationsStr, ",") {
 		r = strings.TrimSpace(strings.ToLower(r))
 		switch r {
-		case string(analysis.RelationParent):
-			relations = append(relations, analysis.RelationParent)
 		case string(analysis.RelationImplements):
 			relations = append(relations, analysis.RelationImplements)
 		case string(analysis.RelationContributes):

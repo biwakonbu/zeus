@@ -104,7 +104,7 @@ func validateEdgeRule(fromType, toType EntityType, layer UnifiedEdgeLayer, relat
 	// レイヤーと relation の整合性
 	switch layer {
 	case EdgeLayerStructural:
-		if !slices.Contains([]UnifiedEdgeRelation{RelationParent, RelationImplements, RelationContributes}, relation) {
+		if !slices.Contains([]UnifiedEdgeRelation{RelationImplements, RelationContributes}, relation) {
 			return fmt.Errorf("relation %q is not allowed in structural layer", relation)
 		}
 	default:
@@ -113,11 +113,6 @@ func validateEdgeRule(fromType, toType EntityType, layer UnifiedEdgeLayer, relat
 
 	// relation ごとの許容型
 	switch relation {
-	case RelationParent:
-		if fromType == EntityTypeObjective && toType == EntityTypeObjective {
-			return nil
-		}
-		return fmt.Errorf("parent must connect objective->objective (got %s->%s)", fromType, toType)
 	case RelationImplements:
 		if fromType == EntityTypeActivity && toType == EntityTypeUseCase {
 			return nil
@@ -227,13 +222,6 @@ func (b *UnifiedGraphBuilder) buildEdges(graph *UnifiedGraph) {
 	for _, u := range b.usecases {
 		if u.ObjectiveID != "" {
 			b.addStructuralEdge(graph, u.ID, u.ObjectiveID, RelationContributes)
-		}
-	}
-
-	// parent (structural): Objective -> Objective
-	for _, o := range b.objectives {
-		if o.ParentID != "" {
-			b.addStructuralEdge(graph, o.ID, o.ParentID, RelationParent)
 		}
 	}
 }
@@ -582,8 +570,6 @@ func (g *UnifiedGraph) ToText() string {
 
 func dotEdgeStyle(edge UnifiedEdge) (style string, color string, label string) {
 	switch edge.Relation {
-	case RelationParent:
-		return "dashed", "#666666", "parent"
 	case RelationImplements:
 		return "bold", "#1f77b4", "implements"
 	case RelationContributes:
@@ -639,8 +625,6 @@ func (g *UnifiedGraph) ToDot() string {
 
 func mermaidArrow(edge UnifiedEdge) string {
 	switch edge.Relation {
-	case RelationParent:
-		return "-.->|parent|"
 	case RelationImplements:
 		return "==>|implements|"
 	case RelationContributes:

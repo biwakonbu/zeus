@@ -27,7 +27,6 @@ UnifiedGraph は `structural` と `reference` の 2 層で関係を分離する�
 
 | relation | layer | from | to |
 |----------|-------|------|----|
-| `parent` | `structural` | `objective` | `objective` |
 | `depends_on` | `reference` | `activity` | `activity` |
 | `implements` | `structural` | `activity` | `usecase` |
 | `contributes` | `structural` | `usecase` | `objective` |
@@ -42,7 +41,7 @@ UnifiedGraph は `structural` と `reference` の 2 層で関係を分離する�
 ### オプション
 
 - `--layers structural,reference`
-- `--relations parent,depends_on,implements,contributes`
+- `--relations depends_on,implements,contributes`
 - `--types activity,usecase,objective`
 - `--focus <id>` + `--depth <n>`（`--depth` 未指定時は `3`）
 - `--hide-completed`
@@ -107,4 +106,4 @@ UnifiedGraph は `structural` と `reference` の 2 層で関係を分離する�
 - `zeus-dashboard/src/lib/viewer/FactorioViewer.svelte`
 - `zeus-dashboard/src/lib/viewer/engine/LayoutEngine.ts`
 
-*更新日: 2026-02-10（Deliverable削除・SimpleMode廃止対応）*
+*更新日: 2026-02-11（Objective親子関係廃止）*

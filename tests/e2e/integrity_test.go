@@ -24,24 +24,19 @@ func TestDoctorReferenceIntegrity(t *testing.T) {
 	assertOutputContains(t, result, "Zeus Doctor")
 }
 
-// TestDoctorCyclicDetection は doctor コマンドで循環参照が検出されることをテストする
-func TestDoctorCyclicDetection(t *testing.T) {
+// TestDoctorFlatObjectives は doctor コマンドでフラット構造の Objective が正常にチェックされることをテストする
+func TestDoctorFlatObjectives(t *testing.T) {
 	t.Parallel()
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
 	runCommand(t, dir, "init")
 
-	// 正常な階層構造を作成
-	result := runCommand(t, dir, "add", "objective", "親目標")
+	// フラット構造の Objective を作成
+	result := runCommand(t, dir, "add", "objective", "目標A")
 	assertSuccess(t, result)
-	parentID := extractEntityID(t, result, "obj-")
-	if parentID == "" {
-		parentID = "obj-001"
-	}
 
-	result = runCommand(t, dir, "add", "objective", "子目標",
-		"--parent", parentID)
+	result = runCommand(t, dir, "add", "objective", "目標B")
 	assertSuccess(t, result)
 
 	// doctor でチェック

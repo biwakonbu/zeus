@@ -352,7 +352,6 @@ type ObjectiveEntity struct {
 	Description string          `yaml:"description,omitempty"`
 	Status      ObjectiveStatus `yaml:"status"`
 	Owner       string          `yaml:"owner,omitempty"`
-	ParentID    string          `yaml:"parent_id,omitempty"` // 親 Objective ID（階層化用）
 	Tags        []string        `yaml:"tags,omitempty"`
 	Metadata    Metadata        `yaml:"metadata"`
 }
@@ -403,10 +402,6 @@ func (o *ObjectiveEntity) Validate() error {
 		// 有効
 	default:
 		return fmt.Errorf("invalid objective status: %s", o.Status)
-	}
-	// 自己参照の禁止
-	if o.ParentID != "" && o.ParentID == o.ID {
-		return fmt.Errorf("objective cannot be its own parent")
 	}
 	return nil
 }

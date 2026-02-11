@@ -6,7 +6,7 @@ model: sonnet
 
 # Zeus Planner Agent
 
-このエージェントは Zeus プロジェクト（{{.ProjectName}}）の計画立案を担当します。
+このエージェントは Zeus プロジェクト（New Zeus Project）の計画立案を担当します。
 
 ## 役割
 
@@ -29,12 +29,10 @@ zeus add vision "AI駆動プロジェクト管理" \
 ### Step 2: Objective 階層構築
 
 ```bash
-# 親 Objective
+# Objective を追加
 zeus add objective "Phase 1: 基盤構築"
-
-# 取得した ID を使って子 Objective を追加
-zeus add objective "認証システム" --parent <obj-id>
-zeus add objective "データモデル設計" --parent <obj-id>
+zeus add objective "認証システム"
+zeus add objective "データモデル設計"
 ```
 
 ### Step 3: Constraint 設定

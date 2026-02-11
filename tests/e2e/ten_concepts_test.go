@@ -93,60 +93,32 @@ func TestObjectiveManagement(t *testing.T) {
 	assertOutputContains(t, result, "2 items")
 }
 
-// TestObjectiveHierarchy は Objective の親子関係をテストする
-func TestObjectiveHierarchy(t *testing.T) {
+// TestObjectiveFlatStructure は Objective がフラット構造で管理されることをテストする
+func TestObjectiveFlatStructure(t *testing.T) {
 	t.Parallel()
 	dir := setupTempDir(t)
 	defer cleanupTempDir(t, dir)
 
 	runCommand(t, dir, "init")
 
-	// 親 Objective 追加
+	// 複数の Objective を追加（親子関係なし）
 	result := runCommand(t, dir, "add", "objective", "システム開発")
-	assertSuccess(t, result)
-	parentID := extractEntityID(t, result, "obj-")
-	if parentID == "" {
-		parentID = "obj-001"
-	}
-
-	// 子 Objective 追加
-	result = runCommand(t, dir, "add", "objective", "バックエンド開発",
-		"--parent", parentID)
 	assertSuccess(t, result)
 	assertOutputContains(t, result, "Added objective")
 
-	// doctor で参照確認
-	result = runCommand(t, dir, "doctor")
+	result = runCommand(t, dir, "add", "objective", "バックエンド開発")
 	assertSuccess(t, result)
-}
+	assertOutputContains(t, result, "Added objective")
 
-// TestObjectiveCyclicReference は Objective の循環参照が doctor で検出されることをテストする
-// Note: 存在しない親への参照は作成時にはエラーにならず、doctor でチェックされる仕様
-func TestObjectiveCyclicReference(t *testing.T) {
-	t.Parallel()
-	dir := setupTempDir(t)
-	defer cleanupTempDir(t, dir)
-
-	runCommand(t, dir, "init")
-
-	// 親 Objective を作成
-	result := runCommand(t, dir, "add", "objective", "親Objective")
+	result = runCommand(t, dir, "add", "objective", "フロントエンド開発")
 	assertSuccess(t, result)
-	parentID := extractEntityID(t, result, "obj-")
-	if parentID == "" {
-		t.Fatal("親 Objective の ID を取得できませんでした")
-	}
 
-	// 子 Objective を作成（親を参照）
-	result = runCommand(t, dir, "add", "objective", "子Objective",
-		"--parent", parentID)
+	// list で確認
+	result = runCommand(t, dir, "list", "objectives")
 	assertSuccess(t, result)
-	childID := extractEntityID(t, result, "obj-")
-	if childID == "" {
-		t.Fatal("子 Objective の ID を取得できませんでした")
-	}
+	assertOutputContains(t, result, "3 items")
 
-	// doctor で確認（この時点では問題なし）
+	// doctor で整合性確認
 	result = runCommand(t, dir, "doctor")
 	assertSuccess(t, result)
 }

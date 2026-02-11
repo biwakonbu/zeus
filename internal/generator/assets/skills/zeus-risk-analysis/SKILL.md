@@ -11,7 +11,7 @@ use_when: |
 
 ## 概要
 
-Zeus プロジェクト（{{.ProjectName}}）の Risk, Problem, Assumption エンティティを活用してリスク要因を特定し、対策を提案します。
+Zeus プロジェクト（New Zeus Project）の Risk, Problem, Assumption エンティティを活用してリスク要因を特定し、対策を提案します。
 
 ## 実行方法
 

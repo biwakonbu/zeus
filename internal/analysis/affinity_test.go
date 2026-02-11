@@ -94,7 +94,7 @@ func TestAffinityCalculator_Calculate(t *testing.T) {
 	vision := VisionInfo{ID: "vision-001", Title: "テストビジョン"}
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "目標1"},
-		{ID: "obj-002", Title: "目標2", ParentID: "obj-001"},
+		{ID: "obj-002", Title: "目標2"},
 	}
 	tasks := []TaskInfo{
 		{ID: "task-001", Title: "タスク1"},
@@ -171,13 +171,15 @@ func TestAffinityCalculator_Calculate_ContextCancellation(t *testing.T) {
 // ===== 親子関係検出テスト =====
 
 func TestAffinityCalculator_ParentChildEdges(t *testing.T) {
+	// Objective は親子階層を持たないため、Vision -> Objective のエッジのみ検出される
+	vision := VisionInfo{ID: "vision-001", Title: "テストビジョン"}
 	objectives := []ObjectiveInfo{
-		{ID: "obj-001", Title: "親目標"},
-		{ID: "obj-002", Title: "子目標", ParentID: "obj-001"},
-		{ID: "obj-003", Title: "孫目標", ParentID: "obj-002"},
+		{ID: "obj-001", Title: "目標1"},
+		{ID: "obj-002", Title: "目標2"},
+		{ID: "obj-003", Title: "目標3"},
 	}
 
-	calc := NewAffinityCalculator(VisionInfo{}, objectives, nil, nil, nil)
+	calc := NewAffinityCalculator(vision, objectives, nil, nil, nil)
 	ctx := context.Background()
 
 	result, err := calc.Calculate(ctx)
@@ -185,7 +187,7 @@ func TestAffinityCalculator_ParentChildEdges(t *testing.T) {
 		t.Fatalf("Calculate failed: %v", err)
 	}
 
-	// 親子関係のエッジを検索
+	// 親子関係のエッジを検索（Vision -> Objective のみ）
 	parentChildEdges := 0
 	for _, edge := range result.Edges {
 		for _, et := range edge.Types {
@@ -196,9 +198,9 @@ func TestAffinityCalculator_ParentChildEdges(t *testing.T) {
 		}
 	}
 
-	// obj-001 -> obj-002 と obj-002 -> obj-003 の2つの親子関係
-	if parentChildEdges < 2 {
-		t.Errorf("expected at least 2 parent-child edges, got %d", parentChildEdges)
+	// Vision -> obj-001, obj-002, obj-003 の3つの親子関係
+	if parentChildEdges < 3 {
+		t.Errorf("expected at least 3 parent-child edges (vision->objectives), got %d", parentChildEdges)
 	}
 }
 
@@ -239,7 +241,7 @@ func TestAffinityCalculator_SiblingEdges(t *testing.T) {
 	// detectSibling() は以下のケースで兄弟関係を検出する:
 	// 1. Quality: 同じ ObjectiveID を持つもの
 	// 2. Activities: 同じ UseCaseID を持つもの
-	// ※ Objectives の ParentID は兄弟検出の対象外
+	// ※ Objective はフラット構造のため兄弟検出の対象外
 
 	// Tasks を使用したテスト（同じ ParentID を持つ兄弟タスク）
 	tasks := []TaskInfo{
@@ -280,7 +282,7 @@ func TestAffinityCalculator_SiblingEdges(t *testing.T) {
 func TestAffinityCalculator_ReferenceEdges(t *testing.T) {
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "目標1"},
-		{ID: "obj-002", Title: "子目標1", ParentID: "obj-001"},
+		{ID: "obj-002", Title: "子目標1"},
 	}
 	quality := []QualityInfo{
 		{ID: "qual-001", Title: "品質1", ObjectiveID: "obj-001"},
@@ -355,8 +357,8 @@ func TestAffinityCalculator_BuildNodes(t *testing.T) {
 func TestAffinityCalculator_Clusters(t *testing.T) {
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "目標1"},
-		{ID: "obj-002", Title: "子目標1", ParentID: "obj-001"},
-		{ID: "obj-003", Title: "子目標2", ParentID: "obj-001"},
+		{ID: "obj-002", Title: "目標2"},
+		{ID: "obj-003", Title: "目標3"},
 	}
 
 	calc := NewAffinityCalculator(VisionInfo{}, objectives, nil, nil, nil)
@@ -378,7 +380,7 @@ func TestAffinityCalculator_Clusters(t *testing.T) {
 func TestAffinityCalculator_Stats(t *testing.T) {
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "目標1"},
-		{ID: "obj-002", Title: "目標2", ParentID: "obj-001"},
+		{ID: "obj-002", Title: "目標2"},
 	}
 	tasks := []TaskInfo{
 		{ID: "task-001", Title: "タスク1"},
@@ -407,7 +409,7 @@ func TestAffinityCalculator_Stats(t *testing.T) {
 func TestAffinityCalculator_Weights(t *testing.T) {
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "目標1"},
-		{ID: "obj-002", Title: "目標2", ParentID: "obj-001"},
+		{ID: "obj-002", Title: "目標2"},
 	}
 
 	calc := NewAffinityCalculator(VisionInfo{}, objectives, nil, nil, nil)
@@ -432,7 +434,7 @@ func TestAffinityCalculator_Weights(t *testing.T) {
 func TestAffinityCalculator_MinScoreFilter(t *testing.T) {
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "目標1"},
-		{ID: "obj-002", Title: "目標2", ParentID: "obj-001"},
+		{ID: "obj-002", Title: "目標2"},
 	}
 
 	// 高い MinScore を設定
@@ -491,14 +493,14 @@ func TestAffinityCalculator_MaxEdgesFilter(t *testing.T) {
 // ===== MaxSiblings ハブモードテスト =====
 
 func TestAffinityCalculator_MaxSiblingsHubMode(t *testing.T) {
-	// 多くの兄弟を持つ構造を作成
-	objectives := make([]ObjectiveInfo, 12)
-	objectives[0] = ObjectiveInfo{ID: "obj-000", Title: "親目標"}
+	// 多くの兄弟を持つ構造を作成（Task の ParentID で兄弟関係を構築）
+	tasks := make([]TaskInfo, 12)
+	tasks[0] = TaskInfo{ID: "task-000", Title: "親タスク"}
 	for i := 1; i < 12; i++ {
-		objectives[i] = ObjectiveInfo{
-			ID:       "obj-" + string(rune('a'+i)),
-			Title:    "子目標" + string(rune('0'+i)),
-			ParentID: "obj-000",
+		tasks[i] = TaskInfo{
+			ID:       "task-" + string(rune('a'+i)),
+			Title:    "子タスク" + string(rune('0'+i)),
+			ParentID: "task-000",
 		}
 	}
 
@@ -506,7 +508,7 @@ func TestAffinityCalculator_MaxSiblingsHubMode(t *testing.T) {
 		MaxSiblings: 5,
 	}
 
-	calc := NewAffinityCalculatorWithOptions(VisionInfo{}, objectives, nil, nil, nil, options)
+	calc := NewAffinityCalculatorWithOptions(VisionInfo{}, nil, tasks, nil, nil, options)
 	ctx := context.Background()
 
 	result, err := calc.Calculate(ctx)
@@ -516,8 +518,8 @@ func TestAffinityCalculator_MaxSiblingsHubMode(t *testing.T) {
 
 	// ハブモードでは、兄弟間の直接エッジではなく、親を経由するエッジになる
 	// 具体的な挙動は実装に依存するが、エッジ数が制御されていることを確認
-	t.Logf("Generated %d edges for %d objectives with MaxSiblings=%d",
-		len(result.Edges), len(objectives), options.MaxSiblings)
+	t.Logf("Generated %d edges for %d tasks with MaxSiblings=%d",
+		len(result.Edges), len(tasks), options.MaxSiblings)
 }
 
 // ===== エッジタイプテスト =====
@@ -580,8 +582,8 @@ func TestAffinityCalculator_ComplexScenario(t *testing.T) {
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "目標1"},
 		{ID: "obj-002", Title: "目標2"},
-		{ID: "obj-003", Title: "子目標1-1", ParentID: "obj-001"},
-		{ID: "obj-004", Title: "子目標1-2", ParentID: "obj-001"},
+		{ID: "obj-003", Title: "子目標1-1"},
+		{ID: "obj-004", Title: "子目標1-2"},
 	}
 
 	tasks := []TaskInfo{
@@ -668,7 +670,7 @@ func TestAffinityResult_FindNode(t *testing.T) {
 func TestAffinityCalculator_EdgeScores(t *testing.T) {
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "目標1"},
-		{ID: "obj-002", Title: "目標2", ParentID: "obj-001"},
+		{ID: "obj-002", Title: "目標2"},
 	}
 
 	calc := NewAffinityCalculator(VisionInfo{}, objectives, nil, nil, nil)

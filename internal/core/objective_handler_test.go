@@ -125,72 +125,6 @@ func TestObjectiveHandlerAddWithOptions(t *testing.T) {
 	}
 }
 
-func TestObjectiveHandlerAddWithParent(t *testing.T) {
-	handler, _, cleanup := setupObjectiveHandlerTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-
-	// 親 Objective を作成
-	parentResult, err := handler.Add(ctx, "親 Objective")
-	if err != nil {
-		t.Fatalf("Add parent failed: %v", err)
-	}
-
-	// 子 Objective を作成
-	childResult, err := handler.Add(ctx, "子 Objective",
-		WithObjectiveParent(parentResult.ID),
-	)
-	if err != nil {
-		t.Fatalf("Add child failed: %v", err)
-	}
-
-	// 子 Objective を取得して確認
-	childAny, err := handler.Get(ctx, childResult.ID)
-	if err != nil {
-		t.Fatalf("Get child failed: %v", err)
-	}
-
-	child := childAny.(*ObjectiveEntity)
-	if child.ParentID != parentResult.ID {
-		t.Errorf("expected parent_id %q, got %q", parentResult.ID, child.ParentID)
-	}
-}
-
-func TestObjectiveHandlerAddWithInvalidParent(t *testing.T) {
-	handler, _, cleanup := setupObjectiveHandlerTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-
-	// 存在しない親 ID で追加
-	// 注: ObjectiveHandler は Add 時に親の存在チェックをしない（循環参照チェックのみ）
-	// 参照整合性は IntegrityChecker で検証する設計
-	result, err := handler.Add(ctx, "子 Objective",
-		WithObjectiveParent("obj-999"),
-	)
-
-	// Add は成功する（参照整合性は IntegrityChecker で検証）
-	if err != nil {
-		t.Fatalf("Add should succeed even with invalid parent: %v", err)
-	}
-
-	if result.ID == "" {
-		t.Error("ID should not be empty")
-	}
-
-	// 作成された Objective の parent_id を確認
-	objAny, err := handler.Get(ctx, result.ID)
-	if err != nil {
-		t.Fatalf("Get failed: %v", err)
-	}
-
-	obj := objAny.(*ObjectiveEntity)
-	if obj.ParentID != "obj-999" {
-		t.Errorf("expected parent_id 'obj-999', got %q", obj.ParentID)
-	}
-}
-
 func TestObjectiveHandlerList(t *testing.T) {
 	handler, _, cleanup := setupObjectiveHandlerTest(t)
 	defer cleanup()
@@ -450,33 +384,6 @@ func TestObjectiveHandlerContextCancellation(t *testing.T) {
 	}
 	if err != context.Canceled {
 		t.Errorf("expected context.Canceled, got %v", err)
-	}
-}
-
-func TestObjectiveHandlerDeleteWithChildren(t *testing.T) {
-	handler, _, cleanup := setupObjectiveHandlerTest(t)
-	defer cleanup()
-
-	ctx := context.Background()
-
-	// 親 Objective を作成
-	parentResult, err := handler.Add(ctx, "親 Objective")
-	if err != nil {
-		t.Fatalf("Add parent failed: %v", err)
-	}
-
-	// 子 Objective を作成
-	_, err = handler.Add(ctx, "子 Objective",
-		WithObjectiveParent(parentResult.ID),
-	)
-	if err != nil {
-		t.Fatalf("Add child failed: %v", err)
-	}
-
-	// 子がいる親を削除しようとするとエラー
-	err = handler.Delete(ctx, parentResult.ID)
-	if err == nil {
-		t.Error("expected error when deleting parent with children")
 	}
 }
 

@@ -6,7 +6,7 @@ model: sonnet
 
 # Zeus Reviewer Agent
 
-このエージェントは Zeus プロジェクト（{{.ProjectName}}）のレビューを担当します。
+このエージェントは Zeus プロジェクト（New Zeus Project）のレビューを担当します。
 
 ## 役割
 
@@ -171,7 +171,6 @@ zeus uml show usecase --format mermaid
 ### 任意参照（参照先が存在しない場合はエラー）
 | エンティティ | 参照先 | 検証 |
 |-------------|--------|------|
-| Objective | Objective（親） | `parent_id` 存在確認、**循環参照検出** |
 | Consideration | Objective/Decision | 任意参照の存在確認 |
 | Problem | Objective | 任意参照の存在確認 |
 | Risk | Objective | 任意参照の存在確認 |

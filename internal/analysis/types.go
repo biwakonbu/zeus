@@ -115,7 +115,6 @@ type ObjectiveInfo struct {
 	ID        string // Objective ID
 	Title     string // タイトル
 	Status    string // ステータス
-	ParentID  string // 親 Objective ID（L3 の場合）
 	CreatedAt string // 作成日時（ISO8601）
 	UpdatedAt string // 更新日時（ISO8601）
 }
@@ -214,7 +213,6 @@ const (
 type UnifiedEdgeRelation string
 
 const (
-	RelationParent      UnifiedEdgeRelation = "parent"
 	RelationImplements  UnifiedEdgeRelation = "implements"
 	RelationContributes UnifiedEdgeRelation = "contributes"
 )

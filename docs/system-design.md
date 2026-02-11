@@ -42,8 +42,29 @@ Zeus は、プロジェクト構造を CLI と Web ダッシュボードで一�
 | UML | Actor, UseCase, Subsystem |
 | 実行単位 | Activity |
 
-## 3.2 Activity の位置づけ
+## 3.2 ワークフロー設計思想
 
+Zeus のドメインモデルは以下の3層で構成される:
+
+| 層 | エンティティ | 役割 | 性質 |
+|---|---|---|---|
+| 目標層 | Objective | なぜやるのか（達成すべき目標） | 測定可能な成果指標 |
+| 抽象層 | UseCase | 何が求められているか（ワークフローの抽象） | 安定した本質的な求め |
+| 具体層 | Activity | どう実現するか（ワークフローの具体） | 状況依存の実現手段 |
+
+設計の順序: **抽象（UseCase）を確定 -> 具体（Activity）に降りる**
+
+- **UseCase** はワークフローの抽象表現。本質的な「求め」であり、状況が変わっても安定する
+- **Activity** はワークフローの具体表現。状況によって最適解が変わる実装詳細
+- **Objective** は機能ではなく「達成すべき目標」。UseCase が Objective に contributes する
+
+Objective の例:
+- OK: 「ユーザー離脱率を30%削減する」「セキュリティインシデントをゼロにする」
+- NG: 「認証システムを実装する」（これは UseCase に相当する）
+
+Objective はフラット構造であり、親子階層を持たない。階層的な分解は UseCase -> Activity の抽象/具体軸で行う。
+
+補足:
 - Task は Activity に統合済み。
 - Activity は FlowMode（ノード/遷移を持つ図表現）で扱う。
 - Unified Graph は Activity, UseCase, Objective を横断結合して可視化する。
@@ -62,7 +83,6 @@ flowchart LR
 
   U ==>|"contributes（必須: objective_id）"| O
   A ==>|"implements（任意: usecase_id）"| U
-  O -->|"parent（任意: parent_id）"| O
   A -->|"depends_on（任意）"| A
   V -.-> N
 
@@ -77,7 +97,6 @@ flowchart LR
 |---|---|---|---|---|
 | UseCase | Objective | contributes | 必須 | `objective_id` |
 | Activity | UseCase | implements | 任意 | `usecase_id` |
-| Objective | Objective | parent | 任意 | `parent_id` |
 | Activity | Activity | depends_on | 任意 | `dependencies` |
 | Vision | (他要素) | 直接参照 | 未実装 | 単一 `vision.yaml` 管理 |
 
@@ -105,7 +124,7 @@ flowchart LR
 | `graph --unified` | `--focus`, `--depth` | 中心ノードと深さ |
 | `graph --unified` | `--types` | `activity,usecase,objective` |
 | `graph --unified` | `--layers` | `structural,reference` |
-| `graph --unified` | `--relations` | `parent,depends_on,implements,contributes` |
+| `graph --unified` | `--relations` | `depends_on,implements,contributes` |
 | `dashboard` | `--port`, `--no-open`, `--dev` | ポート/自動起動/開発モード |
 | `report` | `--format`, `--output` | 出力形式/保存先 |
 
@@ -200,4 +219,4 @@ flowchart LR
 - 利用手順: `docs/user-guide.md`
 - 開発要約: `CLAUDE.md`
 
-*更新日: 2026-02-10（Deliverable削除・SimpleMode廃止対応）*
+*更新日: 2026-02-11（Objective親子関係廃止・設計思想明文化）*

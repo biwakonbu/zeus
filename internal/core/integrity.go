@@ -15,8 +15,6 @@ const (
 	ErrMsgReferencedSubsystemNotFound     = "referenced subsystem not found"
 	ErrMsgReferencedActorNotFound         = "referenced actor not found"
 	ErrMsgReferencedUseCaseNotFound       = "referenced usecase not found"
-	ErrMsgParentObjectiveNotFound         = "parent objective not found"
-
 	// 必須フィールド欠損メッセージ
 	ErrMsgObjectiveIDRequired     = "objective_id is required but missing"
 	ErrMsgConsiderationIDRequired = "consideration_id is required but missing"
@@ -25,9 +23,6 @@ const (
 	ErrMsgInvalidSubsystemIDFormat = "invalid subsystem ID format"
 	ErrMsgInvalidActorIDFormat     = "invalid actor ID format"
 	ErrMsgInvalidUseCaseIDFormat   = "invalid usecase ID format"
-
-	// 循環参照メッセージ
-	ErrMsgCircularParentReference = "circular parent reference detected"
 )
 
 // ParentResolver は親 ID を解決する関数型（汎用循環参照検出用）
@@ -192,7 +187,6 @@ func (c *IntegrityChecker) CheckAll(ctx context.Context) (*IntegrityResult, erro
 }
 
 // CheckReferences は参照整合性をチェック
-// - Objective → Objective (parent) 参照
 // - Decision → Consideration 参照（必須）
 // - Quality → Objective 参照（必須）
 // - UseCase → Objective 参照（必須）
@@ -207,13 +201,6 @@ func (c *IntegrityChecker) CheckReferences(ctx context.Context) ([]*ReferenceErr
 	}
 
 	var errors []*ReferenceError
-
-	// Objective → Objective (parent) 参照チェック
-	objErrors, err := c.checkObjectiveParentReferences(ctx)
-	if err != nil {
-		return nil, err
-	}
-	errors = append(errors, objErrors...)
 
 	// Decision → Consideration 参照チェック（必須）
 	decErrors, err := c.checkDecisionReferences(ctx)
@@ -267,102 +254,14 @@ func (c *IntegrityChecker) CheckReferences(ctx context.Context) ([]*ReferenceErr
 	return errors, nil
 }
 
-// checkObjectiveParentReferences は Objective の親参照をチェック
-func (c *IntegrityChecker) checkObjectiveParentReferences(ctx context.Context) ([]*ReferenceError, error) {
-	if c.objectiveHandler == nil {
-		return []*ReferenceError{}, nil
-	}
-
-	objectives, err := c.objectiveHandler.getAllObjectives(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var errors []*ReferenceError
-	for _, obj := range objectives {
-		if obj.ParentID == "" {
-			continue // 親なしは OK
-		}
-
-		// 親 Objective の存在確認
-		_, err := c.objectiveHandler.Get(ctx, obj.ParentID)
-		if err == ErrEntityNotFound {
-			errors = append(errors, &ReferenceError{
-				SourceType: "objective",
-				SourceID:   obj.ID,
-				TargetType: "objective",
-				TargetID:   obj.ParentID,
-				Message:    ErrMsgParentObjectiveNotFound,
-			})
-		} else if err != nil {
-			return nil, err
-		}
-	}
-
-	return errors, nil
-}
-
 // CheckCycles は循環参照をチェック
-// - Objective 階層の循環参照を検出
 func (c *IntegrityChecker) CheckCycles(ctx context.Context) ([]*CycleError, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	var errors []*CycleError
-
-	// Objective 階層の循環参照チェック
-	objCycles, err := c.checkObjectiveCycles(ctx)
-	if err != nil {
-		return nil, err
-	}
-	errors = append(errors, objCycles...)
-
-	return errors, nil
-}
-
-// checkObjectiveCycles は Objective 階層の循環参照をチェック
-func (c *IntegrityChecker) checkObjectiveCycles(ctx context.Context) ([]*CycleError, error) {
-	if c.objectiveHandler == nil {
-		return []*CycleError{}, nil
-	}
-
-	objectives, err := c.objectiveHandler.getAllObjectives(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// ID → ParentID のマップを作成
-	parentMap := make(map[string]string)
-	for _, obj := range objectives {
-		parentMap[obj.ID] = obj.ParentID
-	}
-
-	// ParentResolver を作成
-	resolver := func(id string) string {
-		return parentMap[id]
-	}
-
-	var errors []*CycleError
-	visited := make(map[string]bool)
-
-	for _, obj := range objectives {
-		if visited[obj.ID] || obj.ParentID == "" {
-			continue
-		}
-
-		// 汎用循環検出関数を使用
-		cycle := c.detectCycleGeneric(obj.ID, resolver, visited)
-		if len(cycle) > 0 {
-			errors = append(errors, &CycleError{
-				EntityType: "objective",
-				Cycle:      cycle,
-				Message:    ErrMsgCircularParentReference,
-			})
-		}
-	}
-
-	return errors, nil
+	// Objective の親子関係は廃止済みのため、現在チェック対象なし
+	return []*CycleError{}, nil
 }
 
 // detectCycleGeneric は汎用的な循環参照検出関数

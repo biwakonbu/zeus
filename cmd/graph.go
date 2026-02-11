@@ -36,7 +36,7 @@ var graphCmd = &cobra.Command{
   --depth <n>   - フォーカスからの深さ（デフォルト: 無制限）
   --types <t>   - 表示するエンティティタイプ（カンマ区切り: activity,usecase,objective）
   --layers <l>  - 表示するレイヤー（structural）
-  --relations <r> - 表示する関係種別（parent,implements,contributes）
+  --relations <r> - 表示する関係種別（implements,contributes）
   --hide-completed - 完了済み（deprecated）を非表示
   --hide-draft     - ドラフトを非表示
 
@@ -48,7 +48,7 @@ var graphCmd = &cobra.Command{
   zeus graph --unified --focus act-001 # act-001 を中心に表示
   zeus graph --unified --types activity,usecase       # Activity と UseCase のみ
   zeus graph --unified --layers structural           # 構造層のみ
-  zeus graph --unified --relations parent,implements # 関係種別で絞り込み`,
+  zeus graph --unified --relations implements,contributes # 関係種別で絞り込み`,
 	RunE: runGraph,
 }
 
@@ -271,8 +271,6 @@ func parseEdgeRelations(relationsStr string) []analysis.UnifiedEdgeRelation {
 	for _, r := range strings.Split(relationsStr, ",") {
 		r = strings.TrimSpace(strings.ToLower(r))
 		switch r {
-		case string(analysis.RelationParent):
-			relations = append(relations, analysis.RelationParent)
 		case string(analysis.RelationImplements):
 			relations = append(relations, analysis.RelationImplements)
 		case string(analysis.RelationContributes):

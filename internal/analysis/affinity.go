@@ -290,33 +290,19 @@ func (ac *AffinityCalculator) detectAllEdges() []AffinityEdge {
 func (ac *AffinityCalculator) detectParentChild() []AffinityEdge {
 	edges := []AffinityEdge{}
 
-	// Vision -> Objective
+	// Vision -> Objective（全 Objective は Vision 直下）
 	if ac.vision.Title != "" {
 		for _, obj := range ac.objectives {
-			if obj.ParentID == "" { // トップレベル Objective
-				edges = append(edges, AffinityEdge{
-					Source: "vision",
-					Target: obj.ID,
-					Types:  []AffinityType{AffinityParentChild},
-					Reason: "Vision 直下の Objective",
-				})
-			}
-		}
-	}
-
-	// Objective -> Objective (階層)
-	for _, obj := range ac.objectives {
-		if obj.ParentID != "" {
 			edges = append(edges, AffinityEdge{
-				Source: obj.ParentID,
+				Source: "vision",
 				Target: obj.ID,
 				Types:  []AffinityType{AffinityParentChild},
-				Reason: "親 Objective",
+				Reason: "Vision 直下の Objective",
 			})
 		}
 	}
 
-	// Objective -> Task (ParentID)
+	// Task 間の親子関係 (Task.ParentID)
 	for _, task := range ac.tasks {
 		if task.ParentID != "" {
 			edges = append(edges, AffinityEdge{
@@ -500,29 +486,16 @@ func (ac *AffinityCalculator) calculateScores(edges []AffinityEdge, weights Affi
 }
 
 // buildClusters はノードをクラスタリング
-// Objective の親子階層を使用してクラスタを構築
+// Objective ごとにクラスタを構築（親子階層廃止後はフラットな構造）
 func (ac *AffinityCalculator) buildClusters(_ []AffinityEdge) []AffinityCluster {
 	clusters := []AffinityCluster{}
 
-	// 事前インデックス: 親 Objective ID → 子 Objective IDs
-	objChildren := make(map[string][]string, len(ac.objectives))
+	// 各 Objective を単独クラスタとして扱う
 	for _, obj := range ac.objectives {
-		if obj.ParentID != "" {
-			objChildren[obj.ParentID] = append(objChildren[obj.ParentID], obj.ID)
-		}
-	}
-
-	// 子 Objective を持つ Objective のみクラスタを作成
-	for _, obj := range ac.objectives {
-		childIDs, ok := objChildren[obj.ID]
-		if !ok || len(childIDs) == 0 {
-			continue
-		}
-		members := append([]string{obj.ID}, childIDs...)
 		clusters = append(clusters, AffinityCluster{
 			ID:      "cluster-" + obj.ID,
 			Name:    obj.Title,
-			Members: members,
+			Members: []string{obj.ID},
 		})
 	}
 

@@ -106,10 +106,9 @@ zeus add vision "プロジェクト名" \
   --success-criteria "基準1,基準2,基準3"
 ```
 
-### Objective（階層構造可）
+### Objective
 ```bash
 zeus add objective "目標名" \
-  --parent <obj-id> \
   -d "説明"
 ```
 

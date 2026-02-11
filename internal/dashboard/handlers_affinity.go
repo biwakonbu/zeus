@@ -263,7 +263,6 @@ func (s *Server) loadAffinityDataParallel(ctx context.Context) (
 						ID:        obj.ID,
 						Title:     obj.Title,
 						Status:    string(obj.Status),
-						ParentID:  obj.ParentID,
 						CreatedAt: obj.Metadata.CreatedAt,
 						UpdatedAt: obj.Metadata.UpdatedAt,
 					}

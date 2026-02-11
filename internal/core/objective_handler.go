@@ -62,13 +62,6 @@ func (h *ObjectiveHandler) Add(ctx context.Context, name string, opts ...EntityO
 		opt(objective)
 	}
 
-	// ParentID が設定されている場合、循環参照チェック
-	if objective.ParentID != "" {
-		if err := h.checkCyclicReference(ctx, id, objective.ParentID); err != nil {
-			return nil, err
-		}
-	}
-
 	// バリデーション
 	if err := objective.Validate(); err != nil {
 		return nil, err
@@ -170,13 +163,6 @@ func (h *ObjectiveHandler) Update(ctx context.Context, id string, update any) er
 		obj.Metadata.CreatedAt = existingObj.Metadata.CreatedAt
 		obj.Metadata.UpdatedAt = Now()
 
-		// ParentID が変更された場合、循環参照チェック
-		if obj.ParentID != "" && obj.ParentID != existingObj.ParentID {
-			if err := h.checkCyclicReference(ctx, id, obj.ParentID); err != nil {
-				return err
-			}
-		}
-
 		// バリデーション
 		if err := obj.Validate(); err != nil {
 			return err
@@ -203,15 +189,6 @@ func (h *ObjectiveHandler) Delete(ctx context.Context, id string) error {
 	// 存在確認
 	if _, err := h.Get(ctx, id); err != nil {
 		return err
-	}
-
-	// 子 Objective の確認（参照整合性）
-	children, err := h.getChildObjectives(ctx, id)
-	if err != nil {
-		return fmt.Errorf("failed to check children: %w", err)
-	}
-	if len(children) > 0 {
-		return fmt.Errorf("cannot delete objective %s: has %d child objectives", id, len(children))
 	}
 
 	// ファイル削除
@@ -270,46 +247,6 @@ func (h *ObjectiveHandler) getAllObjectives(ctx context.Context) ([]*ObjectiveEn
 	return objectives, nil
 }
 
-// getChildObjectives は指定 ID を親とする Objective を取得
-func (h *ObjectiveHandler) getChildObjectives(ctx context.Context, parentID string) ([]*ObjectiveEntity, error) {
-	all, err := h.getAllObjectives(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var children []*ObjectiveEntity
-	for _, obj := range all {
-		if obj.ParentID == parentID {
-			children = append(children, obj)
-		}
-	}
-
-	return children, nil
-}
-
-// checkCyclicReference は循環参照をチェック
-func (h *ObjectiveHandler) checkCyclicReference(ctx context.Context, id, parentID string) error {
-	visited := make(map[string]bool)
-	visited[id] = true
-
-	current := parentID
-	for current != "" {
-		if visited[current] {
-			return fmt.Errorf("cyclic reference detected: %s -> %s creates a cycle", id, parentID)
-		}
-		visited[current] = true
-
-		// 親を取得
-		parent, err := h.Get(ctx, current)
-		if err != nil {
-			break // 親が存在しない場合は OK
-		}
-		current = parent.(*ObjectiveEntity).ParentID
-	}
-
-	return nil
-}
-
 // Objective オプション関数
 
 // WithObjectiveDescription は Objective の説明を設定
@@ -335,15 +272,6 @@ func WithObjectiveOwner(owner string) EntityOption {
 	return func(v any) {
 		if obj, ok := v.(*ObjectiveEntity); ok {
 			obj.Owner = owner
-		}
-	}
-}
-
-// WithObjectiveParent は Objective の親 ID を設定
-func WithObjectiveParent(parentID string) EntityOption {
-	return func(v any) {
-		if obj, ok := v.(*ObjectiveEntity); ok {
-			obj.ParentID = parentID
 		}
 	}
 }
