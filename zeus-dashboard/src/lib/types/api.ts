@@ -266,7 +266,7 @@ export type QualityStatus = 'not_checked' | 'passing' | 'failing';
 
 // グラフノードの種別（UnifiedGraph 対応）
 // Note: 'task' は Activity に統合されたため除去。色・ラベル定義は $lib/viewer/config/nodeTypes.ts で一元管理。
-export type GraphNodeType = 'vision' | 'objective' | 'activity' | 'usecase';
+export type GraphNodeType = 'vision' | 'activity' | 'usecase';
 
 // グラフビュー用の統一ノードデータ
 export interface GraphNode {
@@ -280,8 +280,7 @@ export interface GraphNode {
 export type GraphEdgeLayer = 'structural';
 export type GraphEdgeRelation =
 	| 'parent'
-	| 'implements'
-	| 'contributes';
+	| 'implements';
 
 // グラフビュー用のエッジデータ
 export interface GraphEdge {
@@ -512,12 +511,30 @@ export interface UnifiedGraphStats {
 	edges_by_relation: Record<string, number>;
 }
 
+// UnifiedGraph グループ（Objective ベース）
+export interface UnifiedGraphGroupItem {
+	id: string;
+	title: string;
+	description?: string;
+	goals?: string[];
+	status: string;
+	node_ids: string[];
+}
+
 // UnifiedGraph API レスポンス
 export interface UnifiedGraphResponse {
 	nodes: UnifiedGraphNodeItem[];
 	edges: UnifiedGraphEdgeItem[];
+	groups: UnifiedGraphGroupItem[];
 	stats: UnifiedGraphStats;
 	cycles: string[][];
 	isolated: string[];
 	mermaid: string;
+}
+
+// グラフデータ型（GraphNode/Edge + Groups の組み合わせ）
+export interface GraphData {
+	nodes: GraphNode[];
+	edges: GraphEdge[];
+	groups?: UnifiedGraphGroupItem[];
 }

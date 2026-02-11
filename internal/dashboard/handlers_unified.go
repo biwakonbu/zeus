@@ -36,6 +36,7 @@ type UnifiedGraphEdgeItem struct {
 type UnifiedGraphStatsItem struct {
 	TotalNodes          int            `json:"total_nodes"`
 	TotalEdges          int            `json:"total_edges"`
+	GroupCount          int            `json:"group_count"`
 	TotalActivities     int            `json:"total_activities"`
 	CompletedActivities int            `json:"completed_activities"`
 	MaxStructuralDepth  int            `json:"max_structural_depth"`
@@ -46,14 +47,25 @@ type UnifiedGraphStatsItem struct {
 	EdgesByRelation     map[string]int `json:"edges_by_relation,omitempty"`
 }
 
+// UnifiedGraphGroupItem は Objective ベースのグループの API アイテム
+type UnifiedGraphGroupItem struct {
+	ID          string   `json:"id"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	Goals       []string `json:"goals,omitempty"`
+	Status      string   `json:"status"`
+	NodeIDs     []string `json:"node_ids"`
+}
+
 // UnifiedGraphResponse は UnifiedGraph API のレスポンス
 type UnifiedGraphResponse struct {
-	Nodes    []UnifiedGraphNodeItem `json:"nodes"`
-	Edges    []UnifiedGraphEdgeItem `json:"edges"`
-	Stats    UnifiedGraphStatsItem  `json:"stats"`
-	Cycles   [][]string             `json:"cycles"`
-	Isolated []string               `json:"isolated"`
-	Mermaid  string                 `json:"mermaid"`
+	Nodes    []UnifiedGraphNodeItem  `json:"nodes"`
+	Edges    []UnifiedGraphEdgeItem  `json:"edges"`
+	Groups   []UnifiedGraphGroupItem `json:"groups"`
+	Stats    UnifiedGraphStatsItem   `json:"stats"`
+	Cycles   [][]string              `json:"cycles"`
+	Isolated []string                `json:"isolated"`
+	Mermaid  string                  `json:"mermaid"`
 
 	// フィルター情報
 	Filter *UnifiedGraphFilterInfo `json:"filter,omitempty"`
@@ -141,6 +153,22 @@ func buildGraphFilter(r *http.Request) *analysis.GraphFilter {
 		}
 	}
 
+	// group パラメータ（Objective グループフィルター）
+	groupStr := r.URL.Query().Get("group")
+	if groupStr != "" {
+		groupIDs := strings.Split(groupStr, ",")
+		var trimmed []string
+		for _, g := range groupIDs {
+			g = strings.TrimSpace(g)
+			if g != "" {
+				trimmed = append(trimmed, g)
+			}
+		}
+		if len(trimmed) > 0 {
+			filter.GroupIDs = trimmed
+		}
+	}
+
 	// hide-completed パラメータ
 	if r.URL.Query().Get("hide-completed") == "true" {
 		filter = filter.WithHideCompleted(true)
@@ -190,8 +218,6 @@ func parseEdgeRelationsFromQuery(relationsStr string) []analysis.UnifiedEdgeRela
 		switch r {
 		case string(analysis.RelationImplements):
 			relations = append(relations, analysis.RelationImplements)
-		case string(analysis.RelationContributes):
-			relations = append(relations, analysis.RelationContributes)
 		}
 	}
 	return relations
@@ -264,10 +290,28 @@ func convertUnifiedGraphToResponse(graph *analysis.UnifiedGraph, filter *analysi
 		edgesByRelation[string(k)] = v
 	}
 
+	// グループの変換
+	groups := make([]UnifiedGraphGroupItem, 0, len(graph.Groups))
+	for _, g := range graph.Groups {
+		nodeIDs := g.NodeIDs
+		if nodeIDs == nil {
+			nodeIDs = []string{}
+		}
+		groups = append(groups, UnifiedGraphGroupItem{
+			ID:          g.ID,
+			Title:       g.Title,
+			Description: g.Description,
+			Goals:       g.Goals,
+			Status:      g.Status,
+			NodeIDs:     nodeIDs,
+		})
+	}
+
 	// 統計の変換
 	stats := UnifiedGraphStatsItem{
 		TotalNodes:          graph.Stats.TotalNodes,
 		TotalEdges:          graph.Stats.TotalEdges,
+		GroupCount:          graph.Stats.GroupCount,
 		TotalActivities:     graph.Stats.TotalActivities,
 		CompletedActivities: graph.Stats.CompletedActivities,
 		MaxStructuralDepth:  graph.Stats.MaxStructuralDepth,
@@ -321,6 +365,7 @@ func convertUnifiedGraphToResponse(graph *analysis.UnifiedGraph, filter *analysi
 	return UnifiedGraphResponse{
 		Nodes:    nodes,
 		Edges:    edges,
+		Groups:   groups,
 		Stats:    stats,
 		Cycles:   cycles,
 		Isolated: isolated,

@@ -19,13 +19,7 @@
 
 <script lang="ts">
 	import { fn } from '@storybook/test';
-	import type { GraphNode, GraphEdge } from '$lib/types/api';
-
-	// グラフデータ型
-	interface GraphData {
-		nodes: GraphNode[];
-		edges: GraphEdge[];
-	}
+	import type { GraphNode, GraphEdge, GraphData } from '$lib/types/api';
 
 	interface StoryNode extends GraphNode {
 		dependencies: string[];
@@ -362,15 +356,15 @@
 	{@const typedNodes: StoryNode[] = [
 		// Vision
 		{ id: 'vision-1', title: 'プロジェクト管理の革新', node_type: 'vision', status: 'active', dependencies: [] },
-		// Objectives
-		{ id: 'obj-1', title: 'Phase 1: MVP 開発', node_type: 'objective', status: 'deprecated', dependencies: ['vision-1'] },
-		{ id: 'obj-2', title: 'Phase 2: 標準機能', node_type: 'objective', status: 'active', dependencies: ['vision-1'] },
-		{ id: 'obj-3', title: 'Phase 3: AI 統合', node_type: 'objective', status: 'draft', dependencies: ['vision-1'] },
+		// UseCases
+		{ id: 'uc-1', title: 'Phase 1: MVP 開発', node_type: 'usecase', status: 'deprecated', dependencies: ['vision-1'] },
+		{ id: 'uc-2', title: 'Phase 2: 標準機能', node_type: 'usecase', status: 'active', dependencies: ['vision-1'] },
+		{ id: 'uc-3', title: 'Phase 3: AI 統合', node_type: 'usecase', status: 'draft', dependencies: ['vision-1'] },
 		// Activities
-		{ id: 'task-1', title: 'CLI 基盤実装', node_type: 'activity', status: 'deprecated', dependencies: ['obj-1'] },
-		{ id: 'task-2', title: 'YAML パーサー', node_type: 'activity', status: 'deprecated', dependencies: ['obj-1'] },
-		{ id: 'task-3', title: 'UI 実装', node_type: 'activity', status: 'active', dependencies: ['obj-2'] },
-		{ id: 'task-4', title: 'API 連携', node_type: 'activity', status: 'draft', dependencies: ['obj-2'] }
+		{ id: 'task-1', title: 'CLI 基盤実装', node_type: 'activity', status: 'deprecated', dependencies: ['uc-1'] },
+		{ id: 'task-2', title: 'YAML パーサー', node_type: 'activity', status: 'deprecated', dependencies: ['uc-1'] },
+		{ id: 'task-3', title: 'UI 実装', node_type: 'activity', status: 'active', dependencies: ['uc-2'] },
+		{ id: 'task-4', title: 'API 連携', node_type: 'activity', status: 'draft', dependencies: ['uc-2'] }
 	]}
 	<div style="height: 700px; background: var(--bg-primary);">
 		<FactorioViewer

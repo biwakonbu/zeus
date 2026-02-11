@@ -1,20 +1,24 @@
 <script lang="ts">
-	import type { EntityStatus } from '$lib/types/api';
+	import type { EntityStatus, UnifiedGraphGroupItem } from '$lib/types/api';
 	import type { FilterCriteria } from '../interaction/FilterManager';
 	import { SearchInput } from '$lib/components/ui';
 
 	// Props
 	interface Props {
 		criteria: FilterCriteria;
+		groups?: UnifiedGraphGroupItem[];
 		onStatusToggle: (status: EntityStatus) => void;
 		onSearchChange: (text: string) => void;
+		onGroupToggle?: (groupId: string) => void;
 		onClear: () => void;
 	}
 
 	let {
 		criteria,
+		groups = [],
 		onStatusToggle,
 		onSearchChange,
+		onGroupToggle,
 		onClear
 	}: Props = $props();
 
@@ -28,7 +32,8 @@
 	// フィルターがアクティブか
 	let isActive = $derived(
 		(criteria.statuses?.length ?? 0) > 0 ||
-			!!criteria.searchText
+			!!criteria.searchText ||
+			(criteria.groupIds?.length ?? 0) > 0
 	);
 
 	// 検索入力（criteria.searchText に同期）
@@ -42,7 +47,9 @@
 		return criteria.statuses?.includes(status) ?? false;
 	}
 
-
+	function isGroupActive(groupId: string): boolean {
+		return criteria.groupIds?.includes(groupId) ?? false;
+	}
 </script>
 
 <div class="filter-content">
@@ -74,6 +81,26 @@
 			{/each}
 		</div>
 	</div>
+
+	<!-- Objective グループ -->
+	{#if groups && groups.length > 0}
+		<div class="filter-section" role="group" aria-label="Group filter">
+			<span class="filter-label">Objective</span>
+			<div class="filter-chips">
+				{#each groups as group}
+					<button
+						class="filter-chip"
+						class:active={isGroupActive(group.id)}
+						style="--chip-color: var(--accent-primary)"
+						onclick={() => onGroupToggle?.(group.id)}
+					>
+						<span class="chip-dot"></span>
+						{group.title}
+					</button>
+				{/each}
+			</div>
+		</div>
+	{/if}
 
 	<!-- クリアボタン -->
 	{#if isActive}

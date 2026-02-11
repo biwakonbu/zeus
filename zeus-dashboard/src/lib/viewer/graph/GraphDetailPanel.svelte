@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { GraphEdge, GraphNode } from '$lib/types/api';
+	import type { GraphEdge, GraphNode, UnifiedGraphGroupItem } from '$lib/types/api';
 	import { Icon } from '$lib/components/ui';
 	import { navigateToEntity } from '$lib/stores/view';
 	import { getNodeTypeCSSColor, getNodeTypeLabel } from '../config/nodeTypes';
@@ -8,6 +8,8 @@
 		node?: GraphNode | null;
 		nodes: GraphNode[];
 		edges: GraphEdge[];
+		group?: UnifiedGraphGroupItem | null;
+		groups?: UnifiedGraphGroupItem[];
 		onClose?: () => void;
 		onNodeSelect?: (nodeId: string) => void;
 	}
@@ -19,7 +21,15 @@
 		count: number;
 	};
 
-	let { node = null, nodes, edges, onClose = undefined, onNodeSelect = undefined }: Props = $props();
+	let {
+		node = null,
+		nodes,
+		edges,
+		group = null,
+		groups = [],
+		onClose = undefined,
+		onNodeSelect = undefined
+	}: Props = $props();
 
 	const nodeById = $derived.by(() => new Map(nodes.map((item) => [item.id, item])));
 
@@ -119,6 +129,20 @@
 	const canNavigateToEntityView = $derived.by(
 		() => node?.node_type === 'activity' || node?.node_type === 'usecase'
 	);
+
+	// ノードが属する Objective グループを取得
+	const nodeObjectiveGroup = $derived.by(() => {
+		const currentNode = node;
+		if (!currentNode || !groups || groups.length === 0) return null;
+		return groups.find((g) => g.node_ids.includes(currentNode.id)) ?? null;
+	});
+
+	// グループ内のノード一覧
+	const groupMemberNodes = $derived.by(() => {
+		if (!group) return [] as GraphNode[];
+		const memberIds = new Set(group.node_ids);
+		return nodes.filter((n) => memberIds.has(n.id));
+	});
 </script>
 
 <div class="detail-content">
@@ -128,7 +152,76 @@
 		</button>
 	{/if}
 
-	{#if node}
+	{#if group && !node}
+		<!-- グループ選択モード -->
+		<section class="section node-section">
+			<h4 class="section-title">
+				<Icon name="Layers" size={12} />
+				Objective
+			</h4>
+			<div class="node-header">
+				<span class="status-dot" style="background: {getStatusColor(group.status)}"></span>
+				<div class="node-heading">
+					<div class="node-title">{group.title}</div>
+					<div class="node-id">{group.id}</div>
+				</div>
+			</div>
+
+			<div class="node-info-grid">
+				<div class="info-item">
+					<span class="label">Status</span>
+					<span class="value">{getStatusLabel(group.status)}</span>
+				</div>
+				<div class="info-item">
+					<span class="label">Nodes</span>
+					<span class="value">{group.node_ids.length}</span>
+				</div>
+			</div>
+
+			{#if group.description}
+				<div class="group-description">
+					<span class="label">Description</span>
+					<p class="description-text">{group.description}</p>
+				</div>
+			{/if}
+
+			{#if group.goals && group.goals.length > 0}
+				<div class="group-goals">
+					<span class="label">Goals</span>
+					<ul class="goals-list">
+						{#each group.goals as goal}
+							<li>{goal}</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+		</section>
+
+		{#if groupMemberNodes.length > 0}
+			<section class="section relation-section">
+				<h4 class="section-title">
+					<Icon name="GitBranch" size={12} />
+					所属ノード ({groupMemberNodes.length})
+				</h4>
+				<ul class="relation-list">
+					{#each groupMemberNodes as member (member.id)}
+						<li>
+							<button class="relation-item" onclick={() => onNodeSelect?.(member.id)}>
+								<span
+									class="relation-type"
+									style="background: {getNodeTypeCSSColor(member.node_type)}"
+								>
+									{getNodeTypeLabel(member.node_type)}
+								</span>
+								<span class="relation-title">{member.title}</span>
+								<span class="relation-id">{member.id}</span>
+							</button>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
+	{:else if node}
 		<section class="section node-section">
 			<h4 class="section-title">
 				<Icon name="FileText" size={12} />
@@ -173,6 +266,22 @@
 				</div>
 			{/if}
 		</section>
+
+		{#if nodeObjectiveGroup}
+			<section class="section objective-section">
+				<h4 class="section-title">
+					<Icon name="Layers" size={12} />
+					Objective
+				</h4>
+				<div class="objective-card">
+					<span class="status-dot" style="background: {getStatusColor(nodeObjectiveGroup.status)}"></span>
+					<div class="node-heading">
+						<div class="node-title">{nodeObjectiveGroup.title}</div>
+						<div class="node-id">{nodeObjectiveGroup.id}</div>
+					</div>
+				</div>
+			</section>
+		{/if}
 
 		<section class="section relation-section">
 			<h4 class="section-title">
@@ -554,5 +663,42 @@
 
 	.empty-state span {
 		font-size: 0.75rem;
+	}
+
+	.group-description {
+		margin-top: 8px;
+	}
+
+	.description-text {
+		margin: 4px 0 0 0;
+		font-size: 0.75rem;
+		color: var(--text-secondary);
+		line-height: 1.4;
+	}
+
+	.group-goals {
+		margin-top: 8px;
+	}
+
+	.goals-list {
+		margin: 4px 0 0 0;
+		padding-left: 16px;
+		font-size: 0.75rem;
+		color: var(--text-secondary);
+		line-height: 1.5;
+	}
+
+	.goals-list li {
+		margin-bottom: 2px;
+	}
+
+	.objective-card {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px;
+		background: rgba(0, 0, 0, 0.22);
+		border: 1px solid var(--border-metal);
+		border-radius: 4px;
 	}
 </style>

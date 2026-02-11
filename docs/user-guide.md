@@ -110,8 +110,8 @@ zeus graph --format mermaid -o docs/deps.md
 
 ```bash
 zeus graph --unified
-zeus graph --unified --layers structural,reference
-zeus graph --unified --relations depends_on,contributes
+zeus graph --unified --layers structural
+zeus graph --unified --relations implements
 zeus graph --unified --focus act-001 --depth 2
 ```
 

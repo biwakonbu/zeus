@@ -56,7 +56,7 @@ Zeus のドメインモデルは以下の3層で構成される:
 
 - **UseCase** はワークフローの抽象表現。本質的な「求め」であり、状況が変わっても安定する
 - **Activity** はワークフローの具体表現。状況によって最適解が変わる実装詳細
-- **Objective** は機能ではなく「達成すべき目標」。UseCase が Objective に contributes する
+- **Objective** は機能ではなく「達成すべき目標」。UseCase は `objective_id` で Objective に所属し、Unified Graph ではグループ領域として可視化される
 
 Objective の例:
 - OK: 「ユーザー離脱率を30%削減する」「セキュリティインシデントをゼロにする」
@@ -67,7 +67,7 @@ Objective はフラット構造であり、親子階層を持たない。階層�
 補足:
 - Task は Activity に統合済み。
 - Activity は FlowMode（ノード/遷移を持つ図表現）で扱う。
-- Unified Graph は Activity, UseCase, Objective を横断結合して可視化する。
+- Unified Graph は Activity と UseCase をノードとして可視化し、Objective はグループ領域として表示する。
 
 ## 3.3 4要素関係（実装準拠）
 
@@ -76,14 +76,13 @@ Objective はフラット構造であり、親子階層を持たない。階層�
 ```mermaid
 flowchart LR
   V["Vision"]:::vision
-  O["Objective"]:::objective
+  O["Objective（グループ領域）"]:::objective
   U["UseCase"]:::usecase
   A["Activity"]:::activity
   N["Vision は単独管理（Objective からの直接参照は未実装）"]:::note
 
-  U ==>|"contributes（必須: objective_id）"| O
+  U -.->|"所属（必須: objective_id）"| O
   A ==>|"implements（任意: usecase_id）"| U
-  A -->|"depends_on（任意）"| A
   V -.-> N
 
   classDef vision fill:#FFD54F,stroke:#333,color:#111;
@@ -93,11 +92,12 @@ flowchart LR
   classDef note fill:#ECEFF1,stroke:#607D8B,color:#111;
 ```
 
+Objective はグラフのノードではなく、所属する UseCase/Activity を包含するグループ領域として表示される。UseCase の `objective_id` がグループ分類に使用される。
+
 | From | To | 関係 | 必須性 | 根拠フィールド |
 |---|---|---|---|---|
-| UseCase | Objective | contributes | 必須 | `objective_id` |
+| UseCase | Objective | 所属（グループ） | 必須 | `objective_id` |
 | Activity | UseCase | implements | 任意 | `usecase_id` |
-| Activity | Activity | depends_on | 任意 | `dependencies` |
 | Vision | (他要素) | 直接参照 | 未実装 | 単一 `vision.yaml` 管理 |
 
 実装根拠:
@@ -122,9 +122,10 @@ flowchart LR
 |---|---|---|
 | `graph` | `--unified` | 統合グラフモード |
 | `graph --unified` | `--focus`, `--depth` | 中心ノードと深さ |
-| `graph --unified` | `--types` | `activity,usecase,objective` |
-| `graph --unified` | `--layers` | `structural,reference` |
-| `graph --unified` | `--relations` | `depends_on,implements,contributes` |
+| `graph --unified` | `--types` | `activity,usecase` |
+| `graph --unified` | `--layers` | `structural` |
+| `graph --unified` | `--relations` | `implements` |
+| `graph --unified` | `--group` | Objective ID でグループフィルター |
 | `dashboard` | `--port`, `--no-open`, `--dev` | ポート/自動起動/開発モード |
 | `report` | `--format`, `--output` | 出力形式/保存先 |
 

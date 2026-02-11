@@ -1,5 +1,5 @@
 // 自動レイアウトエンジン
-import type { GraphEdge, GraphNode } from '$lib/types/api';
+import type { GraphEdge, GraphNode, UnifiedGraphGroupItem } from '$lib/types/api';
 import { GraphNodeView } from '../rendering/GraphNode';
 
 // レイアウト設定
@@ -50,6 +50,11 @@ export interface LayoutGroupBounds {
 	width: number;
 	height: number;
 	color: number;
+	// Objective グループメタデータ
+	description?: string;
+	goals?: string[];
+	status?: string;
+	nodeIds?: string[];
 }
 
 /**
@@ -92,7 +97,11 @@ export class LayoutEngine {
 		this.nodeHeight = GraphNodeView.getHeight();
 	}
 
-	private computeLayoutHash(nodes: GraphNode[], edges: GraphEdge[]): string {
+	private computeLayoutHash(
+		nodes: GraphNode[],
+		edges: GraphEdge[],
+		groups?: UnifiedGraphGroupItem[]
+	): string {
 		const nodePart = nodes
 			.map((n) => `${n.id}:${n.node_type}:${n.structural_depth ?? 'na'}`)
 			.sort()
@@ -101,16 +110,26 @@ export class LayoutEngine {
 			.map((e) => `${e.from}->${e.to}:${e.layer}:${e.relation}`)
 			.sort()
 			.join('|');
-		return `${LAYOUT_VERSION}#${nodePart}#${edgePart}`;
+		const groupPart = groups
+			? groups
+					.map((g) => `${g.id}:${[...g.node_ids].sort().join(',')}`)
+					.sort()
+					.join('|')
+			: '';
+		return `${LAYOUT_VERSION}#${nodePart}#${edgePart}#${groupPart}`;
 	}
 
-	layout(nodes: GraphNode[], edges: GraphEdge[]): LayoutResult {
-		const hash = this.computeLayoutHash(nodes, edges);
+	layout(
+		nodes: GraphNode[],
+		edges: GraphEdge[],
+		groups?: UnifiedGraphGroupItem[]
+	): LayoutResult {
+		const hash = this.computeLayoutHash(nodes, edges, groups);
 		if (hash === this.cachedLayoutHash && this.cachedLayout) {
 			return this.cachedLayout;
 		}
 
-		const result = this.computeLayout(nodes, edges);
+		const result = this.computeLayout(nodes, edges, groups);
 		this.cachedLayout = result;
 		this.cachedLayoutHash = hash;
 		return result;
@@ -121,13 +140,22 @@ export class LayoutEngine {
 		this.cachedLayoutHash = '';
 	}
 
-	layoutSubset(nodes: GraphNode[], edges: GraphEdge[], visibleIds: Set<string>): LayoutResult {
+	layoutSubset(
+		nodes: GraphNode[],
+		edges: GraphEdge[],
+		visibleIds: Set<string>,
+		groups?: UnifiedGraphGroupItem[]
+	): LayoutResult {
 		const filteredNodes = nodes.filter((n) => visibleIds.has(n.id));
 		const filteredEdges = edges.filter((e) => visibleIds.has(e.from) && visibleIds.has(e.to));
-		return this.computeLayout(filteredNodes, filteredEdges);
+		return this.computeLayout(filteredNodes, filteredEdges, groups);
 	}
 
-	private computeLayout(nodes: GraphNode[], edges: GraphEdge[]): LayoutResult {
+	private computeLayout(
+		nodes: GraphNode[],
+		edges: GraphEdge[],
+		apiGroups?: UnifiedGraphGroupItem[]
+	): LayoutResult {
 		const sortedNodes = this.sortNodes(nodes);
 		const sortedEdges = this.sortEdges(edges);
 		const structuralEdges = sortedEdges.filter((edge) => edge.layer === 'structural');
@@ -144,7 +172,11 @@ export class LayoutEngine {
 		const depthOrder = Array.from(depthLayers.keys()).sort((a, b) => a - b);
 		const positions = this.computeGridPositions(depthOrder, depthLayers);
 		const bounds = this.computeBounds(positions);
-		const groups = this.computeComponentBounds(sortedNodes, structuralEdges, positions);
+
+		// API から Objective グループデータがある場合はそれを使用、なければ連結成分ベース
+		const groups = apiGroups
+			? this.computeObjectiveGroupBounds(apiGroups, positions)
+			: this.computeComponentBounds(sortedNodes, structuralEdges, positions);
 
 		return {
 			positions,
@@ -401,6 +433,62 @@ export class LayoutEngine {
 
 	private snapToGrid(value: number): number {
 		return Math.round(value / LAYOUT_GRID_UNIT) * LAYOUT_GRID_UNIT;
+	}
+
+	/**
+	 * Objective グループデータからグループ境界を計算
+	 */
+	private computeObjectiveGroupBounds(
+		apiGroups: UnifiedGraphGroupItem[],
+		positions: Map<string, NodePosition>
+	): LayoutGroupBounds[] {
+		const groups: LayoutGroupBounds[] = [];
+
+		for (let index = 0; index < apiGroups.length; index++) {
+			const group = apiGroups[index];
+			// グループ内のノード位置を収集
+			const memberPositions = group.node_ids
+				.map((id) => positions.get(id))
+				.filter((pos): pos is NodePosition => pos !== undefined);
+
+			if (memberPositions.length === 0) continue;
+
+			let minX = Infinity;
+			let maxX = -Infinity;
+			let minY = Infinity;
+			let maxY = -Infinity;
+
+			for (const pos of memberPositions) {
+				minX = Math.min(minX, pos.x - this.nodeWidth / 2);
+				maxX = Math.max(maxX, pos.x + this.nodeWidth / 2);
+				minY = Math.min(minY, pos.y - this.nodeHeight / 2);
+				maxY = Math.max(maxY, pos.y + this.nodeHeight / 2);
+			}
+
+			minX -= GROUP_PADDING_X;
+			maxX += GROUP_PADDING_X;
+			minY -= GROUP_PADDING_Y;
+			maxY += GROUP_PADDING_Y;
+
+			groups.push({
+				groupId: group.id,
+				label: group.title,
+				nodeCount: memberPositions.length,
+				minX,
+				maxX,
+				minY,
+				maxY,
+				width: maxX - minX,
+				height: maxY - minY,
+				color: COMPONENT_COLORS[index % COMPONENT_COLORS.length],
+				description: group.description,
+				goals: group.goals,
+				status: group.status,
+				nodeIds: group.node_ids
+			});
+		}
+
+		return groups;
 	}
 
 	private computeComponentBounds(

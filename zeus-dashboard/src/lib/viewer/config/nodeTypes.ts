@@ -33,19 +33,6 @@ export const NODE_TYPE_CONFIG: Record<GraphNodeType, NodeTypeConfig> = {
 		showBadge: true,
 		showAccentLine: true
 	},
-	objective: {
-		label: 'OBJ',
-		cssColor: '#6699ff',
-		colors: {
-			indicator: 0x6699ff, // ブルー - 目標
-			background: 0x2d3550,
-			border: 0x6699ff,
-			borderHighlight: 0x99bbff,
-			borderShadow: 0x1a2030
-		},
-		showBadge: true,
-		showAccentLine: true
-	},
 	activity: {
 		label: 'ACT',
 		cssColor: '#cc8844',

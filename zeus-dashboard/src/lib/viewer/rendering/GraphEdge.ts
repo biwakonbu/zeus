@@ -32,8 +32,7 @@ interface PolylinePoint {
 function semanticStyle(layer: GraphEdgeLayer, relation: GraphEdgeRelation): SemanticStyle {
 	const base = {
 		parent: { core: 0x88b8ff, outer: 0x355d96 },
-		implements: { core: 0x66ccff, outer: 0x226688 },
-		contributes: { core: 0xb48dff, outer: 0x5c4090 }
+		implements: { core: 0x66ccff, outer: 0x226688 }
 	} as const;
 
 	const rel = base[relation] ?? base.parent;

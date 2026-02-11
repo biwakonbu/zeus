@@ -75,25 +75,28 @@ func (b *UnifiedGraphBuilder) Build() *UnifiedGraph {
 		},
 	}
 
-	// 1. ノードを構築
+	// 1. ノードを構築（Objective はノードではなくグループとして扱う）
 	b.buildNodes(graph)
 
-	// 2. エッジを構築
+	// 2. エッジを構築（implements のみ、contributes は廃止）
 	b.buildEdges(graph)
 
-	// 3. フィルタを適用
+	// 3. グループを構築（Objective ベース）
+	b.buildGroups(graph)
+
+	// 4. フィルタを適用
 	b.applyFilter(graph)
 
-	// 4. 構造層深さを計算
+	// 5. 構造層深さを計算
 	b.calculateStructuralDepth(graph)
 
-	// 5. 循環を検出
+	// 6. 循環を検出
 	b.detectCycles(graph)
 
-	// 6. 孤立ノードを検出
+	// 7. 孤立ノードを検出
 	b.detectIsolated(graph)
 
-	// 7. 統計を計算
+	// 8. 統計を計算
 	b.calculateStats(graph)
 
 	return graph
@@ -104,8 +107,8 @@ func validateEdgeRule(fromType, toType EntityType, layer UnifiedEdgeLayer, relat
 	// レイヤーと relation の整合性
 	switch layer {
 	case EdgeLayerStructural:
-		if !slices.Contains([]UnifiedEdgeRelation{RelationImplements, RelationContributes}, relation) {
-			return fmt.Errorf("relation %q is not allowed in structural layer", relation)
+		if relation != RelationImplements {
+			return fmt.Errorf("relation %q is not allowed in structural layer (only 'implements')", relation)
 		}
 	default:
 		return fmt.Errorf("unknown edge layer: %q", layer)
@@ -118,11 +121,6 @@ func validateEdgeRule(fromType, toType EntityType, layer UnifiedEdgeLayer, relat
 			return nil
 		}
 		return fmt.Errorf("implements must connect activity->usecase (got %s->%s)", fromType, toType)
-	case RelationContributes:
-		if fromType == EntityTypeUseCase && toType == EntityTypeObjective {
-			return nil
-		}
-		return fmt.Errorf("contributes must connect usecase->objective (got %s->%s)", fromType, toType)
 	default:
 		return fmt.Errorf("unknown edge relation: %q", relation)
 	}
@@ -195,21 +193,10 @@ func (b *UnifiedGraphBuilder) buildNodes(graph *UnifiedGraph) {
 		graph.Nodes[u.ID] = node
 	}
 
-	// Objective ノード
-	for _, o := range b.objectives {
-		node := &UnifiedGraphNode{
-			ID:                 o.ID,
-			Type:               EntityTypeObjective,
-			Title:              o.Title,
-			Status:             o.Status,
-			StructuralParents:  []string{},
-			StructuralChildren: []string{},
-		}
-		graph.Nodes[o.ID] = node
-	}
+	// Objective はノードではなくグループとして扱う（buildGroups で処理）
 }
 
-// buildEdges はエッジを構築
+// buildEdges はエッジを構築（implements のみ、contributes は廃止）
 func (b *UnifiedGraphBuilder) buildEdges(graph *UnifiedGraph) {
 	// implements (structural): Activity -> UseCase
 	for _, a := range b.activities {
@@ -218,12 +205,63 @@ func (b *UnifiedGraphBuilder) buildEdges(graph *UnifiedGraph) {
 		}
 	}
 
-	// contributes (structural): UseCase -> Objective
+	// contributes は廃止: UseCase -> Objective の関係はグループで表現
+}
+
+// buildGroups は Objective ベースのグループを構築
+func (b *UnifiedGraphBuilder) buildGroups(graph *UnifiedGraph) {
+	// UseCase の objective_id から逆引きマップ構築
+	usecasesByObjective := make(map[string][]string) // objective_id -> []usecase_id
 	for _, u := range b.usecases {
 		if u.ObjectiveID != "" {
-			b.addStructuralEdge(graph, u.ID, u.ObjectiveID, RelationContributes)
+			usecasesByObjective[u.ObjectiveID] = append(usecasesByObjective[u.ObjectiveID], u.ID)
 		}
 	}
+
+	// Activity を UseCase 経由で Objective に割り当て
+	activitiesByUseCase := make(map[string][]string) // usecase_id -> []activity_id
+	for _, a := range b.activities {
+		if a.UseCaseID != "" {
+			activitiesByUseCase[a.UseCaseID] = append(activitiesByUseCase[a.UseCaseID], a.ID)
+		}
+	}
+
+	// 各 Objective に対してグループを構築
+	for _, obj := range b.objectives {
+		seen := make(map[string]bool)
+		var nodeIDs []string
+
+		// UseCase を追加
+		for _, ucID := range usecasesByObjective[obj.ID] {
+			if _, exists := graph.Nodes[ucID]; exists && !seen[ucID] {
+				nodeIDs = append(nodeIDs, ucID)
+				seen[ucID] = true
+			}
+			// UseCase に紐づく Activity を追加
+			for _, actID := range activitiesByUseCase[ucID] {
+				if _, exists := graph.Nodes[actID]; exists && !seen[actID] {
+					nodeIDs = append(nodeIDs, actID)
+					seen[actID] = true
+				}
+			}
+		}
+
+		sort.Strings(nodeIDs)
+
+		graph.Groups = append(graph.Groups, UnifiedGraphGroup{
+			ID:          obj.ID,
+			Title:       obj.Title,
+			Description: obj.Description,
+			Goals:       obj.Goals,
+			Status:      obj.Status,
+			NodeIDs:     nodeIDs,
+		})
+	}
+
+	// グループを ID でソート
+	sort.Slice(graph.Groups, func(i, j int) bool {
+		return graph.Groups[i].ID < graph.Groups[j].ID
+	})
 }
 
 // applyFilter はフィルタを適用
@@ -260,18 +298,62 @@ func (b *UnifiedGraphBuilder) applyFilter(graph *UnifiedGraph) {
 	// 2. エッジをフィルタ（存在ノード + レイヤー + relation）
 	graph.Edges = b.filterEdgesByRule(graph.Nodes, graph.Edges)
 
-	// 3. フォーカスフィルタ
-	if b.filter.FocusID != "" && b.filter.FocusDepth > 0 {
-		reachable := b.findReachableNodes(graph, b.filter.FocusID, b.filter.FocusDepth)
-		for id := range graph.Nodes {
-			if !reachable[id] {
-				delete(graph.Nodes, id)
+	// 3. グループフィルタ（GroupIDs 指定時）
+	if len(b.filter.GroupIDs) > 0 {
+		groupNodeIDs := make(map[string]bool)
+		groupIDSet := make(map[string]bool)
+		for _, gid := range b.filter.GroupIDs {
+			groupIDSet[gid] = true
+		}
+		for _, group := range graph.Groups {
+			if groupIDSet[group.ID] {
+				for _, nid := range group.NodeIDs {
+					groupNodeIDs[nid] = true
+				}
 			}
+		}
+		for id := range graph.Nodes {
+			if !groupNodeIDs[id] {
+				toRemove[id] = true
+			}
+		}
+		for id := range toRemove {
+			delete(graph.Nodes, id)
 		}
 		graph.Edges = b.filterEdgesByRule(graph.Nodes, graph.Edges)
 	}
 
-	// 4. 構造親子を再構築
+	// 4. フォーカスフィルタ
+	if b.filter.FocusID != "" && b.filter.FocusDepth > 0 {
+		focusID := b.filter.FocusID
+		// FocusID が Objective ID の場合: そのグループ内ノードを対象にフォールバック
+		if _, exists := graph.Nodes[focusID]; !exists {
+			for _, group := range graph.Groups {
+				if group.ID == focusID && len(group.NodeIDs) > 0 {
+					// グループ内の全ノードを reachable にする
+					for id := range graph.Nodes {
+						if !slices.Contains(group.NodeIDs, id) {
+							delete(graph.Nodes, id)
+						}
+					}
+					graph.Edges = b.filterEdgesByRule(graph.Nodes, graph.Edges)
+					focusID = "" // フォーカス探索をスキップ
+					break
+				}
+			}
+		}
+		if focusID != "" {
+			reachable := b.findReachableNodes(graph, focusID, b.filter.FocusDepth)
+			for id := range graph.Nodes {
+				if !reachable[id] {
+					delete(graph.Nodes, id)
+				}
+			}
+			graph.Edges = b.filterEdgesByRule(graph.Nodes, graph.Edges)
+		}
+	}
+
+	// 5. 構造親子を再構築
 	b.rebuildStructuralAdjacency(graph)
 }
 
@@ -442,15 +524,13 @@ func (b *UnifiedGraphBuilder) detectCycles(graph *UnifiedGraph) {
 
 // detectIsolated は孤立ノードを検出
 func (b *UnifiedGraphBuilder) detectIsolated(graph *UnifiedGraph) {
+	connectedNodes := make(map[string]bool)
+	for _, edge := range graph.Edges {
+		connectedNodes[edge.From] = true
+		connectedNodes[edge.To] = true
+	}
 	for id := range graph.Nodes {
-		hasEdge := false
-		for _, edge := range graph.Edges {
-			if edge.From == id || edge.To == id {
-				hasEdge = true
-				break
-			}
-		}
-		if !hasEdge {
+		if !connectedNodes[id] {
 			graph.Isolated = append(graph.Isolated, id)
 		}
 	}
@@ -462,6 +542,7 @@ func (b *UnifiedGraphBuilder) calculateStats(graph *UnifiedGraph) {
 	stats := &graph.Stats
 	stats.TotalNodes = len(graph.Nodes)
 	stats.TotalEdges = len(graph.Edges)
+	stats.GroupCount = len(graph.Groups)
 	stats.IsolatedCount = len(graph.Isolated)
 	stats.CycleCount = len(graph.Cycles)
 
@@ -509,6 +590,7 @@ func (g *UnifiedGraph) ToText() string {
 	sb.WriteString("=== Unified Graph (Two-Layer Model) ===\n\n")
 	fmt.Fprintf(&sb, "Total Nodes: %d\n", g.Stats.TotalNodes)
 	fmt.Fprintf(&sb, "Total Edges: %d\n", g.Stats.TotalEdges)
+	fmt.Fprintf(&sb, "Total Groups: %d\n", g.Stats.GroupCount)
 	fmt.Fprintf(&sb, "Max Structural Depth: %d\n", g.Stats.MaxStructuralDepth)
 	if g.Stats.TotalActivities > 0 {
 		fmt.Fprintf(&sb, "Deprecated Activities: %d/%d\n", g.Stats.CompletedActivities, g.Stats.TotalActivities)
@@ -525,6 +607,15 @@ func (g *UnifiedGraph) ToText() string {
 		fmt.Fprintf(&sb, "  %s: %d\n", t, g.Stats.NodesByType[EntityType(t)])
 	}
 	sb.WriteString("\n")
+
+	// グループ（Objective）情報
+	if len(g.Groups) > 0 {
+		sb.WriteString("--- Groups (Objectives) ---\n")
+		for _, group := range g.Groups {
+			fmt.Fprintf(&sb, "  [%s] %s (%s) - %d nodes\n", group.ID, group.Title, group.Status, len(group.NodeIDs))
+		}
+		sb.WriteString("\n")
+	}
 
 	sb.WriteString("--- Nodes ---\n")
 	ids := make([]string, 0, len(g.Nodes))
@@ -572,8 +663,6 @@ func dotEdgeStyle(edge UnifiedEdge) (style string, color string, label string) {
 	switch edge.Relation {
 	case RelationImplements:
 		return "bold", "#1f77b4", "implements"
-	case RelationContributes:
-		return "bold", "#7f3fbf", "contributes"
 	default:
 		return "solid", "#333333", string(edge.Relation)
 	}
@@ -587,23 +676,48 @@ func (g *UnifiedGraph) ToDot() string {
 	sb.WriteString("  rankdir=TB;\n")
 	sb.WriteString("  node [shape=box];\n\n")
 
-	sb.WriteString("  // Node styles by type\n")
-	for id, node := range g.Nodes {
-		var shape, fill string
-		switch node.Type {
-		case EntityTypeActivity:
-			shape = "box"
-			fill = "#4CAF50"
-		case EntityTypeUseCase:
-			shape = "ellipse"
-			fill = "#2196F3"
-		case EntityTypeObjective:
-			shape = "diamond"
-			fill = "#9C27B0"
-		default:
-			shape = "box"
-			fill = "#888888"
+	// グループに所属するノード ID を収集
+	groupedNodeIDs := make(map[string]bool)
+	for _, group := range g.Groups {
+		for _, nid := range group.NodeIDs {
+			groupedNodeIDs[nid] = true
 		}
+	}
+
+	// Objective をサブグラフとして出力
+	for _, group := range g.Groups {
+		clusterID := strings.ReplaceAll(group.ID, "-", "_")
+		fmt.Fprintf(&sb, "  subgraph cluster_%s {\n", clusterID)
+		fmt.Fprintf(&sb, "    label=\"%s: %s\";\n", group.ID, group.Title)
+		sb.WriteString("    style=dashed;\n")
+		sb.WriteString("    color=\"#9C27B0\";\n")
+		sb.WriteString("    fontcolor=\"#9C27B0\";\n\n")
+
+		for _, nid := range group.NodeIDs {
+			node, exists := g.Nodes[nid]
+			if !exists {
+				continue
+			}
+			shape, fill := dotNodeStyle(node)
+			label := fmt.Sprintf("%s\\n%s", node.ID, node.Title)
+			fmt.Fprintf(&sb, "    \"%s\" [label=\"%s\", shape=\"%s\", style=\"filled\", fillcolor=\"%s\"];\n", nid, label, shape, fill)
+		}
+		sb.WriteString("  }\n\n")
+	}
+
+	// グループ外のノード
+	sb.WriteString("  // Ungrouped nodes\n")
+	ids := make([]string, 0, len(g.Nodes))
+	for id := range g.Nodes {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		if groupedNodeIDs[id] {
+			continue
+		}
+		node := g.Nodes[id]
+		shape, fill := dotNodeStyle(node)
 		label := fmt.Sprintf("%s\\n%s", node.ID, node.Title)
 		fmt.Fprintf(&sb, "  \"%s\" [label=\"%s\", shape=\"%s\", style=\"filled\", fillcolor=\"%s\"];\n", id, label, shape, fill)
 	}
@@ -623,12 +737,22 @@ func (g *UnifiedGraph) ToDot() string {
 	return sb.String()
 }
 
+// dotNodeStyle はノードタイプに応じた DOT スタイルを返す
+func dotNodeStyle(node *UnifiedGraphNode) (shape string, fill string) {
+	switch node.Type {
+	case EntityTypeActivity:
+		return "box", "#4CAF50"
+	case EntityTypeUseCase:
+		return "ellipse", "#2196F3"
+	default:
+		return "box", "#888888"
+	}
+}
+
 func mermaidArrow(edge UnifiedEdge) string {
 	switch edge.Relation {
 	case RelationImplements:
 		return "==>|implements|"
-	case RelationContributes:
-		return "==>|contributes|"
 	default:
 		return "-->"
 	}
@@ -640,6 +764,30 @@ func (g *UnifiedGraph) ToMermaid() string {
 
 	sb.WriteString("```mermaid\ngraph TD\n")
 
+	// グループに所属するノード ID を収集
+	groupedNodeIDs := make(map[string]bool)
+	for _, group := range g.Groups {
+		for _, nid := range group.NodeIDs {
+			groupedNodeIDs[nid] = true
+		}
+	}
+
+	// Objective をサブグラフとして出力
+	for _, group := range g.Groups {
+		mermaidID := strings.ReplaceAll(group.ID, "-", "_")
+		title := escapeMermaidText(group.Title)
+		fmt.Fprintf(&sb, "  subgraph %s[\"%s: %s\"]\n", mermaidID, group.ID, title)
+		for _, nid := range group.NodeIDs {
+			node, exists := g.Nodes[nid]
+			if !exists {
+				continue
+			}
+			mermaidNodeDef(&sb, nid, node)
+		}
+		sb.WriteString("  end\n\n")
+	}
+
+	// グループ外のノードを出力
 	ids := make([]string, 0, len(g.Nodes))
 	for id := range g.Nodes {
 		ids = append(ids, id)
@@ -647,16 +795,11 @@ func (g *UnifiedGraph) ToMermaid() string {
 	sort.Strings(ids)
 
 	for _, id := range ids {
-		node := g.Nodes[id]
-		title := escapeMermaidText(node.Title)
-		switch node.Type {
-		case EntityTypeActivity:
-			fmt.Fprintf(&sb, "  %s([%s: %s])\n", id, id, title)
-		case EntityTypeUseCase:
-			fmt.Fprintf(&sb, "  %s((%s: %s))\n", id, id, title)
-		case EntityTypeObjective:
-			fmt.Fprintf(&sb, "  %s{%s: %s}\n", id, id, title)
+		if groupedNodeIDs[id] {
+			continue
 		}
+		node := g.Nodes[id]
+		mermaidNodeDef(&sb, id, node)
 	}
 	sb.WriteString("\n")
 
@@ -671,16 +814,12 @@ func (g *UnifiedGraph) ToMermaid() string {
 	sb.WriteString("\n  %% Styles\n")
 	sb.WriteString("  classDef activity fill:#4CAF50,stroke:#333,color:#fff\n")
 	sb.WriteString("  classDef usecase fill:#2196F3,stroke:#333,color:#fff\n")
-	sb.WriteString("  classDef objective fill:#9C27B0,stroke:#333,color:#fff\n")
 
 	for _, id := range ids {
 		node := g.Nodes[id]
 		class := "activity"
-		switch node.Type {
-		case EntityTypeUseCase:
+		if node.Type == EntityTypeUseCase {
 			class = "usecase"
-		case EntityTypeObjective:
-			class = "objective"
 		}
 		fmt.Fprintf(&sb, "  class %s %s\n", id, class)
 	}
@@ -693,6 +832,17 @@ func (g *UnifiedGraph) ToMermaid() string {
 
 	sb.WriteString("```\n")
 	return sb.String()
+}
+
+// mermaidNodeDef は Mermaid ノード定義を出力
+func mermaidNodeDef(sb *strings.Builder, id string, node *UnifiedGraphNode) {
+	title := escapeMermaidText(node.Title)
+	switch node.Type {
+	case EntityTypeActivity:
+		fmt.Fprintf(sb, "  %s([%s: %s])\n", id, id, title)
+	case EntityTypeUseCase:
+		fmt.Fprintf(sb, "  %s((%s: %s))\n", id, id, title)
+	}
 }
 
 // escapeMermaidText は Mermaid 構文で問題になる特殊文字をエスケープ

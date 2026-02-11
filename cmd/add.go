@@ -20,6 +20,9 @@ var (
 	addStatement       string
 	addSuccessCriteria []string
 
+	// Objective 用
+	addGoals []string
+
 	// Objective/UseCase 参照用
 	addObjectiveID string
 
@@ -164,6 +167,9 @@ func init() {
 	addCmd.Flags().StringVar(&addStatement, "statement", "", "ビジョンステートメント")
 	addCmd.Flags().StringSliceVar(&addSuccessCriteria, "success-criteria", nil, "成功基準（カンマ区切り）")
 
+	// Objective 用フラグ
+	addCmd.Flags().StringSliceVar(&addGoals, "goals", nil, "達成目標（カンマ区切り）")
+
 	// Objective 参照用フラグ
 	addCmd.Flags().StringVar(&addObjectiveID, "objective", "", "紐づく Objective の ID")
 
@@ -305,6 +311,9 @@ func buildObjectiveOptions() []core.EntityOption {
 
 	if addDescription != "" {
 		opts = append(opts, core.WithObjectiveDescription(addDescription))
+	}
+	if len(addGoals) > 0 {
+		opts = append(opts, core.WithObjectiveGoals(addGoals))
 	}
 	if addOwner != "" {
 		opts = append(opts, core.WithObjectiveOwner(addOwner))

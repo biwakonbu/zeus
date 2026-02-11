@@ -45,16 +45,16 @@ describe('LayoutEngine（grid-orthogonal-v3）', () => {
 	it('全ノード座標が 50px グリッドにスナップされる', () => {
 		const nodes: GraphNode[] = [
 			createNode('v1', 'vision', 0),
-			createNode('o1', 'objective', 1),
-			createNode('u1', 'usecase', 2),
-			createNode('a1', 'activity', 3),
+			createNode('u1', 'usecase', 1),
+			createNode('u2', 'usecase', 1),
+			createNode('a1', 'activity', 2),
 			createNode('a2', 'activity', 2)
 		];
 		const edges: GraphEdge[] = [
-			{ from: 'o1', to: 'v1', layer: 'structural', relation: 'contributes' },
-			{ from: 'a2', to: 'o1', layer: 'structural', relation: 'contributes' },
-			{ from: 'u1', to: 'o1', layer: 'structural', relation: 'contributes' },
-			{ from: 'a1', to: 'u1', layer: 'structural', relation: 'implements' }
+			{ from: 'u1', to: 'v1', layer: 'structural', relation: 'parent' },
+			{ from: 'a2', to: 'u1', layer: 'structural', relation: 'implements' },
+			{ from: 'u2', to: 'v1', layer: 'structural', relation: 'parent' },
+			{ from: 'a1', to: 'u2', layer: 'structural', relation: 'implements' }
 		];
 
 		const engine = new LayoutEngine();
@@ -90,19 +90,19 @@ describe('LayoutEngine（grid-orthogonal-v3）', () => {
 	it('入力順序をシャッフルしても同一座標を返す（決定性）', () => {
 		const nodes: GraphNode[] = [
 			createNode('v1', 'vision', 0),
-			createNode('o1', 'objective', 1),
-			createNode('u1', 'usecase', 2),
+			createNode('u1', 'usecase', 1),
+			createNode('u2', 'usecase', 1),
 			createNode('a0', 'activity', 2),
-			createNode('a1', 'activity', 3),
-			createNode('a2', 'activity', 3),
-			createNode('a3', 'activity', 4)
+			createNode('a1', 'activity', 2),
+			createNode('a2', 'activity', 2),
+			createNode('a3', 'activity', 3)
 		];
 		const edges: GraphEdge[] = [
-			{ from: 'o1', to: 'v1', layer: 'structural', relation: 'contributes' },
-			{ from: 'a0', to: 'o1', layer: 'structural', relation: 'contributes' },
-			{ from: 'u1', to: 'o1', layer: 'structural', relation: 'contributes' },
-			{ from: 'a1', to: 'u1', layer: 'structural', relation: 'implements' },
-			{ from: 'a2', to: 'u1', layer: 'structural', relation: 'implements' },
+			{ from: 'u1', to: 'v1', layer: 'structural', relation: 'parent' },
+			{ from: 'a0', to: 'u1', layer: 'structural', relation: 'implements' },
+			{ from: 'u2', to: 'v1', layer: 'structural', relation: 'parent' },
+			{ from: 'a1', to: 'u2', layer: 'structural', relation: 'implements' },
+			{ from: 'a2', to: 'u2', layer: 'structural', relation: 'implements' },
 			{ from: 'a3', to: 'a1', layer: 'structural', relation: 'parent' }
 		];
 
@@ -126,7 +126,7 @@ describe('LayoutEngine（grid-orthogonal-v3）', () => {
 
 	it('全ノードに座標が割り当てられる', () => {
 		const nodes: GraphNode[] = [];
-		const types: GraphNodeType[] = ['vision', 'objective', 'usecase', 'activity'];
+		const types: GraphNodeType[] = ['vision', 'usecase', 'usecase', 'activity'];
 		for (let i = 0; i < 80; i++) {
 			nodes.push(createNode(`n-${i}`, types[i % types.length], i % 6));
 		}
@@ -163,23 +163,24 @@ describe('LayoutEngine（grid-orthogonal-v3）', () => {
 		const nodes: GraphNode[] = [
 			createNode('a', 'activity', 0),
 			createNode('b', 'activity', 1),
-			createNode('c', 'objective', 0),
-			createNode('d', 'objective', 1)
+			createNode('c', 'usecase', 0),
+			createNode('d', 'usecase', 1),
+			createNode('e', 'activity', 0)
 		];
 		const edges: GraphEdge[] = [
 			{ from: 'b', to: 'a', layer: 'structural', relation: 'parent' },
-			{ from: 'd', to: 'c', layer: 'structural', relation: 'parent' },
-			{ from: 'b', to: 'd', layer: 'structural', relation: 'parent' }
+			{ from: 'd', to: 'c', layer: 'structural', relation: 'parent' }
 		];
 
-		const visible = new Set<string>(['a', 'b', 'd']);
+		// a,b は接続、d は c 経由だが c は非可視なので孤立、e も孤立
+		const visible = new Set<string>(['a', 'b', 'd', 'e']);
 		const engine = new LayoutEngine();
 		const subset = engine.layoutSubset(nodes, edges, visible);
 
-		expect(subset.positions.size).toBe(3);
-		expect(Array.from(subset.positions.keys()).sort()).toEqual(['a', 'b', 'd']);
-		expect(subset.groups.length).toBe(2);
-		expect(subset.groups.map((g) => g.nodeCount).sort((x, y) => x - y)).toEqual([1, 2]);
+		expect(subset.positions.size).toBe(4);
+		expect(Array.from(subset.positions.keys()).sort()).toEqual(['a', 'b', 'd', 'e']);
+		// 3 グループ: {a,b}, {d}, {e}
+		expect(subset.groups.length).toBe(3);
 		for (const group of subset.groups) {
 			expect(group.groupId.startsWith('component-')).toBe(true);
 		}

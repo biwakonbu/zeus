@@ -27,9 +27,9 @@ UnifiedGraph は `structural` と `reference` の 2 層で関係を分離する�
 
 | relation | layer | from | to |
 |----------|-------|------|----|
-| `depends_on` | `reference` | `activity` | `activity` |
 | `implements` | `structural` | `activity` | `usecase` |
-| `contributes` | `structural` | `usecase` | `objective` |
+
+> `contributes`（UseCase -> Objective）は廃止。Objective はノードではなくグループ領域として扱い、UseCase の `objective_id` でグループ分類する。
 
 ### 方向規約
 
@@ -40,9 +40,10 @@ UnifiedGraph は `structural` と `reference` の 2 層で関係を分離する�
 
 ### オプション
 
-- `--layers structural,reference`
-- `--relations depends_on,implements,contributes`
-- `--types activity,usecase,objective`
+- `--layers structural`
+- `--relations implements`
+- `--types activity,usecase`
+- `--group <objective_id>`
 - `--focus <id>` + `--depth <n>`（`--depth` 未指定時は `3`）
 - `--hide-completed`
 - `--hide-draft`

@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -350,6 +351,7 @@ type ObjectiveEntity struct {
 	ID          string          `yaml:"id"`
 	Title       string          `yaml:"title"`
 	Description string          `yaml:"description,omitempty"`
+	Goals       []string        `yaml:"goals,omitempty"`
 	Status      ObjectiveStatus `yaml:"status"`
 	Owner       string          `yaml:"owner,omitempty"`
 	Tags        []string        `yaml:"tags,omitempty"`
@@ -403,6 +405,15 @@ func (o *ObjectiveEntity) Validate() error {
 	default:
 		return fmt.Errorf("invalid objective status: %s", o.Status)
 	}
+	// Goals の空文字列要素を除外
+	var cleanGoals []string
+	for _, g := range o.Goals {
+		trimmed := strings.TrimSpace(g)
+		if trimmed != "" {
+			cleanGoals = append(cleanGoals, trimmed)
+		}
+	}
+	o.Goals = cleanGoals
 	return nil
 }
 

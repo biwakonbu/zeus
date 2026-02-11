@@ -9,6 +9,7 @@ export interface FilterCriteria {
 	statuses?: EntityStatus[];
 	searchText?: string;
 	hasDependencies?: boolean;
+	groupIds?: string[];
 }
 
 /**
@@ -35,6 +36,7 @@ export class FilterManager {
 	private visibleIds: Set<string> = new Set();
 	private listeners: ((event: FilterChangeEvent) => void)[] = [];
 	private edgeCountByNode: Map<string, number> = new Map();
+	private groupNodeMap: Map<string, Set<string>> = new Map(); // groupId -> nodeIds
 
 	/**
 	 * グラフデータを設定
@@ -50,6 +52,31 @@ export class FilterManager {
 	 */
 	setNodes(nodes: GraphNode[]): void {
 		this.setGraph(nodes, this.edges);
+	}
+
+	/**
+	 * グループデータを設定（Objective グループフィルター用）
+	 */
+	setGroups(groups: { id: string; node_ids: string[] }[]): void {
+		this.groupNodeMap.clear();
+		for (const group of groups) {
+			this.groupNodeMap.set(group.id, new Set(group.node_ids));
+		}
+	}
+
+	/**
+	 * グループフィルターをトグル
+	 */
+	toggleGroup(groupId: string): void {
+		const groupIds = this.criteria.groupIds || [];
+		const index = groupIds.indexOf(groupId);
+		if (index >= 0) {
+			groupIds.splice(index, 1);
+		} else {
+			groupIds.push(groupId);
+		}
+		this.criteria.groupIds = groupIds.length > 0 ? groupIds : undefined;
+		this.applyFilter();
 	}
 
 	/**
@@ -142,7 +169,8 @@ export class FilterManager {
 		return (
 			(this.criteria.statuses?.length ?? 0) > 0 ||
 			!!this.criteria.searchText ||
-			this.criteria.hasDependencies !== undefined
+			this.criteria.hasDependencies !== undefined ||
+			(this.criteria.groupIds?.length ?? 0) > 0
 		);
 	}
 
@@ -224,6 +252,21 @@ export class FilterManager {
 			}
 		}
 
+		// グループフィルター
+		if (this.criteria.groupIds && this.criteria.groupIds.length > 0) {
+			let inAnyGroup = false;
+			for (const groupId of this.criteria.groupIds) {
+				const memberIds = this.groupNodeMap.get(groupId);
+				if (memberIds?.has(node.id)) {
+					inAnyGroup = true;
+					break;
+				}
+			}
+			if (!inAnyGroup) {
+				return false;
+			}
+		}
+
 		return true;
 	}
 
@@ -246,5 +289,6 @@ export class FilterManager {
 		this.listeners = [];
 		this.criteria = {};
 		this.edgeCountByNode.clear();
+		this.groupNodeMap.clear();
 	}
 }

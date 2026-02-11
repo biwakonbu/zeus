@@ -1095,9 +1095,11 @@ func (z *Zeus) BuildUnifiedGraph(ctx context.Context, filter *analysis.GraphFilt
 			var obj ObjectiveEntity
 			if err := z.fileStore.ReadYaml(ctx, filepath.Join("objectives", file), &obj); err == nil {
 				objectives = append(objectives, analysis.ObjectiveInfo{
-					ID:     obj.ID,
-					Title:  obj.Title,
-					Status: string(obj.Status),
+					ID:          obj.ID,
+					Title:       obj.Title,
+					Description: obj.Description,
+					Goals:       obj.Goals,
+					Status:      string(obj.Status),
 				})
 			}
 		}

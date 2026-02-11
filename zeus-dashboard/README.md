@@ -160,19 +160,20 @@ zeus-dashboard/
 ### Unified Graph（2層モデル）
 
 - `layer`: `structural`
-- `relation`: `parent` / `implements` / `contributes`
+- `relation`: `parent` / `implements`
 - Graph View のノード配置は `LAYOUT_GRID_UNIT=50` にスナップ
 - エッジ配線は `EDGE_ROUTING_GRID_UNIT=10`（ノード格子の 1/5）で直交ルーティング
 - エッジ接点はノード辺に対して垂直、流向は flow dots で可視化
-- グループ境界は structural の無向連結成分単位で描画（ラベルは代表ノード `title`）
+- グループ境界は Objective ベースで描画（所属 UseCase/Activity を包含、ラベルは Objective `title`）
 - `structural_depth` がある場合は深さ決定で優先、欠損時のみ構造層計算を使用
 `/api/unified-graph` クエリ:
 
 - `focus=<node_id>`
 - `depth=<int>`（未指定時は `3`）
-- `types=activity,usecase,objective`
+- `types=activity,usecase`
 - `layers=structural`
-- `relations=parent,implements,contributes`
+- `relations=parent,implements`
+- `group=<objective_id>`
 - `hide-completed=true|false`
 - `hide-draft=true|false`
 

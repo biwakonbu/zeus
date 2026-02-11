@@ -284,3 +284,12 @@ func WithObjectiveTags(tags []string) EntityOption {
 		}
 	}
 }
+
+// WithObjectiveGoals は Objective の達成目標を設定
+func WithObjectiveGoals(goals []string) EntityOption {
+	return func(v any) {
+		if obj, ok := v.(*ObjectiveEntity); ok {
+			obj.Goals = goals
+		}
+	}
+}

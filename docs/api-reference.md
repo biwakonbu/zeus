@@ -82,9 +82,9 @@ zeus <command> [subcommand] [arguments] [flags]
 ```bash
 zeus graph [--format text|dot|mermaid] [-o FILE]
 zeus graph --unified [--focus ID] [--depth N]
-zeus graph --unified --types activity,usecase,objective
-zeus graph --unified --layers structural,reference
-zeus graph --unified --relations depends_on,implements,contributes
+zeus graph --unified --types activity,usecase
+zeus graph --unified --layers structural
+zeus graph --unified --relations implements
 zeus graph --unified --hide-completed --hide-draft
 ```
 
@@ -262,27 +262,30 @@ curl -s "http://127.0.0.1:8080/api/uml/activity?id=act-001" | jq
 
 ### GET /api/unified-graph
 
-Activity / UseCase / Objective を統合したグラフを返す。
+Activity / UseCase を統合したグラフを返す。Objective はノードではなくグループ（`groups`）として返される。
 
 クエリ:
-- `focus`
-- `depth`
-- `types`
-- `layers`
-- `relations`
+- `focus` - 中心ノード ID（Objective ID を指定するとグループ内ノードにフォールバック）
+- `depth` - フォーカスからの深さ
+- `types` - エンティティタイプ（`activity`, `usecase`）
+- `layers` - エッジレイヤー（`structural`）
+- `relations` - 関係種別（`implements`）
+- `group` - Objective ID でグループフィルター
 - `hide-completed`
 - `hide-draft`
 
 ```bash
-curl -s http://127.0.0.1:8080/api/unified-graph | jq '.stats'
+curl -s http://127.0.0.1:8080/api/unified-graph | jq '.groups'
 curl -s "http://127.0.0.1:8080/api/unified-graph?layers=structural" | jq '.stats'
-curl -s "http://127.0.0.1:8080/api/unified-graph?relations=depends_on,contributes" | jq '.filter'
+curl -s "http://127.0.0.1:8080/api/unified-graph?relations=implements" | jq '.filter'
 curl -s "http://127.0.0.1:8080/api/unified-graph?focus=act-001&depth=2" | jq '.filter'
+curl -s "http://127.0.0.1:8080/api/unified-graph?group=obj-001" | jq '.nodes'
 ```
 
 主なレスポンス項目:
-- `nodes`
-- `edges`
+- `nodes` - Activity / UseCase ノード（Objective は含まれない）
+- `edges` - implements エッジ（contributes は廃止）
+- `groups` - Objective ベースのグループ（所属ノード ID を含む）
 - `stats`
 - `cycles`
 - `isolated`

@@ -112,11 +112,13 @@ const (
 
 // ObjectiveInfo は分析に必要な Objective 情報
 type ObjectiveInfo struct {
-	ID        string // Objective ID
-	Title     string // タイトル
-	Status    string // ステータス
-	CreatedAt string // 作成日時（ISO8601）
-	UpdatedAt string // 更新日時（ISO8601）
+	ID          string   // Objective ID
+	Title       string   // タイトル
+	Description string   // 説明
+	Goals       []string // 達成目標
+	Status      string   // ステータス
+	CreatedAt   string   // 作成日時（ISO8601）
+	UpdatedAt   string   // 更新日時（ISO8601）
 }
 
 // VisionInfo は分析に必要な Vision 情報
@@ -213,8 +215,7 @@ const (
 type UnifiedEdgeRelation string
 
 const (
-	RelationImplements  UnifiedEdgeRelation = "implements"
-	RelationContributes UnifiedEdgeRelation = "contributes"
+	RelationImplements UnifiedEdgeRelation = "implements"
 )
 
 // UnifiedEdge は統合グラフのエッジ（2層モデル）
@@ -225,10 +226,21 @@ type UnifiedEdge struct {
 	Relation UnifiedEdgeRelation // 関係種別
 }
 
+// UnifiedGraphGroup は Objective ベースのグループ情報
+type UnifiedGraphGroup struct {
+	ID          string   // Objective ID
+	Title       string   // タイトル
+	Description string   // 説明
+	Goals       []string // 達成目標
+	Status      string   // ステータス
+	NodeIDs     []string // 所属する UseCase + Activity の ID
+}
+
 // UnifiedGraph は統合グラフ
 type UnifiedGraph struct {
 	Nodes    map[string]*UnifiedGraphNode // ID をキーとするノードマップ
 	Edges    []UnifiedEdge                // エッジリスト
+	Groups   []UnifiedGraphGroup          // Objective ベースのグループ
 	Cycles   [][]string                   // 循環依存（検出された場合）
 	Isolated []string                     // 孤立ノード
 	Stats    UnifiedGraphStats            // 統計情報
@@ -241,6 +253,7 @@ type UnifiedGraphStats struct {
 	TotalEdges          int                         // 総エッジ数
 	EdgesByLayer        map[UnifiedEdgeLayer]int    // レイヤー別エッジ数
 	EdgesByRelation     map[UnifiedEdgeRelation]int // 関係別エッジ数
+	GroupCount          int                         // グループ数
 	IsolatedCount       int                         // 孤立ノード数
 	CycleCount          int                         // 循環依存の数
 	MaxStructuralDepth  int                         // 構造層の最大深さ
@@ -256,6 +269,7 @@ type GraphFilter struct {
 	ExcludeTypes     []EntityType          // 除外するエンティティタイプ
 	IncludeLayers    []UnifiedEdgeLayer    // 含めるエッジレイヤー
 	IncludeRelations []UnifiedEdgeRelation // 含めるエッジ関係種別
+	GroupIDs         []string              // 特定グループのノードのみ表示
 	HideCompleted    bool                  // 完了済みを非表示
 	HideDraft        bool                  // ドラフトを非表示
 	HideUnrelated    bool                  // 無関係ノードを非表示

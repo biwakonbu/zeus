@@ -184,7 +184,7 @@ describe('DiffUtils パフォーマンステスト', () => {
 				from: 'task-0',
 				to: 'task-50',
 				layer: 'structural',
-				relation: 'contributes'
+				relation: 'implements'
 			});
 
 			const second = detectTaskChanges(nodes, state, edges);

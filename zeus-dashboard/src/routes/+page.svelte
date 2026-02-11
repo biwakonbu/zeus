@@ -12,15 +12,11 @@
 		ActivityItem,
 		GraphNode,
 		GraphEdge,
+		GraphData,
+		UnifiedGraphGroupItem,
 		UnifiedGraphResponse,
 		GraphNodeType
 	} from '$lib/types/api';
-
-	// グラフデータ型（GraphNode/Edge の組み合わせ）
-	interface GraphData {
-		nodes: GraphNode[];
-		edges: GraphEdge[];
-	}
 
 	// バックエンドの型をフロントエンドの GraphNodeType に安全にマッピング
 	function mapNodeType(backendType: string): GraphNodeType {
@@ -50,7 +46,7 @@
 			relation: e.relation
 		}));
 
-		return { nodes, edges };
+		return { nodes, edges, groups: unified.groups };
 	}
 
 	let useSSE = $state(true);

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy, untrack } from 'svelte';
-	import type { EntityStatus, GraphNode, GraphEdge } from '$lib/types/api';
+	import type { EntityStatus, GraphNode, GraphEdge, GraphData, UnifiedGraphGroupItem } from '$lib/types/api';
 	import { NODE_TYPE_CONFIG } from './config/nodeTypes';
 	import { ViewerEngine, type Viewport } from './engine/ViewerEngine';
 	import {
@@ -25,12 +25,6 @@
 	import { Container, Graphics } from 'pixi.js';
 	import type { FederatedPointerEvent, Ticker } from 'pixi.js';
 
-	// グラフデータ型（GraphNode/Edge の組み合わせ）
-	interface GraphData {
-		nodes: GraphNode[];
-		edges: GraphEdge[];
-	}
-
 	// Props
 	interface Props {
 		graphData?: GraphData; // GraphNode/Edge データ
@@ -46,6 +40,9 @@
 
 	// 内部で使用するエッジリスト
 	let graphEdges = $derived(graphData?.edges ?? []);
+
+	// Objective グループデータ
+	let graphGroups = $derived(graphData?.groups ?? []);
 
 	// 内部状態
 	let containerElement: HTMLDivElement;
@@ -155,6 +152,9 @@
 	// 選択中のID一覧
 	let selectedIds: string[] = $state([]);
 
+	// 選択中のグループID
+	let selectedGroupId: string | null = $state(null);
+
 	// 矩形選択用（将来機能用）
 	let _isRectSelecting = $state(false);
 	let _rectSelectStart: { x: number; y: number } | null = null;
@@ -173,6 +173,11 @@
 	const selectedGraphNode = $derived.by(() => {
 		if (!selectedTaskId) return null;
 		return graphNodes.find((node) => node.id === selectedTaskId) ?? null;
+	});
+
+	const selectedGroup = $derived.by(() => {
+		if (!selectedGroupId) return null;
+		return graphGroups.find((g) => g.id === selectedGroupId) ?? null;
 	});
 
 	const visibleGraphNodes = $derived.by(() => {
@@ -729,6 +734,7 @@
 
 		// フィルターマネージャーを更新
 		filterManager.setGraph(nodeList, edgeList);
+		filterManager.setGroups(graphGroups);
 		selectionManager.setGraph(nodeList, edgeList);
 
 
@@ -798,12 +804,13 @@
 
 		// マネージャーに GraphNode を設定
 		filterManager.setGraph(nodeList, edgeList);
+		filterManager.setGroups(graphGroups);
 		selectionManager.setGraph(nodeList, edgeList);
 
 
-		// レイアウト計算（GraphNode で）
+		// レイアウト計算（GraphNode + Groups で）
 		const layoutStart = nowMs();
-		const layout = layoutEngine.layout(nodeList, edgeList);
+		const layout = layoutEngine.layout(nodeList, edgeList, graphGroups.length > 0 ? graphGroups : undefined);
 		const layoutMs = nowMs() - layoutStart;
 		positions = layout.positions;
 		layoutBounds = layout.bounds;
@@ -938,12 +945,67 @@
 		const groupLabelContainer = engine.getGroupLabelContainer();
 		if (!groupContainer || !groupLabelContainer) return;
 
+		// 既存の境界を destroy してからクリア（メモリリーク防止）
+		for (const child of groupContainer.children) {
+			if (child instanceof GraphGroupBoundary) {
+				child.destroy();
+			}
+		}
 		groupContainer.removeChildren();
 		groupLabelContainer.removeChildren();
 		for (const group of groups) {
 			const boundary = new GraphGroupBoundary(group);
+
+			// グループクリック/ホバーコールバック
+			boundary.onClick((b) => handleGroupClick(b));
+			boundary.onHover((_b, _isHovered) => {
+				// ホバー時の追加処理（必要に応じて拡張）
+			});
+
+			// 選択状態を反映
+			boundary.setSelected(group.groupId === selectedGroupId);
+
 			groupContainer.addChild(boundary);
 			groupLabelContainer.addChild(boundary.getLabelContainer());
+		}
+	}
+
+	/**
+	 * グループクリック処理
+	 */
+	function handleGroupClick(boundary: GraphGroupBoundary): void {
+		const groupData = boundary.getGroupData();
+
+		// 同じグループを再クリックで選択解除
+		if (selectedGroupId === groupData.id) {
+			selectedGroupId = null;
+			showDetailPanel = false;
+		} else {
+			selectedGroupId = groupData.id;
+			// ノード選択をクリア
+			if (selectionManager) {
+				selectionManager.clearSelection();
+			}
+			onTaskSelect?.(null);
+			showDetailPanel = true;
+		}
+
+		// グループ境界の選択状態を更新
+		updateGroupSelectionState();
+	}
+
+	/**
+	 * グループ境界の選択状態を更新
+	 */
+	function updateGroupSelectionState(): void {
+		if (!engine) return;
+		const groupContainer = engine.getGroupContainer();
+		if (!groupContainer) return;
+
+		for (const child of groupContainer.children) {
+			if (child instanceof GraphGroupBoundary) {
+				child.setSelected(child.getGroupId() === selectedGroupId);
+			}
 		}
 	}
 
@@ -1060,6 +1122,12 @@
 	function handleNodeClick(node: GraphNodeView, event?: FederatedPointerEvent): void {
 		if (!selectionManager) return;
 
+		// ノードクリック時はグループ選択をクリア
+		if (selectedGroupId) {
+			selectedGroupId = null;
+			updateGroupSelectionState();
+		}
+
 		const taskId = node.getNodeId();
 		// FederatedPointerEvent から nativeEvent 経由でキー情報を取得
 		const nativeEvent = event?.nativeEvent as PointerEvent | undefined;
@@ -1144,7 +1212,7 @@
 	}
 
 	function getTraversableEdges(includeStructural: boolean = includeStructuralInTraversal) {
-		return edgeFactory.getAll().filter((e) => includeStructural);
+		return edgeFactory.getAll().filter((e) => includeStructural || e.getLayer() !== 'structural');
 	}
 
 	/**
@@ -1422,7 +1490,11 @@
 
 			// layoutBounds も再計算
 			if (layoutEngine) {
-				const fullLayout = layoutEngine.layout(graphNodes, graphEdges);
+				const fullLayout = layoutEngine.layout(
+					graphNodes,
+					graphEdges,
+					graphGroups.length > 0 ? graphGroups : undefined
+				);
 				layoutBounds = fullLayout.bounds;
 				renderGroupBoundaries(fullLayout.groups);
 			}
@@ -1551,6 +1623,13 @@
 	}
 
 	/**
+	 * フィルター: グループトグル
+	 */
+	function handleGroupToggle(groupId: string): void {
+		filterManager?.toggleGroup(groupId);
+	}
+
+	/**
 	 * フィルター: クリア
 	 */
 	function handleFilterClear(): void {
@@ -1590,6 +1669,8 @@
 
 	function closeDetailPanel(): void {
 		showDetailPanel = false;
+		selectedGroupId = null;
+		updateGroupSelectionState();
 		if (selectionManager) {
 			selectionManager.clearSelection();
 		} else {
@@ -1720,7 +1801,7 @@
 	{/if}
 
 	<!-- 詳細パネル（オーバーレイ） -->
-	{#if showDetailPanel && selectedGraphNode}
+	{#if showDetailPanel && (selectedGraphNode || selectedGroup)}
 		<OverlayPanel
 			title="PROPERTIES"
 			position="top-right"
@@ -1733,6 +1814,8 @@
 					node={selectedGraphNode}
 					nodes={graphNodes}
 					edges={graphEdges}
+					group={selectedGroup}
+					groups={graphGroups}
 					onNodeSelect={handleGraphNodeSelectFromPanel}
 				/>
 			</div>
@@ -1750,8 +1833,10 @@
 		>
 			<FilterPanel
 				criteria={filterCriteria}
+				groups={graphGroups}
 				onStatusToggle={handleStatusToggle}
 				onSearchChange={handleSearchChange}
+				onGroupToggle={handleGroupToggle}
 				onClear={handleFilterClear}
 			/>
 		</OverlayPanel>
@@ -1805,7 +1890,7 @@
 						<div class="legend-section-title">RELATION</div>
 						<div class="legend-item">
 							<span class="legend-line structural"></span>
-							<span>Structural (parent / implements / contributes)</span>
+							<span>Structural (parent / implements)</span>
 						</div>
 					</div>
 					<div class="legend-section">

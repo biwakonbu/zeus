@@ -35,17 +35,6 @@ func TestUnifiedGraphBuilder_WithUseCases(t *testing.T) {
 	}
 }
 
-func TestUnifiedGraphBuilder_WithObjectives_Basic(t *testing.T) {
-	builder := NewUnifiedGraphBuilder()
-	objectives := []ObjectiveInfo{
-		{ID: "obj-001", Title: "Objective 1", Status: "active"},
-	}
-	result := builder.WithObjectives(objectives)
-	if result == nil {
-		t.Fatal("WithObjectives returned nil")
-	}
-}
-
 func TestUnifiedGraphBuilder_WithObjectives(t *testing.T) {
 	builder := NewUnifiedGraphBuilder()
 	objectives := []ObjectiveInfo{
@@ -135,7 +124,7 @@ func TestUnifiedGraphBuilder_Build_WithUseCaseActivityRelation(t *testing.T) {
 	}
 }
 
-func TestUnifiedGraphBuilder_Build_WithContributesRelation(t *testing.T) {
+func TestUnifiedGraphBuilder_Build_ObjectiveAsGroup(t *testing.T) {
 	builder := NewUnifiedGraphBuilder()
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "Objective 1", Status: "active"},
@@ -143,28 +132,48 @@ func TestUnifiedGraphBuilder_Build_WithContributesRelation(t *testing.T) {
 	usecases := []UseCaseInfo{
 		{ID: "uc-001", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
 	}
-	graph := builder.WithObjectives(objectives).WithUseCases(usecases).Build()
+	activities := []ActivityInfo{
+		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-001"},
+	}
+	graph := builder.WithObjectives(objectives).WithUseCases(usecases).WithActivities(activities).Build()
 
+	// Objective はノードではなくグループとして存在する
+	if _, exists := graph.Nodes["obj-001"]; exists {
+		t.Error("Objective should not be a graph node")
+	}
+
+	// UseCase と Activity のみがノード
 	if len(graph.Nodes) != 2 {
-		t.Errorf("expected 2 nodes, got %d", len(graph.Nodes))
+		t.Errorf("expected 2 nodes (uc + act), got %d", len(graph.Nodes))
 	}
 
-	// UseCase -> Objective の contributes エッジがあるか確認
-	foundEdge := false
-	for _, edge := range graph.Edges {
-		if edge.From == "uc-001" && edge.To == "obj-001" && edge.Relation == RelationContributes {
-			foundEdge = true
-			break
-		}
+	// グループが1つ作成される
+	if len(graph.Groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(graph.Groups))
 	}
-	if !foundEdge {
-		t.Error("expected contributes edge from uc-001 to obj-001")
+	group := graph.Groups[0]
+	if group.ID != "obj-001" {
+		t.Errorf("expected group ID obj-001, got %s", group.ID)
+	}
+	if group.Title != "Objective 1" {
+		t.Errorf("expected group title 'Objective 1', got %s", group.Title)
+	}
+	// グループには uc-001 と act-001 が含まれる
+	if len(group.NodeIDs) != 2 {
+		t.Errorf("expected 2 nodes in group, got %d", len(group.NodeIDs))
+	}
+
+	// implements 以外のエッジは存在しない
+	for _, edge := range graph.Edges {
+		if edge.Relation != RelationImplements {
+			t.Errorf("unexpected edge relation: %s", edge.Relation)
+		}
 	}
 }
 
 func TestUnifiedGraphBuilder_Build_NoCycleForFlatObjectives(t *testing.T) {
 	builder := NewUnifiedGraphBuilder()
-	// Objective は親子関係を持たないため循環依存は発生しない
+	// Objective はグループとして存在し、ノードにはならない
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "Objective 1", Status: "active"},
 		{ID: "obj-002", Title: "Objective 2", Status: "active"},
@@ -172,8 +181,16 @@ func TestUnifiedGraphBuilder_Build_NoCycleForFlatObjectives(t *testing.T) {
 	}
 	graph := builder.WithObjectives(objectives).Build()
 
+	// Objective のみの場合はノードが 0
+	if len(graph.Nodes) != 0 {
+		t.Errorf("expected 0 nodes (objectives are groups), got %d", len(graph.Nodes))
+	}
 	if len(graph.Cycles) != 0 {
 		t.Errorf("expected no cycles for flat objectives, got %d", len(graph.Cycles))
+	}
+	// 3つのグループが作成される
+	if len(graph.Groups) != 3 {
+		t.Errorf("expected 3 groups, got %d", len(graph.Groups))
 	}
 }
 
@@ -259,7 +276,7 @@ func TestUnifiedGraphBuilder_WithFilter_HideDraft(t *testing.T) {
 
 func TestUnifiedGraphBuilder_WithFilter_Focus(t *testing.T) {
 	builder := NewUnifiedGraphBuilder()
-	// obj-001 <- uc-001 <- act-001, obj-001 <- uc-002 (uc-002 は深さ 1 で到達可能)
+	// uc-001 <- act-001, uc-002 は独立
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "Objective 1", Status: "active"},
 	}
@@ -279,9 +296,9 @@ func TestUnifiedGraphBuilder_WithFilter_Focus(t *testing.T) {
 		WithFilter(filter).
 		Build()
 
-	// uc-001, obj-001, act-001 のみが含まれるはず（深さ1以内）
-	if len(graph.Nodes) != 3 {
-		t.Errorf("expected 3 nodes (depth 1 from uc-001), got %d", len(graph.Nodes))
+	// uc-001 と act-001 のみが含まれるはず（深さ1以内、Objective はノードではない）
+	if len(graph.Nodes) != 2 {
+		t.Errorf("expected 2 nodes (depth 1 from uc-001), got %d", len(graph.Nodes))
 		for id := range graph.Nodes {
 			t.Logf("  - %s", id)
 		}
@@ -420,7 +437,8 @@ func TestUnifiedGraphBuilder_WithFilter_IncludeLayersAndRelations(t *testing.T) 
 }
 
 func TestUnifiedGraphBuilder_Build_DepthCalculation(t *testing.T) {
-	// Objective → UseCase → Activity の階層で深さが正しく計算されるか検証
+	// UseCase → Activity の階層で深さが正しく計算されるか検証
+	// Objective はグループであり、ノードではない
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "Objective 1", Status: "active"},
 	}
@@ -437,22 +455,23 @@ func TestUnifiedGraphBuilder_Build_DepthCalculation(t *testing.T) {
 		WithActivities(activities).
 		Build()
 
-	// Objective が深さ 0（ルート）
-	if graph.Nodes["obj-001"].StructuralDepth != 0 {
-		t.Errorf("expected obj-001 depth 0, got %d", graph.Nodes["obj-001"].StructuralDepth)
+	// Objective はノードではない
+	if _, exists := graph.Nodes["obj-001"]; exists {
+		t.Error("obj-001 should not be a node (Objective is a group)")
 	}
-	// UseCase が深さ 1
-	if graph.Nodes["uc-001"].StructuralDepth != 1 {
-		t.Errorf("expected uc-001 depth 1, got %d", graph.Nodes["uc-001"].StructuralDepth)
+	// UseCase が深さ 0（ルート）
+	if graph.Nodes["uc-001"].StructuralDepth != 0 {
+		t.Errorf("expected uc-001 depth 0, got %d", graph.Nodes["uc-001"].StructuralDepth)
 	}
-	// Activity が深さ 2
-	if graph.Nodes["act-001"].StructuralDepth != 2 {
-		t.Errorf("expected act-001 depth 2, got %d", graph.Nodes["act-001"].StructuralDepth)
+	// Activity が深さ 1
+	if graph.Nodes["act-001"].StructuralDepth != 1 {
+		t.Errorf("expected act-001 depth 1, got %d", graph.Nodes["act-001"].StructuralDepth)
 	}
 }
 
 func TestUnifiedGraphBuilder_Build_DepthWithUseCase(t *testing.T) {
-	// Objective -> UseCase の階層で深さが正しく計算されるか検証
+	// UseCase のみの場合、深さ 0（ルート）になる
+	// Objective はグループであり、ノードではない
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "Objective 1", Status: "active"},
 	}
@@ -465,18 +484,19 @@ func TestUnifiedGraphBuilder_Build_DepthWithUseCase(t *testing.T) {
 		WithUseCases(usecases).
 		Build()
 
-	// Objective が深さ 0（ルート）
-	if graph.Nodes["obj-001"].StructuralDepth != 0 {
-		t.Errorf("expected obj-001 depth 0, got %d", graph.Nodes["obj-001"].StructuralDepth)
+	// Objective はノードではない
+	if _, exists := graph.Nodes["obj-001"]; exists {
+		t.Error("obj-001 should not be a node (Objective is a group)")
 	}
-	// UseCase が深さ 1
-	if graph.Nodes["uc-001"].StructuralDepth != 1 {
-		t.Errorf("expected uc-001 depth 1, got %d", graph.Nodes["uc-001"].StructuralDepth)
+	// UseCase が深さ 0（ルート）
+	if graph.Nodes["uc-001"].StructuralDepth != 0 {
+		t.Errorf("expected uc-001 depth 0, got %d", graph.Nodes["uc-001"].StructuralDepth)
 	}
 }
 
 func TestUnifiedGraphBuilder_Build_DepthWithMultipleActivities(t *testing.T) {
-	// Activity 間の依存関係と UseCase 関連が組み合わさった場合の深さ計算
+	// 複数 Activity が同一 UseCase に implements する場合の深さ計算
+	// Objective はグループであり、ノードではない
 	objectives := []ObjectiveInfo{
 		{ID: "obj-001", Title: "Objective 1", Status: "active"},
 	}
@@ -495,25 +515,25 @@ func TestUnifiedGraphBuilder_Build_DepthWithMultipleActivities(t *testing.T) {
 		WithActivities(activities).
 		Build()
 
-	// Objective が深さ 0
-	if graph.Nodes["obj-001"].StructuralDepth != 0 {
-		t.Errorf("expected obj-001 depth 0, got %d", graph.Nodes["obj-001"].StructuralDepth)
+	// Objective はノードではない
+	if _, exists := graph.Nodes["obj-001"]; exists {
+		t.Error("obj-001 should not be a node (Objective is a group)")
 	}
-	// UseCase が深さ 1
-	if graph.Nodes["uc-001"].StructuralDepth != 1 {
-		t.Errorf("expected uc-001 depth 1, got %d", graph.Nodes["uc-001"].StructuralDepth)
+	// UseCase が深さ 0（ルート）
+	if graph.Nodes["uc-001"].StructuralDepth != 0 {
+		t.Errorf("expected uc-001 depth 0, got %d", graph.Nodes["uc-001"].StructuralDepth)
 	}
-	// Activity 1 が深さ 2（UseCase の子）
-	if graph.Nodes["act-001"].StructuralDepth != 2 {
-		t.Errorf("expected act-001 depth 2, got %d", graph.Nodes["act-001"].StructuralDepth)
+	// Activity 1 が深さ 1（UseCase の子）
+	if graph.Nodes["act-001"].StructuralDepth != 1 {
+		t.Errorf("expected act-001 depth 1, got %d", graph.Nodes["act-001"].StructuralDepth)
 	}
-	// Activity 2 も structural depth は 2（UseCase の子）
-	if graph.Nodes["act-002"].StructuralDepth != 2 {
-		t.Errorf("expected act-002 structural depth 2, got %d", graph.Nodes["act-002"].StructuralDepth)
+	// Activity 2 も structural depth は 1（UseCase の子）
+	if graph.Nodes["act-002"].StructuralDepth != 1 {
+		t.Errorf("expected act-002 structural depth 1, got %d", graph.Nodes["act-002"].StructuralDepth)
 	}
-	// Activity 3 も同様に structural depth は 2
-	if graph.Nodes["act-003"].StructuralDepth != 2 {
-		t.Errorf("expected act-003 structural depth 2, got %d", graph.Nodes["act-003"].StructuralDepth)
+	// Activity 3 も同様に structural depth は 1
+	if graph.Nodes["act-003"].StructuralDepth != 1 {
+		t.Errorf("expected act-003 structural depth 1, got %d", graph.Nodes["act-003"].StructuralDepth)
 	}
 }
 
@@ -523,7 +543,7 @@ func TestGraphFilter_Chaining(t *testing.T) {
 		WithIncludeTypes(EntityTypeActivity, EntityTypeUseCase).
 		WithExcludeTypes(EntityTypeObjective).
 		WithIncludeLayers(EdgeLayerStructural).
-		WithIncludeRelations(RelationImplements, RelationContributes).
+		WithIncludeRelations(RelationImplements).
 		WithHideCompleted(true).
 		WithHideDraft(true).
 		WithHideUnrelated(true)
@@ -543,8 +563,8 @@ func TestGraphFilter_Chaining(t *testing.T) {
 	if len(filter.IncludeLayers) != 1 {
 		t.Errorf("expected 1 include layer, got %d", len(filter.IncludeLayers))
 	}
-	if len(filter.IncludeRelations) != 2 {
-		t.Errorf("expected 2 include relations, got %d", len(filter.IncludeRelations))
+	if len(filter.IncludeRelations) != 1 {
+		t.Errorf("expected 1 include relation, got %d", len(filter.IncludeRelations))
 	}
 	if !filter.HideCompleted {
 		t.Error("expected HideCompleted to be true")
@@ -554,5 +574,114 @@ func TestGraphFilter_Chaining(t *testing.T) {
 	}
 	if !filter.HideUnrelated {
 		t.Error("expected HideUnrelated to be true")
+	}
+}
+
+func TestUnifiedGraphBuilder_Build_GroupsWithUngroupedActivity(t *testing.T) {
+	// UseCase 未割当の Activity はどのグループにも含まれない
+	objectives := []ObjectiveInfo{
+		{ID: "obj-001", Title: "Objective 1", Status: "active"},
+	}
+	usecases := []UseCaseInfo{
+		{ID: "uc-001", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
+	}
+	activities := []ActivityInfo{
+		{ID: "act-001", Title: "Grouped Activity", Status: "active", UseCaseID: "uc-001"},
+		{ID: "act-002", Title: "Ungrouped Activity", Status: "active"}, // UseCase 未割当
+	}
+
+	graph := NewUnifiedGraphBuilder().
+		WithObjectives(objectives).
+		WithUseCases(usecases).
+		WithActivities(activities).
+		Build()
+
+	// 3 ノード（uc-001, act-001, act-002）
+	if len(graph.Nodes) != 3 {
+		t.Errorf("expected 3 nodes, got %d", len(graph.Nodes))
+	}
+
+	// 1 グループ（obj-001）
+	if len(graph.Groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(graph.Groups))
+	}
+
+	group := graph.Groups[0]
+	// グループには uc-001 と act-001 のみ（act-002 は未割当）
+	if len(group.NodeIDs) != 2 {
+		t.Errorf("expected 2 nodes in group, got %d: %v", len(group.NodeIDs), group.NodeIDs)
+	}
+
+	// act-002 がグループに含まれていないことを確認
+	for _, nodeID := range group.NodeIDs {
+		if nodeID == "act-002" {
+			t.Error("ungrouped activity act-002 should not be in any group")
+		}
+	}
+}
+
+func TestUnifiedGraphBuilder_Build_GroupFilter(t *testing.T) {
+	// グループフィルター: 特定 Objective グループのノードのみ表示
+	objectives := []ObjectiveInfo{
+		{ID: "obj-001", Title: "Objective 1", Status: "active"},
+		{ID: "obj-002", Title: "Objective 2", Status: "active"},
+	}
+	usecases := []UseCaseInfo{
+		{ID: "uc-001", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
+		{ID: "uc-002", Title: "UseCase 2", Status: "active", ObjectiveID: "obj-002"},
+	}
+	activities := []ActivityInfo{
+		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-001"},
+		{ID: "act-002", Title: "Activity 2", Status: "active", UseCaseID: "uc-002"},
+	}
+
+	filter := NewGraphFilter()
+	filter.GroupIDs = []string{"obj-001"}
+
+	graph := NewUnifiedGraphBuilder().
+		WithObjectives(objectives).
+		WithUseCases(usecases).
+		WithActivities(activities).
+		WithFilter(filter).
+		Build()
+
+	// obj-001 グループのノードのみ表示（uc-001, act-001）
+	if len(graph.Nodes) != 2 {
+		t.Errorf("expected 2 nodes (filtered by group obj-001), got %d", len(graph.Nodes))
+		for id := range graph.Nodes {
+			t.Logf("  - %s", id)
+		}
+	}
+	if _, exists := graph.Nodes["uc-001"]; !exists {
+		t.Error("expected uc-001 in filtered result")
+	}
+	if _, exists := graph.Nodes["act-001"]; !exists {
+		t.Error("expected act-001 in filtered result")
+	}
+	if _, exists := graph.Nodes["uc-002"]; exists {
+		t.Error("uc-002 should be filtered out")
+	}
+	if _, exists := graph.Nodes["act-002"]; exists {
+		t.Error("act-002 should be filtered out")
+	}
+}
+
+func TestUnifiedGraphBuilder_Build_GroupStats(t *testing.T) {
+	// Stats に GroupCount が正しく反映されるか
+	objectives := []ObjectiveInfo{
+		{ID: "obj-001", Title: "Objective 1", Status: "active"},
+		{ID: "obj-002", Title: "Objective 2", Status: "active"},
+	}
+	usecases := []UseCaseInfo{
+		{ID: "uc-001", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
+	}
+
+	graph := NewUnifiedGraphBuilder().
+		WithObjectives(objectives).
+		WithUseCases(usecases).
+		Build()
+
+	if graph.Stats.GroupCount != 2 {
+		t.Errorf("expected GroupCount 2, got %d", graph.Stats.GroupCount)
 	}
 }
