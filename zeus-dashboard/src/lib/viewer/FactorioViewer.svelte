@@ -964,7 +964,7 @@
 			const boundary = new GraphGroupBoundary(group);
 
 			// グループクリック/ホバーコールバック
-			boundary.onClick((b) => handleGroupClick(b));
+			boundary.onClick((b, event) => handleGroupClick(b, event));
 			boundary.onHover((_b, _isHovered) => {
 				// ホバー時の追加処理（必要に応じて拡張）
 			});
@@ -1006,15 +1006,35 @@
 	 * グループクリック処理
 	 * グループ境界クリックは排他的（1グループのみ）選択 + フィルタリング
 	 */
-	function handleGroupClick(boundary: GraphGroupBoundary): void {
+	function handleGroupClick(boundary: GraphGroupBoundary, event?: FederatedPointerEvent): void {
 		const groupData = boundary.getGroupData();
+		const nativeEvent = event?.nativeEvent as PointerEvent | undefined;
+		const altKey = isAltKeyPressed || nativeEvent?.altKey;
 
 		if (selectedGroupId === groupData.id) {
-			// 再クリック → 選択解除 + フィルタ解除
-			deselectGroup();
+			// 再クリック → 選択解除
+			if (altKey) {
+				// Alt+再クリック → フィルター解除 + レイアウト復元
+				deselectGroup();
+			} else {
+				// 通常再クリック → 選択解除のみ
+				selectedGroupId = null;
+				updateGroupSelectionState();
+				updateGroupVisibility();
+			}
 			showDetailPanel = false;
 		} else {
-			selectGroup(groupData.id);
+			if (altKey) {
+				// Alt+click → フィルタリング（従来の動作）
+				selectGroup(groupData.id);
+			} else {
+				// 通常クリック → 選択 + DetailPanel のみ（フィルタなし）
+				selectedGroupId = groupData.id;
+				if (selectionManager) selectionManager.clearSelection();
+				onTaskSelect?.(null);
+				showDetailPanel = true;
+				updateGroupSelectionState();
+			}
 		}
 	}
 

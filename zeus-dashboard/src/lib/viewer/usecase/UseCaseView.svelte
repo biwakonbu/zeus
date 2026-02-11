@@ -41,6 +41,9 @@
 	let showListPanel = $state(true);
 	let showDetailPanel = $state(false);
 
+	// Alt キー追跡
+	let isAltKeyPressed = $state(false);
+
 	// 選択状態
 	let selectedActorId: string | null = $state(null);
 	let selectedUseCaseId: string | null = $state(null);
@@ -139,19 +142,28 @@
 			engine = new UseCaseEngine();
 			await engine.init(canvasContainer);
 
-			// フィルタモードは有効（選択時に関連ノードだけ表示）
-			// 初期表示は setData() 後に showAll() で行う
-			engine.setFilterMode(true);
+			engine.onActorClicked((actor, event) => {
+				const nativeEvent = event?.nativeEvent as PointerEvent | undefined;
+				const altKey = isAltKeyPressed || nativeEvent?.altKey;
 
-			engine.onActorClicked((actor) => {
 				if (selectedActorId === actor.id) {
-					// 再クリック → 選択解除（トグル）
-					clearAllSelection();
+					if (altKey) {
+						// Alt+再クリック → フィルタ解除 + 全表示
+						clearAllSelection();
+					} else {
+						// 通常再クリック → 選択解除のみ
+						clearAllSelection();
+					}
 					return;
 				}
+
 				selectedActorId = actor.id;
 				selectedUseCaseId = null;
 				showDetailPanel = true;
+
+				if (altKey) {
+					engine?.filterByActor(actor.id);
+				}
 				onActorSelect?.(actor);
 			});
 
@@ -161,15 +173,28 @@
 				if (event) hoverPosition = { x: event.clientX, y: event.clientY };
 			});
 
-			engine.onUseCaseClicked((usecase) => {
+			engine.onUseCaseClicked((usecase, event) => {
+				const nativeEvent = event?.nativeEvent as PointerEvent | undefined;
+				const altKey = isAltKeyPressed || nativeEvent?.altKey;
+
 				if (selectedUseCaseId === usecase.id) {
-					// 再クリック → 選択解除（トグル）
-					clearAllSelection();
+					if (altKey) {
+						// Alt+再クリック → フィルタ解除 + 全表示
+						clearAllSelection();
+					} else {
+						// 通常再クリック → 選択解除のみ
+						clearAllSelection();
+					}
 					return;
 				}
+
 				selectedUseCaseId = usecase.id;
 				selectedActorId = null;
 				showDetailPanel = true;
+
+				if (altKey) {
+					engine?.filterByUseCase(usecase.id);
+				}
 				onUseCaseSelect?.(usecase);
 			});
 
@@ -276,6 +301,7 @@
 	// 2. 詳細パネルが開いていれば閉じる
 	// NOTE: リストパネルは ESC では閉じない（意図的な制御）
 	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Alt') isAltKeyPressed = true;
 		if (event.key === 'Escape') {
 			if (selectedActorId || selectedUseCaseId) {
 				// フィルタ/選択がアクティブ → 解除
@@ -284,6 +310,10 @@
 				showDetailPanel = false;
 			}
 		}
+	}
+
+	function handleKeyup(event: KeyboardEvent) {
+		if (event.key === 'Alt') isAltKeyPressed = false;
 	}
 
 	// Store へのコールバック登録（一度だけ実行）
@@ -313,7 +343,11 @@
 	onMount(() => {
 		loadData();
 		document.addEventListener('keydown', handleKeydown);
-		return () => document.removeEventListener('keydown', handleKeydown);
+		document.addEventListener('keyup', handleKeyup);
+		return () => {
+			document.removeEventListener('keydown', handleKeydown);
+			document.removeEventListener('keyup', handleKeyup);
+		};
 	});
 
 	// エンジン初期化 Effect（canvasContainer が利用可能になったら一度だけ）

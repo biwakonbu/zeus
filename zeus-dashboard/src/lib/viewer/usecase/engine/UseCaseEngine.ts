@@ -125,18 +125,15 @@ export class UseCaseEngine {
 	private wheelHandler: ((e: WheelEvent) => void) | null = null;
 
 	// イベントコールバック
-	private onActorClick?: (actor: ActorItem) => void;
+	private onActorClick?: (actor: ActorItem, event?: FederatedPointerEvent) => void;
 	private onActorHover?: (actor: ActorItem | null, event?: MouseEvent) => void;
-	private onUseCaseClick?: (usecase: UseCaseItem) => void;
+	private onUseCaseClick?: (usecase: UseCaseItem, event?: FederatedPointerEvent) => void;
 	private onUseCaseHover?: (usecase: UseCaseItem | null, event?: MouseEvent) => void;
 	private onViewportChange?: (viewport: Viewport) => void;
 
 	// 選択状態
 	private selectedActorId: string | null = null;
 	private selectedUseCaseId: string | null = null;
-
-	// フィルタモード（デフォルトで非表示、選択時に関連要素のみ表示）
-	private filterModeEnabled = false;
 
 	// データ（フィルタリング計算用に保持）
 	private currentData: UseCaseDiagramResponse | null = null;
@@ -387,11 +384,6 @@ export class UseCaseEngine {
 
 		// 関係線を作成（位置確定後）
 		this.createEdges(data.usecases);
-
-		// フィルタモード有効時は非表示にする
-		if (this.filterModeEnabled) {
-			this.hideAll();
-		}
 
 		// ビューを中央に配置
 		this.centerView();
@@ -699,9 +691,9 @@ export class UseCaseEngine {
 		const node = new ActorNode(actor);
 
 		// イベント設定
-		node.onClick(() => {
+		node.onClick((_node, event) => {
 			this.selectActor(actor.id);
-			this.onActorClick?.(actor);
+			this.onActorClick?.(actor, event);
 		});
 
 		node.onHover((_, isHovered, event) => {
@@ -723,9 +715,9 @@ export class UseCaseEngine {
 		const node = new UseCaseNode(usecase);
 
 		// イベント設定
-		node.onClick(() => {
+		node.onClick((_node, event) => {
 			this.selectUseCase(usecase.id);
-			this.onUseCaseClick?.(usecase);
+			this.onUseCaseClick?.(usecase, event);
 		});
 
 		node.onHover((_, isHovered, event) => {
@@ -832,10 +824,6 @@ export class UseCaseEngine {
 		const node = this.actorNodes.get(actorId);
 		node?.setSelected(true);
 
-		// フィルタモード有効時は関連要素のみ表示
-		if (this.filterModeEnabled) {
-			this.showRelatedTo(actorId, null);
-		}
 	}
 
 	/**
@@ -862,10 +850,22 @@ export class UseCaseEngine {
 		const node = this.usecaseNodes.get(usecaseId);
 		node?.setSelected(true);
 
-		// フィルタモード有効時は関連要素のみ表示
-		if (this.filterModeEnabled) {
-			this.showRelatedTo(null, usecaseId);
-		}
+	}
+
+	/**
+	 * Alt+click 用: アクターの関連要素でフィルタリング
+	 */
+	filterByActor(actorId: string): void {
+		this.selectActor(actorId);
+		this.showRelatedTo(actorId, null);
+	}
+
+	/**
+	 * Alt+click 用: ユースケースの関連要素でフィルタリング
+	 */
+	filterByUseCase(usecaseId: string): void {
+		this.selectUseCase(usecaseId);
+		this.showRelatedTo(null, usecaseId);
 	}
 
 	/**
@@ -883,10 +883,8 @@ export class UseCaseEngine {
 			this.selectedUseCaseId = null;
 		}
 
-		// フィルタモード有効時は非表示に戻す
-		if (this.filterModeEnabled) {
-			this.hideAll();
-		}
+		// フィルタ状態をリセットして全表示に戻す
+		this.showAll();
 	}
 
 	/**
@@ -1099,7 +1097,7 @@ export class UseCaseEngine {
 	/**
 	 * イベントリスナーを設定
 	 */
-	onActorClicked(callback: (actor: ActorItem) => void): void {
+	onActorClicked(callback: (actor: ActorItem, event?: FederatedPointerEvent) => void): void {
 		this.onActorClick = callback;
 	}
 
@@ -1107,7 +1105,7 @@ export class UseCaseEngine {
 		this.onActorHover = callback;
 	}
 
-	onUseCaseClicked(callback: (usecase: UseCaseItem) => void): void {
+	onUseCaseClicked(callback: (usecase: UseCaseItem, event?: FederatedPointerEvent) => void): void {
 		this.onUseCaseClick = callback;
 	}
 
@@ -1119,29 +1117,6 @@ export class UseCaseEngine {
 		this.onViewportChange = callback;
 	}
 
-	/**
-	 * フィルタモードを設定
-	 * @param enabled true: デフォルト非表示、選択時に関連要素のみ表示
-	 */
-	setFilterMode(enabled: boolean): void {
-		this.filterModeEnabled = enabled;
-		if (enabled) {
-			// 選択がなければすべて非表示
-			if (!this.selectedActorId && !this.selectedUseCaseId) {
-				this.hideAll();
-			}
-		} else {
-			// フィルタモード無効時はすべて表示
-			this.showAll();
-		}
-	}
-
-	/**
-	 * フィルタモードが有効かどうかを取得
-	 */
-	isFilterModeEnabled(): boolean {
-		return this.filterModeEnabled;
-	}
 
 	/**
 	 * すべての要素を非表示

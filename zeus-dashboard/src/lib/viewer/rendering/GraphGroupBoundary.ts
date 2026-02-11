@@ -1,5 +1,6 @@
 // Graph View のグループ境界描画
 import { Container, Graphics, Text } from 'pixi.js';
+import type { FederatedPointerEvent } from 'pixi.js';
 import type { LayoutGroupBounds } from '../engine/LayoutEngine';
 
 const CORNER_RADIUS = 14;
@@ -34,7 +35,7 @@ export class GraphGroupBoundary extends Container {
 	private selected = false;
 	private hovered = false;
 
-	private onClickCallback: ((group: GraphGroupBoundary) => void) | null = null;
+	private onClickCallback: ((group: GraphGroupBoundary, event?: FederatedPointerEvent) => void) | null = null;
 	private onHoverCallback: ((group: GraphGroupBoundary, isHovered: boolean) => void) | null = null;
 
 	constructor(bounds: LayoutGroupBounds) {
@@ -105,7 +106,7 @@ export class GraphGroupBoundary extends Container {
 		return this.selected;
 	}
 
-	onClick(callback: (group: GraphGroupBoundary) => void): void {
+	onClick(callback: (group: GraphGroupBoundary, event?: FederatedPointerEvent) => void): void {
 		this.onClickCallback = callback;
 	}
 
@@ -125,8 +126,8 @@ export class GraphGroupBoundary extends Container {
 		this.onHoverCallback?.(this, false);
 	}
 
-	private handlePointerTap(): void {
-		this.onClickCallback?.(this);
+	private handlePointerTap(event: FederatedPointerEvent): void {
+		this.onClickCallback?.(this, event);
 	}
 
 	destroy(): void {
