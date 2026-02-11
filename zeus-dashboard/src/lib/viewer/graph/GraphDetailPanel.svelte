@@ -12,6 +12,7 @@
 		groups?: UnifiedGraphGroupItem[];
 		onClose?: () => void;
 		onNodeSelect?: (nodeId: string) => void;
+		onGroupSelect?: (groupId: string) => void;
 	}
 
 	type RelationSummaryItem = {
@@ -21,6 +22,13 @@
 		count: number;
 	};
 
+	type RelatedGroupInfo = {
+		group: UnifiedGraphGroupItem;
+		edgeCount: number;
+		outgoing: number;
+		incoming: number;
+	};
+
 	let {
 		node = null,
 		nodes,
@@ -28,7 +36,8 @@
 		group = null,
 		groups = [],
 		onClose = undefined,
-		onNodeSelect = undefined
+		onNodeSelect = undefined,
+		onGroupSelect = undefined
 	}: Props = $props();
 
 	const nodeById = $derived.by(() => new Map(nodes.map((item) => [item.id, item])));
@@ -143,6 +152,74 @@
 		const memberIds = new Set(group.node_ids);
 		return nodes.filter((n) => memberIds.has(n.id));
 	});
+
+	// タイプ別ノード集計
+	const groupNodesByType = $derived.by(() => {
+		const map = new Map<string, GraphNode[]>();
+		for (const n of groupMemberNodes) {
+			const arr = map.get(n.node_type) || [];
+			arr.push(n);
+			map.set(n.node_type, arr);
+		}
+		return map;
+	});
+
+	// ステータス別集計
+	const groupStatusCounts = $derived.by(() => {
+		const map = new Map<string, number>();
+		for (const n of groupMemberNodes) {
+			map.set(n.status, (map.get(n.status) || 0) + 1);
+		}
+		return map;
+	});
+
+	// Activity 進捗率
+	const groupProgress = $derived.by(() => {
+		const activities = groupMemberNodes.filter((n) => n.node_type === 'activity');
+		if (activities.length === 0) return null;
+		const completed = activities.filter((n) => n.status === 'deprecated').length;
+		return {
+			completed,
+			total: activities.length,
+			rate: Math.round((completed / activities.length) * 100)
+		};
+	});
+
+	// 関連グループ
+	const relatedGroups = $derived.by((): RelatedGroupInfo[] => {
+		if (!group || !groups || groups.length === 0) return [];
+		const memberSet = new Set(group.node_ids);
+		// 各グループの node_ids から逆引きマップ構築
+		const nodeToGroup = new Map<string, string>();
+		for (const g of groups) {
+			if (g.id === group.id) continue;
+			for (const nid of g.node_ids) nodeToGroup.set(nid, g.id);
+		}
+		// エッジ走査でグループ間接続を検出
+		const stats = new Map<string, { outgoing: number; incoming: number }>();
+		for (const edge of edges) {
+			const fromIn = memberSet.has(edge.from);
+			const toIn = memberSet.has(edge.to);
+			if (fromIn === toIn) continue;
+			const otherId = fromIn ? nodeToGroup.get(edge.to) : nodeToGroup.get(edge.from);
+			if (!otherId) continue;
+			const s = stats.get(otherId) || { outgoing: 0, incoming: 0 };
+			if (fromIn) s.outgoing++;
+			else s.incoming++;
+			stats.set(otherId, s);
+		}
+		// 結果構築
+		const groupById = new Map(groups.map((g) => [g.id, g]));
+		return Array.from(stats.entries())
+			.map(([id, s]) => ({
+				group: groupById.get(id)!,
+				edgeCount: s.outgoing + s.incoming,
+				outgoing: s.outgoing,
+				incoming: s.incoming
+			}))
+			.filter((r) => r.group != null)
+			.sort((a, b) => b.edgeCount - a.edgeCount);
+	});
 </script>
 
 <div class="detail-content">
@@ -176,7 +253,21 @@
 					<span class="label">Nodes</span>
 					<span class="value">{group.node_ids.length}</span>
 				</div>
+				{#if group.owner}
+					<div class="info-item">
+						<span class="label">Owner</span>
+						<span class="value">{group.owner}</span>
+					</div>
+				{/if}
 			</div>
+
+			{#if group.tags && group.tags.length > 0}
+				<div class="tags-row">
+					{#each group.tags as tag}
+						<span class="tag-badge">{tag}</span>
+					{/each}
+				</div>
+			{/if}
 
 			{#if group.description}
 				<div class="group-description">
@@ -197,28 +288,105 @@
 			{/if}
 		</section>
 
+		<!-- グループ統計 -->
+		{#if groupMemberNodes.length > 0}
+			<section class="section stats-section">
+				<h4 class="section-title">
+					<Icon name="BarChart3" size={12} />
+					グループ統計
+				</h4>
+
+				<!-- タイプ別カウント -->
+				<div class="stats-grid">
+					{#each Array.from(groupNodesByType.entries()) as [type, typeNodes] (type)}
+						<div class="stat-item">
+							<span class="stat-dot" style="background: {getNodeTypeCSSColor(type)}"></span>
+							<span class="stat-label">{getNodeTypeLabel(type)}</span>
+							<span class="stat-value">{typeNodes.length}</span>
+						</div>
+					{/each}
+				</div>
+
+				<!-- ステータス別分布 -->
+				{#if groupStatusCounts.size > 0}
+					<div class="status-distribution">
+						<div class="relation-group-title">ステータス分布</div>
+						<div class="stats-grid">
+							{#each Array.from(groupStatusCounts.entries()) as [status, count] (status)}
+								<div class="stat-item">
+									<span class="stat-dot" style="background: {getStatusColor(status)}"></span>
+									<span class="stat-label">{getStatusLabel(status)}</span>
+									<span class="stat-value">{count}</span>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- 進捗バー -->
+				{#if groupProgress}
+					<div class="progress-section">
+						<div class="relation-group-title">Activity 進捗</div>
+						<div class="progress-bar-container">
+							<div class="progress-bar" style="width: {groupProgress.rate}%"></div>
+						</div>
+						<div class="progress-text">
+							{groupProgress.completed}/{groupProgress.total} ({groupProgress.rate}%)
+						</div>
+					</div>
+				{/if}
+			</section>
+		{/if}
+
+		<!-- 関連グループ -->
+		{#if relatedGroups.length > 0}
+			<section class="section relation-section">
+				<h4 class="section-title">
+					<Icon name="Link" size={12} />
+					関連 Objective ({relatedGroups.length})
+				</h4>
+				<ul class="relation-list">
+					{#each relatedGroups as related (related.group.id)}
+						<li>
+							<button class="relation-item" onclick={() => onGroupSelect?.(related.group.id)}>
+								<span class="status-dot" style="background: {getStatusColor(related.group.status)}"></span>
+								<span class="relation-title">{related.group.title}</span>
+								<span class="edge-count-badge" title="接続数: 出力 {related.outgoing} / 入力 {related.incoming}">
+									{related.edgeCount}
+								</span>
+							</button>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
+
+		<!-- 所属ノード一覧（タイプ別グルーピング） -->
 		{#if groupMemberNodes.length > 0}
 			<section class="section relation-section">
 				<h4 class="section-title">
 					<Icon name="GitBranch" size={12} />
 					所属ノード ({groupMemberNodes.length})
 				</h4>
-				<ul class="relation-list">
-					{#each groupMemberNodes as member (member.id)}
-						<li>
-							<button class="relation-item" onclick={() => onNodeSelect?.(member.id)}>
-								<span
-									class="relation-type"
-									style="background: {getNodeTypeCSSColor(member.node_type)}"
-								>
-									{getNodeTypeLabel(member.node_type)}
-								</span>
-								<span class="relation-title">{member.title}</span>
-								<span class="relation-id">{member.id}</span>
-							</button>
-						</li>
-					{/each}
-				</ul>
+				{#each Array.from(groupNodesByType.entries()) as [type, typeNodes] (type)}
+					<div class="relation-group">
+						<div class="relation-group-title">
+							<span class="type-indicator" style="background: {getNodeTypeCSSColor(type)}"></span>
+							{getNodeTypeLabel(type)} ({typeNodes.length})
+						</div>
+						<ul class="relation-list">
+							{#each typeNodes as member (member.id)}
+								<li>
+									<button class="relation-item" onclick={() => onNodeSelect?.(member.id)}>
+										<span class="status-dot-small" style="background: {getStatusColor(member.status)}"></span>
+										<span class="relation-title">{member.title}</span>
+										<span class="relation-id">{member.id}</span>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/each}
 			</section>
 		{/if}
 	{:else if node}
@@ -452,6 +620,13 @@
 		flex-shrink: 0;
 	}
 
+	.status-dot-small {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		flex-shrink: 0;
+	}
+
 	.node-heading {
 		flex: 1;
 		min-width: 0;
@@ -511,6 +686,24 @@
 		word-break: break-word;
 	}
 
+	.tags-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+		margin-top: 8px;
+	}
+
+	.tag-badge {
+		display: inline-flex;
+		align-items: center;
+		padding: 2px 8px;
+		background: rgba(100, 149, 237, 0.15);
+		border: 1px solid rgba(100, 149, 237, 0.3);
+		border-radius: 10px;
+		font-size: 0.625rem;
+		color: var(--text-secondary);
+	}
+
 	.action-row {
 		margin-top: 10px;
 	}
@@ -534,6 +727,95 @@
 		border-color: var(--accent-primary);
 	}
 
+	/* 統計セクション */
+	.stats-grid {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		margin-bottom: 8px;
+	}
+
+	.stat-item {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 4px 8px;
+		background: rgba(0, 0, 0, 0.22);
+		border: 1px solid var(--border-metal);
+		border-radius: 4px;
+	}
+
+	.stat-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		flex-shrink: 0;
+	}
+
+	.stat-label {
+		flex: 1;
+		font-size: 0.6875rem;
+		color: var(--text-secondary);
+	}
+
+	.stat-value {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--accent-primary);
+	}
+
+	.status-distribution {
+		margin-top: 4px;
+	}
+
+	.progress-section {
+		margin-top: 8px;
+	}
+
+	.progress-bar-container {
+		width: 100%;
+		height: 6px;
+		background: rgba(0, 0, 0, 0.3);
+		border-radius: 3px;
+		margin-top: 4px;
+		overflow: hidden;
+	}
+
+	.progress-bar {
+		height: 100%;
+		background: var(--task-completed, #4caf50);
+		border-radius: 3px;
+		transition: width 0.3s ease;
+	}
+
+	.progress-text {
+		font-size: 0.6875rem;
+		color: var(--text-secondary);
+		margin-top: 3px;
+		text-align: right;
+	}
+
+	/* 関連グループ */
+	.edge-count-badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 20px;
+		padding: 1px 5px;
+		background: rgba(255, 149, 51, 0.2);
+		border-radius: 10px;
+		font-size: 0.625rem;
+		font-weight: 600;
+		color: var(--accent-primary);
+	}
+
+	.type-indicator {
+		display: inline-block;
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+	}
+
 	.relation-group {
 		margin-bottom: 10px;
 	}
@@ -543,6 +825,9 @@
 	}
 
 	.relation-group-title {
+		display: flex;
+		align-items: center;
+		gap: 4px;
 		font-size: 0.6875rem;
 		font-weight: 600;
 		color: var(--text-secondary);

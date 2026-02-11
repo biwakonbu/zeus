@@ -254,6 +254,8 @@ func (b *UnifiedGraphBuilder) buildGroups(graph *UnifiedGraph) {
 			Description: obj.Description,
 			Goals:       obj.Goals,
 			Status:      obj.Status,
+			Owner:       obj.Owner,
+			Tags:        obj.Tags,
 			NodeIDs:     nodeIDs,
 		})
 	}

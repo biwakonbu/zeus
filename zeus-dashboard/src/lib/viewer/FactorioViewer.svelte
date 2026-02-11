@@ -989,6 +989,11 @@
 			selectedGroupId = null;
 			showDetailPanel = false;
 			filterManager?.clearCriterion('groupIds');
+			// グループ境界の選択状態・表示/非表示を更新
+			updateGroupSelectionState();
+			updateGroupVisibility();
+			// レイアウトを元に復元
+			clearGroupFilterLayout();
 		} else {
 			selectedGroupId = groupData.id;
 			// ノード選択をクリア
@@ -999,11 +1004,12 @@
 			showDetailPanel = true;
 			// グループフィルタを適用（排他的にこのグループのみ）
 			filterManager?.updateCriteria({ groupIds: [groupData.id] });
+			// グループ境界の選択状態・表示/非表示を更新
+			updateGroupSelectionState();
+			updateGroupVisibility();
+			// 可視ノードのみでコンパクトに再レイアウト
+			applyGroupFilterLayout();
 		}
-
-		// グループ境界の選択状態・表示/非表示を更新
-		updateGroupSelectionState();
-		updateGroupVisibility();
 	}
 
 	/**
@@ -1040,6 +1046,64 @@
 				child.getLabelContainer().visible = isVisible;
 			}
 		}
+	}
+
+	/**
+	 * グループフィルタ適用時の再レイアウト
+	 * 可視ノードのみでコンパクトに再配置する
+	 */
+	function applyGroupFilterLayout(): void {
+		if (!layoutEngine || !filterManager) return;
+
+		// 元の位置を保存（初回のみ、依存関係フィルタと共有）
+		if (!originalPositions) {
+			originalPositions = new Map(positions);
+		}
+
+		// 可視ノードIDを取得
+		const visibleIds = new Set(filterManager.getVisibleIds());
+		if (visibleIds.size === 0) return;
+
+		// 可視ノードのみで再レイアウト
+		const filteredLayout = layoutEngine.layoutSubset(graphNodes, graphEdges, visibleIds);
+
+		// 位置を更新
+		updateNodePositions(filteredLayout.positions);
+		layoutBounds = filteredLayout.bounds;
+		renderGroupBoundaries(filteredLayout.groups);
+
+		// ビューをフィット
+		fitToView();
+	}
+
+	/**
+	 * グループフィルタ解除時のレイアウト復元
+	 * 依存関係フィルタが有効な場合はそちらに管理を任せる
+	 */
+	function clearGroupFilterLayout(): void {
+		// 依存関係フィルタが有効な場合はスキップ（そちらの管理に任せる）
+		if (dependencyFilterNodeId !== null) return;
+
+		// 元の位置に戻す
+		if (originalPositions) {
+			updateNodePositions(originalPositions);
+
+			// layoutBounds/groups を再計算
+			if (layoutEngine) {
+				const fullLayout = layoutEngine.layout(
+					graphNodes,
+					graphEdges,
+					graphGroups.length > 0 ? graphGroups : undefined
+				);
+				layoutBounds = fullLayout.bounds;
+				renderGroupBoundaries(fullLayout.groups);
+			}
+
+			originalPositions = null;
+		}
+
+		// ビューをリセット
+		fitToView();
 	}
 
 	/**
@@ -1160,6 +1224,8 @@
 			selectedGroupId = null;
 			updateGroupSelectionState();
 			updateGroupVisibility();
+			filterManager?.clearCriterion('groupIds');
+			clearGroupFilterLayout();
 		}
 
 		const taskId = node.getNodeId();
@@ -1605,6 +1671,8 @@
 				updateGroupSelectionState();
 				updateGroupVisibility();
 				filterManager?.clearCriterion('groupIds');
+				// レイアウトを元に復元
+				clearGroupFilterLayout();
 			}
 			// 選択解除
 			selectionManager.clearSelection();
@@ -1721,6 +1789,8 @@
 		selectedGroupId = null;
 		updateGroupSelectionState();
 		updateGroupVisibility();
+		filterManager?.clearCriterion('groupIds');
+		clearGroupFilterLayout();
 		if (selectionManager) {
 			selectionManager.clearSelection();
 		} else {
@@ -1730,6 +1800,20 @@
 
 	function handleGraphListSearchChange(value: string): void {
 		graphListSearchQuery = value;
+	}
+
+	/**
+	 * パネルからのグループ選択処理
+	 */
+	function handleGroupSelectFromPanel(groupId: string): void {
+		if (selectedGroupId === groupId) return;
+		selectedGroupId = groupId;
+		if (selectionManager) selectionManager.clearSelection();
+		onTaskSelect?.(null);
+		showDetailPanel = true;
+		filterManager?.updateCriteria({ groupIds: [groupId] });
+		updateGroupSelectionState();
+		updateGroupVisibility();
 	}
 
 	function handleGraphNodeSelectFromPanel(nodeId: string): void {
@@ -1867,6 +1951,7 @@
 					group={selectedGroup}
 					groups={graphGroups}
 					onNodeSelect={handleGraphNodeSelectFromPanel}
+					onGroupSelect={handleGroupSelectFromPanel}
 				/>
 			</div>
 		</OverlayPanel>

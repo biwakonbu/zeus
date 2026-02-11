@@ -1100,6 +1100,8 @@ func (z *Zeus) BuildUnifiedGraph(ctx context.Context, filter *analysis.GraphFilt
 					Description: obj.Description,
 					Goals:       obj.Goals,
 					Status:      string(obj.Status),
+					Owner:       obj.Owner,
+					Tags:        obj.Tags,
 				})
 			}
 		}

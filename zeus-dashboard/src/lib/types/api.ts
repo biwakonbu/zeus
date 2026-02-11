@@ -518,6 +518,8 @@ export interface UnifiedGraphGroupItem {
 	description?: string;
 	goals?: string[];
 	status: string;
+	owner?: string;
+	tags?: string[];
 	node_ids: string[];
 }
 

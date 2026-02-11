@@ -117,6 +117,8 @@ type ObjectiveInfo struct {
 	Description string   // 説明
 	Goals       []string // 達成目標
 	Status      string   // ステータス
+	Owner       string   // オーナー
+	Tags        []string // タグ
 	CreatedAt   string   // 作成日時（ISO8601）
 	UpdatedAt   string   // 更新日時（ISO8601）
 }
@@ -233,6 +235,8 @@ type UnifiedGraphGroup struct {
 	Description string   // 説明
 	Goals       []string // 達成目標
 	Status      string   // ステータス
+	Owner       string   // オーナー
+	Tags        []string // タグ
 	NodeIDs     []string // 所属する UseCase + Activity の ID
 }
 

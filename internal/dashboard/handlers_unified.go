@@ -54,6 +54,8 @@ type UnifiedGraphGroupItem struct {
 	Description string   `json:"description,omitempty"`
 	Goals       []string `json:"goals,omitempty"`
 	Status      string   `json:"status"`
+	Owner       string   `json:"owner,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
 	NodeIDs     []string `json:"node_ids"`
 }
 
@@ -303,6 +305,8 @@ func convertUnifiedGraphToResponse(graph *analysis.UnifiedGraph, filter *analysi
 			Description: g.Description,
 			Goals:       g.Goals,
 			Status:      g.Status,
+			Owner:       g.Owner,
+			Tags:        g.Tags,
 			NodeIDs:     nodeIDs,
 		})
 	}
