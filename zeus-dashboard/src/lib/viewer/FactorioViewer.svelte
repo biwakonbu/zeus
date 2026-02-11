@@ -978,6 +978,31 @@
 	}
 
 	/**
+	 * グループを選択し、フィルタ・レイアウトを適用する共通処理
+	 */
+	function selectGroup(groupId: string): void {
+		selectedGroupId = groupId;
+		if (selectionManager) selectionManager.clearSelection();
+		onTaskSelect?.(null);
+		showDetailPanel = true;
+		filterManager?.updateCriteria({ groupIds: [groupId] });
+		updateGroupSelectionState();
+		updateGroupVisibility();
+		applyGroupFilterLayout();
+	}
+
+	/**
+	 * グループ選択を解除し、フィルタ・レイアウトを復元する共通処理
+	 */
+	function deselectGroup(): void {
+		selectedGroupId = null;
+		updateGroupSelectionState();
+		updateGroupVisibility();
+		filterManager?.clearCriterion('groupIds');
+		clearGroupFilterLayout();
+	}
+
+	/**
 	 * グループクリック処理
 	 * グループ境界クリックは排他的（1グループのみ）選択 + フィルタリング
 	 */
@@ -986,29 +1011,10 @@
 
 		if (selectedGroupId === groupData.id) {
 			// 再クリック → 選択解除 + フィルタ解除
-			selectedGroupId = null;
+			deselectGroup();
 			showDetailPanel = false;
-			filterManager?.clearCriterion('groupIds');
-			// グループ境界の選択状態・表示/非表示を更新
-			updateGroupSelectionState();
-			updateGroupVisibility();
-			// レイアウトを元に復元
-			clearGroupFilterLayout();
 		} else {
-			selectedGroupId = groupData.id;
-			// ノード選択をクリア
-			if (selectionManager) {
-				selectionManager.clearSelection();
-			}
-			onTaskSelect?.(null);
-			showDetailPanel = true;
-			// グループフィルタを適用（排他的にこのグループのみ）
-			filterManager?.updateCriteria({ groupIds: [groupData.id] });
-			// グループ境界の選択状態・表示/非表示を更新
-			updateGroupSelectionState();
-			updateGroupVisibility();
-			// 可視ノードのみでコンパクトに再レイアウト
-			applyGroupFilterLayout();
+			selectGroup(groupData.id);
 		}
 	}
 
@@ -1667,12 +1673,7 @@
 			}
 			// グループ選択解除 + グループフィルタ解除
 			if (selectedGroupId) {
-				selectedGroupId = null;
-				updateGroupSelectionState();
-				updateGroupVisibility();
-				filterManager?.clearCriterion('groupIds');
-				// レイアウトを元に復元
-				clearGroupFilterLayout();
+				deselectGroup();
 			}
 			// 選択解除
 			selectionManager.clearSelection();
@@ -1786,11 +1787,9 @@
 
 	function closeDetailPanel(): void {
 		showDetailPanel = false;
-		selectedGroupId = null;
-		updateGroupSelectionState();
-		updateGroupVisibility();
-		filterManager?.clearCriterion('groupIds');
-		clearGroupFilterLayout();
+		if (selectedGroupId) {
+			deselectGroup();
+		}
 		if (selectionManager) {
 			selectionManager.clearSelection();
 		} else {
@@ -1807,13 +1806,7 @@
 	 */
 	function handleGroupSelectFromPanel(groupId: string): void {
 		if (selectedGroupId === groupId) return;
-		selectedGroupId = groupId;
-		if (selectionManager) selectionManager.clearSelection();
-		onTaskSelect?.(null);
-		showDetailPanel = true;
-		filterManager?.updateCriteria({ groupIds: [groupId] });
-		updateGroupSelectionState();
-		updateGroupVisibility();
+		selectGroup(groupId);
 	}
 
 	function handleGraphNodeSelectFromPanel(nodeId: string): void {

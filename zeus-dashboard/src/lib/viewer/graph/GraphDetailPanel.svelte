@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { GraphEdge, GraphNode, UnifiedGraphGroupItem } from '$lib/types/api';
+	import type { GraphEdge, GraphNode, GraphNodeType, UnifiedGraphGroupItem } from '$lib/types/api';
 	import { Icon } from '$lib/components/ui';
 	import { navigateToEntity } from '$lib/stores/view';
 	import { getNodeTypeCSSColor, getNodeTypeLabel } from '../config/nodeTypes';
@@ -155,7 +155,7 @@
 
 	// タイプ別ノード集計
 	const groupNodesByType = $derived.by(() => {
-		const map = new Map<string, GraphNode[]>();
+		const map = new Map<GraphNodeType, GraphNode[]>();
 		for (const n of groupMemberNodes) {
 			const arr = map.get(n.node_type) || [];
 			arr.push(n);
@@ -211,13 +211,17 @@
 		// 結果構築
 		const groupById = new Map(groups.map((g) => [g.id, g]));
 		return Array.from(stats.entries())
-			.map(([id, s]) => ({
-				group: groupById.get(id)!,
-				edgeCount: s.outgoing + s.incoming,
-				outgoing: s.outgoing,
-				incoming: s.incoming
-			}))
-			.filter((r) => r.group != null)
+			.map(([id, s]) => {
+				const g = groupById.get(id);
+				if (!g) return null;
+				return {
+					group: g,
+					edgeCount: s.outgoing + s.incoming,
+					outgoing: s.outgoing,
+					incoming: s.incoming
+				};
+			})
+			.filter((r): r is RelatedGroupInfo => r !== null)
 			.sort((a, b) => b.edgeCount - a.edgeCount);
 	});
 </script>

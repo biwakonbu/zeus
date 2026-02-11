@@ -299,14 +299,22 @@ func convertUnifiedGraphToResponse(graph *analysis.UnifiedGraph, filter *analysi
 		if nodeIDs == nil {
 			nodeIDs = []string{}
 		}
+		tags := g.Tags
+		if tags == nil {
+			tags = []string{}
+		}
+		goals := g.Goals
+		if goals == nil {
+			goals = []string{}
+		}
 		groups = append(groups, UnifiedGraphGroupItem{
 			ID:          g.ID,
 			Title:       g.Title,
 			Description: g.Description,
-			Goals:       g.Goals,
+			Goals:       goals,
 			Status:      g.Status,
 			Owner:       g.Owner,
-			Tags:        g.Tags,
+			Tags:        tags,
 			NodeIDs:     nodeIDs,
 		})
 	}
