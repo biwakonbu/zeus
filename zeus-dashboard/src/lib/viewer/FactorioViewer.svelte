@@ -972,14 +972,16 @@
 
 	/**
 	 * グループクリック処理
+	 * グループ境界クリックは排他的（1グループのみ）選択 + フィルタリング
 	 */
 	function handleGroupClick(boundary: GraphGroupBoundary): void {
 		const groupData = boundary.getGroupData();
 
-		// 同じグループを再クリックで選択解除
 		if (selectedGroupId === groupData.id) {
+			// 再クリック → 選択解除 + フィルタ解除
 			selectedGroupId = null;
 			showDetailPanel = false;
+			filterManager?.clearCriterion('groupIds');
 		} else {
 			selectedGroupId = groupData.id;
 			// ノード選択をクリア
@@ -988,6 +990,8 @@
 			}
 			onTaskSelect?.(null);
 			showDetailPanel = true;
+			// グループフィルタを適用（排他的にこのグループのみ）
+			filterManager?.updateCriteria({ groupIds: [groupData.id] });
 		}
 
 		// グループ境界の選択状態を更新
@@ -1558,9 +1562,23 @@
 
 		if (!selectionManager) return;
 
-		// Escape: 選択クリア
+		// Escape: インタラクション由来のフィルタ解除 + 選択クリア
+		// NOTE: ユーザーが FilterPanel で設定したフィルタ（ステータス、テキスト検索）は保持する
 		if (e.key === 'Escape') {
+			// 依存関係フィルタ解除
+			if (dependencyFilterNodeId !== null) {
+				clearDependencyFilter();
+			}
+			// グループ選択解除 + グループフィルタ解除
+			if (selectedGroupId) {
+				selectedGroupId = null;
+				updateGroupSelectionState();
+				filterManager?.clearCriterion('groupIds');
+			}
+			// 選択解除
 			selectionManager.clearSelection();
+			onTaskSelect?.(null);
+			showDetailPanel = false;
 		}
 
 		// Ctrl/Cmd + A: 全選択

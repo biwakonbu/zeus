@@ -118,6 +118,18 @@
 	let engineInitializing = false;
 	let engineReady = $state(false);
 
+	/**
+	 * 選択を全解除（ステート変更のみ）
+	 * エンジンへの反映は選択同期 $effect が担当する（責務の一元化）
+	 * NOTE: 親コールバック (onActorSelect/onUseCaseSelect) は選択時のみ呼ばれる。
+	 *       解除時の通知は現在の Props 型 (ActorItem => void) では対応していない。
+	 */
+	function clearAllSelection(): void {
+		selectedActorId = null;
+		selectedUseCaseId = null;
+		showDetailPanel = false;
+	}
+
 	// エンジン初期化（一度だけ実行）
 	async function initEngine(): Promise<void> {
 		if (!canvasContainer || engineInitializing || engineReady) return;
@@ -132,6 +144,11 @@
 			engine.setFilterMode(true);
 
 			engine.onActorClicked((actor) => {
+				if (selectedActorId === actor.id) {
+					// 再クリック → 選択解除（トグル）
+					clearAllSelection();
+					return;
+				}
 				selectedActorId = actor.id;
 				selectedUseCaseId = null;
 				showDetailPanel = true;
@@ -145,6 +162,11 @@
 			});
 
 			engine.onUseCaseClicked((usecase) => {
+				if (selectedUseCaseId === usecase.id) {
+					// 再クリック → 選択解除（トグル）
+					clearAllSelection();
+					return;
+				}
 				selectedUseCaseId = usecase.id;
 				selectedActorId = null;
 				showDetailPanel = true;
@@ -195,18 +217,18 @@
 	}
 
 	function closeDetailPanel() {
-		showDetailPanel = false;
-		selectedActorId = null;
-		selectedUseCaseId = null;
-		// 選択解除して全ノード表示に戻す
-		engine?.clearSelectionVisual();
-		engine?.showAll();
+		// ステート変更のみ。エンジンへの反映は $effect が担当
+		clearAllSelection();
 	}
 
 	// Actor/UseCase クリック（リストから）
-	// エンジンに直接選択を反映（絞り込みを確実に実行）
-	// エンジン側で冪等性が保証されているため、Effect との重複呼び出しは問題ない
+	// トグル動作: 同じ要素を再クリックで選択解除 + 全表示
 	function handleActorClick(actor: ActorItem) {
+		if (selectedActorId === actor.id) {
+			// 再クリック → 選択解除
+			clearAllSelection();
+			return;
+		}
 		selectedActorId = actor.id;
 		selectedUseCaseId = null;
 		showDetailPanel = true;
@@ -215,6 +237,11 @@
 	}
 
 	function handleUseCaseClick(usecase: UseCaseItem) {
+		if (selectedUseCaseId === usecase.id) {
+			// 再クリック → 選択解除
+			clearAllSelection();
+			return;
+		}
 		selectedUseCaseId = usecase.id;
 		selectedActorId = null;
 		showDetailPanel = true;
@@ -244,11 +271,19 @@
 		return colors[status] ?? 'var(--text-secondary)';
 	}
 
-	// ESC キーでパネルを閉じる
+	// ESC キーで段階的に解除
+	// 1. 選択/フィルタがアクティブ → 解除
+	// 2. 何もなければリストパネルを閉じる
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
-			if (showDetailPanel) closeDetailPanel();
-			else if (showListPanel) closeListPanel();
+			if (selectedActorId || selectedUseCaseId) {
+				// フィルタ/選択がアクティブ → 解除
+				clearAllSelection();
+			} else if (showDetailPanel) {
+				showDetailPanel = false;
+			} else if (showListPanel) {
+				closeListPanel();
+			}
 		}
 	}
 
@@ -330,7 +365,7 @@
 	});
 
 	// 選択状態の同期 Effect（選択状態が変更されたらエンジンに反映）
-	// データ設定後の setData() による選択リセットに対応
+	// エンジン操作の唯一の責務ポイント（ハンドラは select 時の即時反映のみ例外的に直接呼び出す）
 	// 注意: この Effect はデータ設定 Effect の後に定義すること
 	//       エンジン側で冪等性が保証されているため重複呼び出しは問題ない
 	$effect(() => {
@@ -344,8 +379,9 @@
 		} else if (actorId) {
 			engine.selectActor(actorId);
 		} else {
-			// 両方 null の場合、視覚的な選択のみ解除（hideAll は呼ばない）
+			// 両方 null の場合、選択解除 + フィルタ解除（全表示に戻す）
 			engine.clearSelectionVisual();
+			engine.showAll();
 		}
 	});
 
@@ -383,9 +419,7 @@
 				engine.selectUseCase(usecase.id);
 				onUseCaseSelect?.(usecase);
 			} else {
-				selectedUseCaseId = null;
-				selectedActorId = null;
-				showDetailPanel = false;
+				clearAllSelection();
 				engine.clearSelectionVisual();
 				engine.showAll();
 			}
@@ -400,9 +434,7 @@
 				engine.selectActor(actor.id);
 				onActorSelect?.(actor);
 			} else {
-				selectedUseCaseId = null;
-				selectedActorId = null;
-				showDetailPanel = false;
+				clearAllSelection();
 				engine.clearSelectionVisual();
 				engine.showAll();
 			}
