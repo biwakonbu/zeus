@@ -273,7 +273,8 @@
 
 	// ESC キーで段階的に解除
 	// 1. 選択/フィルタがアクティブ → 解除
-	// 2. 何もなければリストパネルを閉じる
+	// 2. 詳細パネルが開いていれば閉じる
+	// NOTE: リストパネルは ESC では閉じない（意図的な制御）
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
 			if (selectedActorId || selectedUseCaseId) {
@@ -281,8 +282,6 @@
 				clearAllSelection();
 			} else if (showDetailPanel) {
 				showDetailPanel = false;
-			} else if (showListPanel) {
-				closeListPanel();
 			}
 		}
 	}

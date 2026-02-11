@@ -953,7 +953,14 @@
 		}
 		groupContainer.removeChildren();
 		groupLabelContainer.removeChildren();
-		for (const group of groups) {
+		// 面積が大きいものを先に描画（＝下層）、小さいものを後に描画（＝上層）
+		const sortedGroups = [...groups].sort((a, b) => {
+			const areaA = a.width * a.height;
+			const areaB = b.width * b.height;
+			return areaB - areaA;
+		});
+
+		for (const group of sortedGroups) {
 			const boundary = new GraphGroupBoundary(group);
 
 			// グループクリック/ホバーコールバック
@@ -994,8 +1001,9 @@
 			filterManager?.updateCriteria({ groupIds: [groupData.id] });
 		}
 
-		// グループ境界の選択状態を更新
+		// グループ境界の選択状態・表示/非表示を更新
 		updateGroupSelectionState();
+		updateGroupVisibility();
 	}
 
 	/**
@@ -1009,6 +1017,27 @@
 		for (const child of groupContainer.children) {
 			if (child instanceof GraphGroupBoundary) {
 				child.setSelected(child.getGroupId() === selectedGroupId);
+			}
+		}
+	}
+
+	/**
+	 * グループフィルタに応じてグループ境界の表示/非表示を制御
+	 */
+	function updateGroupVisibility(): void {
+		if (!engine) return;
+		const groupContainer = engine.getGroupContainer();
+		if (!groupContainer) return;
+
+		const hasGroupFilter = selectedGroupId !== null;
+
+		// 境界とラベルの表示/非表示を設定
+		for (const child of groupContainer.children) {
+			if (child instanceof GraphGroupBoundary) {
+				const isVisible = !hasGroupFilter || child.getGroupId() === selectedGroupId;
+				child.visible = isVisible;
+				// getLabelContainer() で直接ラベルの visibility を同期（インデックス依存を排除）
+				child.getLabelContainer().visible = isVisible;
 			}
 		}
 	}
@@ -1130,6 +1159,7 @@
 		if (selectedGroupId) {
 			selectedGroupId = null;
 			updateGroupSelectionState();
+			updateGroupVisibility();
 		}
 
 		const taskId = node.getNodeId();
@@ -1573,6 +1603,7 @@
 			if (selectedGroupId) {
 				selectedGroupId = null;
 				updateGroupSelectionState();
+				updateGroupVisibility();
 				filterManager?.clearCriterion('groupIds');
 			}
 			// 選択解除
@@ -1689,6 +1720,7 @@
 		showDetailPanel = false;
 		selectedGroupId = null;
 		updateGroupSelectionState();
+		updateGroupVisibility();
 		if (selectionManager) {
 			selectionManager.clearSelection();
 		} else {
