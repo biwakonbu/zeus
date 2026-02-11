@@ -1241,36 +1241,56 @@
 
 	/**
 	 * ノードクリック処理
+	 * コンテキストに応じた動作:
+	 * - Alt+クリック: 依存関係フィルター（従来互換）
+	 * - Shift+クリック: 依存チェーン選択
+	 * - Ctrl/Cmd+クリック: マルチ選択（フィルタ変更なし）
+	 * - グループフィルタ中: グループ維持 + ノード選択
+	 * - フィルタなし/依存フィルタ中: 依存フィルタ適用（トグル）
 	 */
 	function handleNodeClick(node: GraphNodeView, event?: FederatedPointerEvent): void {
 		if (!selectionManager) return;
 
-		// ノードクリック時はグループ選択をクリア
-		if (selectedGroupId) {
-			selectedGroupId = null;
-			updateGroupSelectionState();
-			updateGroupVisibility();
-			filterManager?.clearCriterion('groupIds');
-			clearGroupFilterLayout();
-		}
-
 		const taskId = node.getNodeId();
-		// FederatedPointerEvent から nativeEvent 経由でキー情報を取得
 		const nativeEvent = event?.nativeEvent as PointerEvent | undefined;
-		const isMulti = nativeEvent?.ctrlKey || nativeEvent?.metaKey || nativeEvent?.shiftKey;
 
-		// Alt+クリック: 依存関係フィルター（グローバルキー状態を使用）
+		// Alt+クリック: 従来通り依存関係フィルター
 		if (isAltKeyPressed || nativeEvent?.altKey) {
-			console.log('[NodeClick] Alt+click detected, triggering filter');
 			handleNodeContextMenu(node, event!);
 			return;
 		}
 
+		// Shift+クリック: 依存チェーン選択
 		if (nativeEvent?.shiftKey && selectedIds.length > 0) {
-			// Shift+クリック: 依存チェーン選択
 			selectionManager.selectDependencyChain(taskId, 'both');
+			return;
+		}
+
+		// Ctrl/Cmd+クリック: マルチ選択（フィルタ変更なし）
+		if (nativeEvent?.ctrlKey || nativeEvent?.metaKey) {
+			selectionManager.toggleSelect(taskId, true);
+			return;
+		}
+
+		// グループフィルタ中 → グループ維持 + ノード選択のみ
+		if (selectedGroupId) {
+			selectionManager.toggleSelect(taskId, false);
+			return;
+		}
+
+		// フィルタなし or 依存フィルタ中 → 依存関係フィルタ適用（トグル）
+		const applied = applyNodeDependencyFilter(taskId);
+		if (applied) {
+			selectionManager.clearSelection();
+			selectionManager.toggleSelect(taskId, false);
+			// 明示的に DetailPanel を開く（イベントリスナーの暗黙フローに依存しない）
+			showDetailPanel = true;
+			onTaskSelect?.(taskId);
 		} else {
-			selectionManager.toggleSelect(taskId, isMulti);
+			// フィルタ解除時
+			selectionManager.clearSelection();
+			onTaskSelect?.(null);
+			showDetailPanel = false;
 		}
 	}
 
@@ -1377,47 +1397,49 @@
 	}
 
 	/**
-	 * ノード右クリック処理 - 依存関係フィルター
-	 * フロントエンドの edges データを使用して依存関係を計算
+	 * 依存関係フィルタの適用/トグル（共通処理）
+	 * @returns true = フィルタ適用, false = フィルタ解除
 	 */
-	function handleNodeContextMenu(node: GraphNodeView, _event: FederatedPointerEvent | null): void {
-		console.log('[ContextMenu] Right-click detected on node:', node.getNodeId());
-		const nodeId = node.getNodeId();
-
-		// 同じノードを再度右クリックしたらフィルターを解除
+	function applyNodeDependencyFilter(nodeId: string): boolean {
+		// 同じノード → トグル解除
 		if (dependencyFilterNodeId === nodeId) {
 			clearDependencyFilter();
-			return;
+			return false;
 		}
 
-		// 関連ノードを計算（無向探索）
+		// 接続ノードを計算（既存の getConnectedNodes を使用）
 		let relatedNodes = getConnectedNodes(nodeId);
-		let usedStructuralFallback = false;
 		if (relatedNodes.length === 0 && !includeStructuralInTraversal) {
 			const structuralRelated = getConnectedNodes(nodeId, true);
 			if (structuralRelated.length > 0) {
 				relatedNodes = structuralRelated;
-				usedStructuralFallback = true;
 			}
 		}
 
-		console.log(
-			'[DependencyFilter] Node:',
-			nodeId,
-			'Related:',
-			relatedNodes.length,
-			'StructuralFallback:',
-			usedStructuralFallback
-		);
-
-		// 表示対象: 選択ノード + 関連ノード
 		const filterIds = new Set<string>([nodeId, ...relatedNodes]);
-
 		dependencyFilterNodeId = nodeId;
 		dependencyFilterIds = filterIds;
-
-		// visibleTaskIds を更新してフィルターを適用
 		applyDependencyFilter();
+		return true;
+	}
+
+	/**
+	 * ノード右クリック処理 - 依存関係フィルター
+	 * フロントエンドの edges データを使用して依存関係を計算
+	 */
+	function handleNodeContextMenu(node: GraphNodeView, _event: FederatedPointerEvent | null): void {
+		const nodeId = node.getNodeId();
+		// グループフィルタ中ならクリア
+		if (selectedGroupId) {
+			deselectGroup();
+		}
+		const applied = applyNodeDependencyFilter(nodeId);
+		if (!applied) {
+			// フィルタ解除時: 選択とパネルもクリア
+			if (selectionManager) selectionManager.clearSelection();
+			onTaskSelect?.(null);
+			showDetailPanel = false;
+		}
 	}
 
 	/**

@@ -342,6 +342,31 @@
 			</section>
 		{/if}
 
+		<!-- 全 Objective 一覧（グループ切り替え用、グループ選択中のみ表示） -->
+		{#if group && groups && groups.length > 1}
+			<section class="section relation-section">
+				<h4 class="section-title">
+					<Icon name="Layers" size={12} />
+					Objectives
+				</h4>
+				<div class="group-switcher">
+					{#each groups as g (g.id)}
+						<button
+							class="relation-item"
+							class:active={g.id === group?.id}
+							onclick={() => onGroupSelect?.(g.id)}
+							disabled={g.id === group?.id}
+							aria-current={g.id === group?.id ? 'true' : undefined}
+						>
+							<span class="status-dot" style="background: {getStatusColor(g.status)}"></span>
+							<span class="relation-title">{g.title}</span>
+							<span class="node-count-badge">{g.node_ids.length}</span>
+						</button>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
 		<!-- 関連グループ -->
 		{#if relatedGroups.length > 0}
 			<section class="section relation-section">
@@ -989,5 +1014,23 @@
 		background: rgba(0, 0, 0, 0.22);
 		border: 1px solid var(--border-metal);
 		border-radius: 4px;
+	}
+
+	.group-switcher {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.group-switcher .relation-item.active {
+		background: var(--bg-tertiary);
+		opacity: 0.6;
+		cursor: default;
+	}
+
+	.node-count-badge {
+		margin-left: auto;
+		font-size: 10px;
+		color: var(--text-tertiary);
 	}
 </style>
