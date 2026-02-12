@@ -6,7 +6,8 @@
 		setView,
 		usecaseViewState,
 		graphViewState,
-		activityViewState
+		activityViewState,
+		visionViewState
 	} from '$lib/stores/view';
 	import { Icon } from '$lib/components/ui';
 
@@ -112,6 +113,16 @@
 		</div>
 
 		<div class="header-right">
+			<!-- Vision ビュー専用コントロール -->
+			{#if $currentView === 'vision'}
+				<div class="vision-controls">
+					<div class="info-badge">
+						<Icon name="Eye" size={14} />
+						<span>{$visionViewState.objectiveCount} objectives</span>
+					</div>
+				</div>
+			{/if}
+
 			<!-- UseCase ビュー専用コントロール -->
 			{#if $currentView === 'usecase'}
 				<div class="usecase-controls">
@@ -368,7 +379,8 @@
 		gap: var(--spacing-md);
 	}
 
-	/* UseCase / Graph / Activity コントロール共通 */
+	/* Vision / UseCase / Graph / Activity コントロール共通 */
+	.vision-controls,
 	.usecase-controls,
 	.graph-controls,
 	.activity-controls {

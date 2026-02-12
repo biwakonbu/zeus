@@ -3,6 +3,8 @@ import type {
 	StatusResponse,
 	GraphResponse,
 	ErrorResponse,
+	VisionResponse,
+	ObjectivesResponse,
 	ActorsResponse,
 	UseCasesResponse,
 	UseCaseDiagramResponse,
@@ -65,6 +67,20 @@ export async function fetchGraph(): Promise<GraphResponse> {
 // UnifiedGraph 取得（Activity, UseCase, Objective の統合グラフ）
 export async function fetchUnifiedGraph(): Promise<UnifiedGraphResponse> {
 	return fetchJSON<UnifiedGraphResponse>('/unified-graph');
+}
+
+// =============================================================================
+// Vision/Objective API
+// =============================================================================
+
+// Vision 取得
+export async function fetchVision(): Promise<VisionResponse> {
+	return fetchJSON<VisionResponse>('/vision');
+}
+
+// Objective 一覧取得
+export async function fetchObjectives(): Promise<ObjectivesResponse> {
+	return fetchJSON<ObjectivesResponse>('/objectives');
 }
 
 // =============================================================================

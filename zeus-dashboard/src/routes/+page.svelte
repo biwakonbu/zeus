@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { FactorioViewer } from '$lib/viewer';
+	import { VisionView } from '$lib/viewer/vision';
 	import { UseCaseView } from '$lib/viewer/usecase';
 	import { ActivityView } from '$lib/viewer/activity';
 	import { refreshAllData, currentView } from '$lib/stores';
@@ -162,7 +163,9 @@
 
 <!-- ビューワーコンテナ -->
 <div class="viewer-container">
-	{#if $currentView === 'graph'}
+	{#if $currentView === 'vision'}
+		<VisionView />
+	{:else if $currentView === 'graph'}
 		<FactorioViewer
 			{graphData}
 			{selectedTaskId}

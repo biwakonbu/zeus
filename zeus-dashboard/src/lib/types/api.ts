@@ -74,8 +74,11 @@ export interface VisionResponse {
 }
 
 export interface Vision {
+	id: string;
 	title: string;
 	statement: string;
+	success_criteria: string[];
+	status: string;
 	created_at: string;
 	updated_at: string;
 }
@@ -90,13 +93,16 @@ export interface Objective {
 	id: string;
 	title: string;
 	description?: string;
+	goals?: string[];
 	status: ObjectiveStatus;
-	parent_id?: string;
+	owner?: string;
+	tags?: string[];
 	created_at: string;
 	updated_at: string;
+	usecase_count: number;
 }
 
-export type ObjectiveStatus = 'not_started' | 'in_progress' | 'completed' | 'on_hold';
+export type ObjectiveStatus = 'not_started' | 'in_progress' | 'completed' | 'on_hold' | 'cancelled';
 
 // Consideration
 export interface ConsiderationsResponse {

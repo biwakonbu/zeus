@@ -143,6 +143,10 @@ func (s *Server) handler() http.Handler {
 	mux.HandleFunc("/api/activities", s.corsMiddleware(s.handleAPIActivities))
 	mux.HandleFunc("/api/uml/activity", s.corsMiddleware(s.handleAPIActivityDiagram))
 
+	// Vision/Objective API エンドポイント
+	mux.HandleFunc("/api/vision", s.corsMiddleware(s.handleAPIVision))
+	mux.HandleFunc("/api/objectives", s.corsMiddleware(s.handleAPIObjectives))
+
 	// UnifiedGraph API エンドポイント（Task/Activity 統合）
 	mux.HandleFunc("/api/unified-graph", s.corsMiddleware(s.handleAPIUnifiedGraph))
 

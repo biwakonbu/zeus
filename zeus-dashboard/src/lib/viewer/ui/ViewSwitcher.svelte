@@ -13,6 +13,12 @@
 	// Lucide Icon 名を使用
 	const views: { type: ViewType; label: string; iconName: string; description: string }[] = [
 		{
+			type: 'vision',
+			label: 'Vision',
+			iconName: 'Eye',
+			description: 'ビジョン・目標管理'
+		},
+		{
 			type: 'usecase',
 			label: 'UseCase',
 			iconName: 'Users',

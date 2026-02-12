@@ -13,6 +13,10 @@
 
 	// ビューごとの操作ヒント定義
 	const viewHints: Record<ViewType, { description: string; key: string }[]> = {
+		vision: [
+			{ description: 'Objective 選択', key: 'Click' },
+			{ description: '選択解除', key: 'Esc' }
+		],
 		graph: [
 			{ description: 'ズーム', key: 'Scroll' },
 			{ description: 'パン（移動）', key: 'Shift+Drag' },
@@ -34,6 +38,7 @@
 
 	// 現在のビューのラベル
 	const viewLabels: Record<ViewType, string> = {
+		vision: 'Vision View',
 		graph: 'Graph View',
 		usecase: 'UseCase View',
 		activity: 'Activity View'

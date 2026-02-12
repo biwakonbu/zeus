@@ -7,7 +7,7 @@ export const currentView = writable<ViewType>('usecase');
 // ビュー間遷移時の自動選択用
 export interface PendingNavigation {
 	view: ViewType;
-	entityType?: 'actor' | 'usecase' | 'activity';
+	entityType?: 'actor' | 'usecase' | 'activity' | 'objective';
 	entityId?: string;
 }
 
@@ -16,7 +16,7 @@ export const pendingNavigation = writable<PendingNavigation | null>(null);
 // エンティティを指定してビューに遷移
 export function navigateToEntity(
 	view: ViewType,
-	entityType: 'actor' | 'usecase' | 'activity',
+	entityType: 'actor' | 'usecase' | 'activity' | 'objective',
 	entityId: string
 ): void {
 	pendingNavigation.set({ view, entityType, entityId });
@@ -163,4 +163,29 @@ export function resetActivityViewState(): void {
 // Activity ビュー状態を取得
 export function getActivityViewState(): ActivityViewState {
 	return get(activityViewState);
+}
+
+// Vision ビュー用の状態
+export interface VisionViewState {
+	objectiveCount: number;
+	selectedObjectiveId: string | null;
+	showListPanel: boolean;
+}
+
+const defaultVisionViewState: VisionViewState = {
+	objectiveCount: 0,
+	selectedObjectiveId: null,
+	showListPanel: true
+};
+
+export const visionViewState = writable<VisionViewState>(defaultVisionViewState);
+
+// Vision ビュー状態を更新
+export function updateVisionViewState(partial: Partial<VisionViewState>): void {
+	visionViewState.update((state) => ({ ...state, ...partial }));
+}
+
+// Vision ビュー状態をリセット
+export function resetVisionViewState(): void {
+	visionViewState.set(defaultVisionViewState);
 }

@@ -3,4 +3,4 @@
 /**
  * ビュータイプの定義
  */
-export type ViewType = 'graph' | 'usecase' | 'activity';
+export type ViewType = 'vision' | 'graph' | 'usecase' | 'activity';
