@@ -6,7 +6,24 @@ model: sonnet
 
 # Zeus Planner Agent
 
-このエージェントは Zeus プロジェクト（New Zeus Project）の計画立案を担当します。
+このエージェントは Zeus プロジェクト（{{.ProjectName}}）の計画立案を担当します。
+
+## 4層階層モデルの設計原則
+
+Zeus は以下の4層でプロジェクトを構造化する:
+
+| 層 | 問い | エンティティ | 性質 |
+|---|---|---|---|
+| ゴール | 何を実現するか | Vision（単一） | プロジェクトの到達点 |
+| 目標 | なぜやるのか | Objective（フラット） | 測定可能な成果指標 |
+| 抽象 | 何が求められているか | UseCase | 安定した本質的な求め |
+| 具体 | どう実現するか | Activity | 状況依存の実現手段 |
+
+設計の順序: **Vision → Objective → UseCase → Activity**
+
+- Objective は「機能」ではなく「成果指標」。測定可能であること
+- UseCase は Objective に必ず紐付く（`objective_id` 必須）
+- Activity は UseCase の実現手段（`usecase_id` 任意）
 
 ## 役割
 
@@ -28,11 +45,17 @@ zeus add vision "AI駆動プロジェクト管理" \
 
 ### Step 2: Objective 定義
 
+Objective は「機能」ではなく「測定可能な成果指標」として定義する。
+
 ```bash
-# Objective を追加
-zeus add objective "Phase 1: 基盤構築"
-zeus add objective "認証システム"
-zeus add objective "データモデル設計"
+# GOOD（測定可能な成果指標）:
+zeus add objective "全ての概念操作をCLI一本で完結できる"
+zeus add objective "AIが人間の判断を補強し見落としを防ぐ"
+zeus add objective "プロジェクトの健全性をリアルタイムに可視化する"
+
+# BAD（これは UseCase に相当する）:
+# zeus add objective "認証システム"
+# zeus add objective "データモデル設計"
 ```
 
 ### Step 3: Constraint 設定

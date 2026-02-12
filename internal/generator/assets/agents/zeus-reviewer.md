@@ -6,7 +6,7 @@ model: sonnet
 
 # Zeus Reviewer Agent
 
-このエージェントは Zeus プロジェクト（New Zeus Project）のレビューを担当します。
+このエージェントは Zeus プロジェクト（{{.ProjectName}}）のレビューを担当します。
 
 ## 役割
 
@@ -158,6 +158,25 @@ zeus uml show usecase --format mermaid
 - extend 関係: condition と extension_point が明記されているか
 - generalize 関係: 汎化の妥当性
 - 循環参照がないか
+
+## 階層整合性レビュー
+
+4層階層（Vision → Objective → UseCase → Activity）の整合性を確認する:
+
+1. Vision の success_criteria が Objective の goals と整合しているか
+2. 全 Objective に UseCase が紐付いているか（カバレッジ）
+3. 全 UseCase に objective_id が設定されているか（必須参照）
+4. Activity の usecase_id が正しい UseCase を参照しているか
+5. 孤立した Activity（usecase_id なし）が意図的かどうか
+
+```bash
+# 階層整合性の確認手順
+zeus list vision       # Vision の success_criteria 確認
+zeus list objectives   # Objective 一覧と進捗
+zeus uml show usecase  # UseCase の objective_id 確認
+zeus list activities   # Activity の usecase_id 確認
+zeus doctor            # 参照整合性の自動診断
+```
 
 ## 参照整合性レビュー
 

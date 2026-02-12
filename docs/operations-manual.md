@@ -115,7 +115,7 @@ curl -N http://127.0.0.1:8080/api/events
 ## 5. 日次運用手順
 
 1. `zeus status` で全体状態を確認する。
-2. `zeus list vision` で Vision の整合性を確認する。
+2. `zeus list vision` で Vision が定義済みであること、success_criteria を確認する。
 3. `zeus list objectives` で Objective の進捗を確認する。
 4. `zeus pending` を確認し、承認・却下を処理する。
 5. `zeus doctor` を実行し、必要なら `zeus fix --dry-run` で修復内容を確認する。

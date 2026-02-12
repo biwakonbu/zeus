@@ -67,11 +67,26 @@ zeus apply --all
 zeus apply --all --dry-run
 ```
 
+## 4層階層に基づく提案戦略
+
+Zeus は Vision → Objective → UseCase → Activity の4層で構造化される。
+提案はこの階層を上位から下位に辿って生成する:
+
+1. **ゴール層**: Vision の success_criteria に対する Objective の充足度を評価
+2. **目標層**: Objective ごとの UseCase カバレッジを検証
+3. **抽象層**: UseCase に対する Activity の実装状況を確認
+4. **具体層**: Activity のブロック状態・依存関係を分析
+
 ## 10概念モデルとの連携
 
-### Vision/Objective 関連
+### Vision 関連
 - Vision の success_criteria 達成度チェック
-- Objective の進捗に基づく優先度調整
+- Vision 未定義時の警告
+
+### Objective 関連
+- Objective の達成状況に基づく優先度調整
+- UseCase カバレッジの不足検出（Objective に UseCase が紐付いていない）
+- Objective 間のバランスチェック
 - 期限切れ Objective の警告
 
 ### Problem 関連

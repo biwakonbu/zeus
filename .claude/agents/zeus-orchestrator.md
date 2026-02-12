@@ -15,6 +15,22 @@ model: sonnet
 3. **リスク検知**: 参照整合性チェックの活用
 4. **状態管理**: 全体の状況をダッシュボードで追跡
 
+## 4層階層モデル
+
+Vision → Objective → UseCase → Activity の4層でプロジェクトを構造化する。
+
+| 層 | 問い | エンティティ | 例 |
+|---|---|---|---|
+| ゴール | 何を実現するか | Vision（単一） | 「神の視点によるプロジェクト管理」 |
+| 目標 | なぜやるのか | Objective（フラット） | 「CLI一本で全操作を完結」 |
+| 抽象 | 何が求められているか | UseCase | 「プロジェクトの概念を構造化して記録する」 |
+| 具体 | どう実現するか | Activity | 「プロジェクト初期化フロー」 |
+
+設計の順序: **Vision → Objective → UseCase → Activity**
+- Objective は「機能」ではなく「測定可能な成果指標」
+- UseCase は `objective_id` で Objective に必ず所属
+- Activity は `usecase_id` で UseCase に任意で紐付く
+
 ## コマンド一覧
 
 ### 基本操作

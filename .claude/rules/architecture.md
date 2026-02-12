@@ -72,28 +72,38 @@ z := core.New(projectPath,
 | 承認フロー原子性 | approval.go | flock ベースのファイルロック |
 | ダッシュボードローカル専用 | server.go | 127.0.0.1 バインド |
 
+## 4層階層モデル
+
+Zeus は以下の4層でプロジェクトを構造化する:
+
+| 層 | エンティティ | 役割 | 参照関係 |
+|---|---|---|---|
+| ゴール | Vision（単一） | 実現するべきゴール | `vision.yaml` |
+| 目標 | Objective（フラット） | 測定可能な成果目標 | `objectives/obj-*.yaml` |
+| 抽象 | UseCase | 本質的な求め | `usecases/uc-*.yaml`（`objective_id` 必須） |
+| 具体 | Activity | 実現手段 | `activities/act-*.yaml`（`usecase_id` 任意） |
+
 ## データ構造 (.zeus/)
 
 zeus init 実行後、ターゲットプロジェクトに生成される構造:
 
 ```
 .zeus/
-├── zeus.yaml              # プロジェクト定義（メイン）
-├── config/                # 設定ファイル
-├── activities/            # Activity 管理
-│   └── act-NNN.yaml       # 個別 Activity
-├── state/
-│   ├── current.yaml       # 現在の状態
-│   └── snapshots/         # 履歴スナップショット
-├── entities/              # エンティティ定義
-├── approvals/             # 承認管理
-│   ├── pending/           # 承認待ち
-│   ├── approved/          # 承認済み
-│   └── rejected/          # 却下済み
-├── logs/                  # ログ記録
-├── analytics/             # 分析データ
-├── graph/                 # 関係性グラフ
-├── views/                 # カスタムビュー
-├── backups/               # 自動バックアップ
-└── .local/                # ローカル設定
+├── zeus.yaml              # プロジェクト設定
+├── vision.yaml            # Vision（単一）
+├── objectives/            # Objective（個別ファイル）
+├── usecases/              # UseCase（個別ファイル）
+├── activities/            # Activity（個別ファイル）
+├── actors.yaml            # Actor 一覧
+├── subsystems.yaml        # Subsystem 一覧
+├── constraints.yaml       # Constraint 一覧
+├── considerations/        # Consideration（個別ファイル）
+├── decisions/             # Decision（個別ファイル）
+├── problems/              # Problem（個別ファイル）
+├── risks/                 # Risk（個別ファイル）
+├── assumptions/           # Assumption（個別ファイル）
+├── quality/               # Quality（個別ファイル）
+└── state/                 # 状態管理
+    ├── current.yaml
+    └── snapshots/
 ```
