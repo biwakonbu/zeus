@@ -1,7 +1,12 @@
 id: obj-010
-title: 10概念モデルで構造的に管理できる
-description: 10概念モデル全体の実装要件
-status: not_started
+title: 意思決定・リスク・制約を構造化して追跡できる
+description: |
+  「なぜこう決めたのか」「何を前提にしているか」「何がリスクか」を構造化データとして記録し、後から追跡・検証できる状態
+goals:
+  - Decision に至る Consideration（検討経緯）が追跡可能
+  - Risk/Assumption の検証状態が管理されている
+  - Constraint/Quality が参照整合性の中で機能している
+status: active
 metadata:
-    created_at: "2026-01-19T15:01:16+09:00"
-    updated_at: "2026-01-19T15:01:16+09:00"
+  created_at: "2026-01-19T15:01:16+09:00"
+  updated_at: "2026-02-12T00:00:00+09:00"

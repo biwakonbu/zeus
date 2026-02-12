@@ -145,15 +145,15 @@ zeus uml show usecase --format mermaid -o docs/usecase.md
 ## 7.2 UseCase と Actor の関連付け
 
 ```bash
-zeus usecase add-actor uc-001 actor-001 --role primary
+zeus usecase add-actor uc-setup actor-001 --role primary
 ```
 
 ## 7.3 UseCase 関係追加
 
 ```bash
-zeus usecase link uc-001 --include uc-002
-zeus usecase link uc-001 --extend uc-003 --condition "任意機能選択時" --extension-point "決済方式"
-zeus usecase link uc-001 --generalize uc-004
+zeus usecase link uc-setup --include uc-model
+zeus usecase link uc-setup --extend uc-overview --condition "任意機能選択時" --extension-point "決済方式"
+zeus usecase link uc-setup --generalize uc-govern
 ```
 
 ## 8. API を使った確認

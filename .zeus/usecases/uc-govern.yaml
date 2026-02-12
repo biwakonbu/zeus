@@ -1,0 +1,16 @@
+id: uc-govern
+title: 変更を統制する
+objective_id: obj-011
+subsystem_id: sub-governance
+description: |
+  承認制御（pending/approve/reject）により、重要な変更に人間のレビューを挟み、
+  意図しない変更がプロジェクトに適用されることを防ぐ。
+actors:
+  - actor_id: actor-d60b69f1
+    role: primary
+  - actor_id: actor-047641e5
+    role: secondary
+status: active
+metadata:
+  created_at: "2026-02-12T00:00:00+09:00"
+  updated_at: "2026-02-12T00:00:00+09:00"

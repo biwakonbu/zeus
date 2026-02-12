@@ -1,0 +1,15 @@
+id: uc-overview
+title: プロジェクトの現在地を把握する
+objective_id: obj-009
+subsystem_id: sub-analysis
+description: |
+  プロジェクトの状態サマリー・進捗・健全性を CLI コマンドまたはダッシュボードで即座に確認する。
+actors:
+  - actor_id: actor-d60b69f1
+    role: primary
+  - actor_id: actor-3cf68581
+    role: secondary
+status: active
+metadata:
+  created_at: "2026-02-12T00:00:00+09:00"
+  updated_at: "2026-02-12T00:00:00+09:00"

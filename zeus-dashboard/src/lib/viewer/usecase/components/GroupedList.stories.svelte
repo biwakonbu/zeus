@@ -27,21 +27,21 @@
 
 	const sampleUseCases: UseCaseItem[] = [
 		{
-			id: 'uc-001',
+			id: 'uc-login',
 			title: 'ログイン',
 			status: 'active',
 			actors: [{ actor_id: 'actor-001', role: 'primary' }],
 			relations: []
 		},
 		{
-			id: 'uc-002',
+			id: 'uc-search',
 			title: '商品を検索する',
 			status: 'active',
 			actors: [{ actor_id: 'actor-001', role: 'primary' }],
 			relations: []
 		},
 		{
-			id: 'uc-003',
+			id: 'uc-order',
 			title: '注文を処理する',
 			status: 'draft',
 			actors: [
@@ -51,7 +51,7 @@
 			relations: []
 		},
 		{
-			id: 'uc-004',
+			id: 'uc-report',
 			title: 'レポートを生成する',
 			status: 'deprecated',
 			actors: [{ actor_id: 'actor-004', role: 'primary' }],
@@ -125,7 +125,7 @@
 		<GroupedList
 			items={useCaseItems}
 			groupBy={false}
-			selectedId="uc-002"
+			selectedId="uc-search"
 			actors={sampleActors}
 			onSelect={handleSelect}
 		/>

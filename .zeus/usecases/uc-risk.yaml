@@ -1,0 +1,16 @@
+id: uc-risk
+title: リスクと前提を管理する
+objective_id: obj-010
+subsystem_id: sub-core
+description: |
+  Risk と Assumption を登録・検証状態管理し、
+  プロジェクトの前提条件とリスク要因を継続的に追跡する。
+actors:
+  - actor_id: actor-d60b69f1
+    role: primary
+  - actor_id: actor-248f9d78
+    role: secondary
+status: active
+metadata:
+  created_at: "2026-02-12T00:00:00+09:00"
+  updated_at: "2026-02-12T00:00:00+09:00"

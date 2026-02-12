@@ -6,6 +6,9 @@ zeus
 .DS_Store
 logs/
 
+# バックアップディレクトリ
+.zeus.backup.*/
+
 # Zeus - コミットしないファイル（一時/ローカルデータ）
 .zeus/backups/
 .zeus/.local/

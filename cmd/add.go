@@ -148,9 +148,9 @@ Subsystem 用オプション:
   zeus add constraint "外部DB不使用" --category technical --non-negotiable
   zeus add quality "コードカバレッジ" --objective obj-001 --metric "coverage:80:%" --metric "performance:100:ms"
   zeus add actor "管理者" --type human
-  zeus add usecase "ログイン" --objective obj-001 --actor actor-001 --actor-role primary --subsystem sub-12345678
+  zeus add usecase "ログイン" --objective obj-001 --actor actor-001 --actor-role primary --subsystem sub-core
   zeus add subsystem "認証システム" --description "ユーザー認証関連のユースケース"
-  zeus add activity "API設計" --usecase uc-001`,
+  zeus add activity "API設計" --usecase uc-setup`,
 	Args: cobra.ExactArgs(2),
 	RunE: runAdd,
 }

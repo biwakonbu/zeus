@@ -1,0 +1,16 @@
+id: uc-ai-assist
+title: AIの知見で判断を補強する
+objective_id: obj-008
+subsystem_id: sub-ai
+description: |
+  AI がプロジェクト構造を分析し、改善提案・リスク指摘・エンティティの説明を生成する。
+  提案は承認ワークフローを通じて適用される。
+actors:
+  - actor_id: actor-047641e5
+    role: primary
+  - actor_id: actor-d60b69f1
+    role: secondary
+status: active
+metadata:
+  created_at: "2026-02-12T00:00:00+09:00"
+  updated_at: "2026-02-12T00:00:00+09:00"

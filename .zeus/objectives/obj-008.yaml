@@ -1,7 +1,12 @@
 id: obj-008
-title: AIの支援を受けられる
-description: AI提案・説明・Claude Code連携の要件
-status: completed
+title: AIが人間の判断を補強し、見落としを防ぐ
+description: |
+  AI がプロジェクト構造を読み取り、人間単独では気づきにくいリスク・改善点・次のアクションを提案できる状態
+goals:
+  - AI が提案する内容に根拠（参照先エンティティ）が含まれる
+  - 提案を承認制御のワークフローに乗せて適用できる
+  - AI ツール（Claude Code 等）がプロジェクト構造を理解できる連携が維持されている
+status: active
 metadata:
-    created_at: "2026-01-19T15:01:16+09:00"
-    updated_at: "2026-01-19T15:01:16+09:00"
+  created_at: "2026-01-19T15:01:16+09:00"
+  updated_at: "2026-02-12T00:00:00+09:00"

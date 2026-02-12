@@ -1,7 +1,7 @@
 id: act-014
 title: "AI提案適用フロー"
 description: "zeus apply コマンドによるAI提案適用の処理フロー"
-usecase_id: uc-6a67d64d
+usecase_id: uc-ai-assist
 status: active
 
 nodes:

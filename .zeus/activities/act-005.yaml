@@ -1,7 +1,7 @@
 id: act-005
 title: "AI提案生成フロー"
 description: "zeus suggest コマンドによるAI提案生成の処理フロー"
-usecase_id: uc-3ad52956
+usecase_id: uc-ai-assist
 status: active
 
 nodes:

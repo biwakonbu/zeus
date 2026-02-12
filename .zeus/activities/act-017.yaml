@@ -1,7 +1,7 @@
 id: act-017
 title: "履歴確認フロー"
 description: "zeus history コマンドによるプロジェクト履歴確認の処理フロー"
-usecase_id: uc-96fe1356
+usecase_id: uc-preserve
 status: active
 
 nodes:

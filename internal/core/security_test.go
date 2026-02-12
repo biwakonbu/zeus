@@ -185,6 +185,21 @@ func TestValidateID(t *testing.T) {
 		{"usecase", "uc-12345678", false},
 		{"subsystem", "sub-12345678", false},
 		{"activity", "act-001", false},
+		// kebab-case 形式（正常）
+		{"usecase", "uc-setup", false},
+		{"usecase", "uc-ai-assist", false},
+		{"usecase", "uc-model", false},
+		{"subsystem", "sub-core", false},
+		{"subsystem", "sub-governance", false},
+		{"subsystem", "sub-ai", false},
+		// kebab-case 形式（無効）
+		{"usecase", "uc-", true},         // 名前なし
+		{"usecase", "uc-Setup", true},    // 大文字
+		{"usecase", "uc-1start", true},   // 数字始まり
+		{"subsystem", "sub-", true},      // 名前なし
+		{"subsystem", "sub-Core", true},  // 大文字
+		{"usecase", "uc-setup-", true},   // 末尾ハイフン
+		{"subsystem", "sub-core-", true}, // 末尾ハイフン
 		// 無効なケース
 		{"task", "task-123", true},           // UUID短すぎ
 		{"objective", "obj-1", true},         // 番号短すぎ

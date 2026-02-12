@@ -21,7 +21,7 @@
 
 	const sampleUseCases: UseCaseItem[] = [
 		{
-			id: 'uc-001',
+			id: 'uc-login',
 			title: 'ログイン',
 			status: 'active',
 			description: 'ユーザーがシステムにログインする',
@@ -30,16 +30,16 @@
 			relations: []
 		},
 		{
-			id: 'uc-002',
+			id: 'uc-search',
 			title: '商品を検索する',
 			status: 'active',
 			actors: [{ actor_id: 'actor-001', role: 'primary' }],
-			relations: [{ type: 'include', target_id: 'uc-001' }]
+			relations: [{ type: 'include', target_id: 'uc-login' }]
 		}
 	];
 
 	const useCaseWithScenario: UseCaseItem = {
-		id: 'uc-003',
+		id: 'uc-order',
 		title: '注文を処理する',
 		status: 'active',
 		description: 'ユーザーが商品を注文するプロセス',
@@ -49,8 +49,8 @@
 			{ actor_id: 'actor-003', role: 'secondary' }
 		],
 		relations: [
-			{ type: 'include', target_id: 'uc-001' },
-			{ type: 'extend', target_id: 'uc-002', condition: 'クーポン適用時' }
+			{ type: 'include', target_id: 'uc-login' },
+			{ type: 'extend', target_id: 'uc-search', condition: 'クーポン適用時' }
 		],
 		scenario: {
 			preconditions: ['ユーザーがログイン済みであること', 'カートに商品が入っていること'],
@@ -96,7 +96,7 @@
 			id: 'act-001',
 			title: '注文処理フロー',
 			status: 'active',
-			usecase_id: 'uc-003',
+			usecase_id: 'uc-order',
 			nodes: [],
 			transitions: [],
 			created_at: '2024-01-15T10:00:00Z',
@@ -106,7 +106,7 @@
 			id: 'act-002',
 			title: '決済処理フロー',
 			status: 'active',
-			usecase_id: 'uc-003',
+			usecase_id: 'uc-order',
 			nodes: [],
 			transitions: [],
 			created_at: '2024-01-16T09:00:00Z',

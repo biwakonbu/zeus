@@ -1,7 +1,7 @@
 id: act-021
 title: "ユースケース図表示フロー"
 description: "ダッシュボードでユースケース図を表示する処理フロー"
-usecase_id: uc-c81d3119
+usecase_id: uc-visualize
 status: active
 
 nodes:

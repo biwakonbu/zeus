@@ -81,9 +81,9 @@ zeus add usecase "ユーザー登録" \
   -d "新規ユーザーをシステムに登録する"
 
 # UseCase 間の関係を定義
-zeus usecase link uc-001 --include uc-002
-zeus usecase link uc-001 --extend uc-003 --condition "2段階認証時" --extension-point "認証方式選択"
-zeus usecase link uc-001 --generalize uc-004
+zeus usecase link uc-setup --include uc-model
+zeus usecase link uc-setup --extend uc-overview --condition "2段階認証時" --extension-point "認証方式選択"
+zeus usecase link uc-setup --generalize uc-govern
 ```
 
 ## UML ダイアグラム表示
@@ -168,7 +168,7 @@ vision:
         - id: qual-001
           metrics: [...]
       usecases:
-        - id: uc-001
+        - id: uc-register
           title: "ユーザー登録"
           actors:
             - actor-001

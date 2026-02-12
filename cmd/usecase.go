@@ -37,8 +37,8 @@ var addActorCmd = &cobra.Command{
   --role    アクターの役割（primary: 主要アクター, secondary: 副次アクター）
 
 例:
-  zeus usecase add-actor uc-001 actor-001
-  zeus usecase add-actor uc-001 actor-002 --role secondary`,
+  zeus usecase add-actor uc-setup actor-001
+  zeus usecase add-actor uc-setup actor-002 --role secondary`,
 	Args: cobra.ExactArgs(2),
 	RunE: runAddActor,
 }
@@ -58,9 +58,9 @@ extend オプション:
   --extension-point   extend の拡張点
 
 例:
-  zeus usecase link uc-001 --include uc-002
-  zeus usecase link uc-001 --extend uc-003 --condition "オプション選択時" --extension-point "支払い方法選択"
-  zeus usecase link uc-001 --generalize uc-004`,
+  zeus usecase link uc-setup --include uc-model
+  zeus usecase link uc-setup --extend uc-overview --condition "オプション選択時" --extension-point "支払い方法選択"
+  zeus usecase link uc-setup --generalize uc-govern`,
 	Args: cobra.ExactArgs(1),
 	RunE: runLink,
 }

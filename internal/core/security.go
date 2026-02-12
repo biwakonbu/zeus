@@ -44,8 +44,8 @@ var idPatterns = map[string]*regexp.Regexp{
 	"task": regexp.MustCompile(`^task-[a-f0-9]{8}$`),
 	// UML UseCase エンティティ（UUID ベース）
 	"actor":     regexp.MustCompile(`^actor-[a-f0-9]{8}$`),
-	"usecase":   regexp.MustCompile(`^uc-[a-f0-9]{8}$`),
-	"subsystem": regexp.MustCompile(`^sub-[a-f0-9]{8}$`),
+	"usecase":   regexp.MustCompile(`^uc-([a-f0-9]{8}|[a-z][a-z0-9]*(-[a-z0-9]+)*)$`),
+	"subsystem": regexp.MustCompile(`^sub-([a-f0-9]{8}|[a-z][a-z0-9]*(-[a-z0-9]+)*)$`),
 	// UML Activity エンティティ（連番と UUID の両方を許可）
 	"activity": regexp.MustCompile(`^act-([0-9]{3}|[a-f0-9]{8})$`),
 }

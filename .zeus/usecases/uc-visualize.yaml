@@ -1,0 +1,16 @@
+id: uc-visualize
+title: プロジェクトを視覚的に俯瞰する
+objective_id: obj-009
+subsystem_id: sub-analysis
+description: |
+  統合グラフ・UML 図・レポートをダッシュボードや CLI で表示し、
+  プロジェクト全体像を視覚的に理解する。
+actors:
+  - actor_id: actor-d60b69f1
+    role: primary
+  - actor_id: actor-3cf68581
+    role: secondary
+status: active
+metadata:
+  created_at: "2026-02-12T00:00:00+09:00"
+  updated_at: "2026-02-12T00:00:00+09:00"

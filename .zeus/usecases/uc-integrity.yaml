@@ -1,0 +1,16 @@
+id: uc-integrity
+title: 構造の整合性を維持する
+objective_id: obj-011
+subsystem_id: sub-governance
+description: |
+  参照整合性チェック（doctor）を実行し、不整合を検出・修復して
+  プロジェクトデータの健全性を保つ。
+actors:
+  - actor_id: actor-248f9d78
+    role: primary
+  - actor_id: actor-7094b420
+    role: secondary
+status: active
+metadata:
+  created_at: "2026-02-12T00:00:00+09:00"
+  updated_at: "2026-02-12T00:00:00+09:00"

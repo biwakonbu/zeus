@@ -24,7 +24,7 @@
 			title: 'ログイン処理フロー',
 			status: 'active',
 			description: 'ユーザー認証の一連の処理',
-			usecase_id: 'uc-001',
+			usecase_id: 'uc-login',
 			nodes: [
 				{ id: 'n1', type: 'initial', name: '' },
 				{ id: 'n2', type: 'action', name: '認証情報入力' },
@@ -49,7 +49,7 @@
 			title: '注文処理フロー',
 			status: 'active',
 			description: '商品の注文から完了までの流れ',
-			usecase_id: 'uc-002',
+			usecase_id: 'uc-search',
 			nodes: [
 				{ id: 'n1', type: 'initial', name: '' },
 				{ id: 'n2', type: 'action', name: 'カート確認' },

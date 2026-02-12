@@ -1,7 +1,7 @@
 id: act-019
 title: "承認待ち一覧確認フロー"
 description: "zeus pending コマンドによる承認待ち一覧確認の処理フロー"
-usecase_id: uc-ff9892c9
+usecase_id: uc-govern
 status: active
 
 nodes:

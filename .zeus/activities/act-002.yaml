@@ -1,7 +1,7 @@
 id: act-002
 title: "タスク追加フロー"
 description: "zeus add task コマンドによるタスク追加の処理フロー"
-usecase_id: uc-07f66168
+usecase_id: uc-model
 status: active
 
 nodes:

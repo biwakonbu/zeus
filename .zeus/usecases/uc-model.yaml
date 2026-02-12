@@ -1,0 +1,18 @@
+id: uc-model
+title: プロジェクトの概念を構造化して記録する
+objective_id: obj-007
+subsystem_id: sub-core
+description: |
+  10 概念モデル（Vision, Objective, UseCase 等）と UML 要素（Actor, Activity 等）を
+  CLI で追加・変更・参照・削除し、プロジェクトの構造を形式化する。
+actors:
+  - actor_id: actor-d60b69f1
+    role: primary
+  - actor_id: actor-7094b420
+    role: primary
+  - actor_id: actor-e2d514d2
+    role: secondary
+status: active
+metadata:
+  created_at: "2026-02-12T00:00:00+09:00"
+  updated_at: "2026-02-12T00:00:00+09:00"

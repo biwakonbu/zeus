@@ -1,0 +1,16 @@
+id: uc-preserve
+title: 過去の状態を保全・復元する
+objective_id: obj-011
+subsystem_id: sub-governance
+description: |
+  スナップショットの作成・復元、操作履歴の参照により、
+  任意時点のプロジェクト状態に戻れる安全網を提供する。
+actors:
+  - actor_id: actor-d60b69f1
+    role: primary
+  - actor_id: actor-7094b420
+    role: secondary
+status: active
+metadata:
+  created_at: "2026-02-12T00:00:00+09:00"
+  updated_at: "2026-02-12T00:00:00+09:00"

@@ -209,7 +209,7 @@ func (l *LintChecker) CheckIDFormat(ctx context.Context) ([]*LintError, []*LintW
 		{"risk", "risks", "risk-NNN"},
 		{"assumption", "assumptions", "assum-NNN"},
 		{"quality", "quality", "qual-NNN"},
-		{"usecase", "usecases", "uc-XXXXXXXX"},
+		{"usecase", "usecases", "uc-XXXXXXXX or uc-<name>"},
 	}
 
 	for _, entity := range directoryEntities {
@@ -225,7 +225,7 @@ func (l *LintChecker) CheckIDFormat(ctx context.Context) ([]*LintError, []*LintW
 		expectedFmt string
 	}{
 		{"actor", "actors.yaml", "actor-XXXXXXXX"},
-		{"subsystem", "subsystems.yaml", "sub-XXXXXXXX"},
+		{"subsystem", "subsystems.yaml", "sub-XXXXXXXX or sub-<name>"},
 		{"constraint", "constraints.yaml", "const-NNN"},
 	}
 

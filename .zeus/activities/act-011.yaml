@@ -1,7 +1,7 @@
 id: act-011
 title: "スナップショット作成フロー"
 description: "zeus snapshot create コマンドによるスナップショット作成の処理フロー"
-usecase_id: uc-4bc5edbc
+usecase_id: uc-preserve
 status: active
 
 nodes:

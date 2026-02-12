@@ -27,7 +27,7 @@ func TestUnifiedGraphBuilder_WithActivities(t *testing.T) {
 func TestUnifiedGraphBuilder_WithUseCases(t *testing.T) {
 	builder := NewUnifiedGraphBuilder()
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active"},
 	}
 	result := builder.WithUseCases(usecases)
 	if result == nil {
@@ -64,11 +64,11 @@ func TestUnifiedGraphBuilder_Build_Empty(t *testing.T) {
 func TestUnifiedGraphBuilder_Build_WithActivities(t *testing.T) {
 	builder := NewUnifiedGraphBuilder()
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active"},
 	}
 	activities := []ActivityInfo{
-		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-001"},
-		{ID: "act-002", Title: "Activity 2", Status: "deprecated", UseCaseID: "uc-001"},
+		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-login"},
+		{ID: "act-002", Title: "Activity 2", Status: "deprecated", UseCaseID: "uc-login"},
 	}
 	graph := builder.WithUseCases(usecases).WithActivities(activities).Build()
 
@@ -100,10 +100,10 @@ func TestUnifiedGraphBuilder_Build_WithActivities(t *testing.T) {
 func TestUnifiedGraphBuilder_Build_WithUseCaseActivityRelation(t *testing.T) {
 	builder := NewUnifiedGraphBuilder()
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active"},
 	}
 	activities := []ActivityInfo{
-		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-001"},
+		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-login"},
 	}
 	graph := builder.WithUseCases(usecases).WithActivities(activities).Build()
 
@@ -114,7 +114,7 @@ func TestUnifiedGraphBuilder_Build_WithUseCaseActivityRelation(t *testing.T) {
 	// Activity -> UseCase の関係エッジがあるか確認（Activity が UseCase を implements）
 	foundEdge := false
 	for _, edge := range graph.Edges {
-		if edge.From == "act-001" && edge.To == "uc-001" {
+		if edge.From == "act-001" && edge.To == "uc-login" {
 			foundEdge = true
 			break
 		}
@@ -130,10 +130,10 @@ func TestUnifiedGraphBuilder_Build_ObjectiveAsGroup(t *testing.T) {
 		{ID: "obj-001", Title: "Objective 1", Status: "active"},
 	}
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
 	}
 	activities := []ActivityInfo{
-		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-001"},
+		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-login"},
 	}
 	graph := builder.WithObjectives(objectives).WithUseCases(usecases).WithActivities(activities).Build()
 
@@ -197,10 +197,10 @@ func TestUnifiedGraphBuilder_Build_NoCycleForFlatObjectives(t *testing.T) {
 func TestUnifiedGraphBuilder_Build_IsolatedNodes(t *testing.T) {
 	builder := NewUnifiedGraphBuilder()
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active"},
 	}
 	activities := []ActivityInfo{
-		{ID: "act-001", Title: "Connected", Status: "active", UseCaseID: "uc-001"},
+		{ID: "act-001", Title: "Connected", Status: "active", UseCaseID: "uc-login"},
 		{ID: "act-002", Title: "Isolated", Status: "active"}, // 孤立ノード
 	}
 	graph := builder.WithUseCases(usecases).WithActivities(activities).Build()
@@ -219,7 +219,7 @@ func TestUnifiedGraphBuilder_WithFilter_IncludeTypes(t *testing.T) {
 		{ID: "act-001", Title: "Activity 1", Status: "active"},
 	}
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active"},
 	}
 	filter := NewGraphFilter().WithIncludeTypes(EntityTypeActivity)
 	graph := builder.
@@ -281,14 +281,14 @@ func TestUnifiedGraphBuilder_WithFilter_Focus(t *testing.T) {
 		{ID: "obj-001", Title: "Objective 1", Status: "active"},
 	}
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
-		{ID: "uc-002", Title: "UseCase 2", Status: "active", ObjectiveID: "obj-001"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
+		{ID: "uc-search", Title: "UseCase 2", Status: "active", ObjectiveID: "obj-001"},
 	}
 	activities := []ActivityInfo{
-		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-001"},
+		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-login"},
 	}
 	// uc-001 から深さ 1 でフォーカス
-	filter := NewGraphFilter().WithFocus("uc-001", 1).WithHideUnrelated(true)
+	filter := NewGraphFilter().WithFocus("uc-login", 1).WithHideUnrelated(true)
 	graph := builder.
 		WithObjectives(objectives).
 		WithUseCases(usecases).
@@ -312,7 +312,7 @@ func TestUnifiedGraph_Stats(t *testing.T) {
 		{ID: "act-002", Title: "Activity 2", Status: "deprecated"},
 	}
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active"},
 	}
 	graph := builder.WithActivities(activities).WithUseCases(usecases).Build()
 
@@ -349,10 +349,10 @@ func TestUnifiedGraph_ToText(t *testing.T) {
 func TestUnifiedGraph_ToDot(t *testing.T) {
 	builder := NewUnifiedGraphBuilder()
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active"},
 	}
 	activities := []ActivityInfo{
-		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-001"},
+		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-login"},
 	}
 	graph := builder.WithUseCases(usecases).WithActivities(activities).Build()
 
@@ -371,10 +371,10 @@ func TestUnifiedGraph_ToDot(t *testing.T) {
 func TestUnifiedGraph_ToMermaid(t *testing.T) {
 	builder := NewUnifiedGraphBuilder()
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active"},
 	}
 	activities := []ActivityInfo{
-		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-001"},
+		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-login"},
 	}
 	graph := builder.WithUseCases(usecases).WithActivities(activities).Build()
 
@@ -394,13 +394,13 @@ func TestUnifiedGraphBuilder_ValidationErrors(t *testing.T) {
 	// Activity が UseCase に implements する有効なエッジの検証
 	builder := NewUnifiedGraphBuilder()
 	builder.
-		WithUseCases([]UseCaseInfo{{ID: "uc-001", Title: "UseCase 1", Status: "active"}}).
+		WithUseCases([]UseCaseInfo{{ID: "uc-login", Title: "UseCase 1", Status: "active"}}).
 		WithActivities([]ActivityInfo{
 			{
 				ID:        "act-001",
 				Title:     "Activity 1",
 				Status:    "active",
-				UseCaseID: "uc-001",
+				UseCaseID: "uc-login",
 			},
 		}).
 		Build()
@@ -414,12 +414,12 @@ func TestUnifiedGraphBuilder_WithFilter_IncludeLayersAndRelations(t *testing.T) 
 	builder := NewUnifiedGraphBuilder()
 	graph := builder.
 		WithObjectives([]ObjectiveInfo{{ID: "obj-001", Title: "Objective", Status: "active"}}).
-		WithUseCases([]UseCaseInfo{{ID: "uc-001", Title: "UseCase", Status: "active", ObjectiveID: "obj-001"}}).
+		WithUseCases([]UseCaseInfo{{ID: "uc-login", Title: "UseCase", Status: "active", ObjectiveID: "obj-001"}}).
 		WithActivities([]ActivityInfo{{
 			ID:        "act-001",
 			Title:     "Activity",
 			Status:    "active",
-			UseCaseID: "uc-001",
+			UseCaseID: "uc-login",
 		}}).
 		WithFilter(NewGraphFilter().
 			WithIncludeLayers(EdgeLayerStructural).
@@ -443,10 +443,10 @@ func TestUnifiedGraphBuilder_Build_DepthCalculation(t *testing.T) {
 		{ID: "obj-001", Title: "Objective 1", Status: "active"},
 	}
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
 	}
 	activities := []ActivityInfo{
-		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-001"},
+		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-login"},
 	}
 
 	graph := NewUnifiedGraphBuilder().
@@ -460,8 +460,8 @@ func TestUnifiedGraphBuilder_Build_DepthCalculation(t *testing.T) {
 		t.Error("obj-001 should not be a node (Objective is a group)")
 	}
 	// UseCase が深さ 0（ルート）
-	if graph.Nodes["uc-001"].StructuralDepth != 0 {
-		t.Errorf("expected uc-001 depth 0, got %d", graph.Nodes["uc-001"].StructuralDepth)
+	if graph.Nodes["uc-login"].StructuralDepth != 0 {
+		t.Errorf("expected uc-001 depth 0, got %d", graph.Nodes["uc-login"].StructuralDepth)
 	}
 	// Activity が深さ 1
 	if graph.Nodes["act-001"].StructuralDepth != 1 {
@@ -476,7 +476,7 @@ func TestUnifiedGraphBuilder_Build_DepthWithUseCase(t *testing.T) {
 		{ID: "obj-001", Title: "Objective 1", Status: "active"},
 	}
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
 	}
 
 	graph := NewUnifiedGraphBuilder().
@@ -489,8 +489,8 @@ func TestUnifiedGraphBuilder_Build_DepthWithUseCase(t *testing.T) {
 		t.Error("obj-001 should not be a node (Objective is a group)")
 	}
 	// UseCase が深さ 0（ルート）
-	if graph.Nodes["uc-001"].StructuralDepth != 0 {
-		t.Errorf("expected uc-001 depth 0, got %d", graph.Nodes["uc-001"].StructuralDepth)
+	if graph.Nodes["uc-login"].StructuralDepth != 0 {
+		t.Errorf("expected uc-001 depth 0, got %d", graph.Nodes["uc-login"].StructuralDepth)
 	}
 }
 
@@ -501,12 +501,12 @@ func TestUnifiedGraphBuilder_Build_DepthWithMultipleActivities(t *testing.T) {
 		{ID: "obj-001", Title: "Objective 1", Status: "active"},
 	}
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
 	}
 	activities := []ActivityInfo{
-		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-001"},
-		{ID: "act-002", Title: "Activity 2", Status: "active", UseCaseID: "uc-001"},
-		{ID: "act-003", Title: "Activity 3", Status: "active", UseCaseID: "uc-001"},
+		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-login"},
+		{ID: "act-002", Title: "Activity 2", Status: "active", UseCaseID: "uc-login"},
+		{ID: "act-003", Title: "Activity 3", Status: "active", UseCaseID: "uc-login"},
 	}
 
 	graph := NewUnifiedGraphBuilder().
@@ -520,8 +520,8 @@ func TestUnifiedGraphBuilder_Build_DepthWithMultipleActivities(t *testing.T) {
 		t.Error("obj-001 should not be a node (Objective is a group)")
 	}
 	// UseCase が深さ 0（ルート）
-	if graph.Nodes["uc-001"].StructuralDepth != 0 {
-		t.Errorf("expected uc-001 depth 0, got %d", graph.Nodes["uc-001"].StructuralDepth)
+	if graph.Nodes["uc-login"].StructuralDepth != 0 {
+		t.Errorf("expected uc-001 depth 0, got %d", graph.Nodes["uc-login"].StructuralDepth)
 	}
 	// Activity 1 が深さ 1（UseCase の子）
 	if graph.Nodes["act-001"].StructuralDepth != 1 {
@@ -583,10 +583,10 @@ func TestUnifiedGraphBuilder_Build_GroupsWithUngroupedActivity(t *testing.T) {
 		{ID: "obj-001", Title: "Objective 1", Status: "active"},
 	}
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
 	}
 	activities := []ActivityInfo{
-		{ID: "act-001", Title: "Grouped Activity", Status: "active", UseCaseID: "uc-001"},
+		{ID: "act-001", Title: "Grouped Activity", Status: "active", UseCaseID: "uc-login"},
 		{ID: "act-002", Title: "Ungrouped Activity", Status: "active"}, // UseCase 未割当
 	}
 
@@ -627,12 +627,12 @@ func TestUnifiedGraphBuilder_Build_GroupFilter(t *testing.T) {
 		{ID: "obj-002", Title: "Objective 2", Status: "active"},
 	}
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
-		{ID: "uc-002", Title: "UseCase 2", Status: "active", ObjectiveID: "obj-002"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
+		{ID: "uc-search", Title: "UseCase 2", Status: "active", ObjectiveID: "obj-002"},
 	}
 	activities := []ActivityInfo{
-		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-001"},
-		{ID: "act-002", Title: "Activity 2", Status: "active", UseCaseID: "uc-002"},
+		{ID: "act-001", Title: "Activity 1", Status: "active", UseCaseID: "uc-login"},
+		{ID: "act-002", Title: "Activity 2", Status: "active", UseCaseID: "uc-search"},
 	}
 
 	filter := NewGraphFilter()
@@ -652,13 +652,13 @@ func TestUnifiedGraphBuilder_Build_GroupFilter(t *testing.T) {
 			t.Logf("  - %s", id)
 		}
 	}
-	if _, exists := graph.Nodes["uc-001"]; !exists {
+	if _, exists := graph.Nodes["uc-login"]; !exists {
 		t.Error("expected uc-001 in filtered result")
 	}
 	if _, exists := graph.Nodes["act-001"]; !exists {
 		t.Error("expected act-001 in filtered result")
 	}
-	if _, exists := graph.Nodes["uc-002"]; exists {
+	if _, exists := graph.Nodes["uc-search"]; exists {
 		t.Error("uc-002 should be filtered out")
 	}
 	if _, exists := graph.Nodes["act-002"]; exists {
@@ -673,7 +673,7 @@ func TestUnifiedGraphBuilder_Build_GroupStats(t *testing.T) {
 		{ID: "obj-002", Title: "Objective 2", Status: "active"},
 	}
 	usecases := []UseCaseInfo{
-		{ID: "uc-001", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
+		{ID: "uc-login", Title: "UseCase 1", Status: "active", ObjectiveID: "obj-001"},
 	}
 
 	graph := NewUnifiedGraphBuilder().

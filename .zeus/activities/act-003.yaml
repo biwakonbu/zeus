@@ -1,7 +1,7 @@
 id: act-003
 title: "診断実行フロー"
 description: "zeus doctor コマンドによるプロジェクト診断の処理フロー"
-usecase_id: uc-46419e15
+usecase_id: uc-integrity
 status: active
 
 nodes:

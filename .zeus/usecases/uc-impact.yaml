@@ -1,0 +1,15 @@
+id: uc-impact
+title: 変更の影響範囲を分析する
+objective_id: obj-009
+subsystem_id: sub-analysis
+description: |
+  依存関係グラフや親和性分析を使い、あるエンティティの変更が他にどう波及するかを事前に把握する。
+actors:
+  - actor_id: actor-d60b69f1
+    role: primary
+  - actor_id: actor-7094b420
+    role: primary
+status: active
+metadata:
+  created_at: "2026-02-12T00:00:00+09:00"
+  updated_at: "2026-02-12T00:00:00+09:00"
