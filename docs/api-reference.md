@@ -4,7 +4,6 @@
 > - 文書種別: 正本
 > - 実装状態: 完了
 > - 正本ソース: `cmd/*.go`, `internal/dashboard/server.go`
-> - 最終検証日: `2026-02-07`
 > 正本判定: `docs/README.md` を参照。CLI は `cmd/*.go`、HTTP API は `internal/dashboard/server.go` を正本とする。
 
 ## 1. 概要
@@ -320,5 +319,3 @@ curl -N http://127.0.0.1:8080/api/events
 - CLI/API の公開契約変更時は本書を同時更新する。
 - 契約差異が疑われる場合は `cmd/*.go` と `internal/dashboard/server.go` を優先確認する。
 - 正本/履歴の分類は `docs/README.md` を参照する。
-
-*更新日: 2026-02-11（Objective親子関係廃止）*

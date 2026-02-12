@@ -4,7 +4,6 @@
 > - 文書種別: 正本
 > - 実装状態: 完了
 > - 正本ソース: `cmd/*.go`, `internal/dashboard/server.go`
-> - 最終検証日: `2026-02-07`
 > 正本判定: `docs/README.md` を参照。CLI は `cmd/*.go`、HTTP API は `internal/dashboard/server.go` を正本とする。
 
 ## 1. 設計目的
@@ -44,30 +43,33 @@ Zeus は、プロジェクト構造を CLI と Web ダッシュボードで一�
 
 ## 3.2 ワークフロー設計思想
 
-Zeus のドメインモデルは以下の3層で構成される:
+Zeus のドメインモデルは以下の4層で構成される:
 
 | 層 | エンティティ | 役割 | 性質 |
 |---|---|---|---|
-| 目標層 | Objective | なぜやるのか（達成すべき目標） | 測定可能な成果指標 |
+| ゴール層 | Vision | 何を実現するか（プロジェクトの到達点） | プロジェクトに唯一。success_criteria で測定 |
+| 目標層 | Objective | なぜやるのか（達成すべき目標） | 測定可能な成果指標。フラット構造 |
 | 抽象層 | UseCase | 何が求められているか（ワークフローの抽象） | 安定した本質的な求め |
 | 具体層 | Activity | どう実現するか（ワークフローの具体） | 状況依存の実現手段 |
 
-設計の順序: **抽象（UseCase）を確定 -> 具体（Activity）に降りる**
+設計の順序: **Vision を策定 → Objective を定義 → UseCase を確定 → Activity に降りる**
 
-- **UseCase** はワークフローの抽象表現。本質的な「求め」であり、状況が変わっても安定する
-- **Activity** はワークフローの具体表現。状況によって最適解が変わる実装詳細
-- **Objective** は機能ではなく「達成すべき目標」。UseCase は `objective_id` で Objective に所属し、Unified Graph ではグループ領域として可視化される
+- **Vision** はプロジェクトの到達点。`success_criteria` で達成を測定する。プロジェクトに1つだけ存在する
+- **Objective** は Vision を達成するための測定可能な成果指標。機能ではなく「成果」を定義する。フラット構造であり親子階層を持たない
+- **UseCase** はワークフローの抽象表現。本質的な「求め」であり、状況が変わっても安定する。`objective_id` で Objective に必ず所属する
+- **Activity** はワークフローの具体表現。状況によって最適解が変わる実装詳細。`usecase_id` で UseCase に任意で紐付く
 
 Objective の例:
-- OK: 「ユーザー離脱率を30%削減する」「セキュリティインシデントをゼロにする」
+- OK: 「全ての概念操作をCLI一本で完結できる」「AIが人間の判断を補強し見落としを防ぐ」
 - NG: 「認証システムを実装する」（これは UseCase に相当する）
 
-Objective はフラット構造であり、親子階層を持たない。階層的な分解は UseCase -> Activity の抽象/具体軸で行う。
+階層的な分解は UseCase → Activity の抽象/具体軸で行う。Objective はグルーピングの単位であり、分解の軸ではない。
 
 補足:
 - Task は Activity に統合済み。
 - Activity は FlowMode（ノード/遷移を持つ図表現）で扱う。
 - Unified Graph は Activity と UseCase をノードとして可視化し、Objective はグループ領域として表示する。
+- Vision は単独管理（`vision.yaml`）。Objective からの直接参照は現行未実装だが、概念的には Vision → Objective の関係が存在する。
 
 ## 3.3 4要素関係（実装準拠）
 
@@ -79,11 +81,9 @@ flowchart LR
   O["Objective（グループ領域）"]:::objective
   U["UseCase"]:::usecase
   A["Activity"]:::activity
-  N["Vision は単独管理（Objective からの直接参照は未実装）"]:::note
-
   U -.->|"所属（必須: objective_id）"| O
   A ==>|"implements（任意: usecase_id）"| U
-  V -.-> N
+  V -.->|"概念的な関係（直接参照は未実装）"| O
 
   classDef vision fill:#FFD54F,stroke:#333,color:#111;
   classDef objective fill:#66BB6A,stroke:#333,color:#111;
@@ -92,7 +92,7 @@ flowchart LR
   classDef note fill:#ECEFF1,stroke:#607D8B,color:#111;
 ```
 
-Objective はグラフのノードではなく、所属する UseCase/Activity を包含するグループ領域として表示される。UseCase の `objective_id` がグループ分類に使用される。
+Vision は単独管理（`vision.yaml`）であり、Objective からの直接参照は現行未実装。概念的には Vision → Objective の関係が存在する。Objective はグラフのノードではなく、所属する UseCase/Activity を包含するグループ領域として表示される。UseCase の `objective_id` がグループ分類に使用される。
 
 | From | To | 関係 | 必須性 | 根拠フィールド |
 |---|---|---|---|---|
@@ -176,28 +176,7 @@ Objective はグラフのノードではなく、所属する UseCase/Activity �
 2. `SSEBroadcaster` がクライアントを管理。
 3. `status` / `graph` / `approval` イベントを配信。
 
-## 7. フェーズ定義（矛盾防止）
-
-## 7.1 機能フェーズ
-
-| フェーズ | 状態 | 根拠 |
-|---|---|---|
-| Phase 1: 基本CLI | 完了 | `cmd/init.go` ほか |
-| Phase 2: 承認/履歴 | 完了 | `cmd/pending.go`, `cmd/snapshot.go` |
-| Phase 3: AI支援 | 完了 | `cmd/suggest.go`, `cmd/apply.go`, `cmd/explain.go` |
-| Phase 4: 分析 | 完了 | `cmd/graph.go`, `cmd/report.go` |
-| Phase 5: ダッシュボード | 完了 | `cmd/dashboard.go`, `internal/dashboard/server.go` |
-| Phase 7: Affinity | 完了 | `internal/dashboard/handlers_affinity.go` |
-
-## 7.2 外部連携フェーズ
-
-| 項目 | 状態 | 備考 |
-|---|---|---|
-| Git自動連携 | 未実装 | リポジトリ操作は手動 |
-| Slack/Email 通知 | 未実装 | SSE/CLI による確認 |
-| 認証・認可 | 未実装 | ローカルバインド運用を前提 |
-
-## 8. 非機能要件
+## 7. 非機能要件
 
 | 項目 | 現行設計 |
 |---|---|
@@ -206,18 +185,16 @@ Objective はグラフのノードではなく、所属する UseCase/Activity �
 | 可観測性 | `doctor`, `status`, `history`, API統計 |
 | 可搬性 | Go 単体バイナリ + YAML |
 
-## 9. 変更管理
+## 8. 変更管理
 
 - 公開 CLI 追加/変更時: `cmd/*.go` 変更後に `docs/api-reference.md` を更新。
 - 公開 API 追加/変更時: `internal/dashboard/server.go` と各 handler 変更後に `docs/api-reference.md` を更新。
 - 正本/履歴分類変更時: `docs/README.md` を更新。
 
-## 10. 関連文書
+## 9. 関連文書
 
 - 正本入口: `docs/README.md`
 - 運用手順: `docs/operations-manual.md`
 - API 契約: `docs/api-reference.md`
 - 利用手順: `docs/user-guide.md`
 - 開発要約: `CLAUDE.md`
-
-*更新日: 2026-02-11（Objective親子関係廃止・設計思想明文化）*

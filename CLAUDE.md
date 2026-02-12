@@ -15,6 +15,17 @@ Zeus は「神の視点」でプロジェクト構造を扱う AI 駆動 CLI/ダ
 - Frontend: SvelteKit + TypeScript + PixiJS
 - 配信: REST API + SSE
 
+## ドメインモデル（4層階層）
+
+| 層 | エンティティ | 役割 | 参照 |
+|---|---|---|---|
+| ゴール | Vision（単一） | 実現するべきゴール | `vision.yaml` |
+| 目標 | Objective（フラット） | 測定可能な成果目標 | `objectives/obj-*.yaml` |
+| 抽象 | UseCase | 本質的な求め（objective_id 必須） | `usecases/uc-*.yaml` |
+| 具体 | Activity | 実現手段（usecase_id 任意） | `activities/act-*.yaml` |
+
+補助エンティティ: Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality, Actor, Subsystem
+
 ## ドキュメント導線
 
 - 正本: `docs/operations-manual.md`, `docs/system-design.md`, `docs/api-reference.md`, `docs/user-guide.md`
@@ -93,5 +104,3 @@ zeus usecase link <usecase-id> --include|--extend|--generalize ...
 - Git 自動連携
 - Slack/Email 通知
 - 認証・認可（ローカルバインド前提運用）
-
-*更新日: 2026-02-12（エージェント/スキル同期）*

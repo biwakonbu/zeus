@@ -4,12 +4,39 @@
 > - 文書種別: 正本
 > - 実装状態: 完了
 > - 正本ソース: `cmd/*.go`, `internal/dashboard/server.go`
-> - 最終検証日: `2026-02-07`
 > 現行仕様の正本入口: `docs/README.md`
 
 ## 1. Zeus とは
 
 Zeus は、YAML ベースでプロジェクト構造を管理する CLI + Web ダッシュボードです。Activity、UseCase、Objective を統合的に可視化し、日次運用と設計レビューを支援します。
+
+## 1.1 4層階層モデル
+
+Zeus は以下の4層でプロジェクトを構造化します:
+
+1. **Vision**: 実現するべきゴール（プロジェクトに1つ）
+2. **Objective**: Vision を達成するための測定可能な目標（フラット構造）
+3. **UseCase**: Objective を達成するために必要な本質的な要求（`objective_id` 必須）
+4. **Activity**: UseCase を実現するための具体的な手順・フロー図（`usecase_id` 任意）
+
+設計の順序: **Vision → Objective → UseCase → Activity**
+
+```
+Vision「神の視点によるプロジェクト管理」
+  ├── Objective「CLI一本で全操作を完結」
+  │     ├── UseCase「プロジェクトの概念を構造化して記録する」
+  │     │     └── Activity「プロジェクト初期化フロー」
+  │     └── UseCase「構造の健全性を維持する」
+  │           └── Activity「参照整合性チェックフロー」
+  └── Objective「AIが人間の判断を補強し見落としを防ぐ」
+        └── UseCase「次に取り組むべきことを提案する」
+              └── Activity「提案生成フロー」
+```
+
+Objective は「機能」ではなく「測定可能な成果指標」として定義します。
+「認証システム」のような機能名は UseCase に相当します。
+
+補助エンティティ: Consideration, Decision, Problem, Risk, Assumption, Constraint, Quality, Actor, Subsystem
 
 ## 2. はじめ方
 
@@ -206,5 +233,3 @@ zeus list objectives
 - 設計: `docs/system-design.md`
 - CLI/API 契約: `docs/api-reference.md`
 - 開発要約: `CLAUDE.md`
-
-*更新日: 2026-02-10（Deliverable削除・SimpleMode廃止対応）*
