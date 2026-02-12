@@ -7,9 +7,10 @@
 		UseCaseDiagramResponse,
 		ActorItem,
 		UseCaseItem,
-		SubsystemItem
+		SubsystemItem,
+		Objective
 	} from '$lib/types/api';
-	import { fetchUseCaseDiagram, fetchSubsystems, fetchActivities } from '$lib/api/client';
+	import { fetchUseCaseDiagram, fetchSubsystems, fetchActivities, fetchObjectives } from '$lib/api/client';
 	import { Icon, EmptyState, OverlayPanel } from '$lib/components/ui';
 	import { UseCaseEngine, type UseCaseEngineData } from './engine/UseCaseEngine';
 	import UseCaseListPanel from './UseCaseListPanel.svelte';
@@ -48,7 +49,7 @@
 	let selectedActorId: string | null = $state(null);
 	let selectedUseCaseId: string | null = $state(null);
 
-	// 選択されたエンティティ
+	// 選択されたエンティティ（フィルタ前の全データから検索）
 	const selectedActor = $derived.by((): ActorItem | null => {
 		if (!selectedActorId || !data) return null;
 		return data.actors.find((a: ActorItem) => a.id === selectedActorId) ?? null;
@@ -91,25 +92,64 @@
 	let canvasContainer: HTMLDivElement | null = $state(null);
 	let currentZoom = $state(1.0);
 
+	// Objective データ（スコーピング用）
+	let objectives: Objective[] = $state([]);
+	let selectedObjectiveId: string | null = $state(null);
+
 	// サブシステムデータ
 	let subsystems: SubsystemItem[] = $state([]);
 
 	// 直接取得した Activity データ（props からのフォールバック対応）
 	let fetchedActivities: ActivityItem[] = $state([]);
 
+	// 選択中の Objective
+	const selectedObjective = $derived.by((): Objective | null => {
+		if (!selectedObjectiveId) return null;
+		return objectives.find((o) => o.id === selectedObjectiveId) ?? null;
+	});
+
+	// Objective でフィルタリングされた図データ
+	const filteredDiagramData = $derived.by((): UseCaseDiagramResponse | null => {
+		if (!data) return null;
+		if (!selectedObjectiveId) return data; // 「全て」モード
+
+		const filteredUseCases = data.usecases.filter(
+			(uc) => uc.objective_id === selectedObjectiveId
+		);
+
+		// フィルタ済み UseCase に参照される Actor のみ
+		const referencedActorIds = new Set<string>();
+		for (const uc of filteredUseCases) {
+			for (const ref of uc.actors) {
+				referencedActorIds.add(ref.actor_id);
+			}
+		}
+		const filteredActors = data.actors.filter((a) => referencedActorIds.has(a.id));
+
+		return {
+			actors: filteredActors,
+			usecases: filteredUseCases,
+			boundary: selectedObjective?.title || data.boundary,
+			mermaid: ''
+		};
+	});
+
 	// データ取得（ユースケース図、サブシステム、Activity を並列取得）
 	async function loadData() {
 		loading = true;
 		error = null;
 		try {
-			const [diagramData, subsystemsResponse, activitiesResponse] = await Promise.all([
-				fetchUseCaseDiagram(boundary || undefined),
-				fetchSubsystems(),
-				fetchActivities()
-			]);
+			const [diagramData, subsystemsResponse, activitiesResponse, objectivesResponse] =
+				await Promise.all([
+					fetchUseCaseDiagram(boundary || undefined),
+					fetchSubsystems(),
+					fetchActivities(),
+					fetchObjectives()
+				]);
 			data = diagramData;
 			subsystems = subsystemsResponse.subsystems || [];
 			fetchedActivities = activitiesResponse.activities || [];
+			objectives = objectivesResponse.objectives || [];
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'データの取得に失敗しました';
 		} finally {
@@ -296,6 +336,12 @@
 		return colors[status] ?? 'var(--text-secondary)';
 	}
 
+	// Objective 切り替え
+	function handleObjectiveChange(objectiveId: string | null) {
+		selectedObjectiveId = objectiveId;
+		clearAllSelection();
+	}
+
 	// ESC キーで段階的に解除
 	// 1. 選択/フィルタがアクティブ → 解除
 	// 2. 詳細パネルが開いていれば閉じる
@@ -324,20 +370,10 @@
 			onZoomIn: handleZoomIn,
 			onZoomOut: handleZoomOut,
 			onZoomReset: handleZoomReset,
-			onToggleListPanel: toggleListPanel
+			onToggleListPanel: toggleListPanel,
+			onObjectiveChange: handleObjectiveChange
 		});
 		callbacksRegistered = true;
-	}
-
-	// Store へのデータ同期
-	function syncStoreData(): void {
-		updateUseCaseViewState({
-			zoom: currentZoom,
-			boundary: data?.boundary || 'System',
-			actorCount: data?.actors.length || 0,
-			usecaseCount: data?.usecases.length || 0,
-			showListPanel
-		});
 	}
 
 	onMount(() => {
@@ -366,7 +402,7 @@
 		}
 	});
 
-	// データ設定 Effect（エンジン初期化後、data または subsystems が変更されたら）
+	// データ設定 Effect（エンジン初期化後、filteredDiagramData または subsystems が変更されたら）
 	// 選択状態の反映は選択同期 Effect に任せる
 	// 注意: この Effect は選択同期 Effect より先に定義する必要がある
 	//       Svelte 5 では Effect は定義順に実行されるため、
@@ -375,7 +411,7 @@
 	//       ズーム操作での $effect 再実行（フルリビルド）を防止する
 	$effect(() => {
 		const ready = engineReady;
-		const currentData = data;
+		const currentData = filteredDiagramData;
 		const currentSubsystems = subsystems;
 		if (!ready || !engine || !currentData) return;
 
@@ -383,17 +419,21 @@
 		engine.setData(engineData);
 
 		// pendingNavigation は依存に含めない（遷移中の "一瞬の全表示" を避ける）
-		// ナビゲーション中は showAll() をスキップ（ナビゲーション Effect に任せる）
+		// ナビゲーション中または選択中は showAll() をスキップ（各 Effect に委譲）
 		const nav = get(pendingNavigation);
 		if (!nav || nav.view !== 'usecase') {
-			engine.showAll();
+			if (!selectedUseCaseId && !selectedActorId) {
+				engine.showAll();
+			}
 		}
 
 		// データ設定後に store のデータ部分を同期（コールバック以外）
 		updateUseCaseViewState({
 			boundary: currentData.boundary || 'System',
 			actorCount: currentData.actors.length || 0,
-			usecaseCount: currentData.usecases.length || 0
+			usecaseCount: currentData.usecases.length || 0,
+			selectedObjectiveId,
+			objectiveOptions: objectives.map((o) => ({ id: o.id, title: o.title }))
 		});
 	});
 
@@ -440,21 +480,29 @@
 		const nav = $pendingNavigation;
 		const ready = engineReady;
 		const currentData = data;
-		if (!nav || nav.view !== 'usecase' || !ready || !engine || !currentData) return;
+		if (!nav || nav.view !== 'usecase' || !ready || !currentData) return;
 
-		if (nav.entityType === 'usecase' && nav.entityId) {
-			// UseCase を選択
+		if (nav.entityType === 'objective' && nav.entityId) {
+			// Objective スコープ設定
+			selectedObjectiveId = nav.entityId;
+			clearAllSelection();
+			clearPendingNavigation();
+		} else if (nav.entityType === 'usecase' && nav.entityId) {
+			// UseCase を選択（対応する Objective スコープも自動設定）
 			const usecase = currentData.usecases.find((u: UseCaseItem) => u.id === nav.entityId);
 			if (usecase) {
+				if (usecase.objective_id) {
+					selectedObjectiveId = usecase.objective_id;
+				}
 				selectedUseCaseId = usecase.id;
 				selectedActorId = null;
 				showDetailPanel = true;
-				engine.selectUseCase(usecase.id);
+				engine?.selectUseCase(usecase.id);
 				onUseCaseSelect?.(usecase);
 			} else {
 				clearAllSelection();
-				engine.clearSelectionVisual();
-				engine.showAll();
+				engine?.clearSelectionVisual();
+				engine?.showAll();
 			}
 			clearPendingNavigation();
 		} else if (nav.entityType === 'actor' && nav.entityId) {
@@ -464,12 +512,12 @@
 				selectedActorId = actor.id;
 				selectedUseCaseId = null;
 				showDetailPanel = true;
-				engine.selectActor(actor.id);
+				engine?.selectActor(actor.id);
 				onActorSelect?.(actor);
 			} else {
 				clearAllSelection();
-				engine.clearSelectionVisual();
-				engine.showAll();
+				engine?.clearSelectionVisual();
+				engine?.showAll();
 			}
 			clearPendingNavigation();
 		} else {
@@ -505,9 +553,20 @@
 			icon="ClipboardList"
 		/>
 	{:else}
-		<!-- フルスクリーンキャンバス -->
+		<!-- フルスクリーンキャンバス（常にマウント: WebGL コンテキスト維持） -->
 		<div class="canvas-area">
 			<div class="canvas-wrapper" bind:this={canvasContainer}></div>
+
+			<!-- Objective フィルタで UseCase 0 件の場合はオーバーレイで EmptyState 表示 -->
+			{#if filteredDiagramData && filteredDiagramData.usecases.length === 0 && selectedObjectiveId}
+				<div class="empty-overlay">
+					<EmptyState
+						title="この Objective に UseCase がありません"
+						description="別の Objective を選択するか、UseCase を追加してください"
+						icon="ClipboardList"
+					/>
+				</div>
+			{/if}
 
 			<!-- リストパネル（オーバーレイ） -->
 			{#if showListPanel}
@@ -519,8 +578,8 @@
 					onClose={closeListPanel}
 				>
 					<UseCaseListPanel
-						actors={data.actors}
-						usecases={data.usecases}
+						actors={filteredDiagramData?.actors ?? data.actors}
+						usecases={filteredDiagramData?.usecases ?? data.usecases}
 						{selectedActorId}
 						{selectedUseCaseId}
 						onActorSelect={handleActorClick}
@@ -630,6 +689,17 @@
 
 	.retry-button:hover {
 		background: var(--bg-hover);
+	}
+
+	/* Objective フィルタ時の EmptyState オーバーレイ */
+	.empty-overlay {
+		position: absolute;
+		inset: 0;
+		z-index: 10;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--bg-primary);
 	}
 
 	/* フルスクリーンキャンバス */

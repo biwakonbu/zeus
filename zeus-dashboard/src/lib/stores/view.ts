@@ -40,6 +40,9 @@ export interface UseCaseViewState {
 	boundary: string;
 	actorCount: number;
 	usecaseCount: number;
+	// Objective スコーピング
+	selectedObjectiveId: string | null;
+	objectiveOptions: Array<{ id: string; title: string }>;
 	// リストパネル表示状態
 	showListPanel: boolean;
 	// コールバック（エンジンへの操作）
@@ -47,6 +50,7 @@ export interface UseCaseViewState {
 	onZoomOut?: () => void;
 	onZoomReset?: () => void;
 	onToggleListPanel?: () => void;
+	onObjectiveChange?: (id: string | null) => void;
 }
 
 const defaultUseCaseViewState: UseCaseViewState = {
@@ -54,6 +58,8 @@ const defaultUseCaseViewState: UseCaseViewState = {
 	boundary: 'System',
 	actorCount: 0,
 	usecaseCount: 0,
+	selectedObjectiveId: null,
+	objectiveOptions: [],
 	showListPanel: true
 };
 

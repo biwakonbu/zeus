@@ -68,6 +68,19 @@
 		</div>
 	{/if}
 
+	<!-- UseCase 図を表示 -->
+	{#if relatedUseCases.length > 0}
+		<div class="detail-section">
+			<button
+				class="usecase-diagram-link"
+				onclick={() => navigateToEntity('usecase', 'objective', objective.id)}
+			>
+				<Icon name="ClipboardList" size={14} />
+				<span>UseCase 図を表示</span>
+			</button>
+		</div>
+	{/if}
+
 	<!-- 関連 UseCase -->
 	<div class="detail-section">
 		<h4 class="section-label">UseCase ({relatedUseCases.length})</h4>
@@ -200,6 +213,28 @@
 		background: var(--bg-secondary);
 		color: var(--text-muted);
 		border-radius: 8px;
+	}
+
+	.usecase-diagram-link {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		width: 100%;
+		padding: 8px 12px;
+		background: rgba(245, 158, 11, 0.1);
+		border: 1px solid rgba(245, 158, 11, 0.3);
+		border-radius: 6px;
+		color: var(--accent-primary);
+		font-family: inherit;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.usecase-diagram-link:hover {
+		background: rgba(245, 158, 11, 0.2);
+		border-color: var(--accent-primary);
 	}
 
 	.usecase-list {

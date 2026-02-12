@@ -1012,16 +1012,8 @@
 		const altKey = isAltKeyPressed || nativeEvent?.altKey;
 
 		if (selectedGroupId === groupData.id) {
-			// 再クリック → 選択解除
-			if (altKey) {
-				// Alt+再クリック → フィルター解除 + レイアウト復元
-				deselectGroup();
-			} else {
-				// 通常再クリック → 選択解除のみ
-				selectedGroupId = null;
-				updateGroupSelectionState();
-				updateGroupVisibility();
-			}
+			// 再クリック → 選択解除（Alt の有無に関わらず、フィルタがあれば解除）
+			deselectGroup();
 			showDetailPanel = false;
 		} else {
 			if (altKey) {
@@ -1029,11 +1021,17 @@
 				selectGroup(groupData.id);
 			} else {
 				// 通常クリック → 選択 + DetailPanel のみ（フィルタなし）
+				// フィルタ中の場合は先に解除
+				if (filterManager?.getCriteria().groupIds?.length) {
+					filterManager?.clearCriterion('groupIds');
+					clearGroupFilterLayout();
+				}
 				selectedGroupId = groupData.id;
 				if (selectionManager) selectionManager.clearSelection();
 				onTaskSelect?.(null);
 				showDetailPanel = true;
 				updateGroupSelectionState();
+				updateGroupVisibility();
 			}
 		}
 	}
@@ -1126,10 +1124,10 @@
 			}
 
 			originalPositions = null;
-		}
 
-		// ビューをリセット
-		fitToView();
+			// レイアウト復元時のみビューをリセット
+			fitToView();
+		}
 	}
 
 	/**
@@ -1786,13 +1784,23 @@
 	 * フィルター: グループトグル
 	 */
 	function handleGroupToggle(groupId: string): void {
-		filterManager?.toggleGroup(groupId);
+		if (selectedGroupId === groupId) {
+			deselectGroup();
+			showDetailPanel = false;
+		} else {
+			selectGroup(groupId);
+		}
 	}
 
 	/**
 	 * フィルター: クリア
 	 */
 	function handleFilterClear(): void {
+		// グループ選択中ならレイアウト・境界表示もリセット
+		if (selectedGroupId) {
+			deselectGroup();
+			showDetailPanel = false;
+		}
 		filterManager?.clearFilter();
 	}
 

@@ -126,11 +126,25 @@
 			<!-- UseCase ビュー専用コントロール -->
 			{#if $currentView === 'usecase'}
 				<div class="usecase-controls">
+					<!-- Objective セレクター -->
+					{#if $usecaseViewState.objectiveOptions.length > 0}
+						<select
+							class="objective-select"
+							value={$usecaseViewState.selectedObjectiveId ?? ''}
+							onchange={(e) => {
+								const val = e.currentTarget.value;
+								$usecaseViewState.onObjectiveChange?.(val || null);
+							}}
+						>
+							<option value="">All Objectives</option>
+							{#each $usecaseViewState.objectiveOptions as obj}
+								<option value={obj.id}>{obj.title}</option>
+							{/each}
+						</select>
+					{/if}
+
 					<!-- 情報バッジ -->
 					<div class="info-badge">
-						<Icon name="Target" size={14} />
-						<span>{$usecaseViewState.boundary || 'System'}</span>
-						<span class="badge-separator">|</span>
 						<span>{$usecaseViewState.actorCount}A / {$usecaseViewState.usecaseCount}UC</span>
 					</div>
 
@@ -453,6 +467,35 @@
 
 	.control-btn.filter-active:hover {
 		background: rgba(238, 68, 68, 0.3);
+	}
+
+	/* Objective セレクター */
+	.objective-select {
+		appearance: none;
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-metal);
+		border-radius: 4px;
+		color: var(--text-primary);
+		font-size: 0.75rem;
+		padding: 4px 24px 4px 8px;
+		cursor: pointer;
+		max-width: 200px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+		background-repeat: no-repeat;
+		background-position: right 6px center;
+	}
+
+	.objective-select:hover {
+		border-color: var(--accent-primary);
+	}
+
+	.objective-select:focus {
+		outline: none;
+		border-color: var(--accent-primary);
+		box-shadow: 0 0 0 1px var(--accent-primary);
 	}
 
 	/* 接続状態 */
